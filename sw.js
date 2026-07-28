@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.7.2'; // resolve bug in UI gaugues in Helm, enhanced time skip, realistic fuel usage
+const VERSION = '0.7.3'; // fixed bug in depth gauge, added campaign ending message
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
