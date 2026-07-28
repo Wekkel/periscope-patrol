@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.7.1'; // resolve bug in UI gaugues in Helm
+const VERSION = '0.7.2'; // resolve bug in UI gaugues in Helm, enhanced time skip, realistic fuel usage
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
