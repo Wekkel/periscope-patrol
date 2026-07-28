@@ -174,6 +174,39 @@
            is directly under the fingertip. It is now a chip pinned to the top
            or the bottom of the screen depending on which half your hand is
            in — the finger cannot be in both
+         · THE NEEDLE WOULD NOT MOVE. The relative drag wrote the SNAPPED
+           value back into its own accumulator, so once the needle caught a
+           detent every following frame started again from that detent — and
+           one frame of a normal swipe moves about 2 ft against a 3.3 ft
+           detent window, so it could never climb out. The thumb kept
+           sliding, the phone kept buzzing, and nothing happened. The
+           accumulator now stays raw and snapping happens only on the way
+           out to the boat; detents also hold 45% wider once you are in one,
+           so the needle cannot chatter on the boundary
+         · the depth dial's fine/deep rescale was declared and never
+           computed, so it was stuck on the 200 ft scale and anything ordered
+           deeper pinned the needle at the stop. It now rescales with
+           hysteresis, as designed
+
+       ── fuel, transit, and shots that cannot reach ───────────────────
+         · FUEL burned linearly with revolutions and emptied the bunkers in
+           twelve and a half hours of cruising — you could not cross a patrol
+           area without limping home. A Gato carried 94,000 gallons and had a
+           designed radius of 11,000 miles at 10 knots. Power goes as the
+           cube of speed, so that is the law now, scaled to keep the decision
+           without the leash: 169 h and ~2,300 nm at cruise, 33 h and ~550 nm
+           at flank. Fast transit is expensive, not forbidden. Warnings at
+           25% and 12%
+         · TRANSIT is no longer capped at eight hours. "Until something
+           happens" runs with no clock at all and stops on the first event —
+           and the edge of the patrol area and the fuel falling under 20% are
+           now events in their own right
+         · TORPEDO RANGE is checked before the fish leaves the tube, against
+           the run to the INTERCEPT rather than the present range, because a
+           target drawing away is further than she looks: at 3 nm a 10-knot
+           target opening from you makes it a 3.8 nm run. A shot that cannot
+           reach is refused with both numbers in yards; a shot inside 85% of
+           the run fires with a warning
 
        ── the bottom exists ────────────────────────────────────────────
          The bathymetry grid was a colour on the chart and nothing else —
@@ -1295,6 +1328,7 @@
           <button id="mTransit30">⏩ 30 min</button>
           <button id="mTransit2h">⏩ 2 hours</button>
           <button id="mTransit8h">⏩ 8 hours</button>
+          <button id="mTransitOpen">⏩⏩ Until something happens</button>
         </div>
         <div class="note">Runs the patrol ahead and stops the moment anything happens: a contact,
           aircraft, a signal from shore, damage, shoal water or a waypoint reached.</div>
@@ -1720,7 +1754,12 @@ class SimEngine{
       case'START_TRANSIT':{
         const t=this.state.time;
         if(sub.mode==='SUNK') break;
-        t.transitUntil=t.elapsedSeconds+(cmd.seconds||3600);
+        /* seconds:0 means "no clock" — she runs on until something actually
+           happens. The old eight-hour ceiling was arbitrary; a patrol can
+           spend a day and a half getting to its billet and there is nothing
+           to be gained by making the player press the button four times. */
+        t.transitOpen=!cmd.seconds;
+        t.transitUntil=cmd.seconds?t.elapsedSeconds+cmd.seconds:Infinity;
         t.transitFrom=t.elapsedSeconds;
         t.transitReason=null;
         this.snapshotWatch();
@@ -1728,7 +1767,7 @@ class SimEngine{
         break;}
       case'STOP_TRANSIT':{
         const t=this.state.time;
-        if(t.transitUntil){t.transitUntil=0;this.log('Transit ended.','warn');}
+        if(t.transitUntil){t.transitUntil=0;t.transitOpen=false;this.log('Transit ended.','warn');}
         break;}
       case'SET_TIME_SCALE':{
         const v=[0,1,2,4,8,16].includes(+cmd.scale)?+cmd.scale:1;
@@ -2191,6 +2230,24 @@ class SimEngine{
     if(doLog)this.log(`Tube ${id} (${t.pos}) flooded. Gyro ${t.gyroAngle.toFixed(1)}°.`);
   }
 
+  /* How far the fish actually has to swim: the target keeps moving while it
+     runs, so the intercept is further out than the present range whenever
+     she is opening. Solved by iteration — three passes is plenty. */
+  interceptRunNm(tdc,spec){
+    const r0=tdc.rangeNm||0;
+    const tv=(tdc.targetSpeedKnots||0), sv=spec.speedKnots||46;
+    // course 000 is a perfectly good course — do not let it test as falsy
+    if(!tv||tdc.targetCourse==null||tdc.bearing==null) return r0;
+    // component of the target's motion directly away from us
+    const away=Math.cos(degToRad(shortDelta(tdc.targetCourse,tdc.bearing)));
+    let run=r0;
+    for(let i=0;i<3;i++){
+      const t=run/knotsNmSec(sv)/3600;                 // hours of running
+      run=Math.max(0.05,r0+tv*away*t);
+    }
+    return run;
+  }
+
   fireTorpedo(id){
     const t=this.state.weapons.tubes.find(t=>t.id===id);
     const tdc=this.state.tdc; const sub=this.state.playerSub;
@@ -2200,6 +2257,19 @@ class SimEngine{
     if(sub.depthFeet>160){this.log('Too deep to fire.','warn');return;}
 
     const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||TORPEDO_SPECS['mk14fast'];
+    /* CAN SHE EVEN GET THERE? A torpedo has a finite run. The distance that
+       matters is not the range to the target now but the distance to the
+       intercept point, which is further whenever she is drawing away from
+       you — so work out the run and refuse the shot that cannot reach. */
+    if(tdc.rangeNm!=null){
+      const runNm=this.interceptRunNm(tdc,spec);
+      if(runNm>spec.maxRangeNm){
+        this.notify(`Tube ${id}: the run to the intercept is ${(runNm*2025).toFixed(0)} yd — the ${spec.name} only carries ${(spec.maxRangeNm*2025).toFixed(0)} yd. She would sink short. Close the range.`,'warn');
+        return;
+      }
+      if(runNm>spec.maxRangeNm*0.85)
+        this.notify(`Long shot — ${(runNm*2025).toFixed(0)} yd of a ${(spec.maxRangeNm*2025).toFixed(0)} yd run. Little margin if she zigs.`,'warn');
+    }
     const dudMode=DUD_MODES[tdc.dudMode]??1;
     const dudChance=spec.dudChanceBase*dudMode;
 
@@ -3315,9 +3385,22 @@ class SimEngine{
       // A flat battery and foul air are STATES, not events. The skipper is
       // told once; after that he knows, and the clock is his to run on with.
       batLow:s.playerSub.propulsion.battery<12,
-      airLow:s.playerSub.damage.oxygen<30
+      airLow:s.playerSub.damage.oxygen<30,
+      fuelLow:s.playerSub.propulsion.fuel<20
     };
   }
+  /* The chart has an edge, and running off it during an open-ended transit
+     would take the boat somewhere there is no sea floor, no traffic and no
+     way home. The bathymetry box is the chart, so that is the boundary. */
+  nearChartEdge(){
+    const B=Bathy.ensure(this.state.world.terrain);
+    if(!B) return false;
+    const p=this.state.playerSub.position;
+    const m=6;                                   // start warning six miles out
+    return p.xNm<B.x0+m || p.yNm<B.y0+m ||
+           p.xNm>B.x0+(B.nx-1)*B.cell-m || p.yNm>B.y0+(B.ny-1)*B.cell-m;
+  }
+
   transitInterrupt(){
     const s=this.state, w=s.time._watch;
     if(!w) return 'ok';
@@ -3332,6 +3415,8 @@ class SimEngine{
     if(s.playerSub.propulsion.battery<12&&!w.batLow) return 'the battery is low';
     if(s.playerSub.damage.oxygen<30&&!w.airLow) return 'the air is going bad';
     if(s.playerSub.inShallowWater) return 'shoal water ahead';
+    if(this.nearChartEdge()) return 'the edge of the patrol area';
+    if(s.playerSub.propulsion.fuel<20&&!w.fuelLow) return 'the fuel is running low';
     return null;
   }
 
@@ -3474,7 +3559,18 @@ class SimEngine{
     p.speedKnots=ms*rc*(sub.stealth.silentRunning?0.72:1)*me;
     const rl=p.actualRpm/450;
     if(p.engineMode==='DIESEL'){
-      p.fuel=clamp(p.fuel-rl*0.004*dt,0,100);
+      /* FUEL. The old rule burned linearly with revolutions and emptied the
+         bunkers in twelve and a half hours of cruising — you could not cross
+         a patrol area without limping home, which is nothing like a fleet
+         boat. A Gato carried 94,000 gallons and had a designed radius of
+         11,000 miles at 10 knots; she was away for six weeks.
+         Resistance goes as the square of speed and power as the cube, so
+         that is the law used here, scaled so a patrol is comfortable but
+         flank speed is a decision rather than a default:
+             ~0.6 %/h at a 10-knot cruise   → about 170 hours
+             ~3.1 %/h at flank              → about 32 hours
+         Fast transit is now what it should be: expensive, not forbidden. */
+      p.fuel=clamp(p.fuel-(0.08+Math.pow(rl,3)*3.0)*dt/3600,0,100);
       /* Four diesels, and the screws have first call on them. Whatever is left
          over goes to the generators — which is why a boat charges fastest
          loafing along on two engines and hardly at all at flank, and why the
@@ -3486,7 +3582,7 @@ class SimEngine{
       const chg=p.fuel>0?0.009*share*taper:0;
       if(chg>0&&p.battery<100){
         p.battery=clamp(p.battery+chg*dt,0,100);
-        p.fuel=clamp(p.fuel-share*0.0006*dt,0,100);   // the generators drink too
+        p.fuel=clamp(p.fuel-share*0.35*dt/3600,0,100);  // the generators drink too — ~1.4% for a full charge
       }
       p.chargeRate=chg;
       if(p.fuel<=0)p.speedKnots*=0.1;
@@ -3677,6 +3773,8 @@ class SimEngine{
     if(d.ballastDamage>0.5) W.push({level:'warn',text:'BALLAST DAMAGE'});
     if(sub.cannotHoldDepth) W.push({level:'critical',text:'WILL NOT HOLD DEPTH'});
     if(this.state.world.aaManned) W.push({level:'critical',text:'GUN CREW TOPSIDE — CANNOT DIVE'});
+    if(sub.propulsion.fuel<12) W.push({level:'critical',text:'FUEL LOW'});
+    else if(sub.propulsion.fuel<25) W.push({level:'warn',text:'FUEL 25%'});
     if(sub.inShallowWater) W.push({level:'warn',text:'SHALLOW WATER'});
     if(sub.groundingRisk&&!sub.inShallowWater) W.push({level:'critical',text:'TERRAIN COLLISION'});
     if(sub.bottomed) W.push({level:'warn',text:`ON THE BOTTOM${(sub.suction||0)>0.34?' — SETTLING IN':''}`});
@@ -7752,6 +7850,7 @@ class TouchCtrl{
     btn('mTransit30',()=>transit(1800));
     btn('mTransit2h',()=>transit(7200));
     btn('mTransit8h',()=>transit(28800));
+    btn('mTransitOpen',()=>transit(0));       // 0 = no clock, only events
     btn('transitStop',()=>D({type:'STOP_TRANSIT'}));
     btn('mClearPlot',()=>{D({type:'MAP_CLEAR_PLOT'});Toast.ok('Plot cleared — manual helm');});
     btn('mPortBtn',  ()=>D({type:'HEAD_TO_PORT'}));
@@ -8010,7 +8109,9 @@ class TouchCtrl{
     if(running){
       const done=T.elapsedSeconds-(T.transitFrom||0);
       const left=T.transitUntil-T.elapsedSeconds;
-      set('transitTxt',`⏩ TRANSIT — ${fmtTime(done)} run · ${fmtTime(left)} to go`);
+      set('transitTxt',isFinite(left)
+        ? `⏩ TRANSIT — ${fmtTime(done)} run · ${fmtTime(left)} to go`
+        : `⏩ TRANSIT — ${fmtTime(done)} run · until something happens`);
     }
 
     // top bar
@@ -9050,10 +9151,10 @@ class HelmGauges{
       max:this._dMax||200, unit:'FEET',
       ordered:sub.orderedDepthFeet, actual:sub.depthFeet,
       limit:[0,maxDepth], detents:[0,55,100,150,200,250].filter(d=>d<=maxDepth),
-      step:(this._dMax||200)<=200?[10,50]:[25,100],
+      step:(this._dMax||200)<=230?[10,50]:[25,100],
       send:v=>this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:Math.round(v)}),
       big:sub.depthFeet.toFixed(0), danger:sub.depthFeet>test,
-      legend:[(this._dMax||200)<=200?'FINE':'DEEP','FEET'],
+      legend:[(this._dMax||200)<=230?'FINE':'DEEP','FEET'],
       ctx:{seabed,test,crush,maxDepth,scope:55,bottomed:!!sub.bottomed},
       lines:(()=>{
         const gap=sub.orderedDepthFeet-sub.depthFeet, fpm=sub.verticalSpeedFps*60, out=[];
@@ -9112,6 +9213,25 @@ class HelmGauges{
     };
   }
 
+  /* Two gauges in one, as the real boat had: a fine dial for shallow work
+     and a deep one for everything else. Hysteresis so it cannot flutter,
+     and the change slides instead of jumping. `_dMax` was declared in the
+     spec and never actually computed — so the dial was stuck on the fine
+     scale and anything ordered past 200 ft pinned the needle at the stop
+     with nothing to show for further dragging. */
+  stepScale(dt){
+    const s=this.game.getSnapshot(), sub=s.playerSub;
+    const deepest=Math.max(sub.depthFeet,sub.orderedDepthFeet);
+    if(this._dFine===undefined) this._dFine=true;
+    if(this._dFine&&deepest>150) this._dFine=false;
+    if(!this._dFine&&deepest<120) this._dFine=true;
+    const seabed=sub.seabedFeet??3000;
+    const target=this._dFine?200
+      :Math.max(300,Math.ceil((Math.min(seabed,sub.damage.crushDepthFeet||420)+40)/50)*50);
+    this._dMax=this._dMax||200;
+    this._dMax=this._dMax+(target-this._dMax)*clamp(dt*4.5,0,1);
+  }
+
   /* ── shared mapping ───────────────────────────────────────────────── */
   a2v(G,a){
     const d=normDeg(a-G.start);
@@ -9125,11 +9245,14 @@ class HelmGauges{
     if(G.limit) val=clamp(val,G.limit[0],G.limit[1]);
     if(snap){
       const tol=G.wrap?2.4:G.max/60;
+      /* A detent you are already sitting in holds a little wider than one you
+         are approaching — otherwise the needle chatters on the boundary. */
       for(const [list,t] of [[G.detents||[],tol],[G.soft||[],tol*0.75]]){
         for(const d of list){
           if(G.limit&&(d<G.limit[0]||d>G.limit[1])) continue;
           const off=G.wrap?Math.abs(shortDelta(val,d)):Math.abs(val-d);
-          if(off<t){
+          const held=v.lastDet===d?t*1.45:t;
+          if(off<held){
             if(v.lastDet!==d){ buzz(12); v.flash=1; v.lastDet=d; }
             G.send(d); return d;
           }
@@ -9162,10 +9285,18 @@ class HelmGauges{
       else{
         const a=ang(p), d=shortDelta(a,v.drag.lastAng);
         v.drag.lastAng=a;
+        /* THE ACCUMULATOR MUST STAY RAW.
+           This used to read `acc = this.order(...)`, which writes the SNAPPED
+           value back. The consequence: once the needle caught a detent, every
+           following frame started again from the detent, and a frame of a
+           normal swipe moves about 2 ft against a 3.3 ft detent window — so
+           the value could never climb out. The thumb kept sliding, the phone
+           kept buzzing, and the needle sat still. Keep the true value here;
+           snap only on the way out to the boat. */
         const stepU=d/G.sweep*G.max*G.gain;
         v.drag.acc=G.wrap?normDeg(v.drag.acc+stepU)
                          :clamp(v.drag.acc+stepU,...(G.limit||[0,G.max]));
-        v.drag.acc=this.order(v,G,v.drag.acc);
+        this.order(v,G,v.drag.acc);
       }
       this.chipShow(this.spec(v.key),e.clientY);
       e.preventDefault(); e.stopPropagation();
@@ -9433,6 +9564,7 @@ class HelmGauges{
         const body=document.getElementById('tSheetBody');
         const key=`${this.host.clientWidth}x${(body&&body.clientHeight)||0}x${this.focus||''}`;
         if(key!==lastKey){ lastKey=key; this.size(); }
+        this.stepScale(dt);
         for(const v of this.views) this.draw(v,dt);
       }
       this.raf=requestAnimationFrame(loop);
