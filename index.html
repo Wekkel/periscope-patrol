@@ -208,6 +208,39 @@
            reach is refused with both numbers in yards; a shot inside 85% of
            the run fires with a warning
 
+       ── the needle really moves now ──────────────────────────────────
+         · shortDelta(from,to) returns to − from, and the drag handler had
+           the arguments the other way round. The finger's travel was
+           negated, so on the depth dial (0 ft at twelve o'clock, deeper
+           clockwise) dragging the natural way pushed the value DOWN into the
+           clamp at zero and nothing happened — it only answered when the
+           thumb went round backwards. The same slip had inverted three other
+           things: the "port/starboard N° to go" line, the relative bearing
+           to the target, and the direction the turn arc is drawn
+         · the drag step now lives in relStep(), which the tests drive — the
+           reason this survived two rounds is that every test called order()
+           directly and never went through the gesture
+
+       ── knowing where you are in the patrol ──────────────────────────
+         · when the last merchant is accounted for, the objective completing
+           is announced on screen with the rendezvous named, its range and
+           the course to steer, and a standing line in the warnings panel
+         · GOING ALONGSIDE is now a deliberate act rather than something you
+           could do by accident while passing: inside 1.5 nm, on the surface,
+           and HELD there for three minutes of ship's time, with the transfer
+           reported at a third and two thirds. Dive or drift off and it stops
+           and says so. A tender transfers fuel and torpedoes with hoses and
+           a crane; it is not a checkpoint you drive through
+         · "until something happens" is in all three time menus, not only on
+           the panel button
+         · the native <select> is gone from the touch shell. Android drew its
+           own full-screen system picker for it, which is white, enormous and
+           nothing to do with a 1943 control room. The select stays in the DOM
+           as the source of truth — every existing change handler goes on
+           working — behind a button of our own, with a compact popover in the
+           app's colours, a tick on the current choice and a rule between the
+           time scales and the skip actions
+
        ── the bottom exists ────────────────────────────────────────────
          The bathymetry grid was a colour on the chart and nothing else —
          she would dive to 300 ft in 90 ft of water and never notice. The
@@ -662,6 +695,36 @@
       border:1px solid var(--line);border-radius:8px;background:rgba(4,14,17,.7);}
     .op-note{font-size:10.5px;color:var(--dim);line-height:1.45;margin-top:2px;}
 
+    /* ══ IN-APP DROP-DOWNS ══════════════════════════════════════════════
+       A native <select> on Android opens a full-screen system picker: white,
+       enormous, and nothing to do with a 1943 control room. The select stays
+       in the DOM as the source of truth — every existing change handler goes
+       on working — but it is hidden behind a button of our own, and the list
+       is a compact popover in the app's own colours. */
+    .pk{position:relative;display:inline-flex;}
+    .pk > select{position:absolute;inset:0;opacity:0;pointer-events:none;}
+    .pk-btn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+      font:inherit;font-size:11px;color:var(--ink);padding:6px 9px;margin:0;
+      background:linear-gradient(180deg,#0d2229,#071216);
+      border:1px solid var(--line);border-radius:8px;min-height:36px;}
+    .pk-btn::after{content:'▾';color:var(--dim);font-size:10px;margin-left:1px;}
+    .pk-btn.open{border-color:var(--alert);color:var(--alert);}
+    #pkMenu{position:fixed;z-index:120;display:none;min-width:168px;max-width:min(84vw,300px);
+      max-height:min(60vh,420px);overflow-y:auto;-webkit-overflow-scrolling:touch;
+      border:1px solid var(--alert);border-radius:10px;padding:4px;
+      background:linear-gradient(180deg,rgba(12,32,38,.99),rgba(5,15,19,.99));
+      box-shadow:0 10px 34px rgba(0,0,0,.75);}
+    #pkMenu.on{display:block;}
+    #pkMenu button{display:block;width:100%;text-align:left;margin:0;
+      font:inherit;font-size:12px;color:var(--ink);background:transparent;
+      border:none;border-radius:7px;padding:9px 10px;min-height:40px;}
+    #pkMenu button.sel{background:rgba(245,198,92,.18);color:var(--alert);}
+    #pkMenu button.sel::before{content:'✓ ';}
+    #pkMenu button:not(.sel)::before{content:'\00a0\00a0';}
+    #pkMenu hr{border:none;border-top:1px solid var(--line2);margin:4px 6px;}
+    #pkVeil{position:fixed;inset:0;z-index:119;display:none;}
+    #pkVeil.on{display:block;}
+
     /* ══ HELM INSTRUMENTS ═══════════════════════════════════════════════ */
     #helmGauges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;justify-content:center;
       align-items:flex-start;}
@@ -1074,7 +1137,7 @@
       <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
       <button id="damageControlButton">Toggle Damage Control</button>
       <button id="pumpButton">Toggle Pumps</button>
-      <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option></select>
+      <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
     </div>
     <div class="ptitle" style="margin-top:8px;">Periscope</div>
     <div class="cgroup">
@@ -1197,7 +1260,7 @@
       <span>T+<strong id="mClock">00000</strong></span>
       <span>★<strong id="mScore">0</strong></span>
     </div>
-    <select class="tsel" id="tBtnTime" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option></select>
+    <select class="tsel" id="tBtnTime" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
     <button class="tbtn" id="tBtnMenu" title="Missions">⚓</button>
   </div>
 
@@ -1320,7 +1383,7 @@
           <button id="mSdRadar">📡 SD Air Radar</button>
           <button id="mAaGun">🔫 Man AA Gun</button>
           <button id="mDmgCtrl">🔧 Damage Control</button>
-          <select id="mTimeSel" title="Time scale" style="margin:0;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option></select>
+          <select id="mTimeSel" title="Time scale" style="margin:0;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
         </div>
 
         <div class="ptitle" style="margin-top:14px;">Transit — skip the empty water</div>
@@ -1607,7 +1670,7 @@ function createState(areaKey){
         {text:'Return to friendly port',done:false}
       ],
       friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
-      tonnageSunk:0,escortsSunk:0,patrolDuration:0
+      tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false
     },
     map:{cellSizeNm:5,exploredCells:{},ownshipTrail:[],plottedCourse:[],
       estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true},
@@ -2049,17 +2112,49 @@ class SimEngine{
     this.log(`Heading to ${fp.name}.`,'warn');
   }
 
-  checkPortArrival(){
+  nearestFriendlyPort(){
     const sub=this.state.playerSub;
-    const camp=this.state.campaign;
-    for(const port of this.state.world.ports){
+    let best=null;
+    for(const port of this.state.world.ports||[]){
       if(port.side!=='FRIENDLY') continue;
-      if(distNm(sub.position,port.pos)<1.5&&sub.depthFeet<8){
-        if(camp.missionStatus==='RETURN TO BASE'||camp.missionStatus==='PATROL'){
-          this.completeMission(port.name); return;
-        }
-      }
+      const rngNm=distNm(sub.position,port.pos);
+      if(!best||rngNm<best.rngNm) best={port,rngNm,brg:bearingBetween(sub.position,port.pos)};
     }
+    return best;
+  }
+
+  /* ══ GOING ALONGSIDE ══════════════════════════════════════════════════
+     A submarine rendezvous is a tender or another boat lying stopped in an
+     empty patch of sea, and taking on fuel and torpedoes from her is hours
+     of work with hoses and a crane, not a checkpoint you drive through. So:
+     come within a mile and a half, be ON THE SURFACE, and STAY there. The
+     bar fills, and if you dive or wander off it empties again and says so.
+     Three minutes of ship's time, which under any time compression at all
+     is a moment — the point is that it is a deliberate act, not something
+     you do by accident while passing. */
+  checkPortArrival(dt){
+    const sub=this.state.playerSub, camp=this.state.campaign;
+    if(camp.missionStatus!=='RETURN TO BASE'&&camp.missionStatus!=='PATROL'){ camp.alongside=0; return; }
+    const r=this.nearestFriendlyPort();
+    const ALONGSIDE_SEC=180;
+    if(!r||r.rngNm>1.5||sub.depthFeet>=8||sub.mode==='SUNK'){
+      if((camp.alongside||0)>0.5){
+        this.notify(`Lost the rendezvous — ${sub.depthFeet>=8?'she has gone under':'she has drawn off'}. The transfer is stopped.`,'warn');
+      }
+      camp.alongside=0;
+      // a nudge when the boat is near but not yet secured
+      if(r&&r.rngNm<4&&r.rngNm>1.5&&!camp._rvSeen){
+        camp._rvSeen=true;
+        this.notify(`${r.port.name} in sight — ${r.rngNm.toFixed(1)} nm, steer ${fmtDeg(r.brg)}. Surface inside 1.5 nm and hold there.`,'ok');
+      }
+      return;
+    }
+    const was=camp.alongside||0;
+    camp.alongside=was+dt;
+    if(was<=0) this.notify(`Alongside ${r.port.name}. Hoses across — fuel and torpedoes coming aboard. Hold her here.`,'ok');
+    else for(const mark of [60,120]) if(was<mark&&camp.alongside>=mark)
+      this.notify(`Transfer ${Math.round(camp.alongside/ALONGSIDE_SEC*100)}% — hold her alongside.`,'ok');
+    if(camp.alongside>=ALONGSIDE_SEC){ camp.alongside=0; this.completeMission(r.port.name); }
   }
 
   completeMission(portName){
@@ -2077,7 +2172,7 @@ class SimEngine{
     const patrolScore=camp.score;
     camp.totalScore+=patrolScore;
     camp.score=0;                       // banked — startNewPatrol would count it twice
-    this.log(`Arrived at ${portName}. PATROL COMPLETE! Bonus: +${bonus} pts (fuel/hull/torps).`,'warn');
+    this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
     this.log(`Patrol score: ${patrolScore} | Career total: ${camp.totalScore}`,'warn');
     audio.playMissionComplete();
     SaveSystem.updateCareer(camp);
@@ -3470,7 +3565,10 @@ class SimEngine{
     const merchants=this.state.world.contacts.filter(c=>c.type!=='ESCORT'&&!c.sunk);
     if(merchants.length===0&&camp.missionStatus==='PATROL'){
       camp.missionStatus='RETURN TO BASE';
-      this.log('All merchants neutralised. Return to friendly port.','warn');
+      const r=this.nearestFriendlyPort();
+      this.notify(r
+        ? `PATROL OBJECTIVE COMPLETE — every merchant accounted for. Make for ${r.port.name}: ${r.rngNm.toFixed(1)} nm, steer ${fmtDeg(r.brg)}. Surface within 1.5 nm and stay alongside to finish the patrol.`
+        : 'PATROL OBJECTIVE COMPLETE — every merchant accounted for. Return to a friendly port.','ok');
     }
   }
 
@@ -3485,7 +3583,7 @@ class SimEngine{
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
     this.updateDmg(sub,dt); this.updateDmgCtrl(sub,dt); this.updateWarnings(sub);
-    this.checkMissionObjectives(); this.checkPortArrival();
+    this.checkMissionObjectives(); this.checkPortArrival(dt);
     this.updateModeAfter(sub);
     particles.update(dt);
     this.state.world.shakeMag=Math.max(0,(this.state.world.shakeMag||0)*Math.exp(-dt*1.9)-dt*0.25);
@@ -3773,6 +3871,11 @@ class SimEngine{
     if(d.ballastDamage>0.5) W.push({level:'warn',text:'BALLAST DAMAGE'});
     if(sub.cannotHoldDepth) W.push({level:'critical',text:'WILL NOT HOLD DEPTH'});
     if(this.state.world.aaManned) W.push({level:'critical',text:'GUN CREW TOPSIDE — CANNOT DIVE'});
+    const camp=this.state.campaign;
+    if(camp.missionStatus==='RETURN TO BASE')
+      W.push({level:'warn',text:(camp.alongside>0)
+        ? `ALONGSIDE — ${Math.round(camp.alongside/180*100)}%`
+        : 'OBJECTIVE DONE — RETURN TO BASE'});
     if(sub.propulsion.fuel<12) W.push({level:'critical',text:'FUEL LOW'});
     else if(sub.propulsion.fuel<25) W.push({level:'warn',text:'FUEL 25%'});
     if(sub.inShallowWater) W.push({level:'warn',text:'SHALLOW WATER'});
@@ -7722,7 +7825,8 @@ class TouchCtrl{
     const onTime=e=>{
       const v=e.target.value;
       if(String(v).startsWith('skip')){
-        D({type:'START_TRANSIT',seconds:+String(v).slice(4)});
+        // "skip0" = no clock: run until an event stops her
+        D({type:'START_TRANSIT',seconds:+String(v).slice(4)||0});
         this.setPane('view');buzz(12);
         e.target.value=String(this.game.getSnapshot().time.timeScale);
       }else{D({type:'SET_TIME_SCALE',scale:+v});buzz(8);}
@@ -9110,6 +9214,88 @@ if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem('ss_hin
              flank: the last hundred revolutions buy almost no speed and a
              great deal of noise, and the noise is a sector on the rim.
 */
+/* ═══════════════════════════════════════════════════ IN-APP DROP-DOWN
+   Wraps a native <select> so the list is drawn by us instead of by the
+   operating system. The select keeps the value and keeps firing 'change',
+   so nothing that listened to it needs to know this happened. */
+const Picker={
+  menu:null, veil:null, open:null,
+
+  ensure(){
+    if(this.menu) return;
+    this.veil=document.createElement('div'); this.veil.id='pkVeil';
+    this.menu=document.createElement('div'); this.menu.id='pkMenu';
+    document.body.appendChild(this.veil); document.body.appendChild(this.menu);
+    this.veil.addEventListener('pointerdown',()=>this.close(),{passive:true});
+    window.addEventListener('resize',()=>this.close(),{passive:true});
+  },
+
+  enhance(sel){
+    // a select that is not in the document yet (or at all) is left alone
+    if(!sel||sel._pk||!sel.parentNode||!document.body) return;
+    sel._pk=true;
+    const wrap=document.createElement('span');
+    wrap.className='pk';
+    sel.parentNode.insertBefore(wrap,sel);
+    wrap.appendChild(sel);
+    const btn=document.createElement('button');
+    btn.type='button'; btn.className='pk-btn';
+    wrap.appendChild(btn);
+    const label=()=>{
+      const o=sel.options[sel.selectedIndex];
+      btn.textContent=o?o.textContent:'';
+    };
+    label();
+    sel.addEventListener('change',label);
+    // some code sets .value directly; catch that too
+    sel._pkLabel=label;
+    btn.addEventListener('click',e=>{ e.preventDefault(); this.show(sel,btn); },{passive:false});
+    return btn;
+  },
+
+  show(sel,btn){
+    this.ensure();
+    if(this.open===sel){ this.close(); return; }
+    this.close();
+    this.open=sel; btn.classList.add('open');
+    this.menu.innerHTML='';
+    [...sel.options].forEach((o,i)=>{
+      // a rule before the first "skip" entry: those are actions, not scales
+      if(/^skip/.test(o.value)&&!/^skip/.test(sel.options[i-1]?.value||''))
+        this.menu.appendChild(document.createElement('hr'));
+      const b=document.createElement('button');
+      b.type='button'; b.textContent=o.textContent;
+      if(i===sel.selectedIndex) b.className='sel';
+      b.addEventListener('click',()=>{
+        sel.value=o.value;
+        sel.dispatchEvent(new Event('change',{bubbles:true}));
+        sel._pkLabel&&sel._pkLabel();
+        buzz(8); this.close();
+      },{passive:true});
+      this.menu.appendChild(b);
+    });
+    this.menu.classList.add('on'); this.veil.classList.add('on');
+    // place it against the button, then nudge it back on screen
+    const r=btn.getBoundingClientRect();
+    const vw=innerWidth, vh=innerHeight;
+    this.menu.style.left='0px'; this.menu.style.top='0px';
+    const m=this.menu.getBoundingClientRect();
+    let x=Math.min(Math.max(6,r.left),vw-m.width-6);
+    let y=r.bottom+4;
+    if(y+m.height>vh-6) y=Math.max(6,r.top-m.height-4);
+    this.menu.style.left=x+'px'; this.menu.style.top=y+'px';
+  },
+
+  close(){
+    if(!this.menu) return;
+    this.menu.classList.remove('on'); this.veil.classList.remove('on');
+    document.querySelectorAll('.pk-btn.open').forEach(b=>b.classList.remove('open'));
+    this.open=null;
+  },
+
+  enhanceAll(ids){ for(const id of ids) this.enhance(document.getElementById(id)); }
+};
+
 class HelmGauges{
   constructor(game,touch){
     this.game=game; this.touch=touch; this.views=[]; this.focus=null; this.raf=null;
@@ -9181,10 +9367,10 @@ class HelmGauges{
         legend:['GYRO','REPEATER'],
         ctx:{tgt,wp,heading:sub.heading},
         lines:(()=>{
-          const d=shortDelta(sub.orderedHeading,sub.heading), out=[];
+          const d=shortDelta(sub.heading,sub.orderedHeading), out=[];   // to − from
           out.push(Math.abs(d)<0.7?['steady on','dim']
             :[`${d>0?'starboard':'port'} ${Math.abs(d).toFixed(0)}° to go`,'alert']);
-          if(tgt!=null){const rel=shortDelta(tgt,sub.heading);
+          if(tgt!=null){const rel=shortDelta(sub.heading,tgt);          // to − from
             out.push([`target ${Math.abs(rel).toFixed(0)}° ${rel>0?'stbd':'port'} ${Math.abs(rel)<=90?'bow':'quarter'}`,
               Math.abs(rel)>90?'danger':'ok']);}
           else if(s.map.autoFollowPlot&&s.map.plottedCourse.length) out.push(['autopilot on the plot','ok']);
@@ -9263,6 +9449,18 @@ class HelmGauges{
     G.send(val); return val;
   }
 
+  /* One angular step of a face drag. Pulled out of the event handler so a
+     test can drive it: the sign error above lived here for two rounds
+     precisely because the tests all called order() directly and never went
+     through the gesture. */
+  relStep(v,G,dialDeg){
+    const stepU=dialDeg/G.sweep*G.max*G.gain;
+    v.drag.acc=G.wrap?normDeg(v.drag.acc+stepU)
+                     :clamp(v.drag.acc+stepU,...(G.limit||[0,G.max]));
+    this.order(v,G,v.drag.acc);
+    return v.drag.acc;
+  }
+
   bind(v){
     const local=e=>{const r=v.cv.getBoundingClientRect();
       return{x:(e.clientX-r.left)*(v.cv.width/v.dpr)/r.width,
@@ -9283,7 +9481,11 @@ class HelmGauges{
       const G=this.spec(v.key), p=local(e); v.pointer=p;
       if(v.drag.mode==='abs') this.order(v,G,this.a2v(G,ang(p)));
       else{
-        const a=ang(p), d=shortDelta(a,v.drag.lastAng);
+        /* shortDelta(from,to) returns to − from. Written the other way round
+           this negated the finger's travel: dragging the natural way pushed
+           the value DOWN into the clamp at zero and the needle sat still,
+           and it only answered when the thumb went round backwards. */
+        const a=ang(p), d=shortDelta(v.drag.lastAng,a);
         v.drag.lastAng=a;
         /* THE ACCUMULATOR MUST STAY RAW.
            This used to read `acc = this.order(...)`, which writes the SNAPPED
@@ -9293,10 +9495,7 @@ class HelmGauges{
            the value could never climb out. The thumb kept sliding, the phone
            kept buzzing, and the needle sat still. Keep the true value here;
            snap only on the way out to the boat. */
-        const stepU=d/G.sweep*G.max*G.gain;
-        v.drag.acc=G.wrap?normDeg(v.drag.acc+stepU)
-                         :clamp(v.drag.acc+stepU,...(G.limit||[0,G.max]));
-        this.order(v,G,v.drag.acc);
+        this.relStep(v,G,d);
       }
       this.chipShow(this.spec(v.key),e.clientY);
       e.preventDefault(); e.stopPropagation();
@@ -9398,7 +9597,7 @@ class HelmGauges{
       const C=G.ctx;
       ctx.save(); arc(normDeg(C.heading-90),normDeg(C.heading+90),rIn*0.55,rIn*0.86);
       ctx.fillStyle='rgba(111,224,143,.07)'; ctx.fill(); ctx.restore();
-      const d=shortDelta(G.ordered,G.actual);
+      const d=shortDelta(G.actual,G.ordered);                          // to − from
       if(Math.abs(d)>0.7){
         ctx.beginPath();ctx.arc(cx,cy,rIn*0.94,A(G.actual),A(G.ordered),d<0);
         ctx.strokeStyle='rgba(245,198,92,.55)';ctx.lineWidth=Math.max(3,R*0.045);ctx.stroke();
@@ -9718,6 +9917,9 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden) AutoSave.
 // iOS in particular may never fire pagehide, so freeze/resume too where present
 window.addEventListener('freeze',()=>AutoSave.write('freeze'),{passive:true});
 setTimeout(()=>AutoSave.offer(),650);
+
+Picker.enhanceAll(['tBtnTime','mTimeSel','timeSelect','mTorpSel','mDudSel',
+                   'torpTypeSelect','dudSelect']);
 
 const helmGauges=new HelmGauges(game,touchCtrl);
 helmGauges.start();
