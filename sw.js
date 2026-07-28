@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '11.4.0';
+const VERSION = '0.7.0'; // add new contols for course, power and depth
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
