@@ -160,6 +160,20 @@
            whole dial changes meaning: 18 kn becomes 8.5, and the quiet band
            widens from 125 rpm to 230
          · 60 Hz canvas, gated on visibility so it costs nothing off-screen
+         · the bank fits the room it is given: it measures the sheet's width
+           AND height and tries one, two and three columns, keeping whichever
+           arrangement yields the largest dial that still fits — 171 px on a
+           phone in portrait, 187 landscape, 245 on a tablet, 318 focused.
+           The button rows are deliberately NOT subtracted; the instruments
+           get the first screenful and the buttons scroll below, because
+           subtracting them crushed the dials to 126 px, small enough that
+           the scale numbers had to go — and a dial with no numbers is a
+           picture of a dial. Three legibility tiers replace one hard cliff
+         · the value you are setting has left the canvas. It used to be drawn
+           a fifth of a radius above the touch point, which on a 170 px gauge
+           is directly under the fingertip. It is now a chip pinned to the top
+           or the bottom of the screen depending on which half your hand is
+           in — the finger cannot be in both
 
        ── the bottom exists ────────────────────────────────────────────
          The bathymetry grid was a colour on the chart and nothing else —
@@ -616,7 +630,19 @@
     .op-note{font-size:10.5px;color:var(--dim);line-height:1.45;margin-top:2px;}
 
     /* ══ HELM INSTRUMENTS ═══════════════════════════════════════════════ */
-    #helmGauges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;justify-content:center;}
+    #helmGauges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;justify-content:center;
+      align-items:flex-start;}
+    /* the value being set, kept off the dial and away from the hand */
+    #hgChip{position:fixed;left:50%;transform:translateX(-50%) scale(.96);
+      top:calc(var(--sat) + 52px);z-index:95;display:none;pointer-events:none;
+      padding:7px 16px 8px;border:1px solid var(--alert);border-radius:12px;
+      background:rgba(6,18,22,.97);box-shadow:0 6px 22px rgba(0,0,0,.7);
+      text-align:center;transition:transform .1s ease;}
+    #hgChip.on{display:block;transform:translateX(-50%) scale(1);}
+    #hgChip.low{top:auto;bottom:calc(var(--mob-tab-h) + var(--sab) + 14px);}
+    #hgChip span{display:block;font-size:8.5px;letter-spacing:1.4px;color:var(--dim);}
+    #hgChip b{display:block;font-size:26px;line-height:1.1;color:var(--alert);
+      font-variant-numeric:tabular-nums;}
     .hg{position:relative;flex:1 1 40%;min-width:132px;max-width:100%;}
     .hg.focus{flex-basis:100%;}
     .hg canvas{display:block;width:100%;height:auto;touch-action:none;}
@@ -8994,6 +9020,10 @@ class HelmGauges{
       const v={key,el,cv,ctx:cv.getContext('2d'),geom:{cx:0,cy:0,R:0},dpr:1,drag:null,pointer:null,flash:0,lastDet:null};
       this.bind(v); this.views.push(v);
       el.querySelector('.hg-t').addEventListener('click',()=>{
+        /* Focus shows ONE dial as large as the sheet allows and puts the
+           other two away — the point of focusing is the last degree of a
+           solution, and for that you want every pixel. Tap the name again
+           to bring the bank back. */
         this.focus=this.focus===key?null:key;
         for(const w of this.views) w.el.classList.toggle('focus',w.key===this.focus);
         this.size(); buzz(8);
@@ -9122,6 +9152,7 @@ class HelmGauges{
       v.cv.setPointerCapture(e.pointerId); v.pointer=p;
       if(r>v.geom.R*0.78){ v.drag={mode:'abs'}; this.order(v,G,this.a2v(G,ang(p))); }
       else v.drag={mode:'rel',lastAng:ang(p),acc:G.ordered};
+      this.chipShow(this.spec(v.key),e.clientY);
       e.preventDefault(); e.stopPropagation();
     },{passive:false});
     v.cv.addEventListener('pointermove',e=>{
@@ -9136,29 +9167,69 @@ class HelmGauges{
                          :clamp(v.drag.acc+stepU,...(G.limit||[0,G.max]));
         v.drag.acc=this.order(v,G,v.drag.acc);
       }
+      this.chipShow(this.spec(v.key),e.clientY);
       e.preventDefault(); e.stopPropagation();
     },{passive:false});
-    const end=()=>{v.drag=null;v.pointer=null;v.lastDet=null;};
+    const end=()=>{v.drag=null;v.pointer=null;v.lastDet=null;this.chipHide();};
     v.cv.addEventListener('pointerup',end);
     v.cv.addEventListener('pointercancel',end);
   }
 
+  /* ── FIT THE ROOM THAT IS ACTUALLY THERE ───────────────────────────
+     A dial sized only to the column width will happily be 175 px tall in a
+     sheet that has 300 px of room for three of them, and the third one
+     falls off the bottom of the screen. So measure BOTH: the width of the
+     bank and the height left over after the buttons that share the pane,
+     then try one, two and three columns and keep whichever arrangement
+     gives the largest dial that still fits. */
   size(){
     if(!this.host) return;
-    for(const v of this.views){
-      const w=Math.max(110,Math.floor(v.el.clientWidth||140));
-      v.dpr=Math.min(window.devicePixelRatio||1,2.5);
-      v.cv.style.height=w+'px';
-      v.cv.width=Math.floor(w*v.dpr); v.cv.height=Math.floor(w*v.dpr);
-      v.ctx.setTransform(v.dpr,0,0,v.dpr,0,0);
-      v.geom={cx:w/2,cy:w/2,R:w*0.44};
+    const W=this.host.clientWidth;
+    if(!W) return;                                   // pane is hidden: leave it alone
+    const GAP=6;
+
+    /* Vertical room = the scrolling body. The button rows that share the
+       pane are deliberately NOT subtracted: the instruments get the first
+       screenful and the buttons sit below the fold, which is what a scroll
+       sheet is for. Subtracting them crushed the dials to 126 px, small
+       enough that the scale numbers had to be dropped — and a dial with no
+       numbers is a picture of a dial. */
+    const body=document.getElementById('tSheetBody');
+    const bodyH=(body&&body.clientHeight)||0;
+    const avail=Math.max(150,(bodyH||430)-12);
+
+    const vis=this.views.filter(v=>!this.focus||v.key===this.focus);
+    const n=Math.max(1,vis.length);
+    let best={s:0,cols:1};
+    for(let cols=1;cols<=Math.min(3,n);cols++){
+      const rows=Math.ceil(n/cols);
+      const s=Math.min((W-GAP*(cols-1))/cols,(avail-GAP*(rows-1))/rows);
+      if(s>best.s) best={s,cols};
     }
+    const S=Math.round(clamp(best.s,88,320));
+
+    for(const v of this.views){
+      const shown=!this.focus||v.key===this.focus;
+      v.el.style.display=shown?'':'none';
+      if(!shown) continue;
+      v.el.style.flex=`0 0 ${S}px`;
+      v.el.style.maxWidth=S+'px';
+      v.dpr=Math.min(window.devicePixelRatio||1,2.5);
+      v.cv.style.width=S+'px'; v.cv.style.height=S+'px';
+      v.cv.width=Math.floor(S*v.dpr); v.cv.height=Math.floor(S*v.dpr);
+      v.ctx.setTransform(v.dpr,0,0,v.dpr,0,0);
+      v.geom={cx:S/2,cy:S/2,R:S*0.44};
+    }
+    this._lastFit={W,avail,S,cols:best.cols};
   }
 
   /* ── drawing ──────────────────────────────────────────────────────── */
   draw(v,dt){
     const G=this.spec(v.key), {ctx,geom}=v, {cx,cy,R}=geom;
-    const small=R<98, F=small?0.86:1;
+    /* Three tiers, not one cliff. At 165 px — what a phone in portrait
+       actually gives us — the dial must still show its scale, or it is a
+       picture of an instrument rather than an instrument. */
+    const tiny=R<52, small=R<72, F=small?0.9:1;
     v.flash=Math.max(0,v.flash-dt*2.2);
     ctx.clearRect(0,0,v.cv.width,v.cv.height);
     const bg=ctx.createRadialGradient(cx,cy-R*0.3,R*0.1,cx,cy,R);
@@ -9209,7 +9280,7 @@ class HelmGauges{
         ctx.lineTo(cx+Math.cos(a+0.05)*(rOut+R*0.075),cy+Math.sin(a+0.05)*(rOut+R*0.075));
         ctx.lineTo(cx+Math.cos(a-0.05)*(rOut+R*0.075),cy+Math.sin(a-0.05)*(rOut+R*0.075));
         ctx.closePath();ctx.fill();
-        if(!small){ctx.font=this.fnt(R*0.075,true);ctx.textAlign='center';ctx.textBaseline='middle';
+        if(!tiny){ctx.font=this.fnt(R*0.075,true);ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(txt,cx+Math.cos(a)*(rOut+R*0.14),cy+Math.sin(a)*(rOut+R*0.14));}
       }
     }
@@ -9235,7 +9306,7 @@ class HelmGauges{
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*rIn*0.62,cy+Math.sin(a)*rIn*0.62);
         ctx.lineTo(cx+Math.cos(a)*rIn*0.72,cy+Math.sin(a)*rIn*0.72);ctx.stroke();
-        if(!small&&k%4===0){ctx.fillStyle='rgba(143,179,168,.75)';ctx.font=this.fnt(R*0.062);
+        if(!tiny&&k%4===0){ctx.fillStyle='rgba(143,179,168,.75)';ctx.font=this.fnt(R*0.062);
           ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(String(k),cx+Math.cos(a)*rIn*0.54,cy+Math.sin(a)*rIn*0.54);}
       }
@@ -9245,7 +9316,7 @@ class HelmGauges{
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*rOut,cy+Math.sin(a)*rOut);
         ctx.lineTo(cx+Math.cos(a)*(rOut-R*0.10),cy+Math.sin(a)*(rOut-R*0.10));ctx.stroke();
-        if(!small){ctx.fillStyle='rgba(223,238,232,.8)';ctx.font=this.fnt(R*0.068);
+        if(!tiny){ctx.fillStyle='rgba(223,238,232,.8)';ctx.font=this.fnt(R*0.068);
           ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(name,cx+Math.cos(a)*(rOut-R*0.185),cy+Math.sin(a)*(rOut-R*0.185));}
       }
@@ -9260,7 +9331,7 @@ class HelmGauges{
       ctx.beginPath();
       ctx.moveTo(cx+Math.cos(a)*rOut,cy+Math.sin(a)*rOut);
       ctx.lineTo(cx+Math.cos(a)*(rOut-len),cy+Math.sin(a)*(rOut-len));ctx.stroke();
-      if(isM&&G.key!=='power'&&!small){
+      if(isM&&G.key!=='power'&&!tiny){
         const rr=rOut-len-R*0.085;
         ctx.fillStyle='rgba(223,238,232,.78)';ctx.font=this.fnt(R*0.085*F);
         ctx.textAlign='center';ctx.textBaseline='middle';
@@ -9304,27 +9375,15 @@ class HelmGauges{
     ctx.fillText(G.big,cx,ty);
     ctx.font=this.fnt(R*0.095*F);ctx.fillStyle='rgba(143,179,168,.85)';
     ctx.fillText(G.key==='power'?'KNOTS':G.unit,cx,ty+R*0.11);
-    if(!small){
+    if(!tiny){
       const cols={dim:'rgba(143,179,168,.9)',alert:'#f5c65c',danger:'#ef6a58',ok:'#6fe08f'};
-      ctx.font=this.fnt(R*0.082);
-      G.lines.forEach((l,i)=>{ctx.fillStyle=cols[l[1]]||cols.dim;
-        ctx.fillText(l[0],cx,ty+R*(0.245+i*0.10));});
+      ctx.font=this.fnt(Math.max(8.5,R*0.082));
+      // a small dial gets the one line that matters most; a big one gets all
+      const lines=small?G.lines.slice(0,1):G.lines;
+      lines.forEach((l,i)=>{ctx.fillStyle=cols[l[1]]||cols.dim;
+        ctx.fillText(l[0],cx,ty+R*(0.245+i*0.115));});
     }
 
-    if(v.drag&&v.pointer){
-      const p=v.pointer;
-      const bx=clamp(p.x,R*0.30,cx*2-R*0.30), by=clamp(p.y-R*0.22,R*0.14,cy*2);
-      const txt=G.wrap?String(Math.round(G.ordered)).padStart(3,'0')+'°'
-                      :Math.round(G.ordered)+(G.key==='power'?' rpm':' ft');
-      ctx.font=this.fnt(R*0.115,true);
-      const w=ctx.measureText(txt).width+R*0.14, h=R*0.19;
-      ctx.fillStyle='rgba(8,22,26,.95)';ctx.strokeStyle='#f5c65c';ctx.lineWidth=1.4;
-      ctx.beginPath();
-      if(ctx.roundRect)ctx.roundRect(bx-w/2,by-h/2,w,h,h*0.35);else ctx.rect(bx-w/2,by-h/2,w,h);
-      ctx.fill();ctx.stroke();
-      ctx.fillStyle='#f5c65c';ctx.textBaseline='middle';ctx.fillText(txt,bx,by);
-      ctx.textBaseline='alphabetic';
-    }
     if(v.flash>0){
       const a=A(G.ordered);
       ctx.strokeStyle=`rgba(111,224,143,${v.flash*0.9})`;ctx.lineWidth=Math.max(2,R*0.03);
@@ -9332,6 +9391,30 @@ class HelmGauges{
     }
   }
   fnt(px,bold){ return `${bold?'bold ':''}${Math.round(px)}px ui-monospace,"SF Mono",Menlo,monospace`; }
+
+  /* ── THE VALUE YOU ARE SETTING ─────────────────────────────────────
+     It used to be drawn on the dial a short way above the touch point,
+     which on a 170 px gauge is directly under the fingertip — you could
+     not read the number you were setting. It now lives outside the canvas
+     altogether, pinned to the top or the bottom of the screen depending on
+     which half your hand is in. The finger cannot be in both. */
+  chipShow(G,clientY){
+    let el=document.getElementById('hgChip');
+    if(!el){
+      el=document.createElement('div');
+      el.id='hgChip';
+      document.body.appendChild(el);
+    }
+    const label=G.key==='course'?'COURSE':G.key==='depth'?'DEPTH':'ENGINE';
+    const val=G.wrap?String(Math.round(G.ordered)).padStart(3,'0')+'°'
+                    :G.key==='power'?Math.round(G.ordered)+' rpm'
+                    :Math.round(G.ordered)+' ft';
+    el.innerHTML=`<span>ORDER ${label}</span><b>${val}</b>`;
+    const h=(typeof innerHeight==='number'?innerHeight:800);
+    el.classList.toggle('low',clientY<h*0.45);       // hand high → chip low
+    el.classList.add('on');
+  }
+  chipHide(){ document.getElementById('hgChip')?.classList.remove('on'); }
 
   /* Only run while the helm is actually on screen: a needle wants 60 Hz,
      and 60 Hz of canvas nobody is looking at is 60 Hz of battery. */
@@ -9343,11 +9426,13 @@ class HelmGauges{
   }
   start(){
     if(this.raf||!this.host) return;
-    let last=performance.now(), lastW=0;
+    let last=performance.now(), lastKey='';
     const loop=now=>{
       const dt=Math.min((now-last)/1000,0.1); last=now;
       if(this.visible()){
-        if(this.host.clientWidth!==lastW){ lastW=this.host.clientWidth; this.size(); }
+        const body=document.getElementById('tSheetBody');
+        const key=`${this.host.clientWidth}x${(body&&body.clientHeight)||0}x${this.focus||''}`;
+        if(key!==lastKey){ lastKey=key; this.size(); }
         for(const v of this.views) this.draw(v,dt);
       }
       this.raf=requestAnimationFrame(loop);
