@@ -7674,7 +7674,25 @@ class ScenarioSelector{
 }
 
 // ═══════════════════════════════════════════════════ TOAST SYSTEM
+/* ── WHAT COLOUR IS THIS MESSAGE? ─────────────────────────────────────
+   The three colours mean three different things to a player mid-attack,
+   so they are decided by WHAT the message says, not by which call site
+   happened to raise it:
+     RED    someone is trying to kill you right now
+     GREEN  intelligence, or something going your way
+     AMBER  everything else worth a glance but not a reaction
+   Order matters: red is tested first, so "she has lost you" reads green
+   but "ATTACKING" stays red even in the same sentence.                */
+const TOAST_RED   = /depth charge|DEPTH CHARGE|ATTACKING|attack run|is turning in|AIR ALARM|bomb|strafing|coming back with her guns|Men down|torpedo in the water|STAR SHELL|GROUNDING|hull impact|CANNOT DIVE|DIVE IS HELD|WILL NOT ANSWER|SHE IS ON THE BOTTOM|BOAT IS LOST|ALL STOP|Keel contact|pinging|active sonar|has sighted the boat/i;
+const TOAST_GREEN = /ULTRA|AMPLIFYING|HIT \+|PATROL COMPLETE|OBJECTIVE COMPLETE|Alongside|SPLASH ONE|drove her away|sheering off|turns for home|turning away|lost you|lost the contact|lost contact|Off the bottom|clear to dive|Transit complete|Rearmed/i;
+
 const Toast = {
+  auto(msg, fallback){
+    if (TOAST_RED.test(msg))   return this.bad(msg);
+    if (TOAST_GREEN.test(msg)) return this.ok(msg);
+    if (fallback === 'ok')     return this.ok(msg);
+    return this.warn(msg);
+  },
   show(msg, type='ok', duration=2300) {
     const c = document.getElementById('toastContainer');
     if (!c) return;
@@ -9212,9 +9230,9 @@ class GameLoop{
         if(q.length>3){
           const kept=q.slice(-2);
           Toast.warn(`${q.length-kept.length} more signals during the run — see the patrol log`);
-          for(const m of kept) (m.kind==='bad'?Toast.bad:m.kind==='ok'?Toast.ok:Toast.warn).call(Toast,m.msg);
+         for(const m of kept) Toast.auto(m.msg, m.kind);
         }else{
-          for(const m of q) (m.kind==='bad'?Toast.bad:m.kind==='ok'?Toast.ok:Toast.warn).call(Toast,m.msg);
+          for(const m of q) Toast.auto(m.msg, m.kind);
         }
       }
     }
@@ -9279,8 +9297,10 @@ class GameLoop{
           const m=entry.message;
           if(m.includes('HIT ')){Toast.ok('💥 '+m.slice(0,58));buzz([40,50,90]);}
           else if(m.includes('DUD')){Toast.warn('⚠ '+m.slice(0,58));buzz(30);}
-          else if(entry.level==='bad'){Toast.bad(m.slice(0,64));buzz([20,60,20]);}
-          else if(entry.level==='warn'&&m.includes('SONAR')){Toast.warn('⚠ Active sonar ping');buzz(25);}
+          else if(entry.level==='bad'||TOAST_RED.test(m)){
+            Toast.auto(m.slice(0,64)); buzz([20,60,20]);
+          }
+          else if(entry.level==='warn'&&m.includes('SONAR')){Toast.bad('⚠ Active sonar ping');buzz(25);}
         }
       }
       this.lastLogLen=log.length;
