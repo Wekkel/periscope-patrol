@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.7.3'; // fixed bug in depth gauge, added campaign ending message
+const VERSION = '0.7.4'; // Fixed patrol area and ULTRA calls and depth warning in time skip
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
