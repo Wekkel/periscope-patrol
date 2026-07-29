@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.7.4'; // Fixed patrol area and ULTRA calls and depth warning in time skip
+const VERSION = '0.7.5'; // Refactor toast message handling for clarity
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
