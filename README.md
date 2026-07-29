@@ -7,7 +7,7 @@ sit very still while the escorts hunt you.
 It is one HTML file. No build step, no bundler, no dependencies, no framework. Open it and it runs.
 Install it and it runs offline.
 
-**[▶ Play / install](https://example.com/periscope-patrol)** ← *replace with your URL*
+**[▶ Play / install]([https://example.com/periscope-patrol](https://wekkel.github.io/periscope-patrol/))** ← *replace with your URL*
 
 ---
 
