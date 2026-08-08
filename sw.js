@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.2'; // feat: add Truk raids, deck gun, collisions, richer damage and career history
+const VERSION = '0.8.3'; // patch for 3d gun
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
