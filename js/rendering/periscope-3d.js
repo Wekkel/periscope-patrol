@@ -815,7 +815,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     for(const it of list) this.drawShip3D(ctx,cam,it,state,dl,light,visNm,t);
 
     // hydrophone-only tracks belong in the periscope plot, not in an optical gun sight.
-    if(cam.kind==='GUN') return;
+    if(cam.kind==='GUN'||cam.kind==='BRIDGE') return;
     for(const tr of Object.values(state.world.contactTracks)){
       if(tr.sunk||tr.source!=='HYDROPHONE'||tr.confidence<0.15) continue;
       if(state.world.contacts.some(c=>c.id===tr.id&&distNm(sub.position,c.position)<visNm)) continue;
@@ -1353,7 +1353,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const surfaced=sub.depthFeet<12;
     if(!surfaced&&sub.depthFeet>70) return;
     const back=normDeg(sub.heading+180);
-    if(Math.abs(shortDelta(state.tactical.periscopeBearing,back))>cam.fovDeg*0.95) return;
+    const viewBearing=cam.bearingDeg??state.tactical.periscopeBearing;
+    if(Math.abs(shortDelta(viewBearing,back))>cam.fovDeg*0.95) return;
     const E=sub.position.xNm*NM_M, N=-sub.position.yNm*NM_M;
     const br=degToRad(back);
     const sinB=Math.sin(br), cosB=Math.cos(br);

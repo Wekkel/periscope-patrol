@@ -10,6 +10,11 @@ class CanvasViewCore{
     this.showLegend=false;
     this.scopeGeom={cx:0,cy:0,r:100,hor:0};
     this.quality=1;               // 0..1 — lowered automatically on slow frames
+    const mem=Number(navigator.deviceMemory),cores=Number(navigator.hardwareConcurrency);
+    // Only classify from capabilities the browser actually exposes. Chromium
+    // Android reports deviceMemory, while Safari may omit it; omission must not
+    // make every high-end iPhone look like a 4 GB budget device.
+    this.lowSpec=(mem>0&&mem<=4)||(cores>0&&cores<=4); // Helio G88 / 4 GB class: keep wide 3-D views lean
     this.scopeLabelId=null;this.scopeLabelUntil=0;
     this.resize(true);
   }
@@ -60,6 +65,7 @@ class CanvasViewCore{
     ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.globalAlpha=1;ctx.setLineDash([]);
     if(state.tactical.activeStation==='MAP') this.drawMap(ctx,w,h,state);
     else if(state.tactical.activeStation==='PERISCOPE') this.drawPeriscope(ctx,w,h,state);
+    else if(state.tactical.activeStation==='BRIDGE') this.drawBridge(ctx,w,h,state);
     else if(state.tactical.activeStation==='DECK_GUN') this.drawDeckGun(ctx,w,h,state);
     else this.drawTactical(ctx,w,h,state);
     ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put

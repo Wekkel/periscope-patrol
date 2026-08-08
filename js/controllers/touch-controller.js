@@ -157,6 +157,10 @@ class TouchCtrl{
     btn('oDive',   ()=>{D({type:'DIVE'});this.setDepthSlider(100);});
     btn('oGunLay', ()=>{D({type:'LAY_DECK_GUN'});buzz(10);});
     btn('oGunFire',()=>{D({type:'FIRE_DECK_GUN'});buzz([18,22,18]);});
+    btn('bridgeBino',()=>{D({type:'TOGGLE_BRIDGE_BINOCULARS'});buzz(10);});
+    btn('bridgeMark',()=>{D({type:'BRIDGE_MARK_CONTACT'});buzz(10);});
+    btn('bridgeTarget',()=>{D({type:'BRIDGE_TARGET_CENTER'});buzz(14);});
+    btn('bridgeGun',()=>{D({type:'SET_ACTIVE_STATION',station:'DECK_GUN'});buzz(14);});
     btn('oSilent', ()=>{D({type:'TOGGLE_SILENT_RUNNING'});buzz(12);});
     btn('oLock',   ()=>{D({type:'PERISCOPE_SELECT_CENTER_CONTACT'});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(12);});
     btn('btnFire', ()=>this.quickFire());
@@ -384,6 +388,11 @@ class TouchCtrl{
           if(want!==null&&s.tactical.periscopeZoom!==want){
             D({type:'TOGGLE_PERISCOPE_ZOOM'});buzz(12);lastDist=d;
           }
+        }else if(lastDist>0&&s.tactical.activeStation==='BRIDGE'){
+          const ratio=d/lastDist;
+          if((ratio>1.25&&!s.tactical.bridgeBinoculars)||(ratio<0.8&&s.tactical.bridgeBinoculars)){
+            D({type:'TOGGLE_BRIDGE_BINOCULARS'});buzz(12);lastDist=d;
+          }
         }
         lastDist=d;return;
       }
@@ -396,6 +405,10 @@ class TouchCtrl{
         const cam=cv.cam;
         const perPx=cam?cam.f:Math.max(60,cv.scopeGeom.r*1.7);
         D({type:'ROTATE_PERISCOPE',deltaDeg:-radToDeg(Math.atan(dx/perPx))});
+      }
+      else if(mode==='bridge'){
+        const f=cv.bridgeCam?.f||Math.max(120,cv.w*.7);
+        D({type:'ROTATE_BRIDGE',deltaDeg:-radToDeg(Math.atan(dx/f))});
       }
       else if(mode==='gun'){
         const f=cv.gunCam?.f||Math.max(180,cv.w*0.9);
@@ -446,6 +459,7 @@ class TouchCtrl{
     const s=this.game.getSnapshot(), sta=s.tactical.activeStation;
     if(sta==='MAP') return 'pan';
     if(sta==='PERISCOPE') return 'scope';
+    if(sta==='BRIDGE') return 'bridge';
     if(sta==='DECK_GUN') return 'gun';
     const gm=this.cv.tactGeom;
     if(gm){
@@ -499,6 +513,10 @@ class TouchCtrl{
       if(dbl){D({type:'TOGGLE_PERISCOPE_ZOOM'});return;}
       const id=this.cv.pickScopeContact(s,e.clientX,e.clientY);
       if(id){this.cv.revealScopeLabel(id);D({type:'SELECT_TRACK',trackId:id});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(14);}
+    }else if(sta==='BRIDGE'){
+      if(dbl){D({type:'TOGGLE_BRIDGE_BINOCULARS'});return;}
+      const id=this.cv.pickBridgeContact(s,e.clientX,e.clientY);
+      if(id){D({type:'BRIDGE_TARGET_CONTACT',trackId:id});buzz(14);}
     }else if(sta==='DECK_GUN'){
       const id=this.cv.pickGunContact(s,e.clientX,e.clientY);
       if(id){D({type:'SELECT_TRACK',trackId:id});if(dbl)D({type:'LAY_DECK_GUN'});buzz(14);}
@@ -591,9 +609,11 @@ class TouchCtrl{
       C.sta=sta;
       document.querySelectorAll('#ovlLeft .rbtn').forEach(b=>{b.style.display=b.dataset.sta===sta?'flex':'none';});
       const gy=g('gyroIndicator');if(gy)gy.classList.toggle('off',sta!=='PERISCOPE');
-      const gun=sta==='DECK_GUN';
-      const lock=g('oLock'),fire=g('btnFire');if(lock)lock.style.display=gun?'none':'';if(fire)fire.style.display=gun?'none':'';
+      const gun=sta==='DECK_GUN',bridge=sta==='BRIDGE';
+      const lock=g('oLock'),fire=g('btnFire');if(lock)lock.style.display=(gun||bridge)?'none':'';if(fire)fire.style.display=(gun||bridge)?'none':'';
+      g('bridgeControls')?.classList.toggle('on',bridge);
     }
+    cls('bridgeBino','on',!!state.tactical.bridgeBinoculars);
     cls('oSilent','on',sub.stealth.silentRunning);
     cls('oGunFire','ready',!!state.weapons.deckGun?.manned&&state.weapons.deckGun.ammo>0);
 

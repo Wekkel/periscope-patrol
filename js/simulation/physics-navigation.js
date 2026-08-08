@@ -120,6 +120,9 @@ class SimEngine extends SimEngineCareer {
     this.updateDmg(sub,dt); this.updateDmgCtrl(sub,dt); this.updateWarnings(sub);
     this.checkMissionObjectives(); this.checkPortArrival(dt);
     this.updateModeAfter(sub);
+    if(this.state.tactical.activeStation==='BRIDGE'&&!bridgeCanUse(this.state)){
+      this.state.tactical.activeStation='MAP';this.state.tactical.bridgeBinoculars=false;
+    }
     particles.update(dt);
     this.state.world.shakeMag=Math.max(0,(this.state.world.shakeMag||0)*Math.exp(-dt*1.9)-dt*0.25);
   }
@@ -347,7 +350,7 @@ class SimEngine extends SimEngineCareer {
          because the generic confidence score is a little below 0.12. The 3-D
          renderer can show ships near the visibility limit; give those weak but
          real visual observations a floor instead of letting the plot decay. */
-      const visualHeld=sub.depthFeet<=65&&rng<=env.visibilityNm*0.95;
+      const visualHeld=sub.depthFeet<=65&&rng<=bridgeVisualLimitNm(this.state,c);
       const acousticHeld=aco.score>0.12;
       const held=visualHeld||acousticHeld;
       const sc=visualHeld?Math.max(vis.score,aco.score,0.18):aco.score;
@@ -368,11 +371,12 @@ class SimEngine extends SimEngineCareer {
         ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
         ex.speedEstimateKnots=lerp(ex.speedEstimateKnots,c.speedKnots,clamp(0.08+ex.confidence*0.18,0,0.35));
         const knownType=c.displayType||c.type;
+        const smokeOnly=sub.depthFeet<8&&rng>env.visibilityNm*1.02;
         // The Truk heavy unit is deliberately reported only as HEAVY UNIT.
         // Hydrophones may build a good positional track, but they do not hand
         // the player a magical carrier/cruiser classification. Exact identity
         // requires the visual source consumed by updateHarborKnowledge().
-        if(c.harborTarget&&c.id==='H-04'&&src!=='VISUAL')
+        if(smokeOnly||(c.harborTarget&&c.id==='H-04'&&src!=='VISUAL'))
           ex.typeEstimate=ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         else ex.typeEstimate=ex.confidence>0.65?knownType:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         ex.contactType=c.type;

@@ -1,4 +1,4 @@
-class CanvasView extends CanvasViewPeriscope {
+class CanvasView extends CanvasViewBridge {
   drawMap(ctx,w,h,state){
     const sub=state.playerSub, map=state.map, k=this.k;
     const pxPerNm=this.zoom;

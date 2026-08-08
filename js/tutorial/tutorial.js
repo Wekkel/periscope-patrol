@@ -4,8 +4,8 @@ const TUT_STEPS=[
    body:'You are the skipper of USS Silversides on a <b>training patrol</b> off Java. Calm sea, clear sky, one unescorted merchant somewhere ahead — and torpedoes that always explode.<br><br>Four tabs at the bottom: <b>View</b> (the big picture), <b>Helm</b> (steering, depth, systems), <b>Attack</b> (torpedoes) and <b>Status</b> (damage &amp; log). The strip just above them is your permanent read-out.',
    goal:'Tap NEXT when you have had a look around'},
 
-  {id:'stations',title:'Four stations',
-   body:'Top right of the picture you can switch between four stations:<br>• <b>TAC</b> — compass, depth column, stealth meters<br>• <b>SCOPE</b> — what the periscope sees<br>• <b>MAP</b> — the navigation plot<br>• <b>GUN</b> — the 3-inch deck-gun sight; entering it while surfaced automatically sends the crew topside<br><br>Open the map now.',
+  {id:'stations',title:'Five stations',
+   body:'Top right of the picture you can switch between five stations:<br>• <b>TAC</b> — compass, depth column, stealth meters<br>• <b>BRG</b> — the surface bridge watch; wide view, binoculars and visual marks while surfaced or awash<br>• <b>SCOPE</b> — what the periscope sees<br>• <b>MAP</b> — the navigation plot<br>• <b>GUN</b> — the 3-inch deck-gun sight; entering it while surfaced automatically sends the crew topside<br><br>Open the map now.',
    goal:'Switch to the MAP station', hl:'ovlStations',
    check:s=>s.tactical.activeStation==='MAP'},
 
