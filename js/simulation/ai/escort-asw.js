@@ -185,6 +185,7 @@ class SimEngineASW extends SimEngineSensors {
         const hS=Math.exp(-hNm/0.017);
         const dS=clamp(1-dD/75,0,1);
         const dmg=62*hS*dS;
+        this.state.campaign._depthChargeAttackSeen=true;
         this.state.weapons.explosions.push({position:{...dc.position},ageSec:0,maxAgeSec:10,label:dmg>4?`DC -${Math.round(dmg)}`:'DC'});
         if(dmg<=1&&hNm<0.5) this.shake(clamp(2.2-hNm*4,0.2,2.2));   // felt, not damaging
         if(dmg<=1&&dD>80&&hNm<0.25) this.log(`Charges detonated ${dc.targetDepthFeet<sub.depthFeet?'well above':'below'} you.`,'warn');

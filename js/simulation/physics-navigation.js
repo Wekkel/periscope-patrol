@@ -1,4 +1,4 @@
-class SimEngine extends SimEngineDamage {
+class SimEngine extends SimEngineCareer {
   snapshotWatch(){
     const s=this.state;
     s.time._watch={
@@ -89,7 +89,10 @@ class SimEngine extends SimEngineDamage {
     // Convoy objectives are about the patrol convoy, not optional harbour prizes.
     const convoyIds=new Set(this.state.world.contacts.filter(c=>c.convoyId==='MAIN').map(c=>c.id));
     const convoyLocated=Object.keys(this.state.world.contactTracks).some(id=>convoyIds.has(id));
-    if(convoyLocated&&camp.objectives[0]) camp.objectives[0].done=true;
+    if(convoyLocated&&camp.objectives[0]&&!camp.objectives[0].done){
+      camp.objectives[0].done=true;
+      this.captainLog?.('CONVOY_SIGHTED','Enemy convoy sighted.',{},'convoy-sighted');
+    }
     const anyConvoyHit=this.state.weapons.hits.some(h=>convoyIds.has(h.contactId));
     if(anyConvoyHit&&camp.objectives[1]) camp.objectives[1].done=true;
     // All merchants sunk → head home

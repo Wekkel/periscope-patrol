@@ -49,7 +49,7 @@ const load=[
   'js/simulation/weapons/tdc-math.js','js/core/state.js','js/core/command-bus.js','js/persistence/save-system.js',
   'js/simulation/engine-core.js','js/simulation/harbor.js','js/simulation/weapons/torpedoes.js','js/simulation/ai/enemy-ai.js',
   'js/simulation/ai/aircraft.js','js/simulation/weapons/deck-gun.js','js/simulation/weapons/aa-gun.js','js/simulation/radio-intel.js',
-  'js/simulation/sensors.js','js/simulation/ai/escort-asw.js','js/simulation/collision/vessel-collision.js','js/simulation/damage-control.js','js/simulation/physics-navigation.js','js/core/game.js',
+  'js/simulation/sensors.js','js/simulation/ai/escort-asw.js','js/simulation/collision/vessel-collision.js','js/simulation/damage-control.js','js/simulation/career-history.js','js/simulation/physics-navigation.js','js/core/game.js',
   'js/rendering/world-geometry.js','js/rendering/canvas-core.js','js/rendering/tactical.js','js/rendering/deck-gun-3d.js',
   'js/rendering/periscope-3d.js','js/rendering/map.js'
 ];
@@ -136,7 +136,7 @@ assert('torpedo flood/fire',result.torpedo.tubeStatus==='EMPTY'&&result.torpedo.
 assert('deck gun auto-man + fire + renderer',result.deckGun.station==='DECK_GUN'&&result.deckGun.manned&&result.deckGun.ammoAfter===result.deckGun.ammoBefore-1&&result.deckGun.shells===1&&result.renderRoutes.DECK_GUN===1,result.deckGun);
 assert('baseline: Truk harbor visible to MAP before radio intel',result.trukDisclosure.radioInbox===0&&result.trukDisclosure.harborPresent&&result.trukDisclosure.harborDrawCalls===1,result.trukDisclosure);
 assert('legacy damage fields remain repairable under Phase 3 priority model',result.damageControl.active===true&&Object.values(result.damageControl.values).every(v=>v<.5),result.damageControl);
-assert('baseline: career persistence keys remain score/patrols/tonnage only',JSON.stringify(result.careerKeys)===JSON.stringify(['patrols','tonnage','totalScore']),result.careerKeys);
+assert('Phase 4 career schema is available without breaking baseline flows',JSON.stringify(result.careerKeys)===JSON.stringify(['commendations','legacyPatrols','patrolHistory','totalScore','totalShips','totalTonnage','version']),result.careerKeys);
 
 if(process.exitCode) process.exit(process.exitCode);
 console.log('PHASE 0 CONTRACT: PASS');

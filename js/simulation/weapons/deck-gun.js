@@ -107,6 +107,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     W.hits.push({weapon:'DECK_GUN',contactId:c.id,t:this.state.time.elapsedSeconds});
     G.lastFall={text:`SUNK — ${c.id} +${pts}`,until:this.state.time.elapsedSeconds+6};
     this.notify(`DECK GUN — ${c.name} is going down. +${pts} pts.`,'ok');
+    this.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:'DECK_GUN'},`sunk:${c.id}`);
     this.alertEscorts('SHIP_HIT',{...c.position},1);this.checkMissionObjectives();
   }
 

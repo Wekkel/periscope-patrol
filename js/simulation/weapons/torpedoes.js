@@ -235,6 +235,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT +${pts}`,big:c.sinkStyle===2});
             const styleTxt=['down by the head','down by the stern','her back is broken','settling amidships'][c.sinkStyle];
             this.log(`${t.id} HIT ${c.name} ${where} (track ${incidence.toFixed(0)}°)! She is ${styleTxt}. +${pts}pts. ${camp.tonnageSunk.toLocaleString()} tons sunk.`,'bad');
+            this.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:'TORPEDO'},`sunk:${c.id}`);
             this.alertEscorts('SHIP_HIT',{...t.position},1);
             this.checkMissionObjectives();
             audio.playHit();

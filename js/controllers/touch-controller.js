@@ -747,6 +747,9 @@ class TouchCtrl{
         `${m.type} · ${m.subject}</b>${i===0?'<span class="sig-new">LATEST</span>':''}`+
         `<span class="sig-age">${agef(now2-(m.time||now2))} ago</span><br>${m.text}</div>`).join('')
         :'<span style="color:var(--dim)">No traffic copied yet. Come shallower than 42 ft when the broadcast is up.</span>');
+      const caplog=(state.campaign.importantEvents||[]).slice().reverse();
+      html('mCaptainLog',caplog.length?caplog.map(e=>`<div class="log-entry"><b>${e.date||('T+'+fmtTime(e.t))}</b> · ${e.text}</div>`).join('')
+        :'<span style="color:var(--dim)">No major events entered yet.</span>');
       html('mLog',state.log.slice(0,30).map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join(''));
     }
   }

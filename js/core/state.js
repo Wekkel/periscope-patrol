@@ -28,7 +28,10 @@ function createState(areaKey){
     },
     campaign:{
       patrolArea:areaKey,score:0,scenarioSeed:1,missionStatus:'PATROL',
-      patrolNumber:1,totalScore:0,
+      patrolNumber:1,totalScore:0,startDate:'1943-08-17',
+      historyId:`p1-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
+      _careerStartDate:'1943-08-17 06:00',_historyRecorded:false,_historyRecordId:null,
+      importantEvents:[],_captainEventSeq:0,
       objectives:[
         {text:'Locate enemy convoy',done:false},
         {text:'Attack merchant shipping',done:false},

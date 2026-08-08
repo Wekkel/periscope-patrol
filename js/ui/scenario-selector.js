@@ -10,8 +10,10 @@ class ScenarioSelector{
     const career=SaveSystem.getCareer();
     const el=document.getElementById('scenCareerScore');
     if(el)el.textContent=(career.totalScore||0).toLocaleString();
+    const meta=document.getElementById('scenCareerMeta');
+    if(meta)meta.textContent=`${career.totalShips||0} ships · ${(career.totalTonnage||0).toLocaleString()} tons · ${career.patrolHistory?.length||0} recorded patrols`;
     document.getElementById('scenarioOverlay')?.classList.add('open');
-    this.renderSaveSlots();
+    this.renderSaveSlots();this.renderCareer();
     const s=this.game.getSnapshot();
     if(s.time.timeScale!==0){s.time._pre=s.time.timeScale;s.time.timeScale=0;}
   }
@@ -29,14 +31,12 @@ class ScenarioSelector{
       tab.addEventListener('click',()=>{
         this.activeTab=tab.dataset.stab;
         document.querySelectorAll('.scen-tab').forEach(t=>t.classList.toggle('active',t.dataset.stab===this.activeTab));
-        ['Patrol','Historical','Saveload'].forEach(n=>{
-          const el=document.getElementById('stab'+n);
-          if(el)el.style.display=this.activeTab===n.toLowerCase()?'':' none';
-        });
         document.getElementById('stabPatrol').style.display=this.activeTab==='patrol'?'grid':'none';
         document.getElementById('stabHistorical').style.display=this.activeTab==='historical'?'flex':'none';
         document.getElementById('stabSaveload').style.display=this.activeTab==='saveload'?'flex':'none';
+        document.getElementById('stabCareer').style.display=this.activeTab==='career'?'flex':'none';
         if(this.activeTab==='saveload')this.renderSaveSlots();
+        if(this.activeTab==='career')this.renderCareer();
       });
     });
   }
@@ -87,6 +87,23 @@ class ScenarioSelector{
         card.style.borderColor='var(--ok)';
       });
     });
+  }
+
+  renderCareer(){
+    const c=document.getElementById('careerHistory');if(!c)return;
+    const car=SaveSystem.getCareer(),hist=[...(car.patrolHistory||[])].reverse();
+    const badges=(car.commendations||[]).map(x=>`<span class="area-diff diff-med" style="margin:2px 5px 2px 0;">★ ${x.title}</span>`).join('');
+    const rows=hist.map(r=>{
+      const ev=(r.importantEvents||[]).map(e=>`<div class="log-entry">${e.date||''} · ${e.text}</div>`).join('');
+      const opt=(r.optionalObjectives||[]).length?` · optional ${(r.optionalObjectives||[]).map(o=>o.result||(o.done?'done':'not attempted')).join(', ')}`:'';
+      return `<div class="hist-card"><h3>Patrol #${r.patrolNumber} — ${r.area} · ${r.outcome}</h3>
+        <div class="hist-date">${r.startDate||''} → ${r.endDate||''}</div>
+        <div class="hist-desc">${r.shipsSunk||0} sunk · ${(r.tonnage||0).toLocaleString()}t · ${r.shipsDamaged||0} damaged · hull ${Math.round(r.hullAtEnd??100)}%<br>
+        Torpedoes ${r.torpedoesFired||0} fired / ${r.torpedoHits||0} hits / ${r.torpedoDuds||0} duds · deck gun ${r.deckGunRounds||0} rounds / ${r.deckGunHits||0} hits · aircraft ${r.aircraftKills||0}${opt}</div>
+        ${ev?`<div style="margin-top:7px;font-size:10.5px;color:var(--muted);">${ev}</div>`:''}</div>`;
+    }).join('');
+    c.innerHTML=`<div class="hist-card"><h3>WAR RECORD</h3><div class="hist-desc">Score ${(car.totalScore||0).toLocaleString()} · ${(car.totalTonnage||0).toLocaleString()} tons · ${car.totalShips||0} ships</div><div style="margin-top:7px;">${badges||'<span style="color:var(--dim)">No commendations yet.</span>'}</div></div>`+
+      (rows||'<div class="hist-card"><div class="hist-desc">No completed or lost patrols recorded yet.</div></div>');
   }
 
   renderSaveSlots(){
@@ -141,6 +158,7 @@ class ScenarioSelector{
         s.campaign.missionName=h.name;
         // Fix 7: set campaign start date from historical scenario
         s.campaign.startDate=h.date;
+        s.campaign._careerStartDate=`${h.date} 06:00`;
         s.time.elapsedSeconds=0; // reset elapsed so date shows correctly
         if(h.forceDudMode) s.tdc.dudMode=h.forceDudMode;
         if(h.forceTorpedo){

@@ -202,7 +202,9 @@ class SimEngineHarbor extends SimEngineCore {
        &&tr.typeEstimate&&tr.typeEstimate!=='UNKNOWN'&&tr.typeEstimate!=='SURFACE SHIP'){
       I.heavyUnit.identified=true;I.heavyUnit.identity=tr.typeEstimate;I.heavyUnit.identifiedAt=now;
       this.refreshHarborOptionalObjective();
-      this.notify(`TRUK VISUAL IDENTIFICATION — ${this.harborIdentityLabel(tr.typeEstimate).toUpperCase()} at anchor.`,'ok');
+      const label=this.harborIdentityLabel(tr.typeEstimate);
+      this.captainLog?.('HEAVY_UNIT_IDENTIFIED',`${label} identified at Truk Anchorage.`,{identity:tr.typeEstimate},'truk-heavy-identified');
+      this.notify(`TRUK VISUAL IDENTIFICATION — ${label.toUpperCase()} at anchor.`,'ok');
     }
 
     const heavy=W.contacts.find(c=>c.id==='H-04'&&c.harborTarget);
@@ -313,6 +315,7 @@ class SimEngineHarbor extends SimEngineCore {
         const dmg=38+Math.random()*28;
         this.applyShock(dmg);
         this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:12,label:'MINE'});
+        this.captainLog?.('MINE_STRUCK','Mine struck.',{damage:Math.round(dmg)},`mine:${m.xNm.toFixed(4)}:${m.yNm.toFixed(4)}`);
         this.notify(`MINE! Underwater explosion — ${dmg.toFixed(0)}% damage. You are in mined water; get clear of the field.`,'bad');
         audio.playDepthCharge(0.15);particles.spawnExplosion(sub.position.xNm,sub.position.yNm,1.25,false);
         break;

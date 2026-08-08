@@ -44,6 +44,10 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     } else if(e.alertState!=='UNAWARE'){
       e.alertState='UNAWARE'; e.lastKnownConfidence=0;
       this.log('Escorts lost contact. Alert: UNAWARE.');
+      if(this.state.campaign._depthChargeAttackSeen){
+        this.captainLog?.('DEPTH_CHARGE_ATTACK_SURVIVED','Depth-charge attack survived.',{},`dc-survived:${Math.floor((this.state.time.elapsedSeconds||0)/60)}`);
+        this.state.campaign._depthChargeAttackSeen=false;
+      }
       if(this.state.campaign.objectives[2]) this.state.campaign.objectives[2].done=true;
     }
     e.searchPhase=(e.searchPhase||0)+dt;

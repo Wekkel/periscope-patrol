@@ -2,19 +2,64 @@
 const SaveSystem={
   KEY:'ss2_save_', CAREER:'ss2_career', MAX:5,
 
-  getCareer(){
-    try{const r=localStorage.getItem(this.CAREER);return r?JSON.parse(r):{totalScore:0,patrols:0,tonnage:0};}
-    catch{return{totalScore:0,patrols:0,tonnage:0};}
+  _careerDefault(){return{version:2,totalScore:0,totalTonnage:0,totalShips:0,patrolHistory:[],commendations:[],legacyPatrols:0};},
+
+  _normalizeCareer(raw){
+    const c=this._careerDefault(),r=raw&&typeof raw==='object'?raw:{};
+    c.version=2;
+    c.totalScore=Number(r.totalScore)||0;
+    c.totalTonnage=Number(r.totalTonnage!==undefined?r.totalTonnage:r.tonnage)||0;
+    c.totalShips=Number(r.totalShips)||0;
+    c.legacyPatrols=Number(r.legacyPatrols!==undefined?r.legacyPatrols:r.patrols)||0;
+    c.patrolHistory=Array.isArray(r.patrolHistory)?r.patrolHistory.map(x=>JSON.parse(JSON.stringify(x))):[];
+    c.commendations=Array.isArray(r.commendations)?r.commendations.map(x=>typeof x==='string'?{id:x,title:x,earnedAt:'legacy',patrolId:null}:JSON.parse(JSON.stringify(x))):[];
+    if(c.legacyPatrols>0&&!c.commendations.some(x=>x.id==='first-war-patrol'))
+      c.commendations.push({id:'first-war-patrol',title:'First War Patrol',earnedAt:'legacy',patrolId:null});
+    return c;
   },
 
-  updateCareer(camp){
+  getCareer(){
+    try{const r=localStorage.getItem(this.CAREER);return this._normalizeCareer(r?JSON.parse(r):null);}
+    catch{return this._careerDefault();}
+  },
+
+  _award(c,id,title,record){
+    if(c.commendations.some(x=>x.id===id))return false;
+    c.commendations.push({id,title,earnedAt:record?.endDate||new Date().toISOString(),patrolId:record?.id||null});return true;
+  },
+
+  _updateCommendations(c,r){
+    if(c.patrolHistory.length===1&&c.legacyPatrols===0)this._award(c,'first-war-patrol','First War Patrol',r);
+    if(c.totalTonnage>=50000)this._award(c,'50000-tons','50,000 tons sunk',r);
+    if(r.outcome==='COMPLETED'&&r.area==='Truk Approaches'&&r.harborRaid?.attempted)
+      this._award(c,'truk-penetration','Successful Truk penetration',r);
+    if(r.outcome==='COMPLETED'&&(r.hullAtEnd??100)<=25)
+      this._award(c,'critical-hull-return','Returned with critical hull damage',r);
+  },
+
+  recordPatrol(record){
     try{
+      if(!record||!record.id)return null;
       const c=this.getCareer();
-      c.totalScore=Math.max(c.totalScore||0,camp.totalScore||0);
-      c.patrols=Math.max(c.patrols||0,camp.patrolNumber||0);
-      c.tonnage=(c.tonnage||0)+(camp.tonnageSunk||0);
+      const old=c.patrolHistory.find(x=>x.id===record.id);if(old)return old;
+      const r=JSON.parse(JSON.stringify(record));
+      c.patrolHistory.push(r);
+      c.totalScore=Math.max(c.totalScore||0,Number(r.careerTotalScore)||0);
+      c.totalTonnage=(c.totalTonnage||0)+(Number(r.tonnage)||0);
+      c.totalShips=(c.totalShips||0)+(Number(r.shipsSunk)||0);
+      this._updateCommendations(c,r);
       localStorage.setItem(this.CAREER,JSON.stringify(c));
-    }catch(e){console.warn('Career save failed',e);}
+      return JSON.parse(JSON.stringify(r));
+    }catch(e){console.warn('Career save failed',e);return null;}
+  },
+
+  // Compatibility shim for older callers. Phase 4 finalizes whole patrol
+  // records instead of incrementally mutating three career counters.
+  updateCareer(camp){
+    const c=this.getCareer();
+    c.totalScore=Math.max(c.totalScore||0,camp?.totalScore||0);
+    try{localStorage.setItem(this.CAREER,JSON.stringify(c));}catch(e){console.warn('Career save failed',e);}
+    return c;
   },
 
   listSlots(){

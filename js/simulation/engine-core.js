@@ -4,8 +4,10 @@ class SimEngineCore{
 
   update(dt){
     this.ensureWorldExtensions();
+    this.ensureCareerPatrolState?.();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
+    if(this.state.campaign.missionStatus==='LOST')this.finalizePatrol?.('LOST',{reason:'boat lost'});
     // Manual 8x/16x/32x hands the conn back before a predicted vessel collision.
     // Transit/skip uses transitInterrupt(), which reports the same hull-aware CPA.
     if(!this.state.time.transitUntil&&(this.state.time.timeScale||1)>1&&this.compressedCollisionWatch?.()) return;
@@ -20,6 +22,7 @@ class SimEngineCore{
       this.state.time.elapsedSeconds+=sdt;
       this.state.campaign.patrolDuration+=sdt;
     }
+    if(this.state.campaign.missionStatus==='LOST')this.finalizePatrol?.('LOST',{reason:'boat lost'});
   }
 
   processCommands(){for(const c of this.bus.drain())this.applyCmd(c);}
@@ -642,12 +645,14 @@ class SimEngineCore{
     camp.score+=bonus;
     const patrolScore=camp.score;
     camp.totalScore+=patrolScore;
+    const hullAtReturn=sub.damage.hullIntegrity;
+    this.captainLog?.('RETURNED_TO_PORT',`Returned to ${portName}.`,{portName,hull:hullAtReturn},'returned-to-port');
+    this.finalizePatrol?.('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
     camp.score=0;                       // banked — startNewPatrol would count it twice
     this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
     Toast.show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
     this.log(`Patrol score: ${patrolScore} | Career total: ${camp.totalScore}`,'warn');
     audio.playMissionComplete();
-    SaveSystem.updateCareer(camp);
     // Rearm and refuel
     sub.propulsion.fuel=100; sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
     W.torpedoInventory=16;
@@ -665,6 +670,7 @@ class SimEngineCore{
     const s=this.state;
     const prevTotal=s.campaign.totalScore+(s.campaign.score||0);
     const prevPatrol=s.campaign.patrolNumber||1;
+    const careerStart=this.ensureCareerPatrolState?_careerStampFrom(s.campaign._careerStartDate||`${s.campaign.startDate||s.time.campaignDate||'1943-08-17'} 06:00`,s.campaign.patrolDuration||0):`${s.time.campaignDate||'1943-08-17'} 06:00`;
     // Reset world
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];
     s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};
@@ -684,6 +690,8 @@ class SimEngineCore{
     s.campaign={
       patrolArea:key,score:0,scenarioSeed:Math.floor(Math.random()*9999),
       missionStatus:'PATROL',patrolNumber:prevPatrol+1,totalScore:prevTotal,
+      historyId:`p${prevPatrol+1}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
+      _careerStartDate:careerStart,_historyRecorded:false,_historyRecordId:null,importantEvents:[],_captainEventSeq:0,
       objectives:[
         {text:'Locate enemy convoy',done:false},{text:'Attack merchant shipping',done:false},
         {text:'Evade escort vessels',done:false},{text:'Return to friendly port',done:false}

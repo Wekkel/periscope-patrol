@@ -41,7 +41,13 @@ class DomView{
     if(this.batteryBar) this.batteryBar.style.width=`${p.battery}%`;
     if(this.fuelBar)    this.fuelBar.style.width=`${p.fuel}%`;
     if(this.hullBar)    this.hullBar.style.width=`${sub.damage.hullIntegrity}%`;
-    if(this.logEl) this.logEl.innerHTML=state.log.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join('');
+    if(this.logEl){
+      const cap=(state.campaign.importantEvents||[]).slice().reverse();
+      const capHtml=cap.length?`<div style="color:var(--alert);letter-spacing:1px;margin-bottom:4px;">CAPTAIN'S LOG</div>`+
+        cap.map(e=>`<div class="log-entry"><b>${e.date||('T+'+fmtTime(e.t))}</b> · ${e.text}</div>`).join('')+
+        `<div style="color:var(--dim);letter-spacing:1px;margin:8px 0 4px;">FULL PATROL LOG</div>`:'';
+      this.logEl.innerHTML=capHtml+state.log.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join('');
+    }
   }
   renderAlerts(state){
     const W=state.playerSub.damage.warnings||[{level:'normal',text:'SYSTEMS NOMINAL'}];

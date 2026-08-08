@@ -168,12 +168,13 @@
   <div id="scenarioBox">
     <div class="scen-header">
       <h2>⚓ MISSION SELECTION — COMSUBPAC</h2>
-      <div style="font-size:11px;color:var(--muted);">Career Score: <strong id="scenCareerScore" style="color:var(--alert);">0</strong></div>
+      <div style="font-size:11px;color:var(--muted);text-align:right;">Career Score: <strong id="scenCareerScore" style="color:var(--alert);">0</strong><br><span id="scenCareerMeta" style="font-size:9.5px;color:var(--dim);"></span></div>
     </div>
     <div class="scen-tabs">
       <button class="scen-tab active" data-stab="patrol">Patrol Areas</button>
       <button class="scen-tab" data-stab="historical">Historical Missions</button>
       <button class="scen-tab" data-stab="saveload">Save / Load</button>
+      <button class="scen-tab" data-stab="career">Career</button>
     </div>
     <div class="scen-body">
       <!-- PATROL AREAS TAB -->
@@ -190,6 +191,10 @@
           Saves are stored locally in your browser. Up to 5 save slots available.
         </div>
         <div id="saveSlots"><!-- Filled by JS --></div>
+      </div>
+      <!-- CAREER HISTORY TAB -->
+      <div id="stabCareer" class="hist-list" style="display:none;">
+        <div id="careerHistory"><!-- Filled by JS --></div>
       </div>
     </div>
     <div class="scen-footer">
@@ -627,6 +632,8 @@
 
         <div class="ptitle" style="margin-top:12px;">Radio Room <span id="radioState" style="color:var(--muted);font-size:10px;"></span></div>
         <div id="mRadio" style="font-size:11.5px;color:var(--muted);line-height:1.55;"></div>
+        <div class="ptitle" style="margin-top:12px;">Captain's Log</div>
+        <div id="mCaptainLog" style="font-size:11px;color:var(--muted);line-height:1.55;"></div>
         <div class="ptitle" style="margin-top:12px;">Patrol Log</div>
         <div id="mLog" style="font-size:11px;color:var(--muted);line-height:1.55;"></div>
       </div>
@@ -663,6 +670,7 @@
 <script src="./js/simulation/ai/escort-asw.js"></script>
 <script src="./js/simulation/collision/vessel-collision.js"></script>
 <script src="./js/simulation/damage-control.js"></script>
+<script src="./js/simulation/career-history.js"></script>
 <script src="./js/simulation/physics-navigation.js"></script>
 <script src="./js/rendering/world-geometry.js"></script>
 <script src="./js/rendering/canvas-core.js"></script>
