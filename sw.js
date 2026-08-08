@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.1'; //Improve toast timing/position, periscope labels, oil/fire/smoke rendering, and convoy/ULTRA pathfinding around land.
+const VERSION = '0.8.2'; // feat: add Truk raids, deck gun, collisions, richer damage and career history
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
