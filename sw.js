@@ -75,7 +75,8 @@ const SHELL = [
   'js/simulation/collision/hull-geometry.js',
   'js/simulation/collision/vessel-collision.js',
   'js/simulation/damage-control.js',
-  'js/simulation/career-history.js'
+  'js/simulation/career-history.js',
+  'js/simulation/ai/asw-brain.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
