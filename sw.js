@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.0'; //various optimalisations, bug fixes, intro harbour raid module
+const VERSION = '0.8.1'; //Improve toast timing/position, periscope labels, oil/fire/smoke rendering, and convoy/ULTRA pathfinding around land.
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
