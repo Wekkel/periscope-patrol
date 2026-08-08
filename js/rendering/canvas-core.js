@@ -66,15 +66,24 @@ class CanvasViewCore{
     if(state.tactical.activeStation==='MAP') this.drawMap(ctx,w,h,state);
     else if(state.tactical.activeStation==='PERISCOPE') this.drawPeriscope(ctx,w,h,state);
     else if(state.tactical.activeStation==='BRIDGE') this.drawBridge(ctx,w,h,state);
+    else if(state.tactical.activeStation==='SOUND') this.drawSound(ctx,w,h,state);
     else if(state.tactical.activeStation==='DECK_GUN') this.drawDeckGun(ctx,w,h,state);
     else this.drawTactical(ctx,w,h,state);
     ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
     this.drawHitFlash(ctx,w,h,state);
     this.drawAirAlarm(ctx,w,h,state);
+    this.drawSoundCallout(ctx,w,h,state);
     if(mag>1.6){                                    // dust and flakes shaken loose
       ctx.fillStyle=`rgba(255,235,200,${clamp(mag/26,0,0.10)})`;
       ctx.fillRect(0,0,w,h);
     }
+  }
+
+  drawSoundCallout(ctx,w,h,state){
+    const r=state.world.sound?.lastOperatorReport;if(!r||state.time.elapsedSeconds>(r.until||0)||state.tactical.activeStation==='SOUND')return;
+    const k=this.k,bw=Math.min(w-20*k,430*k),bh=25*k,x=10*k,y=h-bh-8*k;
+    ctx.fillStyle='rgba(3,18,20,.88)';this.rr(ctx,x,y,bw,bh,5*k);ctx.fill();ctx.strokeStyle='rgba(89,151,133,.72)';ctx.lineWidth=Math.max(1,k);ctx.stroke();
+    ctx.fillStyle='rgba(205,238,223,.92)';ctx.font=this.fnt(8.6,true);ctx.fillText(r.text,x+8*k,y+16*k);
   }
 
   drawAirAlarm(ctx,w,h,state){

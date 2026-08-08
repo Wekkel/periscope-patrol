@@ -49,9 +49,9 @@ const load=[
   'js/simulation/weapons/tdc-math.js','js/simulation/surface-watch.js','js/core/state.js','js/core/command-bus.js','js/persistence/save-system.js',
   'js/simulation/engine-core.js','js/simulation/harbor.js','js/simulation/weapons/torpedoes.js','js/simulation/ai/enemy-ai.js',
   'js/simulation/ai/aircraft.js','js/simulation/weapons/deck-gun.js','js/simulation/weapons/aa-gun.js','js/simulation/radio-intel.js',
-  'js/simulation/sensors.js','js/simulation/ai/asw-brain.js','js/simulation/ai/escort-asw.js','js/simulation/collision/vessel-collision.js','js/simulation/damage-control.js','js/simulation/career-history.js','js/simulation/physics-navigation.js','js/core/game.js',
+  'js/simulation/sensors.js','js/simulation/sound-radar.js','js/simulation/ai/asw-brain.js','js/simulation/ai/escort-asw.js','js/simulation/collision/vessel-collision.js','js/simulation/damage-control.js','js/simulation/career-history.js','js/simulation/physics-navigation.js','js/core/game.js',
   'js/rendering/world-geometry.js','js/rendering/canvas-core.js','js/rendering/tactical.js','js/rendering/deck-gun-3d.js',
-  'js/rendering/periscope-3d.js','js/rendering/bridge-3d.js','js/rendering/map.js'
+  'js/rendering/periscope-3d.js','js/rendering/bridge-3d.js','js/rendering/sound-room.js','js/rendering/map.js'
 ];
 for(const f of load) vm.runInContext(fs.readFileSync(path.join(root,f),'utf8'),context,{filename:f});
 

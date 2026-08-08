@@ -115,6 +115,7 @@
       <div class="hk-row"><span class="hk-key">3</span><span class="hk-desc">Navigation map</span></div>
       <div class="hk-row"><span class="hk-key">4</span><span class="hk-desc">Deck gun</span></div>
       <div class="hk-row"><span class="hk-key">5</span><span class="hk-desc">Surface bridge watch</span></div>
+      <div class="hk-row"><span class="hk-key">6</span><span class="hk-desc">Sound room / SJ radar</span></div>
     </div>
     <div class="hk-section">
       <div class="hk-title">Helm</div>
@@ -343,7 +344,7 @@
       <button id="portButton">Head To Port (H)</button>
       <button id="newScenarioButton">⚓ Mission Select (M)</button>
       <button id="saveGameButton">💾 Save Game</button>
-      <div class="note">Hotkeys: 1=Tactical 2=Scope 3=Map 4=Deck Gun 5=Bridge Space=Pause S=Silent E=Blow P=Pumps ←/→=Scope H=Port M=Mission</div>
+      <div class="note">Hotkeys: 1=Tactical 2=Scope 3=Map 4=Deck Gun 5=Bridge 6=Sound Space=Pause S=Silent E=Blow P=Pumps ←/→=Scope H=Port M=Mission</div>
     </div>
   </aside>
 
@@ -352,6 +353,7 @@
     <div id="stationTabs">
       <button id="stationTactical" class="active">Tactical</button>
       <button id="stationBridge">Bridge</button>
+      <button id="stationSound">Sound</button>
       <button id="stationPeriscope">Periscope</button>
       <button id="stationMap">Map</button>
       <button id="stationDeckGun">Deck Gun</button>
@@ -361,6 +363,13 @@
       <button id="bridgeMark">✚ <span>Mark</span></button>
       <button id="bridgeTarget">🎯 <span>Target</span></button>
       <button id="bridgeGun">💥 <span>Gun</span></button>
+    </div>
+    <div id="soundControls" aria-label="Sound room controls">
+      <button id="soundLeft">◀ <span>Train</span></button>
+      <button id="soundMark">✚ <span>Mark Bearing</span></button>
+      <button id="soundEcho">◉ <span>Echo Range</span></button>
+      <button id="soundRadar">⌁ <span>SJ Radar</span></button>
+      <button id="soundRight">▶ <span>Train</span></button>
     </div>
     <div id="dayNightBar"><div id="dayNightFill"></div></div>
     <div id="dayNightLabel"></div>
@@ -430,6 +439,7 @@
     <div class="ovl" id="ovlStations">
       <button data-sta="TACTICAL" class="active">TAC</button>
       <button data-sta="BRIDGE">BRG</button>
+      <button data-sta="SOUND">SND</button>
       <button data-sta="PERISCOPE">SCOPE</button>
       <button data-sta="MAP">MAP</button>
       <button data-sta="DECK_GUN">GUN</button>
@@ -678,6 +688,7 @@
 <script src="./js/simulation/weapons/aa-gun.js"></script>
 <script src="./js/simulation/radio-intel.js"></script>
 <script src="./js/simulation/sensors.js"></script>
+<script src="./js/simulation/sound-radar.js"></script>
 <script src="./js/simulation/ai/asw-brain.js"></script>
 <script src="./js/simulation/ai/escort-asw.js"></script>
 <script src="./js/simulation/collision/vessel-collision.js"></script>
@@ -690,6 +701,7 @@
 <script src="./js/rendering/deck-gun-3d.js"></script>
 <script src="./js/rendering/periscope-3d.js"></script>
 <script src="./js/rendering/bridge-3d.js"></script>
+<script src="./js/rendering/sound-room.js"></script>
 <script src="./js/rendering/map.js"></script>
 <script src="./js/ui/briefing.js"></script>
 <script src="./js/data/historical-scenarios.js"></script>

@@ -5,9 +5,10 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     W.aircraft=W.aircraft||[];
     W.airThreat=W.airThreat||{level:env.airThreat===undefined?0.5:env.airThreat,alarmedAt:-999,sdOn:true};
     const air=W.airThreat;
-    // Crew-managed arcade assist: SD is not a player toggle. It is available
-    // automatically whenever the surfaced-only detection test below can use it.
-    air.sdOn=true;
+    // Crew-managed arcade assist: SD is not a player toggle.  Whether the
+    // boat actually has the set is determined by patrol date in sound-radar.js.
+    this.ensureSoundRadarState?.();
+    air.sdOn=!!W.radar?.sdAvailable;
 
     // ── does a patrol turn up? ──
     air.nextCheck=(air.nextCheck||0)-dt;

@@ -10,6 +10,7 @@ class BridgeController{
     const dv=document.getElementById('depthValue');
     const stT=document.getElementById('stationTactical');
     const stB=document.getElementById('stationBridge');
+    const stS=document.getElementById('stationSound');
     const stP=document.getElementById('stationPeriscope');
     const stM=document.getElementById('stationMap');
     const stG=document.getElementById('stationDeckGun');
@@ -51,11 +52,17 @@ class BridgeController{
     btn('followPlotButton', ()=>this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('portButton',       ()=>this.game.dispatch({type:'HEAD_TO_PORT'}));
     btn('newScenarioButton',()=>this.game.dispatch({type:'NEW_PATROL'}));
-    btn('stationTactical',  ()=>setSta('TACTICAL',stT,[stB,stP,stM,stG]));
-    btn('stationBridge',    ()=>setSta('BRIDGE',stB,[stT,stP,stM,stG]));
-    btn('stationPeriscope', ()=>setSta('PERISCOPE',stP,[stT,stB,stM,stG]));
-    btn('stationMap',       ()=>setSta('MAP',stM,[stT,stB,stP,stG]));
-    btn('stationDeckGun',   ()=>setSta('DECK_GUN',stG,[stT,stB,stP,stM]));
+    btn('stationTactical',  ()=>setSta('TACTICAL',stT,[stB,stS,stP,stM,stG]));
+    btn('stationBridge',    ()=>setSta('BRIDGE',stB,[stT,stS,stP,stM,stG]));
+    btn('stationSound',     ()=>setSta('SOUND',stS,[stT,stB,stP,stM,stG]));
+    btn('stationPeriscope', ()=>setSta('PERISCOPE',stP,[stT,stB,stS,stM,stG]));
+    btn('stationMap',       ()=>setSta('MAP',stM,[stT,stB,stS,stP,stG]));
+    btn('stationDeckGun',   ()=>setSta('DECK_GUN',stG,[stT,stB,stS,stP,stM]));
+    btn('soundLeft',       ()=>this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:-5}));
+    btn('soundRight',      ()=>this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:5}));
+    btn('soundMark',       ()=>this.game.dispatch({type:'SOUND_MARK_BEARING'}));
+    btn('soundEcho',       ()=>this.game.dispatch({type:'SOUND_ECHO_RANGE'}));
+    btn('soundRadar',      ()=>this.game.dispatch({type:'TOGGLE_SOUND_DISPLAY'}));
     btn('deckGunLayButton', ()=>this.game.dispatch({type:'LAY_DECK_GUN'}));
     btn('deckGunFireButton',()=>this.game.dispatch({type:'FIRE_DECK_GUN'}));
     btn('deckGunLeftButton',()=>this.game.dispatch({type:'ADJUST_DECK_GUN',deltaTrainDeg:-1}));
@@ -81,13 +88,13 @@ class BridgeController{
     window.addEventListener('keydown',e=>{
       if(e.target&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
       const k=e.key.toLowerCase();
-      if(k==='1'&&stT) stT.click(); if(k==='2'&&stP) stP.click(); if(k==='3'&&stM) stM.click(); if(k==='4'&&stG) stG.click(); if(k==='5'&&stB) stB.click();
+      if(k==='1'&&stT) stT.click(); if(k==='2'&&stP) stP.click(); if(k==='3'&&stM) stM.click(); if(k==='4'&&stG) stG.click(); if(k==='5'&&stB) stB.click(); if(k==='6'&&stS) stS.click();
       if(k==='s') this.game.dispatch({type:'TOGGLE_SILENT_RUNNING'});
       if(k==='e') this.game.dispatch({type:'EMERGENCY_BLOW'});
       if(k==='p') this.game.dispatch({type:'TOGGLE_PUMPS'});
       if(k==='h') this.game.dispatch({type:'HEAD_TO_PORT'});
-      if(k==='arrowleft'){const q=this.game.getSnapshot();this.game.dispatch({type:q.tactical.activeStation==='BRIDGE'?'ROTATE_BRIDGE':'ROTATE_PERISCOPE',deltaDeg:-5});}
-      if(k==='arrowright'){const q=this.game.getSnapshot();this.game.dispatch({type:q.tactical.activeStation==='BRIDGE'?'ROTATE_BRIDGE':'ROTATE_PERISCOPE',deltaDeg:5});}
+      if(k==='arrowleft'){const q=this.game.getSnapshot(),a=q.tactical.activeStation;this.game.dispatch({type:a==='BRIDGE'?'ROTATE_BRIDGE':a==='SOUND'?'ROTATE_SOUND':'ROTATE_PERISCOPE',deltaDeg:-5});}
+      if(k==='arrowright'){const q=this.game.getSnapshot(),a=q.tactical.activeStation;this.game.dispatch({type:a==='BRIDGE'?'ROTATE_BRIDGE':a==='SOUND'?'ROTATE_SOUND':'ROTATE_PERISCOPE',deltaDeg:5});}
       if(k===' '){e.preventDefault();const s=this.game.getSnapshot();s.time.timeScale=s.time.timeScale===0?1:0;}
     });
 

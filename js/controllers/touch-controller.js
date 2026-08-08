@@ -161,6 +161,11 @@ class TouchCtrl{
     btn('bridgeMark',()=>{D({type:'BRIDGE_MARK_CONTACT'});buzz(10);});
     btn('bridgeTarget',()=>{D({type:'BRIDGE_TARGET_CENTER'});buzz(14);});
     btn('bridgeGun',()=>{D({type:'SET_ACTIVE_STATION',station:'DECK_GUN'});buzz(14);});
+    btn('soundLeft',()=>{D({type:'ROTATE_SOUND',deltaDeg:-5});buzz(6);});
+    btn('soundRight',()=>{D({type:'ROTATE_SOUND',deltaDeg:5});buzz(6);});
+    btn('soundMark',()=>{D({type:'SOUND_MARK_BEARING'});buzz(10);});
+    btn('soundEcho',()=>{D({type:'SOUND_ECHO_RANGE'});buzz([12,30,12]);});
+    btn('soundRadar',()=>{D({type:'TOGGLE_SOUND_DISPLAY'});buzz(10);});
     btn('oSilent', ()=>{D({type:'TOGGLE_SILENT_RUNNING'});buzz(12);});
     btn('oLock',   ()=>{D({type:'PERISCOPE_SELECT_CENTER_CONTACT'});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(12);});
     btn('btnFire', ()=>this.quickFire());
@@ -410,6 +415,7 @@ class TouchCtrl{
         const f=cv.bridgeCam?.f||Math.max(120,cv.w*.7);
         D({type:'ROTATE_BRIDGE',deltaDeg:-radToDeg(Math.atan(dx/f))});
       }
+      else if(mode==='sound'){D({type:'ROTATE_SOUND',deltaDeg:-dx*.55});}
       else if(mode==='gun'){
         const f=cv.gunCam?.f||Math.max(180,cv.w*0.9);
         D({type:'ADJUST_DECK_GUN',deltaTrainDeg:radToDeg(Math.atan(dx/f)),deltaElevDeg:-radToDeg(Math.atan(dy/f))});
@@ -460,6 +466,7 @@ class TouchCtrl{
     if(sta==='MAP') return 'pan';
     if(sta==='PERISCOPE') return 'scope';
     if(sta==='BRIDGE') return 'bridge';
+    if(sta==='SOUND') return 'sound';
     if(sta==='DECK_GUN') return 'gun';
     const gm=this.cv.tactGeom;
     if(gm){
@@ -517,6 +524,8 @@ class TouchCtrl{
       if(dbl){D({type:'TOGGLE_BRIDGE_BINOCULARS'});return;}
       const id=this.cv.pickBridgeContact(s,e.clientX,e.clientY);
       if(id){D({type:'BRIDGE_TARGET_CONTACT',trackId:id});buzz(14);}
+    }else if(sta==='SOUND'){
+      if(dbl){D({type:'SOUND_MARK_BEARING'});buzz(10);}
     }else if(sta==='DECK_GUN'){
       const id=this.cv.pickGunContact(s,e.clientX,e.clientY);
       if(id){D({type:'SELECT_TRACK',trackId:id});if(dbl)D({type:'LAY_DECK_GUN'});buzz(14);}
@@ -609,11 +618,13 @@ class TouchCtrl{
       C.sta=sta;
       document.querySelectorAll('#ovlLeft .rbtn').forEach(b=>{b.style.display=b.dataset.sta===sta?'flex':'none';});
       const gy=g('gyroIndicator');if(gy)gy.classList.toggle('off',sta!=='PERISCOPE');
-      const gun=sta==='DECK_GUN',bridge=sta==='BRIDGE';
-      const lock=g('oLock'),fire=g('btnFire');if(lock)lock.style.display=(gun||bridge)?'none':'';if(fire)fire.style.display=(gun||bridge)?'none':'';
-      g('bridgeControls')?.classList.toggle('on',bridge);
+      const gun=sta==='DECK_GUN',bridge=sta==='BRIDGE',sound=sta==='SOUND';
+      const lock=g('oLock'),fire=g('btnFire');if(lock)lock.style.display=(gun||bridge||sound)?'none':'';if(fire)fire.style.display=(gun||bridge||sound)?'none':'';
+      g('bridgeControls')?.classList.toggle('on',bridge);g('soundControls')?.classList.toggle('on',sound);
     }
     cls('bridgeBino','on',!!state.tactical.bridgeBinoculars);
+    cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
+    const sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
     cls('oSilent','on',sub.stealth.silentRunning);
     cls('oGunFire','ready',!!state.weapons.deckGun?.manned&&state.weapons.deckGun.ammo>0);
 

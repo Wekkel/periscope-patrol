@@ -114,7 +114,7 @@ class SimEngine extends SimEngineCareer {
     this.updatePosition(sub,dt);
     this.applyTerrainEffects(sub,dt);
     this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
-    this.updateDetection(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
+    this.updateDetection(dt); this.updateSoundRadar?.(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
     this.updateDmg(sub,dt); this.updateDmgCtrl(sub,dt); this.updateWarnings(sub);
@@ -355,10 +355,12 @@ class SimEngine extends SimEngineCareer {
       const held=visualHeld||acousticHeld;
       const sc=visualHeld?Math.max(vis.score,aco.score,0.18):aco.score;
       const src=visualHeld?'VISUAL':'HYDROPHONE';
+      const aobs=src==='HYDROPHONE'?passiveSoundObservation(this.state,c,sc):{bearing:bear,rangeNm:rng};
+      const obsBear=aobs.bearing,obsRng=aobs.rangeNm;
       const key=c.id;
       let ex=W.contactTracks[key];
       if(!ex&&!held) continue;
-      ex=ex||{id:key,typeEstimate:'UNKNOWN',bearing:bear,rangeEstimateNm:rng,
+      ex=ex||{id:key,typeEstimate:'UNKNOWN',bearing:obsBear,rangeEstimateNm:obsRng,
         courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,source:src,
         lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards};
 
@@ -366,8 +368,8 @@ class SimEngine extends SimEngineCareer {
         ex.confidence=clamp(ex.confidence+clamp((sc-0.10)*dt*0.34,0.006,0.12),0,1);
         ex.lastUpdated=now; ex.staleSeconds=0; ex.source=src;
         ex.lengthYards=c.lengthYards;
-        ex.bearing=lerpAngle(ex.bearing,bear,clamp(0.25+sc*0.35,0,0.85));
-        ex.rangeEstimateNm=lerp(ex.rangeEstimateNm,rng,clamp(0.18+sc*0.28,0,0.7));
+        ex.bearing=lerpAngle(ex.bearing,obsBear,clamp((src==='HYDROPHONE'?.12:.25)+sc*(src==='HYDROPHONE'?.22:.35),0,src==='HYDROPHONE'?.42:.85));
+        ex.rangeEstimateNm=lerp(ex.rangeEstimateNm,obsRng,clamp((src==='HYDROPHONE'?.025:.18)+sc*(src==='HYDROPHONE'?.07:.28),0,src==='HYDROPHONE'?.12:.7));
         ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
         ex.speedEstimateKnots=lerp(ex.speedEstimateKnots,c.speedKnots,clamp(0.08+ex.confidence*0.18,0,0.35));
         const knownType=c.displayType||c.type;

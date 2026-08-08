@@ -32,7 +32,7 @@ class SimEngineCore{
     const T=this.state.tactical||(this.state.tactical={});
     if(!Number.isFinite(T.bridgeBearing))T.bridgeBearing=this.state.playerSub?.heading||0;
     if(T.bridgeBinoculars===undefined)T.bridgeBinoculars=false;
-    if(!['TACTICAL','PERISCOPE','MAP','DECK_GUN','BRIDGE'].includes(T.activeStation))T.activeStation='TACTICAL';
+    if(!['TACTICAL','PERISCOPE','MAP','DECK_GUN','BRIDGE','SOUND'].includes(T.activeStation))T.activeStation='TACTICAL';
     return T;
   }
 
@@ -167,8 +167,8 @@ class SimEngineCore{
         if(sub.propulsion.speedKnots<5) sub.propulsion.orderedRpm=350;
         this.log('CRASH DIVE! Flooding ballast tanks.','warn'); audio.playCrashDive(); break;
       case'TOGGLE_SD_RADAR':{
-        const a=this.state.world.airThreat;a.sdOn=true;
-        this.notify('SD air-search radar is crew-managed automatically whenever it can be used.','ok');break;}
+        this.ensureSoundRadarState?.();const a=this.state.world.airThreat,R=this.state.world.radar;a.sdOn=!!R?.sdAvailable;
+        this.notify(R?.sdAvailable?'SD air-search radar is crew-managed automatically whenever it can be used.':'No SD air-warning radar is fitted on this patrol date.',R?.sdAvailable?'ok':'warn');break;}
       case'BOTTOM_OUT':{
         if(sub.bottomed){this.unbottom(sub);break;}
         const sea=this.seabedFeet(sub.position);
@@ -245,6 +245,17 @@ class SimEngineCore{
         if(this.state.tactical.activeStation==='DECK_GUN') this.secureDeckGunAuto();
         this.state.tactical.activeStation=cmd.station;
         if(cmd.station==='PERISCOPE') this.state.tactical.periscopeBearing=sub.heading;
+        if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.ensureSoundRadarState?.();}
+        break;}
+      case'ROTATE_SOUND': this.state.tactical.soundBearing=normDeg((this.state.tactical.soundBearing||sub.heading)+(cmd.deltaDeg||0)); break;
+      case'SOUND_MARK_BEARING': this.markSoundBearing?.(); break;
+      case'SOUND_ECHO_RANGE': this.echoRange?.(); break;
+      case'TOGGLE_SOUND_DISPLAY':{
+        this.ensureSoundRadarState?.();const R=this.state.world.radar;
+        if(this.state.tactical.soundDisplay==='PASSIVE'){
+          if(!R?.sjAvailable){this.notify('SJ surface-search radar is not fitted on this patrol date.','warn');break;}
+          this.state.tactical.soundDisplay='RADAR';
+        }else this.state.tactical.soundDisplay='PASSIVE';
         break;}
       case'ROTATE_BRIDGE': if(bridgeCanUse(this.state))this.state.tactical.bridgeBearing=normDeg(this.state.tactical.bridgeBearing+cmd.deltaDeg); break;
       case'TOGGLE_BRIDGE_BINOCULARS': if(bridgeCanUse(this.state))this.state.tactical.bridgeBinoculars=!this.state.tactical.bridgeBinoculars; break;
@@ -782,13 +793,14 @@ class SimEngineCore{
     s.weapons.deckGun={manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
     for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;t.specKey=s.tdc.torpedoSpecKey;}
     s.tactical.periscopeBearing=90;s.tactical.periscopeZoom=1;s.tactical.bridgeBearing=sub.heading;s.tactical.bridgeBinoculars=false;s.tactical.bridgeMarkedId=null;
-    s.world.aircraft=[];s.world.knuckles=[];
+    s.tactical.soundBearing=sub.heading;s.tactical.soundDisplay='PASSIVE';
+    s.world.aircraft=[];s.world.knuckles=[];s.world.sound=null;s.world.radar=null;
     s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,
       alarmedAt:-999,sdOn:true,nextCheck:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
     s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
-    this.setupHarbor(key);
+    this.setupHarbor(key);this.ensureSoundRadarState?.();
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
     this.log(`${area.description}`);
     showBriefing(key,s);

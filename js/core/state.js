@@ -4,7 +4,7 @@ function createState(areaKey){
   return{
     time:{elapsedSeconds:0,timeScale:1,campaignDate:'1943-08-17'},
     log:[{t:0,level:'info',message:`Patrol commenced. Area: ${areaKey}. Good hunting.`}],
-    tactical:{activeStation:'TACTICAL',periscopeBearing:90,periscopeZoom:1,bridgeBearing:90,bridgeBinoculars:false,selectedTrackId:null},
+    tactical:{activeStation:'TACTICAL',periscopeBearing:90,periscopeZoom:1,bridgeBearing:90,bridgeBinoculars:false,soundBearing:90,soundDisplay:'PASSIVE',selectedTrackId:null},
     tdc:{targetId:null,bearing:null,rangeNm:null,targetCourse:null,targetSpeedKnots:null,
       torpedoSpecKey:'mk14fast',
       torpedoType:'Mark 14 Fast',torpedoSpeedKnots:46,torpedoMaxRangeNm:4.9,
@@ -49,6 +49,8 @@ function createState(areaKey){
       contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
       aaManned:false,aaAmmo:1200,aaKills:0,aaHurt:0,
       airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,sdOn:true,nextCheck:120},
+      sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,qcLastAt:-999,_tick:0},
+      radar:null,
       radio:{pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0},
       environment:{...area.environment},
       enemy:{alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,

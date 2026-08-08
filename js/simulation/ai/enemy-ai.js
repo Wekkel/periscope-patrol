@@ -2,7 +2,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
   alertEscorts(reason,pos,conf){
     const e=this.state.world.enemy;this.ensureASWState?.();
     const newState=conf>.75?'ATTACKING':'SEARCHING';if(!(e.alertState==='ATTACKING'&&newState==='SEARCHING'))e.alertState=newState;
-    const timers={TORPEDO_LAUNCH:280,SHIP_HIT:480,EMERGENCY_BLOW:240,TORPEDO_DUD:160,COLLISION:300,DECK_GUN:260,AIR_ATTACK:220,NOISE:160};
+    const timers={TORPEDO_LAUNCH:280,SHIP_HIT:480,EMERGENCY_BLOW:240,TORPEDO_DUD:160,COLLISION:300,DECK_GUN:260,AIR_ATTACK:220,NOISE:160,ACTIVE_QC:260};
     e.alertTimerSec=Math.max(e.alertTimerSec,timers[reason]||200);
     const q=this.noteASWCue?this.noteASWCue(pos,conf,reason):{xNm:pos.xNm,yNm:pos.yNm};
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.searchCenter={xNm:q.xNm,yNm:q.yNm};

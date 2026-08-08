@@ -120,6 +120,39 @@ class AudioEngine{
   playWaypoint(){this.ensure();this._noise(0.1,880,'sine',0.14);setTimeout(()=>this._noise(0.1,1100,'sine',0.11),120);}
   playMissionComplete(){this.ensure();[523,659,784,1047].forEach((f,i)=>setTimeout(()=>this._noise(0.3,f,'sine',0.2),i*150));}
 
+  /* SOUND room monitor: two oscillators only, created while the player is
+     actually listening.  This keeps the low-end-device cost negligible. */
+  setHydrophoneMonitor(strength,cadenceHz=1.2,offsetDeg=0){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    const s=clamp(Number(strength)||0,0,1);if(s<.008){this.stopHydrophoneMonitor();return;}
+    if(!this.hydroCarrier){
+      const carrier=this.ctx.createOscillator(),gain=this.ctx.createGain(),lfo=this.ctx.createOscillator(),mod=this.ctx.createGain();
+      carrier.type='sawtooth';carrier.frequency.value=72;gain.gain.value=0;
+      lfo.type='sine';lfo.frequency.value=1.2;mod.gain.value=.012;
+      carrier.connect(gain);gain.connect(this.masterGain);lfo.connect(mod);mod.connect(gain.gain);
+      carrier.start();lfo.start();this.hydroCarrier=carrier;this.hydroGain=gain;this.hydroLfo=lfo;this.hydroMod=mod;
+    }
+    const now=this.ctx.currentTime,centre=1-clamp(Math.abs(offsetDeg||0)/18,0,.85);
+    this.hydroCarrier.frequency.setTargetAtTime(58+clamp(cadenceHz,.5,3.5)*13,now,.08);
+    this.hydroLfo.frequency.setTargetAtTime(clamp(cadenceHz,.55,3.4),now,.08);
+    this.hydroGain.gain.setTargetAtTime(.004+s*.040*centre,now,.10);
+    this.hydroMod.gain.setTargetAtTime(.002+s*.012,now,.10);
+  }
+
+  stopHydrophoneMonitor(){
+    if(!this.hydroCarrier)return;
+    try{this.hydroCarrier.stop();this.hydroLfo?.stop();}catch(_){}
+    this.hydroCarrier=null;this.hydroGain=null;this.hydroLfo=null;this.hydroMod=null;
+  }
+
+  playOwnSonarPing(){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    const o=this.ctx.createOscillator(),g=this.ctx.createGain();o.type='sine';
+    o.frequency.setValueAtTime(1450,this.ctx.currentTime);o.frequency.exponentialRampToValueAtTime(980,this.ctx.currentTime+.42);
+    g.gain.setValueAtTime(.48,this.ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,this.ctx.currentTime+.65);
+    o.connect(g);g.connect(this.masterGain);o.start();o.stop(this.ctx.currentTime+.7);
+  }
+
   toggle(){this.enabled=!this.enabled;if(this.masterGain)this.masterGain.gain.value=this.enabled?0.45:0;return this.enabled;}
 }
 

@@ -1,4 +1,4 @@
-class CanvasView extends CanvasViewBridge {
+class CanvasView extends CanvasViewSound {
   drawMap(ctx,w,h,state){
     const sub=state.playerSub, map=state.map, k=this.k;
     const pxPerNm=this.zoom;
