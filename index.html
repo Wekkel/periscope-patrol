@@ -205,8 +205,8 @@
            the run to the INTERCEPT rather than the present range, because a
            target drawing away is further than she looks: at 3 nm a 10-knot
            target opening from you makes it a 3.8 nm run. A shot that cannot
-           reach is refused with both numbers in yards; a shot inside 85% of
-           the run fires with a warning
+           reach is refused primarily in nautical miles (yards only as a
+           secondary detail); a shot inside 85% of the run fires with a warning
 
        ── the needle really moves now ──────────────────────────────────
          · shortDelta(from,to) returns to − from, and the drag handler had
@@ -226,11 +226,12 @@
            is announced on screen with the rendezvous named, its range and
            the course to steer, and a standing line in the warnings panel
          · GOING ALONGSIDE is now a deliberate act rather than something you
-           could do by accident while passing: inside 1.5 nm, on the surface,
-           and HELD there for three minutes of ship's time, with the transfer
-           reported at a third and two thirds. Dive or drift off and it stops
-           and says so. A tender transfers fuel and torpedoes with hoses and
-           a crane; it is not a checkpoint you drive through
+           could do by accident while passing: the 1.5 nm line is only the
+           approach station. The transfer starts inside 0.3 nm, surfaced and
+           below 3 knots, and must be held for three minutes of ship's time.
+           Dive, speed up or drift off and it stops and says so. A tender
+           transfers fuel and torpedoes with hoses and a crane; it is not a
+           checkpoint you drive through
          · "until something happens" is in all three time menus, not only on
            the panel button
          · the native <select> is gone from the touch shell. Android drew its
@@ -369,7 +370,7 @@
     .toast{background:rgba(9,26,31,.97);border:1px solid var(--line);border-radius:6px;padding:9px 16px;
       font-size:12.5px;letter-spacing:.4px;text-align:center;backdrop-filter:blur(4px);
       box-shadow:0 4px 18px rgba(0,0,0,.6);
-      animation:toastIn .18s ease-out,toastOut .3s ease-in 2s forwards;}
+      animation:toastIn .18s ease-out,toastOut .3s ease-in var(--toast-hold,2s) forwards;}
     .toast.ok{border-color:var(--ok);color:var(--ok);}
     .toast.warn{border-color:var(--alert);color:var(--alert);}
     .toast.bad{border-color:var(--danger);color:var(--danger);}
@@ -774,7 +775,7 @@
     #hgChip span{display:block;font-size:8.5px;letter-spacing:1.4px;color:var(--dim);}
     #hgChip b{display:block;font-size:26px;line-height:1.1;color:var(--alert);
       font-variant-numeric:tabular-nums;}
-    .hg{position:relative;flex:1 1 40%;min-width:132px;max-width:100%;}
+    .hg{position:relative;flex:0 0 auto;min-width:0;max-width:100%;}
     .hg.focus{flex-basis:100%;}
     .hg canvas{display:block;width:100%;height:auto;touch-action:none;}
     .hg-t{position:absolute;left:50%;top:2px;transform:translateX(-50%);
@@ -1063,7 +1064,7 @@
     </div>
     <div class="hk-section">
       <div class="hk-title">Time Scales</div>
-      <div class="hk-row"><span class="hk-key">Tab</span><span class="hk-desc">0x → 1x → 2x → 4x → 8x → 16x</span></div>
+      <div class="hk-row"><span class="hk-key">Tab</span><span class="hk-desc">0× → 1× → 8× → 16× → 32×</span></div>
     </div>
     <div class="hk-section">
       <div class="hk-title">Touch controls</div>
@@ -1175,7 +1176,7 @@
       <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
       <button id="damageControlButton">Toggle Damage Control</button>
       <button id="pumpButton">Toggle Pumps</button>
-      <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
+      <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
     </div>
     <div class="ptitle" style="margin-top:8px;">Periscope</div>
     <div class="cgroup">
@@ -1298,7 +1299,7 @@
       <span>T+<strong id="mClock">00000</strong></span>
       <span>★<strong id="mScore">0</strong></span>
     </div>
-    <select class="tsel" id="tBtnTime" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
+    <select class="tsel" id="tBtnTime" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
     <button class="tbtn" id="tBtnMenu" title="Missions">⚓</button>
   </div>
 
@@ -1421,7 +1422,7 @@
           <button id="mSdRadar">📡 SD Air Radar</button>
           <button id="mAaGun">🔫 Man AA Gun</button>
           <button id="mDmgCtrl">🔧 Damage Control</button>
-          <select id="mTimeSel" title="Time scale" style="margin:0;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option><option value="16">16×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
+          <select id="mTimeSel" title="Time scale" style="margin:0;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
         </div>
 
         <div class="ptitle" style="margin-top:14px;">Transit — skip the empty water</div>
@@ -1546,6 +1547,11 @@ const bearingBetween=(a,b)=>normDeg(radToDeg(Math.atan2(b.xNm-a.xNm,-(b.yNm-a.yN
 const distNm=(a,b)=>Math.hypot(a.xNm-b.xNm,a.yNm-b.yNm);
 const fmtTime=s=>{const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;};
 
+// Surface-engine hysteresis. These are deliberately a little forgiving: the boat
+// has no snorkel, but a depth controller hovering at 2–5 ft must not strand her.
+const DIESEL_CUTOFF_FT=12;
+const DIESEL_RESTART_FT=8;
+
 // ═══════════════════════════════════════════════════ TORPEDO SPECS
 const TORPEDO_SPECS = {
   mk14fast: {
@@ -1623,7 +1629,7 @@ const PATROL_AREAS={
     convoySpeedRange:[8,12],convoyCountRange:[3,6]
   },
   'Truk Approaches':{
-    description:'Japanese Pacific fortress. Heavy patrol craft. High risk, high reward.',
+    description:'Japanese Pacific fortress. Heavy patrol craft. High risk, high reward — Truk Anchorage can be penetrated through a mined, netted harbour approach.',
     convoyRoutes:[{from:{xNm:95,yNm:0},to:{xNm:-82,yNm:47},label:'TRUK RESUPPLY LANE'}],
     start:{xNm:10,yNm:30},
     ports:[{name:'Truk Anchorage',pos:{xNm:-1.2,yNm:-1.2},side:'ENEMY'},{name:'Submarine rendezvous',pos:{xNm:47.6,yNm:90.0},side:'FRIENDLY'}],
@@ -1671,6 +1677,51 @@ function calcTdc(inp){
     solutionQuality:clamp(inp.confidence*0.55+rQ*0.25+gQ*0.2,0,1)};
 }
 
+/* One range calculation for weapons, map and scope. The important distance is
+   the run to the INTERCEPT, not just the present slant range. Keeping this in
+   one helper prevents the UI saying "in range" while the firing code says no. */
+function torpedoInterceptRunNm(tdc,spec){
+  const r0=Number(tdc&&tdc.rangeNm)||0;
+  const tv=Number(tdc&&tdc.targetSpeedKnots)||0, sv=Number(spec&&spec.speedKnots)||46;
+  if(!tv||tdc.targetCourse==null||tdc.bearing==null) return r0;
+  const away=Math.cos(degToRad(shortDelta(tdc.targetCourse,tdc.bearing)));
+  let run=r0;
+  for(let i=0;i<3;i++){
+    const hours=run/Math.max(sv,0.1);              // nm / kn = hours
+    run=Math.max(0.05,r0+tv*away*hours);
+  }
+  return run;
+}
+
+function torpedoRangeInfo(state,preferredId){
+  if(!state||!state.playerSub||!state.tdc) return null;
+  const tdc=state.tdc;
+  const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||TORPEDO_SPECS.mk14fast;
+  if(!spec) return null;
+  const id=preferredId||state.tactical?.selectedTrackId||tdc.targetId;
+  if(!id) return null;
+  const sub=state.playerSub;
+  const tr=state.world?.contactTracks?.[id];
+  let pos=null,bearing=tdc.bearing,rangeNm=tdc.rangeNm,course=tdc.targetCourse,speed=tdc.targetSpeedKnots;
+  if(tr){
+    const br=degToRad(tr.bearing||0);
+    pos=tr.plotPosition||tr.lastFixPosition||{
+      xNm:sub.position.xNm+Math.sin(br)*(tr.rangeEstimateNm||0),
+      yNm:sub.position.yNm-Math.cos(br)*(tr.rangeEstimateNm||0)
+    };
+    rangeNm=distNm(sub.position,pos);
+    bearing=bearingBetween(sub.position,pos);
+    course=tr.courseEstimate;
+    speed=tr.speedEstimateKnots;
+  }
+  if(!(rangeNm>=0)) return null;
+  const runNm=torpedoInterceptRunNm({rangeNm,bearing,targetCourse:course,targetSpeedKnots:speed},spec);
+  const marginNm=spec.maxRangeNm-runNm;
+  const band=marginNm<0?'OUT':runNm>spec.maxRangeNm*0.85?'BORDERLINE':'IN';
+  return{id,pos,spec,rangeNm,runNm,maxNm:spec.maxRangeNm,marginNm,band,
+    label:band==='IN'?'IN RANGE':band==='BORDERLINE'?'BORDERLINE':`LONG BY ${(-marginNm).toFixed(1)} NM`};
+}
+
 // ═══════════════════════════════════════════════════ STATE
 function createState(areaKey){
   const area=PATROL_AREAS[areaKey];
@@ -1708,7 +1759,7 @@ function createState(areaKey){
         {text:'Return to friendly port',done:false}
       ],
       friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
-      tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false
+      tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     },
     map:{cellSizeNm:5,exploredCells:{},ownshipTrail:[],plottedCourse:[],
       estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true},
@@ -1721,6 +1772,7 @@ function createState(areaKey){
       enemy:{alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
         searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0},
       depthCharges:[],
+      harbor:null,harborInitialized:false,
       terrain:area.terrain,
       ports:area.ports,
       convoyRoutes:area.convoyRoutes,
@@ -1752,6 +1804,7 @@ class SimEngine{
   constructor(state,bus){this.state=state;this.bus=bus;}
 
   update(dt){
+    this.ensureWorldExtensions();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
     if(total<=0) return;
@@ -1778,7 +1831,7 @@ class SimEngine{
     const u=this.state.ui=this.state.ui||{};
     u.toasts=u.toasts||[];
     u.toasts.push({msg,kind,seq:(u.toastSeq=(u.toastSeq||0)+1)});
-    if(u.toasts.length>5) u.toasts.shift();
+    if(u.toasts.length>40) u.toasts.shift();
   }
 
   applyCmd(cmd){
@@ -1871,11 +1924,11 @@ class SimEngine{
         if(t.transitUntil){t.transitUntil=0;t.transitOpen=false;this.log('Transit ended.','warn');}
         break;}
       case'SET_TIME_SCALE':{
-        const v=[0,1,2,4,8,16].includes(+cmd.scale)?+cmd.scale:1;
+        const v=[0,1,8,16,32].includes(+cmd.scale)?+cmd.scale:1;
         this.state.time.timeScale=v;
         this.log(v===0?'Simulation paused.':`Time scale: ${v}x.`);break;}
       case'CYCLE_TIME_SCALE':{
-        const opts=[0,1,2,4,8,16]; const i=opts.indexOf(this.state.time.timeScale);
+        const opts=[0,1,8,16,32]; const i=opts.indexOf(this.state.time.timeScale);
         this.state.time.timeScale=opts[(i+1)%opts.length];
         this.log(this.state.time.timeScale===0?'Simulation paused.':`Time scale: ${this.state.time.timeScale}x.`); break;}
       case'SET_ACTIVE_STATION': this.state.tactical.activeStation=cmd.station;
@@ -1999,31 +2052,49 @@ class SimEngine{
      it is not the player saying "drive her aground". A skipper with the
      fathometer running does not need to be told to slow down when the bottom
      comes up, and neither should the game. Whenever time is compressed at
-     all — a transit OR any scale above 1× — closing water under the keel
-     takes the way off her, brings the clock back to real time and says why. */
+     all — a transit OR any scale above 1× — genuinely dangerous or rapidly
+     shoaling water hands the conn back at real time. Only immediate grounding
+     danger takes the way off her; ordinary coastal shallows do not. */
   shoalWatch(sub){
     const t=this.state.time;
     const compressed=!!t.transitUntil||(t.timeScale||1)>1;
     if(!compressed||sub.mode==='SUNK'||sub.bottomed) return;
     const clr=sub.keelClearanceFeet??3000;
-    if(clr>=45) return;
+    const surfaced=sub.depthFeet<12;                    // effectively on the roof / awash
+    const closing=Math.max(0,sub._keelClosingFps||0);  // ft of clearance lost per ship-second
+
+    /* Shallow water is not itself an emergency. A surfaced fleet boat can
+       legitimately con through twenty-something feet of water. Compression is
+       surrendered only when the margin gets genuinely tight, or the bottom is
+       rising quickly under a submerged boat. */
+    const handConnAt=surfaced?18:45;
+    const trendDanger=!surfaced&&clr<70&&closing>1.2;
+    if(clr>=handConnAt&&!trendDanger) return;
     const now=t.elapsedSeconds;
     if(now-(this._shoalAt||-99)<20) return;
     this._shoalAt=now;
-    t.transitUntil=0; t.transitOpen=false;
-    t.timeScale=1;
-    t.stopReason='shoaling water — all stopped'; t.stopReasonAt=now;
-    sub.propulsion.orderedRpm=0;
-    if(sub.orderedDepthFeet>Math.max(0,(sub.seabedFeet??3000)-60))
-      sub.orderedDepthFeet=Math.max(0,Math.round((sub.seabedFeet??3000)-60));
-    this.notify(`ALL STOP — only ${clr.toFixed(0)} ft under the keel and the bottom is coming up. Clock back to real time; con her out by hand.`,'bad');
+    t.transitUntil=0;t.transitOpen=false;t.timeScale=1;
+
+    const hard=surfaced?10:18;
+    if(clr<hard){
+      t.stopReason='dangerously little water under the keel';t.stopReasonAt=now;
+      sub.propulsion.orderedRpm=0;
+      this.notify(`ALL STOP — only ${Math.max(0,clr).toFixed(0)} ft under the keel. Clock back to real time; con her clear by hand.`,'bad');
+    }else{
+      t.stopReason='shoaling water — take the conn';t.stopReasonAt=now;
+      if(!surfaced&&sub.orderedDepthFeet>Math.max(0,(sub.seabedFeet??3000)-60))
+        sub.orderedDepthFeet=Math.max(0,Math.round((sub.seabedFeet??3000)-60));
+      this.notify(`SHOALING WATER — ${Math.max(0,clr).toFixed(0)} ft under the keel. Clock back to real time; you still have way on the boat.`,'warn');
+    }
   }
 
   updateSeabed(sub,dt){
     const sea=this.seabedFeet(sub.position);
     sub.seabedFeet=sea;
     sub.bottomType=Bathy.bottomType(sub.position.xNm,sub.position.yNm);
+    const prevClr=sub.keelClearanceFeet??(sea-sub.depthFeet);
     sub.keelClearanceFeet=sea-sub.depthFeet;
+    sub._keelClosingFps=dt>0?(prevClr-sub.keelClearanceFeet)/dt:0;
     const safe=Math.max(0,sea-25);
 
     // an order that would put her into the mud is trimmed, and said aloud
@@ -2167,13 +2238,80 @@ class SimEngine{
   }
 
   // ── CAMPAIGN ──
-  headToPort(){
+  friendlyPortApproach(port){
+    if(!port) return null;
+    const camp=this.state.campaign;
+    if(camp.portApproach&&camp.portApproach.portName===port.name) return camp.portApproach;
+    Bathy.ensure(this.state.world.terrain);
+
+    const candidates=[];
+    const sample=(requireDeep,allowShallow)=>{
+      for(let r=0.12;r<=2.4;r+=0.12){
+        for(let a=0;a<360;a+=12){
+          const q={xNm:port.pos.xNm+Math.sin(degToRad(a))*r,
+                   yNm:port.pos.yNm-Math.cos(degToRad(a))*r};
+          const sea=this.seabedFeet(q);
+          const terr=this.checkTerrainCollision({position:q});
+          if(terr.collision||(!allowShallow&&terr.inShallow)||sea<requireDeep) continue;
+          candidates.push({pos:q,seabedFeet:sea,r,score:r+Math.abs(Math.min(sea,220)-150)*0.0008});
+        }
+        if(candidates.length) break;
+      }
+    };
+    sample(100,false);               // first choice: proper open-water rendezvous
+    if(!candidates.length) sample(70,true);
+    if(!candidates.length) sample(35,true);
+
+    let best=candidates.sort((a,b)=>a.score-b.score)[0];
+    if(!best){
+      /* Extreme fallback for an awkward synthetic coastline: keep searching
+         farther out and remember the deepest navigable water we can find.
+         The geographic port symbol may sit on land; the autopilot never should. */
+      let deepest=null;
+      for(let r=2.5;r<=5.0;r+=0.25){
+        for(let a=0;a<360;a+=15){
+          const q={xNm:port.pos.xNm+Math.sin(degToRad(a))*r,
+                   yNm:port.pos.yNm-Math.cos(degToRad(a))*r};
+          const sea=this.seabedFeet(q),terr=this.checkTerrainCollision({position:q});
+          if(terr.collision||sea<8) continue;
+          const cand={pos:q,seabedFeet:sea,r,score:r};
+          if(!deepest||sea>deepest.seabedFeet) deepest=cand;
+          if(sea>=35){best=cand;break;}
+        }
+        if(best) break;
+      }
+      best=best||deepest;
+    }
+    if(!best){
+      /* Should only be possible with corrupt terrain. Leave no automatic plot
+         rather than silently steering the boat onto a land-valued port cell. */
+      this.notify(`${port.name}: no safe-water rendezvous could be charted. Take the conn and approach manually.`,'bad');
+      camp.portApproach={portName:port.name,pos:{...this.state.playerSub.position},seabedFeet:this.seabedFeet(this.state.playerSub.position),unavailable:true};
+      return camp.portApproach;
+    }
+    camp.portApproach={portName:port.name,pos:{...best.pos},seabedFeet:best.seabedFeet};
+    return camp.portApproach;
+  }
+
+  friendlyPortNav(){
     const fp=this.state.campaign.friendlyPort;
-    if(!fp){this.log('No friendly port in this area.','warn');return;}
-    this.state.map.plottedCourse=[{...fp.pos}];
+    if(!fp) return null;
+    const ap=this.friendlyPortApproach(fp);
+    const sub=this.state.playerSub;
+    return{port:fp,approach:ap,
+      portRangeNm:distNm(sub.position,fp.pos),
+      rngNm:distNm(sub.position,ap.pos),
+      brg:bearingBetween(sub.position,ap.pos)};
+  }
+
+  headToPort(){
+    const r=this.friendlyPortNav();
+    if(!r){this.log('No friendly port in this area.','warn');return;}
+    this.state.map.plottedCourse=[{...r.approach.pos,navKind:'FRIENDLY_APPROACH',portName:r.port.name}];
     this.state.map.autoFollowPlot=true;
+    this.state.campaign._headingHome=true;
     this.steerWaypoint(true);
-    this.log(`Heading to ${fp.name}.`,'warn');
+    this.notify(`Course set for ${r.port.name} rendezvous — ${r.rngNm.toFixed(1)} nm on ${fmtDeg(r.brg)}. The marker is in safe water; compressed time will hand the conn back near the approach.`,'warn');
   }
 
   nearestFriendlyPort(){
@@ -2187,38 +2325,53 @@ class SimEngine{
     return best;
   }
 
-  /* ══ GOING ALONGSIDE ══════════════════════════════════════════════════
-     A submarine rendezvous is a tender or another boat lying stopped in an
-     empty patch of sea, and taking on fuel and torpedoes from her is hours
-     of work with hoses and a crane, not a checkpoint you drive through. So:
-     come within a mile and a half, be ON THE SURFACE, and STAY there. The
-     bar fills, and if you dive or wander off it empties again and says so.
-     Three minutes of ship's time, which under any time compression at all
-     is a moment — the point is that it is a deliberate act, not something
-     you do by accident while passing. */
+  /* The green port symbol is geography; the rendezvous marker is seamanship.
+     We steer to the latter, in surveyed water. 1.5 nm is the approach station,
+     not "alongside". The transfer only starts when the boat is genuinely
+     close, surfaced and slow. */
   checkPortArrival(dt){
-    const sub=this.state.playerSub, camp=this.state.campaign;
-    if(camp.missionStatus!=='RETURN TO BASE'&&camp.missionStatus!=='PATROL'){ camp.alongside=0; return; }
-    const r=this.nearestFriendlyPort();
-    const ALONGSIDE_SEC=180;
-    if(!r||r.rngNm>1.5||sub.depthFeet>=8||sub.mode==='SUNK'){
+    const sub=this.state.playerSub,camp=this.state.campaign;
+    if(camp.missionStatus!=='RETURN TO BASE'&&camp.missionStatus!=='PATROL'){
+      camp.alongside=0;return;
+    }
+    const r=this.friendlyPortNav();
+    const ALONGSIDE_SEC=180,APPROACH_NM=1.5,CLOSE_NM=0.30,SLOW_KN=3.0;
+    if(!r){camp.alongside=0;return;}
+    camp.portRangeNm=r.rngNm;
+
+    if(r.rngNm<4&&r.rngNm>APPROACH_NM&&!camp._rvSeen){
+      camp._rvSeen=true;
+      this.notify(`${r.port.name.toUpperCase()} IN SIGHT — ${r.rngNm.toFixed(1)} nm to the rendezvous. Continue to the green approach ring.`,'warn');
+    }
+    if(r.rngNm<=APPROACH_NM&&!camp._approachReached){
+      camp._approachReached=true;
+      if((this.state.time.timeScale||1)>1||this.state.time.transitUntil){
+        this.state.time.timeScale=1;this.state.time.transitUntil=0;this.state.time.transitOpen=false;
+        this.state.time.stopReason='friendly port approach';this.state.time.stopReasonAt=this.state.time.elapsedSeconds;
+      }
+      this.notify(`${r.port.name.toUpperCase()} — APPROACH STATION. Surface, slow below ${SLOW_KN.toFixed(0)} kn and bring her inside 0.3 nm of the green rendezvous marker.`,'warn');
+    }
+    if(r.rngNm>APPROACH_NM*1.25) camp._approachReached=false;
+    if(r.rngNm>4.5) camp._rvSeen=false;
+
+    const surfaced=sub.depthFeet<8,slow=sub.propulsion.speedKnots<=SLOW_KN,close=r.rngNm<=CLOSE_NM;
+    if(!close||!surfaced||!slow||sub.mode==='SUNK'){
       if((camp.alongside||0)>0.5){
-        this.notify(`Lost the rendezvous — ${sub.depthFeet>=8?'she has gone under':'she has drawn off'}. The transfer is stopped.`,'warn');
+        const why=!close?'she has drawn off':!surfaced?'she has gone under':'she is making too much way';
+        this.notify(`Lost the ${r.port.name} rendezvous — ${why}. Transfer stopped.`,'warn');
       }
       camp.alongside=0;
-      // a nudge when the boat is near but not yet secured
-      if(r&&r.rngNm<4&&r.rngNm>1.5&&!camp._rvSeen){
-        camp._rvSeen=true;
-        this.notify(`${r.port.name} in sight — ${r.rngNm.toFixed(1)} nm, steer ${fmtDeg(r.brg)}. Surface inside 1.5 nm and hold there.`,'ok');
-      }
       return;
     }
+
     const was=camp.alongside||0;
     camp.alongside=was+dt;
-    if(was<=0) this.notify(`Alongside ${r.port.name}. Hoses across — fuel and torpedoes coming aboard. Hold her here.`,'ok');
-    else for(const mark of [60,120]) if(was<mark&&camp.alongside>=mark)
-      this.notify(`Transfer ${Math.round(camp.alongside/ALONGSIDE_SEC*100)}% — hold her alongside.`,'ok');
-    if(camp.alongside>=ALONGSIDE_SEC){ camp.alongside=0; this.completeMission(r.port.name); }
+    if(was<=0){
+      this.notify(`${r.port.name.toUpperCase()} — ALONGSIDE. Hoses across; fuel and torpedoes coming aboard. Hold position.`,'ok');
+      audio.playWaypoint();
+    }else for(const mark of [60,120]) if(was<mark&&camp.alongside>=mark)
+      this.notify(`${r.port.name} transfer ${Math.round(camp.alongside/ALONGSIDE_SEC*100)}% — hold her here.`,'ok');
+    if(camp.alongside>=ALONGSIDE_SEC){camp.alongside=0;this.completeMission(r.port.name);}
   }
 
   completeMission(portName){
@@ -2237,6 +2390,7 @@ class SimEngine{
     camp.totalScore+=patrolScore;
     camp.score=0;                       // banked — startNewPatrol would count it twice
     this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
+    Toast.show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
     this.log(`Patrol score: ${patrolScore} | Career total: ${camp.totalScore}`,'warn');
     audio.playMissionComplete();
     SaveSystem.updateCareer(camp);
@@ -2276,7 +2430,7 @@ class SimEngine{
         {text:'Evade escort vessels',done:false},{text:'Return to friendly port',done:false}
       ],
       friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
-      tonnageSunk:0,escortsSunk:0,patrolDuration:0
+      tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     };
     // fresh boat for a fresh patrol — otherwise you inherit a wrecked, empty
     // (or sunk) submarine from the previous one
@@ -2300,6 +2454,8 @@ class SimEngine{
       alarmedAt:-999,sdOn:true,nextCheck:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
     s.world.contacts=this.makeConvoy(area);
+    s.world.harbor=null;s.world.harborInitialized=false;
+    this.setupHarbor(key);
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
     this.log(`${area.description}`);
     showBriefing(key,s);
@@ -2353,7 +2509,7 @@ class SimEngine{
         },
         heading:crs+(Math.random()-0.5)*8,
         speedKnots:spd+(Math.random()-0.5)*0.5, baseSpeed:spd,
-        convoyRole:'MERCHANT', formationIndex:i
+        convoyRole:'MERCHANT', convoyId:'MAIN', formationIndex:i, formationFwd:off.fwd, formationSide:off.side
       });
     }
 
@@ -2375,11 +2531,187 @@ class SimEngine{
         },
         heading:crs+(Math.random()-0.5)*5,
         speedKnots:spd+4+(Math.random()-0.5)*1,
-        convoyRole:'ESCORT_FWD', formationIndex:i,
+        convoyRole:'ESCORT_FWD', convoyId:'MAIN', formationIndex:i,
         zigzagPhase:Math.random()*Math.PI*2, zigzagTimer:0
       });
     }
     return contacts;
+  }
+
+  /* ══ ENEMY HARBOUR — first full prototype: TRUK ════════════════════
+     Enemy ports used to be red squares on the chart and nothing more. Truk is
+     now a place the player can deliberately penetrate: a persistent mine belt
+     with a swept channel, a torpedo-net gate, harbour hydrophones, searchlights
+     and coastal batteries, plus moored high-value targets that are generated
+     once per patrol and then stay where they are. */
+  ensureWorldExtensions(){
+    const W=this.state.world;
+    if(W.harborInitialized===undefined) W.harborInitialized=false; // migrate old saves
+    if(!W.harborInitialized) this.setupHarbor(this.state.campaign.patrolArea);
+  }
+
+  setupHarbor(areaKey){
+    const W=this.state.world, area=PATROL_AREAS[areaKey];
+    W.harborInitialized=true; W.harbor=null;
+    if(!area||areaKey!=='Truk Approaches') return;
+    const port=(area.ports||[]).find(p=>p.side==='ENEMY'&&/Truk/i.test(p.name));
+    if(!port) return;
+    const H=W.harbor={
+      name:port.name,center:{...port.pos},outerRadiusNm:5.6,innerRadiusNm:1.25,
+      channelBearing:68,channelHalfWidthNm:0.42,
+      mineInnerNm:2.15,mineOuterNm:4.75,
+      netRangeNm:1.82,netHalfSpanNm:1.18,netGapHalfNm:0.28,
+      hydrophoneRangeNm:4.6,batteryRangeNm:5.1,
+      suspicion:0,alert:0,entered:false,inside:false,lastGunAt:-999,lastSweepAt:-999,
+      mines:[]
+    };
+    // Physical mines: positions are randomised ONCE, not rerolled as the player
+    // approaches. The chart only shows the belt and swept channel, never the
+    // individual mines.
+    let tries=0;
+    while(H.mines.length<30&&tries++<300){
+      const a=Math.random()*360;
+      if(Math.abs(shortDelta(H.channelBearing,a))<13) continue; // swept approach
+      const rr=H.mineInnerNm+Math.random()*(H.mineOuterNm-H.mineInnerNm);
+      const r=degToRad(a);
+      H.mines.push({xNm:H.center.xNm+Math.sin(r)*rr,
+                    yNm:H.center.yNm-Math.cos(r)*rr,triggered:false});
+    }
+
+    if(!W.contacts.some(c=>c.harborTarget)){
+      const put=(id,name,type,displayType,brg,rng,length,tons,value,profile=1)=>{
+        const r=degToRad(brg);
+        W.contacts.push({id,name,type,displayType,lengthYards:length,visualProfile:profile,
+          acousticBase:0.05,tonsFactor:tons,harborValue:value,harborTarget:true,stationary:true,
+          position:{xNm:H.center.xNm+Math.sin(r)*rng,yNm:H.center.yNm-Math.cos(r)*rng},
+          heading:normDeg(brg+85),speedKnots:0,desiredSpeed:0,baseSpeed:0,convoyRole:'HARBOR'});
+      };
+      put('H-01','Fleet Oiler','TANKER','FLEET OILER',205,0.72,560,10500,2600,1.12);
+      put('H-02','Army Transport','MERCHANT','TROOP TRANSPORT',318,0.62,500,7600,2200,1.02);
+      put('H-03','Cargo Vessel','MERCHANT','CARGO SHIP',112,0.92,430,4800,1800,0.96);
+      // The jackpot is deliberately uncertain. It is decided at patrol creation
+      // and never respawned or moved later.
+      if(Math.random()<0.38)
+        put('H-04','Japanese Fleet Carrier','MERCHANT','FLEET CARRIER',28,0.46,820,26000,9000,1.45);
+      else
+        put('H-04','Heavy Cruiser','MERCHANT','HEAVY CRUISER',28,0.46,660,13500,5200,1.22);
+    }
+  }
+
+  harborNetSegments(H){
+    if(!H) return [];
+    const r=degToRad(H.channelBearing), sx=Math.cos(r), sy=Math.sin(r);
+    const gate={xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,
+                yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};
+    const at=d=>({xNm:gate.xNm+sx*d,yNm:gate.yNm+sy*d});
+    return [{a:at(H.netGapHalfNm),b:at(H.netHalfSpanNm)},
+            {a:at(-H.netGapHalfNm),b:at(-H.netHalfSpanNm)}];
+  }
+
+  pointSegNm(p,a,b){
+    const vx=b.xNm-a.xNm,vy=b.yNm-a.yNm,wx=p.xNm-a.xNm,wy=p.yNm-a.yNm;
+    const vv=vx*vx+vy*vy||1e-9,t=clamp((wx*vx+wy*vy)/vv,0,1);
+    return Math.hypot(p.xNm-(a.xNm+vx*t),p.yNm-(a.yNm+vy*t));
+  }
+
+  harborTorpedoNetHit(pos){
+    const H=this.state.world.harbor;if(!H) return false;
+    return this.harborNetSegments(H).some(seg=>this.pointSegNm(pos,seg.a,seg.b)<0.024);
+  }
+
+  updateHarbor(dt){
+    this.ensureWorldExtensions();
+    const W=this.state.world,H=W.harbor,sub=this.state.playerSub;
+    if(!H||sub.mode==='SUNK') return;
+    const now=this.state.time.elapsedSeconds,rng=distNm(sub.position,H.center);
+    if(rng<H.outerRadiusNm&&!H.entered){
+      H.entered=true;
+      this.notify(`ENEMY HARBOUR WATERS — ${H.name}. Mine belt and listening stations ahead. The swept channel is narrow; slow and quiet is the safe way in.`,'warn');
+    }
+    if(rng<H.innerRadiusNm&&!H.inside){
+      H.inside=true;
+      this.notify(`INSIDE ${H.name.toUpperCase()} — silhouettes at anchor. High-value targets are close, but the same gate is still your way out.`,'ok');
+    }else if(rng>H.innerRadiusNm*1.35) H.inside=false;
+
+    // Harbour hydrophones / indicator loops: not magical truth, but sustained
+    // screw noise inside the defensive ring builds a suspicion plot.
+    const hydro=clamp(1-rng/H.hydrophoneRangeNm,0,1);
+    const noise=clamp(sub.stealth.acousticSignature,0,1.5);
+    if(hydro>0){
+      const prop=Math.max(0,noise-0.035)+Math.max(0,sub.propulsion.speedKnots-3)*0.012;
+      H.suspicion+=dt*hydro*prop*0.62;
+      if(sub.depthFeet<12) H.suspicion+=dt*hydro*(0.025+W.environment.daylight*0.045);
+    }
+    const quiet=noise<0.16&&sub.propulsion.speedKnots<4;
+    H.suspicion=clamp(H.suspicion-dt*(quiet?0.045:0.012),0,100);
+
+    if(H.suspicion>18&&H.alert<1){
+      H.alert=1;
+      this.notify(`${H.name}: harbour hydrophones have a possible contact. Searchlights and batteries are standing by.`,'warn');
+    }
+    if(H.suspicion>46&&H.alert<2){
+      H.alert=2;
+      this.notify(`HARBOR ALARM — ${H.name} has your approximate position. Searchlights sweeping; coastal batteries ready.`,'bad');
+      W.enemy.searchCenter={...sub.position};
+    }
+    if(H.alert===2&&H.suspicion<12) H.alert=1;
+    if(H.alert===1&&H.suspicion<4) H.alert=0;
+
+    // Searchlight sweeps are warnings; the battery only has a useful target if
+    // the boat is surfaced/awash. Diving under the beams is therefore real cover.
+    if(H.alert>0&&sub.depthFeet<12&&rng<4.4&&now-H.lastSweepAt>22){
+      H.lastSweepAt=now;
+      this.notify('Searchlight beam sweeping the harbour entrance — keep the deck down or get under it.','warn');
+      H.suspicion=clamp(H.suspicion+5,0,100);
+    }
+    if(H.alert>=2&&sub.depthFeet<12&&rng<H.batteryRangeNm&&now-H.lastGunAt>11){
+      H.lastGunAt=now;
+      const env=W.environment;
+      const rangeF=clamp(1-rng/H.batteryRangeNm,0,1);
+      const light=clamp(env.daylight+(H.alert>=2?0.35:0),0.2,1);
+      const pHit=rangeF*rangeF*0.42*light*(1-env.seaState*0.28);
+      if(Math.random()<pHit){
+        const dmg=5+Math.random()*12;
+        this.applyShock(dmg);
+        W.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
+        this.notify(`COASTAL BATTERY HIT — ${dmg.toFixed(0)}% damage. Get below the searchlights!`,'bad');
+        audio.playDepthCharge(0.55);
+      }else{
+        this.notify('Coastal battery firing — shell splashes close aboard.','bad');
+        audio.playDepthCharge(0.9);
+      }
+    }
+
+    // Mines are actual persistent points. No dice are rolled merely because the
+    // player entered a zone: either the hull intersects a mine or it does not.
+    if(sub.depthFeet>=4&&sub.depthFeet<=105){
+      for(const m of H.mines){
+        if(m.triggered||distNm(sub.position,m)>0.042) continue;
+        m.triggered=true;H.alert=2;H.suspicion=100;
+        const dmg=38+Math.random()*28;
+        this.applyShock(dmg);
+        W.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:12,label:'MINE'});
+        this.notify(`MINE! Underwater explosion — ${dmg.toFixed(0)}% damage. The swept channel is the only safe water.`,'bad');
+        audio.playDepthCharge(0.15);particles.spawnExplosion(sub.position.xNm,sub.position.yNm,1.25,false);
+        break;
+      }
+    }
+
+    // A submarine can foul a net just as a torpedo can. Stop and shove her back
+    // rather than leaving the player irretrievably welded to the obstacle.
+    if(sub.depthFeet>=4&&sub.depthFeet<=80&&now-(H.lastNetAt||-999)>8){
+      for(const seg of this.harborNetSegments(H)){
+        if(this.pointSegNm(sub.position,seg.a,seg.b)>=0.036) continue;
+        H.lastNetAt=now;
+        const back=degToRad(normDeg(sub.heading+180));
+        sub.position.xNm+=Math.sin(back)*0.055;sub.position.yNm-=Math.cos(back)*0.055;
+        sub.propulsion.actualRpm*=0.08;sub.propulsion.speedKnots*=0.05;
+        sub.damage.rudderDamage=clamp(sub.damage.rudderDamage+0.04,0,1);
+        this.notify('TORPEDO NET — screws fouled and way off the boat. Back clear and find the gate in the swept channel.','bad');
+        H.suspicion=clamp(H.suspicion+18,0,100);
+        break;
+      }
+    }
   }
 
   // ── WEAPONS ──
@@ -2400,20 +2732,7 @@ class SimEngine{
   /* How far the fish actually has to swim: the target keeps moving while it
      runs, so the intercept is further out than the present range whenever
      she is opening. Solved by iteration — three passes is plenty. */
-  interceptRunNm(tdc,spec){
-    const r0=tdc.rangeNm||0;
-    const tv=(tdc.targetSpeedKnots||0), sv=spec.speedKnots||46;
-    // course 000 is a perfectly good course — do not let it test as falsy
-    if(!tv||tdc.targetCourse==null||tdc.bearing==null) return r0;
-    // component of the target's motion directly away from us
-    const away=Math.cos(degToRad(shortDelta(tdc.targetCourse,tdc.bearing)));
-    let run=r0;
-    for(let i=0;i<3;i++){
-      const t=run/knotsNmSec(sv)/3600;                 // hours of running
-      run=Math.max(0.05,r0+tv*away*t);
-    }
-    return run;
-  }
+  interceptRunNm(tdc,spec){ return torpedoInterceptRunNm(tdc,spec); }
 
   fireTorpedo(id){
     const t=this.state.weapons.tubes.find(t=>t.id===id);
@@ -2431,11 +2750,12 @@ class SimEngine{
     if(tdc.rangeNm!=null){
       const runNm=this.interceptRunNm(tdc,spec);
       if(runNm>spec.maxRangeNm){
-        this.notify(`Tube ${id}: the run to the intercept is ${(runNm*2025).toFixed(0)} yd — the ${spec.name} only carries ${(spec.maxRangeNm*2025).toFixed(0)} yd. She would sink short. Close the range.`,'warn');
+        const longBy=runNm-spec.maxRangeNm;
+        this.notify(`Tube ${id}: intercept run ${runNm.toFixed(1)} nm; ${spec.name} max ${spec.maxRangeNm.toFixed(1)} nm — long by ${longBy.toFixed(1)} nm (${Math.round(longBy*2025)} yd). Close the range.`,'warn');
         return;
       }
       if(runNm>spec.maxRangeNm*0.85)
-        this.notify(`Long shot — ${(runNm*2025).toFixed(0)} yd of a ${(spec.maxRangeNm*2025).toFixed(0)} yd run. Little margin if she zigs.`,'warn');
+        this.notify(`Long shot — intercept run ${runNm.toFixed(1)} nm of ${spec.maxRangeNm.toFixed(1)} nm max. Little margin if she zigs.`,'warn');
     }
     const dudMode=DUD_MODES[tdc.dudMode]??1;
     const dudChance=spec.dudChanceBase*dudMode;
@@ -2525,6 +2845,14 @@ class SimEngine{
       t.rangeRunNm+=d; t.ageSec+=dt;
       if(t.rangeRunNm>=t.maxRangeNm){t.status='EXPIRED';this.reportMiss(t,true);continue;}
       if(t.rangeRunNm<t.armedAfterNm) continue;
+      if(this.harborTorpedoNetHit(t.position)){
+        t.status='NETTED';
+        W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'NET',kind:'dud'});
+        this.notify(`${t.id} caught in the harbour torpedo net — warhead spent against the boom.`,'warn');
+        audio.playDud();
+        const H=this.state.world.harbor;if(H){H.alert=2;H.suspicion=100;}
+        continue;
+      }
       /* CLOSEST APPROACH — a torpedo either strikes the plating or it does
          not. The old test was a circle 240 m across drawn round the ship's
          centre, so a fish crossing her beam "hit" while it was still a
@@ -2607,10 +2935,13 @@ class SimEngine{
                              :48+Math.random()*35;
             c.sunkAt=this.state.time.elapsedSeconds;
             const trk=this.state.world.contactTracks[c.id];
-            if(trk){trk.sunk=true;trk.truePosition={...c.position};}
+            if(trk){trk.sunk=true;trk.lastFixPosition={...c.position};trk.plotPosition={...c.position};delete trk.truePosition;}
             const camp=this.state.campaign;
-            const pts=c.type==='ESCORT'?2200:1400;
+            const pts=c.harborValue||(c.type==='ESCORT'?2200:1400);
             camp.score+=pts; camp.tonnageSunk+=(c.tonsFactor||3000);
+            if(c.harborTarget&&this.state.world.harbor){
+              this.state.world.harbor.alert=2;this.state.world.harbor.suspicion=100;
+            }
             if(c.type==='ESCORT') camp.escortsSunk++;
             if(camp.objectives[1]) camp.objectives[1].done=true;
             W.hits.push({torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds});
@@ -2673,7 +3004,7 @@ class SimEngine{
     // Merchants react: speed up, scatter — only on actual hit, not mere launch
     if(reason==='SHIP_HIT'||reason==='TORPEDO_DUD'){
       for(const c of this.state.world.contacts){
-        if(c.type==='ESCORT'||c.sunk) continue;
+        if(c.type==='ESCORT'||c.sunk||c.harborTarget) continue;
         const wasAlerted=c.alertedAt&&(this.state.time.elapsedSeconds-c.alertedAt)<120;
         if(!wasAlerted){
           c.alertedAt=this.state.time.elapsedSeconds;
@@ -3075,7 +3406,7 @@ class SimEngine{
 
   composeSignal(){
     const W=this.state.world, camp=this.state.campaign;
-    const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT');
+    const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT'&&!c.harborTarget);
     const R=W.radio||{};
     const forced=!!R.forceUltra; R.forceUltra=false;
     if(forced) R.coldFor=0;
@@ -3144,7 +3475,7 @@ class SimEngine{
     for(const tr of Object.values(W.contactTracks||{})){
       if(!tr||tr.sunk||tr.confidence<=0.05||tr.id==='ULTRA') continue;
       const br=degToRad(tr.bearing), rg=tr.rangeEstimateNm||0;
-      const pos={xNm:sub.position.xNm+Math.sin(br)*rg,yNm:sub.position.yNm-Math.cos(br)*rg};
+      const pos=tr.plotPosition||{xNm:sub.position.xNm+Math.sin(br)*rg,yNm:sub.position.yNm-Math.cos(br)*rg};
       out.push({kind:tr.contactType==='ESCORT'?'ESCORT':'CONTACT',
         name:tr.typeEstimate==='UNKNOWN'?`Unknown contact ${tr.id}`:`${tr.typeEstimate} ${tr.id}`,
         pos,rngNm:rg,brg:tr.bearing,ageSec:tr.staleSeconds||0,
@@ -3397,7 +3728,7 @@ class SimEngine{
       esc.zigzagPhase=esc.zigzagPhase||0;
       const zigzagPeriod=40+idx*12;
       if(esc.zigzagTimer>zigzagPeriod){esc.zigzagTimer=0;esc.zigzagPhase+=Math.PI;}
-      const merchants=W.contacts.filter(c=>c.type!=='ESCORT'&&!c.sunk);
+      const merchants=W.contacts.filter(c=>c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
       if(merchants.length){
         const cx=merchants.reduce((s,m)=>s+m.position.xNm,0)/merchants.length;
         const cy=merchants.reduce((s,m)=>s+m.position.yNm,0)/merchants.length;
@@ -3609,7 +3940,9 @@ class SimEngine{
       batLow:s.playerSub.propulsion.battery<12,
       airLow:s.playerSub.damage.oxygen<30,
       fuelLow:s.playerSub.propulsion.fuel<20,
-      atEdge:this.headingOutOfArea()
+      atEdge:this.headingOutOfArea(),
+      harborAlert:(s.world.harbor&&s.world.harbor.alert)||0,
+      portApproachNear:(()=>{const r=this.friendlyPortNav();return !!(r&&r.rngNm<=1.5);})()
     };
   }
   /* The chart has an edge, and running off it during an open-ended transit
@@ -3657,10 +3990,14 @@ class SimEngine{
     if(s.campaign.missionStatus!==w.status) return 'new orders';
     if(s.playerSub.propulsion.battery<12&&!w.batLow) return 'the battery is low';
     if(s.playerSub.damage.oxygen<30&&!w.airLow) return 'the air is going bad';
-    if(s.playerSub.inShallowWater) return 'shoal water ahead';
-    if((s.playerSub.keelClearanceFeet??3000)<70) return 'shoaling water under the keel';
+    const portNav=this.friendlyPortNav();
+    if(portNav&&portNav.rngNm<=1.5&&!w.portApproachNear) return 'friendly port approach';
+    const surfaced=s.playerSub.depthFeet<12,clr=s.playerSub.keelClearanceFeet??3000;
+    if(s.playerSub.inShallowWater&&!surfaced) return 'shoal water ahead';
+    if(clr<(surfaced?18:70)) return 'shoaling water under the keel';
     if(this.headingOutOfArea()&&!w.atEdge) return 'she is standing out of the patrol area';
     if(s.playerSub.propulsion.fuel<20&&!w.fuelLow) return 'the fuel is running low';
+    if(((s.world.harbor&&s.world.harbor.alert)||0)>w.harborAlert) return 'enemy harbour defenses are stirring';
     return null;
   }
 
@@ -3705,18 +4042,19 @@ class SimEngine{
 
   checkMissionObjectives(){
     const camp=this.state.campaign;
-    // Convoy located
-    if(Object.keys(this.state.world.contactTracks).length>0&&camp.objectives[0]) camp.objectives[0].done=true;
-    // Merchant attacked
-    const anyHit=this.state.weapons.hits.length>0;
-    if(anyHit&&camp.objectives[1]) camp.objectives[1].done=true;
+    // Convoy objectives are about the patrol convoy, not optional harbour prizes.
+    const convoyIds=new Set(this.state.world.contacts.filter(c=>c.convoyId==='MAIN').map(c=>c.id));
+    const convoyLocated=Object.keys(this.state.world.contactTracks).some(id=>convoyIds.has(id));
+    if(convoyLocated&&camp.objectives[0]) camp.objectives[0].done=true;
+    const anyConvoyHit=this.state.weapons.hits.some(h=>convoyIds.has(h.contactId));
+    if(anyConvoyHit&&camp.objectives[1]) camp.objectives[1].done=true;
     // All merchants sunk → head home
-    const merchants=this.state.world.contacts.filter(c=>c.type!=='ESCORT'&&!c.sunk);
+    const merchants=this.state.world.contacts.filter(c=>c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
     if(merchants.length===0&&camp.missionStatus==='PATROL'){
       camp.missionStatus='RETURN TO BASE';
-      const r=this.nearestFriendlyPort();
+      const r=this.friendlyPortNav();
       this.notify(r
-        ? `PATROL OBJECTIVE COMPLETE — every merchant accounted for. Make for ${r.port.name}: ${r.rngNm.toFixed(1)} nm, steer ${fmtDeg(r.brg)}. Surface within 1.5 nm and stay alongside to finish the patrol.`
+        ? `PATROL OBJECTIVE COMPLETE — every merchant accounted for. Make for ${r.port.name}: rendezvous ${r.rngNm.toFixed(1)} nm on ${fmtDeg(r.brg)}. Use HEAD TO PORT to plot the safe-water approach.`
         : 'PATROL OBJECTIVE COMPLETE — every merchant accounted for. Return to a friendly port.','ok');
     }
   }
@@ -3727,7 +4065,7 @@ class SimEngine{
     this.updateHeading(sub,dt); this.updateDepth(sub,dt); this.updatePropulsion(sub,dt);
     this.updatePosition(sub,dt);
     this.applyTerrainEffects(sub,dt);
-    this.updateWorld(dt); this.updateSigs(sub);
+    this.updateWorld(dt); this.updateSigs(sub); this.updateHarbor(dt);
     this.updateDetection(dt); this.updateTdc(); this.updateTorpedoes(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
@@ -3794,7 +4132,11 @@ class SimEngine{
        batteries, and only the surface charges them.
        A little hysteresis so she does not chatter at the changeover depth. */
     const wasSub=p.engineMode==='ELECTRIC';
-    const subm=wasSub?sub.depthFeet>6:sub.depthFeet>8;
+    /* Gameplay tolerance: Silversides still has no snorkel, but a boat that is
+       effectively awash must not be stranded because the depth controller is
+       hovering a few feet below zero. Diesels stay on down to 12 ft and, once
+       secured, come back by 8 ft. Periscope depth remains battery-only. */
+    const subm=wasSub?sub.depthFeet>DIESEL_RESTART_FT:sub.depthFeet>DIESEL_CUTOFF_FT;
     p.engineMode=subm?'ELECTRIC':'DIESEL';
     if(subm&&!wasSub) this.log('Main induction closed — diesels secured, answering on the motors. No snorkel in this boat: she cannot charge until she is on the roof.','warn');
     else if(!subm&&wasSub) this.log('Surfaced — induction open, diesels on line. Battery charging.','warn');
@@ -3855,12 +4197,53 @@ class SimEngine{
     c.speedKnots=clamp(c.speedKnots+clamp(ds,-acc*1.7*dt,acc*dt),0,42);
   }
 
+  updateConvoyNavigation(){
+    const W=this.state.world, route=(W.convoyRoutes||[])[0];
+    if(!route) return;
+    const merchants=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.convoyRole==='MERCHANT'&&!c.sunk);
+    if(!merchants.length) return;
+    merchants.sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0));
+    const lead=merchants[0];
+    W.convoyLeg=W.convoyLeg===-1?-1:1;
+    let endpoint=W.convoyLeg>0?route.to:route.from;
+    const A=this.areaBounds();
+    const nearEdge=A&&(lead.position.xNm<A.x0+7||lead.position.xNm>A.x1-7||lead.position.yNm<A.y0+7||lead.position.yNm>A.y1-7);
+    if(distNm(lead.position,endpoint)<7||nearEdge){
+      W.convoyLeg*=-1;
+      endpoint=W.convoyLeg>0?route.to:route.from;
+      if(!W._convoyTurnLogged){
+        W._convoyTurnLogged=true;
+        setTimeout(()=>{if(this.state.world) this.state.world._convoyTurnLogged=false;},1500);
+      }
+    }
+    if(!lead.scattering){
+      lead.desiredHeading=bearingBetween(lead.position,endpoint);
+      lead.desiredSpeed=lead.baseSpeed||lead.speedKnots;
+    }
+    // The rest of the merchants hold actual formation stations behind the lead
+    // instead of each ship independently choosing a random point at a chart edge.
+    const hdg=lead.desiredHeading===undefined?lead.heading:lead.desiredHeading;
+    const r=degToRad(hdg), fx=Math.sin(r), fy=-Math.cos(r), sx=Math.cos(r), sy=Math.sin(r);
+    for(const c of merchants.slice(1)){
+      if(c.scattering) continue;
+      const f=c.formationFwd??(-(c.formationIndex||1)*1.2), side=c.formationSide||0;
+      const tgt={xNm:lead.position.xNm+fx*f+sx*side,
+                 yNm:lead.position.yNm+fy*f+sy*side};
+      const err=distNm(c.position,tgt);
+      c.desiredHeading=bearingBetween(c.position,tgt);
+      c.desiredSpeed=clamp((lead.baseSpeed||lead.speedKnots)+err*0.55,3,16);
+    }
+  }
+
   updateWorld(dt){
     const elapsed=this.state.time.elapsedSeconds;
+    this.updateConvoyNavigation();
     for(const c of this.state.world.contacts){
       if(c.sunk) continue;
-      // Apply scatter behaviour if merchant was alerted
-      if(c.scattering&&c.type!=='ESCORT'){
+      if(c.stationary){c.speedKnots=0;c.desiredSpeed=0;continue;}
+      // Apply scatter behaviour if a convoy merchant was alerted. Harbour
+      // targets never scatter: they are moored prizes, not convoy traffic.
+      if(c.scattering&&c.type!=='ESCORT'&&!c.harborTarget){
         const scatterAge=elapsed-(c.alertedAt||0);
         if(scatterAge<90){
           c.desiredHeading=c.scatterHeading;
@@ -3873,46 +4256,33 @@ class SimEngine{
       this.steerShip(c,dt);
       const d=knotsNmSec(c.speedKnots)*dt; const r=degToRad(c.heading);
       c.position.xNm+=Math.sin(r)*d; c.position.yNm-=Math.cos(r)*d;
-      /* A convoy that sailed a straight line out of the charted box was gone
-         for good, and the patrol became an empty sea you could search for
-         hours. Real traffic shuttles a lane; so does this. Six miles from the
-         boundary she puts her helm over and works the route back the other
-         way — which is what makes an ULTRA fix worth acting on. */
       this.keepInArea(c);
-      // Wake particles for visible ships
       if(this.state.tactical.activeStation==='MAP') particles.spawnWake(c.position.xNm,c.position.yNm,c.heading,c.speedKnots);
     }
   }
 
-  /* Turn a ship back into the patrol area when she reaches the margin. The
-     whole formation turns together, because they are steering on the lead. */
+  /* Safety net only. Convoy turns are coordinated above; this just prevents a
+     damaged/scattered independent ship from sailing into uncharted nothing. */
   keepInArea(c){
-    const A=this.areaBounds(); if(!A||c.sunk) return;
-    const m=8, p=c.position;
-    let out=null;
-    if(p.xNm<A.x0+m) out='W'; else if(p.xNm>A.x1-m) out='E';
-    else if(p.yNm<A.y0+m) out='N'; else if(p.yNm>A.y1-m) out='S';
-    if(!out){ c._turning=false; return; }
-    if(c._turning) return;                        // already coming round
-    c._turning=true;
-    // steer for the far side of the lane, with a little spread so the
-    // formation does not fold itself into a single point
-    const target={xNm:(A.x0+A.x1)/2+(Math.random()-0.5)*(A.x1-A.x0)*0.35,
-                  yNm:(A.y0+A.y1)/2+(Math.random()-0.5)*(A.y1-A.y0)*0.35};
-    const want=bearingBetween(p,target);
-    c.desiredHeading=want; c.heading=c.heading;   // steerShip will bring her round
-    if(c.formationHeading!==undefined) c.formationHeading=want;
+    const A=this.areaBounds(); if(!A||c.sunk||c.stationary) return;
+    const p=c.position,m=2;
+    if(p.xNm>A.x0+m&&p.xNm<A.x1-m&&p.yNm>A.y0+m&&p.yNm<A.y1-m) return;
+    const target={xNm:(A.x0+A.x1)/2,yNm:(A.y0+A.y1)/2};
+    c.desiredHeading=bearingBetween(p,target);
   }
 
   updateDetection(dt){
     const sub=this.state.playerSub; const W=this.state.world; const env=W.environment;
+    const now=this.state.time.elapsedSeconds;
     for(const c of W.contacts){
       if(c.sunk){
-        // a wreck neither moves nor radiates: freeze the plot, drop it once it is gone
+        // A wreck is a genuine fixed position. Keep its last plot briefly, then
+        // drop the paper track once the hull is gone below the surface.
         const tr=W.contactTracks[c.id];
         if(tr){
-          tr.sunk=true;tr.truePosition={...c.position};tr.speedEstimateKnots=0;
-          tr.staleSeconds+=dt;
+          tr.sunk=true;tr.speedEstimateKnots=0;tr.staleSeconds+=dt;
+          tr.lastFixPosition={...c.position};tr.plotPosition={...c.position};tr.lastFixTime=now;
+          delete tr.truePosition;
           if((c.sinkingProgress??0)>=1&&tr.staleSeconds>90) delete W.contactTracks[c.id];
         }
         continue;
@@ -3920,29 +4290,61 @@ class SimEngine{
       const rng=distNm(sub.position,c.position);
       const bear=bearingBetween(sub.position,c.position);
       const vis=this.calcVis(sub,c,rng,env); const aco=this.calcAco(sub,c,rng,env);
-      const sc=Math.max(vis.score,aco.score);
-      const src=vis.score>=aco.score?'VISUAL':'HYDROPHONE';
+      /* A ship that is genuinely in visual range must not evaporate merely
+         because the generic confidence score is a little below 0.12. The 3-D
+         renderer can show ships near the visibility limit; give those weak but
+         real visual observations a floor instead of letting the plot decay. */
+      const visualHeld=sub.depthFeet<=65&&rng<=env.visibilityNm*0.95;
+      const acousticHeld=aco.score>0.12;
+      const held=visualHeld||acousticHeld;
+      const sc=visualHeld?Math.max(vis.score,aco.score,0.18):aco.score;
+      const src=visualHeld?'VISUAL':'HYDROPHONE';
       const key=c.id;
-      const ex=W.contactTracks[key]||{id:key,typeEstimate:'UNKNOWN',bearing:bear,rangeEstimateNm:rng,
+      let ex=W.contactTracks[key];
+      if(!ex&&!held) continue;
+      ex=ex||{id:key,typeEstimate:'UNKNOWN',bearing:bear,rangeEstimateNm:rng,
         courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,source:src,
-        lastUpdated:0,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards};
-      if(sc>0.12){
-        ex.confidence=clamp(ex.confidence+clamp((sc-0.12)*dt*0.38,0,0.12),0,1);
-        ex.lastUpdated=this.state.time.elapsedSeconds; ex.staleSeconds=0; ex.source=src;
+        lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards};
+
+      if(held){
+        ex.confidence=clamp(ex.confidence+clamp((sc-0.10)*dt*0.34,0.006,0.12),0,1);
+        ex.lastUpdated=now; ex.staleSeconds=0; ex.source=src;
         ex.lengthYards=c.lengthYards;
         ex.bearing=lerpAngle(ex.bearing,bear,clamp(0.25+sc*0.35,0,0.85));
         ex.rangeEstimateNm=lerp(ex.rangeEstimateNm,rng,clamp(0.18+sc*0.28,0,0.7));
         ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
         ex.speedEstimateKnots=lerp(ex.speedEstimateKnots,c.speedKnots,clamp(0.08+ex.confidence*0.18,0,0.35));
-        ex.typeEstimate=ex.confidence>0.65?c.type:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
+        const knownType=c.displayType||c.type;
+        ex.typeEstimate=ex.confidence>0.65?knownType:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         ex.contactType=c.type;
-        // keep the track alive while there is a signal, however faint —
-        // otherwise slow confidence build-up never clears the 0.02 threshold
-        ex.truePosition={...c.position};
+        // Store the fix in WORLD coordinates. This is the important bit: an old
+        // bearing/range pair is relative to where ownship USED to be, so it may
+        // never be re-projected from ownship's new position.
+        const br=degToRad(ex.bearing);
+        ex.lastFixPosition={xNm:sub.position.xNm+Math.sin(br)*ex.rangeEstimateNm,
+                            yNm:sub.position.yNm-Math.cos(br)*ex.rangeEstimateNm};
+        ex.lastFixTime=now;
+        ex.plotPosition={...ex.lastFixPosition};
+        delete ex.truePosition;                    // legacy saves must not leak omniscient truth
         W.contactTracks[key]=ex;
       } else {
-        ex.confidence=clamp(ex.confidence-dt*0.015,0,1); ex.staleSeconds+=dt;
-        ex.truePosition={...c.position};
+        // Paper plots persist and grow stale instead of vanishing in a minute.
+        // Dead-reckon the LAST FIX along the estimated course and speed.
+        ex.confidence=clamp(ex.confidence-dt*0.0018,0,1); ex.staleSeconds+=dt;
+        if(!ex.lastFixPosition){
+          const br=degToRad(ex.bearing||bear), rg=ex.rangeEstimateNm||rng;
+          ex.lastFixPosition={xNm:sub.position.xNm+Math.sin(br)*rg,
+                              yNm:sub.position.yNm-Math.cos(br)*rg};
+          ex.lastFixTime=now-ex.staleSeconds;
+        }
+        const age=Math.max(0,now-(ex.lastFixTime??now));
+        const run=knotsNmSec(ex.speedEstimateKnots||0)*age;
+        const rr=degToRad(ex.courseEstimate||0);
+        ex.plotPosition={xNm:ex.lastFixPosition.xNm+Math.sin(rr)*run,
+                         yNm:ex.lastFixPosition.yNm-Math.cos(rr)*run};
+        ex.bearing=bearingBetween(sub.position,ex.plotPosition);
+        ex.rangeEstimateNm=distNm(sub.position,ex.plotPosition);
+        delete ex.truePosition;
         if(ex.confidence>0.02) W.contactTracks[key]=ex;
         else delete W.contactTracks[key];
       }
@@ -3953,13 +4355,16 @@ class SimEngine{
     const tdc=this.state.tdc;
     if(!tdc.targetId){tdc.status='NO TARGET';tdc.solutionQuality=0;return;}
     const tr=this.state.world.contactTracks[tdc.targetId];
-    if(!tr||tr.confidence<=0.02){tdc.status='TRACK LOST';tdc.solutionQuality=0;return;}
+    const manual=tdc.targetId==='MANUAL';
+    if(!manual&&(!tr||tr.confidence<=0.02)){tdc.status='TRACK LOST';tdc.solutionQuality=0;return;}
     const sub=this.state.playerSub;
-    const bear=tdc.bearing??tr.bearing; const rng=tdc.rangeNm??tr.rangeEstimateNm;
-    const crs=tdc.targetCourse??tr.courseEstimate; const spd=tdc.targetSpeedKnots??tr.speedEstimateKnots;
+    const bear=manual?tdc.bearing:(tdc.bearing??tr.bearing);
+    const rng=manual?tdc.rangeNm:(tdc.rangeNm??tr.rangeEstimateNm);
+    const crs=manual?tdc.targetCourse:(tdc.targetCourse??tr.courseEstimate);
+    const spd=manual?tdc.targetSpeedKnots:(tdc.targetSpeedKnots??tr.speedEstimateKnots);
     const res=calcTdc({ownPosition:sub.position,ownHeading:sub.heading,bearing:bear,
       rangeNm:rng,targetCourse:crs,targetSpeedKnots:spd,
-      torpedoSpeedKnots:tdc.torpedoSpeedKnots,confidence:tr.confidence});
+      torpedoSpeedKnots:tdc.torpedoSpeedKnots,confidence:manual?0.55:tr.confidence});
     tdc.bearing=bear;tdc.rangeNm=rng;tdc.targetCourse=crs;tdc.targetSpeedKnots=spd;
     tdc.gyroAngle=res.gyroAngle;tdc.angleOnBow=res.angleOnBow;
     tdc.timeToImpactSec=res.timeToImpactSec;tdc.solutionQuality=res.solutionQuality;
@@ -4040,6 +4445,9 @@ class SimEngine{
     else if(d.oxygen<45) W.push({level:'warn',text:'OXYGEN FALLING'});
     if(e.alertState==='ATTACKING') W.push({level:'critical',text:'ESCORT ATTACK RUN'});
     else if(e.alertState==='SEARCHING') W.push({level:'warn',text:'ESCORTS SEARCHING'});
+    const H=this.state.world.harbor;
+    if(H&&H.alert>=2) W.push({level:'critical',text:'HARBOR DEFENSES ALERT'});
+    else if(H&&H.alert===1) W.push({level:'warn',text:'HARBOR DEFENSES LISTENING'});
     if(this.state.world.depthCharges.some(dc=>dc.status==='SINKING')) W.push({level:'critical',text:'DEPTH CHARGES IN WATER'});
     if(d.periscopeDamage>0.75) W.push({level:'warn',text:'PERISCOPE DAMAGED'});
     if(d.motorDamage>0.5) W.push({level:'warn',text:'MOTOR DAMAGE'});
@@ -4047,21 +4455,32 @@ class SimEngine{
     if(sub.cannotHoldDepth) W.push({level:'critical',text:'WILL NOT HOLD DEPTH'});
     if(this.state.world.aaManned) W.push({level:'critical',text:'GUN CREW TOPSIDE — CANNOT DIVE'});
     const camp=this.state.campaign;
-    if(camp.missionStatus==='RETURN TO BASE')
-      W.push({level:'warn',text:(camp.alongside>0)
-        ? `ALONGSIDE — ${Math.round(camp.alongside/180*100)}%`
-        : 'OBJECTIVE DONE — RETURN TO BASE'});
+    if(camp.missionStatus==='RETURN TO BASE'){
+      const r=this.friendlyPortNav();
+      if(camp.alongside>0) W.push({level:'normal',text:`${r?.port.name||'RENDEZVOUS'} TRANSFER — ${Math.round(camp.alongside/180*100)}%`});
+      else if(r&&r.rngNm<=0.30&&sub.depthFeet>=8) W.push({level:'warn',text:`${r.port.name.toUpperCase()} RV — SURFACE`});
+      else if(r&&r.rngNm<=0.30&&sub.propulsion.speedKnots>3) W.push({level:'warn',text:`${r.port.name.toUpperCase()} RV — SLOW BELOW 3 KN`});
+      else if(r&&r.rngNm<=1.5) W.push({level:'warn',text:`${r.port.name.toUpperCase()} APPROACH — ${r.rngNm.toFixed(1)} NM`});
+      else if(r) W.push({level:'warn',text:`RTB ${r.port.name.toUpperCase()} — ${r.rngNm.toFixed(1)} NM`});
+      else W.push({level:'warn',text:'OBJECTIVE DONE — RETURN TO BASE'});
+    }
     const T2=this.state.time;
     if(T2.stopReason&&T2.elapsedSeconds-(T2.stopReasonAt||0)<90)
       W.push({level:'warn',text:'STOPPED: '+T2.stopReason.toUpperCase()});
     if(sub.propulsion.fuel<12) W.push({level:'critical',text:'FUEL LOW'});
     else if(sub.propulsion.fuel<25) W.push({level:'warn',text:'FUEL 25%'});
-    if(sub.inShallowWater) W.push({level:'warn',text:'SHALLOW WATER'});
+    const clr=sub.keelClearanceFeet??3000;
     if(sub.groundingRisk&&!sub.inShallowWater) W.push({level:'critical',text:'TERRAIN COLLISION'});
     if(sub.bottomed) W.push({level:'warn',text:`ON THE BOTTOM${(sub.suction||0)>0.34?' — SETTLING IN':''}`});
-    else if((sub.seabedFeet??3000)<3000&&(sub.seabedFeet-sub.depthFeet)<25)
-      W.push({level:'critical',text:'SHOAL WATER — LITTLE UNDER THE KEEL'});
-    if(this.state.campaign.missionStatus==='RETURN TO BASE') W.push({level:'warn',text:'RTB — HEAD TO PORT'});
+    else if(sub.depthFeet<12){
+      if(clr<15) W.push({level:'critical',text:`VERY LITTLE WATER — ${Math.max(0,clr).toFixed(0)} FT UNDER KEEL`});
+      else if(clr<35) W.push({level:'warn',text:`${clr.toFixed(0)} FT UNDER KEEL`});
+      else if(sub.inShallowWater) W.push({level:'warn',text:'SHALLOW WATER'});
+    }else{
+      if(clr<25) W.push({level:'critical',text:`SHOAL WATER — ${Math.max(0,clr).toFixed(0)} FT UNDER KEEL`});
+      else if(clr<60) W.push({level:'warn',text:`SHOALING — ${clr.toFixed(0)} FT UNDER KEEL`});
+      else if(sub.inShallowWater) W.push({level:'warn',text:'SHALLOW WATER'});
+    }
     if(!W.length) W.push({level:'normal',text:'SYSTEMS NOMINAL'});
     d.warnings=W;
   }
@@ -5594,15 +6013,23 @@ class CanvasView{
     const tdc=state.tdc;
     const by=h-Math.round(46*k);
     if(tdc.targetId){
-      const sq=Math.round(tdc.solutionQuality*100);
+      const sq=Math.round(tdc.solutionQuality*100),ri=torpedoRangeInfo(state,tdc.targetId);
       const c=sq>70?'#6fe08f':sq>40?'#f5c65c':'#ef6a58';
-      ctx.fillStyle='rgba(4,12,15,.72)';this.rr(ctx,pad*0.6,by,w-pad*1.2,Math.round(38*k),5*k);ctx.fill();
-      ctx.strokeStyle=c;ctx.lineWidth=1;ctx.stroke();
-      ctx.fillStyle=c;ctx.font=this.fnt(11,true);
-      ctx.fillText(`${tdc.targetId} · SOL ${sq}%`,pad,by+Math.round(15*k));
-      ctx.fillStyle='#82a89a';ctx.font=this.fnt(9);
+      const rc=ri?(ri.band==='IN'?'#6fe08f':ri.band==='BORDERLINE'?'#f5c65c':'#ef6a58'):c;
+      ctx.fillStyle='rgba(4,12,15,.76)';this.rr(ctx,pad*0.6,by-6*k,w-pad*1.2,Math.round(46*k),5*k);ctx.fill();
+      ctx.strokeStyle=rc;ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle=c;ctx.font=this.fnt(10.5,true);
+      ctx.fillText(`${tdc.targetId} · SOL ${sq}%`,pad,by+Math.round(8*k));
+      if(ri){
+        ctx.fillStyle=rc;ctx.font=this.fnt(9,true);ctx.textAlign='right';
+        ctx.fillText(ri.label,w-pad,by+Math.round(8*k));ctx.textAlign='left';
+      }
+      ctx.fillStyle='#a4c2b7';ctx.font=this.fnt(8.5);
+      const rtxt=ri?`R ${ri.rangeNm.toFixed(1)} NM · INTERCEPT ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} NM`:`${tdc.torpedoType}`;
+      ctx.fillText(rtxt,pad,by+Math.round(22*k));
+      ctx.fillStyle='#82a89a';ctx.font=this.fnt(8);
       const tti=tdc.timeToImpactSec?`${tdc.timeToImpactSec.toFixed(0)}s`:'--';
-      ctx.fillText(`GYRO ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(0)+'°':'--'}  AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'}  RUN ${tti}  ${tdc.torpedoType}`,pad,by+Math.round(29*k));
+      ctx.fillText(`GYRO ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(0)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · TtI ${tti} · ${tdc.torpedoType}`,pad,by+Math.round(35*k));
     }else{
       ctx.fillStyle='rgba(130,168,154,.7)';ctx.font=this.fnt(9);ctx.textAlign='center';
       ctx.fillText('drag to train · double-tap for 6× · tap a ship to lock',w/2,h-Math.round(12*k));
@@ -6062,11 +6489,17 @@ class CanvasView{
       const tr=state.world.contactTracks[c.id];
       const sinking=(c.sinkingProgress??0)>0;
       const sel=state.tactical.selectedTrackId===c.id;
-      ctx.font=this.fnt(9,true);ctx.textAlign='center';
-      ctx.fillStyle=sinking?'rgba(239,106,88,.95)':sel?'rgba(111,224,143,.95)':'rgba(245,198,92,.85)';
+      ctx.font=this.fnt(sel?11:9,true);ctx.textAlign='center';
+      ctx.fillStyle=sinking?'rgba(239,106,88,.95)':sel?'rgba(226,255,240,.99)':'rgba(245,198,92,.85)';
+      if(sel){
+        const txt=`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${(it.d/NM_M).toFixed(1)}nm`;
+        const w=Math.max(86*this.k,ctx.measureText(txt).width+14*this.k);
+        ctx.fillStyle='rgba(3,13,16,.84)';ctx.fillRect(top.x-w/2,top.y-21*this.k,w,32*this.k);
+        ctx.fillStyle='rgba(226,255,240,.99)';
+      }
       ctx.fillText(sinking?`${c.id} SINKING`:`${c.id}`,top.x,top.y-6*this.k);
-      ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(220,236,230,.62)';
-      ctx.fillText(`${tr?tr.typeEstimate:c.type} · ${(it.d/NM_M).toFixed(1)}nm`,top.x,top.y+3*this.k);
+      ctx.font=this.fnt(sel?9:7.5);ctx.fillStyle=sel?'rgba(210,240,228,.96)':'rgba(220,236,230,.62)';
+      ctx.fillText(`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${(it.d/NM_M).toFixed(1)}nm`,top.x,top.y+4*this.k);
       ctx.textAlign='left';
       if(sel){
         ctx.strokeStyle='rgba(111,224,143,.55)';ctx.lineWidth=1;
@@ -6558,8 +6991,11 @@ class CanvasView{
 
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
     this.drawMapPorts(ctx,state.world.ports,w2s);
+    this.drawFriendlyApproach(ctx,state,w2s);
+    this.drawMapHarbor(ctx,state.world.harbor,w2s);
     this.drawMapTrail(ctx,map.ownshipTrail,w2s);
     this.drawMapPlot(ctx,map.plottedCourse,w2s,sub.position,map.autoFollowPlot);
+    this.drawTorpedoEnvelope(ctx,state,w2s,w,h);
     this.drawMapDCs(ctx,state.world.depthCharges,w2s);
     this.drawMapTorps(ctx,state.weapons.activeTorpedoes,w2s);
     this.drawMapExplosions(ctx,state.weapons.explosions,w2s);
@@ -6584,27 +7020,18 @@ class CanvasView{
     ctx.fillText(navTxt,pad,Math.round(40*k));
     ctx.fillStyle='rgba(140,175,160,.9)';
     ctx.fillText(`TRACKS ${Object.keys(state.world.contactTracks).length} · TORPS ${state.weapons.torpedoInventory} · MAP ${this.follow?'LOCKED':'FREE'}`,pad,Math.round(51*k));
-    if(sub.inShallowWater){
-      ctx.fillStyle='#f5c65c';ctx.font=this.fnt(9,true);
-      ctx.fillText('⚠ SHALLOW WATER',pad,Math.round(68*k));
+    if(sub.inShallowWater||(sub.keelClearanceFeet??3000)<35){
+      ctx.fillStyle=(sub.keelClearanceFeet??3000)<15?'#ef6a58':'#f5c65c';ctx.font=this.fnt(9,true);
+      const clr=sub.keelClearanceFeet??3000;
+      ctx.fillText(clr<35?`⚠ ${Math.max(0,clr).toFixed(0)} FT UNDER KEEL`:'⚠ SHALLOW WATER',pad,Math.round(68*k));
     }
 
-    // convoy hint when nothing detected
+    // No omniscient traffic hint. An undetected ship is not a moving beacon:
+    // use a real contact, a hydrophone bearing or an ULTRA plot to find it.
     if(Object.keys(state.world.contactTracks).length===0){
-      const contacts=state.world.contacts.filter(c=>!c.sunk);
-      if(contacts.length>0){
-        const nearest=contacts.reduce((a,b)=>distNm(sub.position,a.position)<distNm(sub.position,b.position)?a:b);
-        const rng=distNm(sub.position,nearest.position);
-        const bear=bearingBetween(sub.position,nearest.position);
-        ctx.fillStyle='rgba(245,198,92,0.75)';ctx.font=this.fnt(9);ctx.textAlign='center';
-        ctx.fillText(`📡 no contacts — nearest traffic ~${rng.toFixed(0)}nm on ${fmtDeg(bear)}`,w/2,h-Math.round(14*k));
-        ctx.textAlign='left';
-        const ar=degToRad(bear), al=Math.min(rng*pxPerNm*0.4,Math.min(w,h)*0.28);
-        const op=w2s(sub.position.xNm,sub.position.yNm);
-        ctx.strokeStyle='rgba(245,198,92,0.22)';ctx.lineWidth=Math.max(1,2*k);ctx.setLineDash([7,7]);
-        ctx.beginPath();ctx.moveTo(op.x,op.y);ctx.lineTo(op.x+Math.sin(ar)*al,op.y-Math.cos(ar)*al);ctx.stroke();
-        ctx.setLineDash([]);
-      }
+      ctx.fillStyle='rgba(245,198,92,0.68)';ctx.font=this.fnt(8.5);ctx.textAlign='center';
+      ctx.fillText(state.world.ultra?'NO CURRENT CONTACTS — work the ULTRA plot':'NO CURRENT CONTACTS — listen, look, or wait for intelligence',w/2,h-Math.round(14*k));
+      ctx.textAlign='left';
     }
 
     // scale bar
@@ -6871,6 +7298,54 @@ class CanvasView{
     }
   }
 
+  drawFriendlyApproach(ctx,state,w2s){
+    const camp=state.campaign,ap=camp&&camp.portApproach;
+    if(!ap||!ap.pos) return;
+    const p=w2s(ap.pos.xNm,ap.pos.yNm),K=this.k;
+    const r=Math.max(13*K,Math.min(28*K,0.30*this.zoom));
+    ctx.save();
+    ctx.strokeStyle='rgba(111,224,143,.72)';ctx.lineWidth=Math.max(1.2,1.8*K);ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(111,224,143,.10)';ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(205,245,226,.92)';ctx.font=this.fnt(8.5,true);ctx.textAlign='center';
+    ctx.fillText(`${ap.portName} RV`,p.x,p.y-r-5*K);
+    ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(150,205,180,.82)';
+    ctx.fillText(`${Math.round(ap.seabedFeet||0)} ft water`,p.x,p.y+r+11*K);
+    ctx.textAlign='left';ctx.restore();
+  }
+
+  drawTorpedoEnvelope(ctx,state,w2s,w,h){
+    const preferred=state.tactical.selectedTrackId||state.tdc.targetId;
+    const I=torpedoRangeInfo(state,preferred);
+    if(!I) return;
+    const sub=state.playerSub,K=this.k,own=w2s(sub.position.xNm,sub.position.yNm);
+    const rp=I.maxNm*this.zoom;
+    ctx.save();
+    if(rp>10){
+      ctx.strokeStyle='rgba(111,224,143,.22)';ctx.lineWidth=Math.max(1,1.2*K);ctx.setLineDash([7,7]);
+      ctx.beginPath();ctx.arc(own.x,own.y,rp,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      if(rp>34&&rp<Math.max(w,h)*1.4){
+        ctx.fillStyle='rgba(145,205,180,.72)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';
+        ctx.fillText(`${I.spec.name.toUpperCase()} · ${I.maxNm.toFixed(1)} NM MAX`,own.x,own.y-rp-5*K);
+      }
+    }
+    if(I.pos){
+      const q=w2s(I.pos.xNm,I.pos.yNm);
+      const col=I.band==='IN'?'rgba(111,224,143,.72)':I.band==='BORDERLINE'?'rgba(245,198,92,.78)':'rgba(239,106,88,.72)';
+      ctx.strokeStyle=col;ctx.lineWidth=Math.max(1.2,1.7*K);ctx.setLineDash(I.band==='OUT'?[5,5]:[]);
+      ctx.beginPath();ctx.moveTo(own.x,own.y);ctx.lineTo(q.x,q.y);ctx.stroke();ctx.setLineDash([]);
+      const mx=(own.x+q.x)/2,my=(own.y+q.y)/2;
+      const line=I.band==='OUT'
+        ?`R ${I.rangeNm.toFixed(1)} · ${I.label}`
+        :`R ${I.rangeNm.toFixed(1)} · RUN ${I.runNm.toFixed(1)}/${I.maxNm.toFixed(1)} NM · ${I.label}`;
+      ctx.font=this.fnt(8,true);const tw=ctx.measureText(line).width+12*K;
+      ctx.fillStyle='rgba(3,13,16,.84)';this.rr(ctx,mx-tw/2,my-10*K,tw,19*K,5*K);ctx.fill();
+      ctx.strokeStyle=col;ctx.lineWidth=1;ctx.stroke();
+      ctx.fillStyle=col;ctx.textAlign='center';ctx.fillText(line,mx,my+3*K);ctx.textAlign='left';
+    }
+    ctx.restore();
+  }
+
   drawMapPorts(ctx,ports,w2s){
     for(const port of ports){
       const p=w2s(port.pos.xNm,port.pos.yNm);
@@ -6899,6 +7374,45 @@ class CanvasView{
       ctx.fillText(friendly?'FRIENDLY PORT':'ENEMY PORT',p.x,p.y+22);
       ctx.textAlign='left';
     }
+  }
+
+  drawMapHarbor(ctx,H,w2s){
+    if(!H) return;
+    const K=this.k,c=w2s(H.center.xNm,H.center.yNm);
+    const rin=H.mineInnerNm*this.zoom,rout=H.mineOuterNm*this.zoom;
+    // Intelligence gives the belt, not the individual mines.
+    ctx.save();
+    ctx.strokeStyle='rgba(227,107,93,.34)';ctx.lineWidth=Math.max(1,1.4*K);ctx.setLineDash([5,6]);
+    ctx.beginPath();ctx.arc(c.x,c.y,rout,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.arc(c.x,c.y,rin,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(227,107,93,.62)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';
+    ctx.fillText('CHARTED MINE BELT',c.x,c.y-rout-7*K);
+
+    // Swept channel: two faint rails from the outer belt to the net gate.
+    const r=degToRad(H.channelBearing),sx=Math.cos(r),sy=Math.sin(r);
+    const point=(along,side)=>({xNm:H.center.xNm+Math.sin(r)*along+sx*side,
+                                yNm:H.center.yNm-Math.cos(r)*along+sy*side});
+    ctx.strokeStyle='rgba(123,224,143,.42)';ctx.lineWidth=Math.max(1,1.5*K);ctx.setLineDash([7,5]);
+    for(const side of [-H.channelHalfWidthNm,H.channelHalfWidthNm]){
+      const a=point(H.netRangeNm,side),b=point(H.mineOuterNm+0.5,side),pa=w2s(a.xNm,a.yNm),pb=w2s(b.xNm,b.yNm);
+      ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    // Torpedo net with a real centre gap.
+    const gate=point(H.netRangeNm,0),gp=w2s(gate.xNm,gate.yNm);
+    const at=d=>w2s(gate.xNm+sx*d,gate.yNm+sy*d);
+    ctx.strokeStyle='rgba(245,198,92,.82)';ctx.lineWidth=Math.max(2,2.4*K);
+    for(const [a,b] of [[H.netGapHalfNm,H.netHalfSpanNm],[-H.netGapHalfNm,-H.netHalfSpanNm]]){
+      const p1=at(a),p2=at(b);ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+    }
+    ctx.fillStyle='rgba(245,198,92,.82)';ctx.font=this.fnt(7.5,true);
+    ctx.fillText('NET GATE',gp.x,gp.y-8*K);
+    if(H.alert>0){
+      ctx.fillStyle=H.alert>=2?'rgba(239,106,88,.95)':'rgba(245,198,92,.9)';ctx.font=this.fnt(8.5,true);
+      ctx.fillText(H.alert>=2?'HARBOR ALARM':'DEFENCES ALERT',c.x,c.y+34*K);
+    }
+    ctx.restore();ctx.textAlign='left';
   }
 
   drawMapTrail(ctx,trail,w2s){
@@ -6969,7 +7483,9 @@ class CanvasView{
     const K=this.k;
     for(const tr of Object.values(tracks)){
       if(tr.sunk){                                   // a wreck: fixed, silent, no solution
-        const p=w2s(tr.truePosition?tr.truePosition.xNm:0,tr.truePosition?tr.truePosition.yNm:0);
+        const wp=tr.plotPosition||tr.lastFixPosition;
+        if(!wp) continue;
+        const p=w2s(wp.xNm,wp.yNm);
         ctx.strokeStyle='rgba(150,175,170,.75)';ctx.lineWidth=Math.max(1.5,2*K);
         const q=6*K;
         ctx.beginPath();
@@ -6983,39 +7499,35 @@ class CanvasView{
       const a=clamp(0.25+conf*0.75,0.2,1);
       const isSelected=tr.id===selId;
 
-      // Estimated position (always shown): bearing+range projection from own pos
+      // Absolute paper-plot position. If this is a stale contact it has been
+      // dead-reckoned from the LAST FIX; it never moves merely because ownship moved.
       const bRad=degToRad(tr.bearing);
-      const est={xNm:ownPos.xNm+Math.sin(bRad)*tr.rangeEstimateNm,
+      const est=tr.plotPosition||{xNm:ownPos.xNm+Math.sin(bRad)*tr.rangeEstimateNm,
                  yNm:ownPos.yNm-Math.cos(bRad)*tr.rangeEstimateNm};
       const pe=w2s(est.xNm,est.yNm);
 
-      // True position (shown when confidence high and truePosition stored)
-      const hasTruePos=tr.truePosition&&conf>0.5;
-      const pt=hasTruePos?w2s(tr.truePosition.xNm,tr.truePosition.yNm):null;
+      // A fresh high-confidence plot gets the solid symbol treatment, but this
+      // is still the player's best estimate — not the simulation's hidden truth.
+      const hasTruePos=conf>0.5&&(tr.staleSeconds||0)<45;
+      const pt=hasTruePos?pe:null;
 
       // Uncertainty circle around estimated position
-      const uncertaintyR=clamp(10+(1-conf)*30,8,40)*K;
+      const uncertaintyR=clamp(10+(1-conf)*30+Math.min(36,(tr.staleSeconds||0)*0.06),8,64)*K;
       ctx.strokeStyle=isSelected?'#f0c35a':`rgba(240,195,90,${a*0.6})`;
       ctx.lineWidth=isSelected?2:1;
       ctx.setLineDash([4,4]);
       ctx.beginPath();ctx.arc(pe.x,pe.y,uncertaintyR,0,Math.PI*2);ctx.stroke();
       ctx.setLineDash([]);
 
-      // True position: solid filled marker (the real ship)
+      // Fresh high-confidence paper plot: solid ship symbol. No hidden truth
+      // is consulted here; the world position is the current plotted estimate.
       if(pt){
         const isEsc=tr.contactType==='ESCORT';
         const shipCol=isEsc?'#ef6a58':'#f5c65c';
         const iconType=isEsc?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
-        // where she will be in six minutes, and how fast
-        this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,tr.truePosition,
+        this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
           isSelected?'#6fe08f':`rgba(245,198,92,${clamp(a,0.4,1)})`,K,
           `${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
-        // link the estimate to the confirmed plot
-        if(distNm(est,tr.truePosition)>0.3){
-          ctx.strokeStyle=`rgba(245,198,92,${a*0.3})`;ctx.lineWidth=1;ctx.setLineDash([2,4]);
-          ctx.beginPath();ctx.moveTo(pe.x,pe.y);ctx.lineTo(pt.x,pt.y);ctx.stroke();
-          ctx.setLineDash([]);
-        }
         const lenNm=(tr.lengthYards||(isEsc?300:450))*0.0004937;      // yards → nm
         const iconLen=clamp(lenNm*this.zoom,15*K,52*K);
         if(isSelected){
@@ -7037,16 +7549,27 @@ class CanvasView{
         ctx.lineTo(pe.x+Math.sin(cRad)*22*K,pe.y-Math.cos(cRad)*22*K);ctx.stroke();
       }
 
-      // Label near true pos if available, else estimated
+      // Selected-contact text is deliberately promoted above the ambient plot.
+      // The previous 7.5 px / confidence-opacity treatment made the one contact
+      // the player was actively working almost unreadable on a phone.
       const labelPos=pt||pe;
-      ctx.fillStyle=`rgba(245,198,92,${a})`;ctx.font=this.fnt(8.5,true);
+      const lx=labelPos.x+14*K, ly=labelPos.y-10*K;
+      if(isSelected){
+        ctx.font=this.fnt(10.5,true);
+        const w=Math.max(94*K,ctx.measureText(`${tr.id} ${tr.typeEstimate}`).width+14*K);
+        ctx.fillStyle='rgba(3,13,16,.82)';
+        ctx.fillRect(lx-5*K,ly-12*K,w,39*K);
+      }
+      ctx.fillStyle=isSelected?'rgba(226,255,240,.98)':`rgba(245,198,92,${a})`;
+      ctx.font=this.fnt(isSelected?10.5:8.5,true);
       const stale=Math.floor(now-tr.lastUpdated);
-      ctx.fillText(`${tr.id} ${tr.typeEstimate}`,labelPos.x+14*K,labelPos.y-10*K);
-      ctx.font=this.fnt(7.5);
-      ctx.fillText(`${tr.source} C${Math.round(conf*100)}% ${stale}s`,labelPos.x+14*K,labelPos.y+2*K);
-      if(hasTruePos){
-        ctx.fillStyle=`rgba(111,224,143,${a*0.7})`;
-        ctx.fillText(`${tr.rangeEstimateNm.toFixed(1)}nm`,labelPos.x+14*K,labelPos.y+13*K);
+      ctx.fillText(`${tr.id} ${tr.typeEstimate}`,lx,ly);
+      ctx.font=this.fnt(isSelected?9:7.5);
+      ctx.fillStyle=isSelected?'rgba(205,235,224,.94)':`rgba(245,198,92,${a})`;
+      ctx.fillText(`${tr.source} C${Math.round(conf*100)}% ${stale}s`,lx,labelPos.y+2*K);
+      if(hasTruePos||isSelected){
+        ctx.fillStyle=isSelected?'rgba(111,224,143,.98)':`rgba(111,224,143,${a*0.7})`;
+        ctx.fillText(`${tr.rangeEstimateNm.toFixed(1)}nm`,lx,labelPos.y+13*K);
       }
     }
   }
@@ -7200,7 +7723,7 @@ class CanvasView{
     const own=state.playerSub.position;
     for(const tr of Object.values(state.world.contactTracks)){
       const bRad=degToRad(tr.bearing);
-      const pos=tr.truePosition&&tr.confidence>0.5?tr.truePosition:
+      const pos=tr.plotPosition||
         {xNm:own.xNm+Math.sin(bRad)*tr.rangeEstimateNm,yNm:own.yNm-Math.cos(bRad)*tr.rangeEstimateNm};
       const sx=cx+(pos.xNm-this.mapCenter.xNm)*this.zoom;
       const sy=cy+(pos.yNm-this.mapCenter.yNm)*this.zoom;
@@ -7693,19 +8216,37 @@ const Toast = {
     if (fallback === 'ok')     return this.ok(msg);
     return this.warn(msg);
   },
-  show(msg, type='ok', duration=2300) {
+  show(msg, type='ok', duration=2300, replace=false) {
     const c = document.getElementById('toastContainer');
     if (!c) return;
+    if(replace) c.replaceChildren();
     const div = document.createElement('div');
     div.className = `toast ${type}`;
     div.textContent = msg;
+    // CSS owns the fade, JS owns the duration. Previously every toast faded
+    // after 2 s even when bad() asked for 3.5 s, so the critical last line was
+    // already invisible while its DOM node was still alive.
+    div.style.setProperty('--toast-hold',Math.max(0.35,(duration-300)/1000)+'s');
     c.appendChild(div);
-    setTimeout(() => div.remove(), duration + 300);
+    setTimeout(() => div.remove(), duration + 60);
+    return div;
+  },
+  clear(){ document.getElementById('toastContainer')?.replaceChildren(); },
+  stop(msg,type='bad'){
+    // The reason compressed time stopped gets the whole toast lane to itself.
+    // It deliberately outlives ordinary messages so the skipper can read it.
+    this.show(msg,type,6000,true);
   },
   ok(msg)   { this.show(msg,'ok'); },
   warn(msg) { this.show(msg,'warn'); },
   bad(msg)  { this.show(msg,'bad',3500); }
 };
+
+function transitStopToastKind(why){
+  if(/waypoint reached|friendly port approach|shoaling water — take the conn/i.test(why)) return 'warn';
+  if(/ULTRA|new orders|new contact|battery|fuel|air is going bad/i.test(why)) return 'warn';
+  return 'bad';
+}
 
 // ═══════════════════════════════════════════════════ GYRO INDICATOR
 class GyroIndicator {
@@ -8246,6 +8787,7 @@ class TouchCtrl{
     if(ttl&&titles[pane]) ttl.textContent=titles[pane];
     this.cache={};                   // force a fresh DOM refresh for the new pane
     this.updateTouch(this.game.getSnapshot(),true);
+    if(pane==='paneHelm') document.dispatchEvent(new Event('helmshown'));
   }
 
   /* ── canvas gestures ── */
@@ -8561,10 +9103,11 @@ class TouchCtrl{
       set('mTdcTgt',tdc.targetId||'no target');
       const note=g('mTdcNote');
       if(note){
+        const ri=torpedoRangeInfo(state,tdc.targetId);
         const txt=tdc.targetId
-          ?`${tdc.status} · solution ${sq}% · gyro ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · run ${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'} · dud risk ${dudPct}%`
+          ?`${tdc.status} · solution ${sq}% · ${ri?`${ri.label} · range ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}gyro ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · TtI ${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'} · dud risk ${dudPct}%`
           :'No target. Lock a contact from the scope or the map, or enter a manual solution below.';
-        if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)';}
+        if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');}
       }
       html('mTubes',W.tubes.map(t=>{
         const st=t.status==='READY'?'ready':t.status==='EMPTY'?'empty':'flooded';
@@ -8729,8 +9272,11 @@ class DomView{
       const sq=Math.round(tdc.solutionQuality*100);
       const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||{};
       const dudPct=Math.round((spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)*100);
-      ne.style.color=sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)';
-      ne.textContent=tdc.targetId?`${tdc.status} — Sol:${sq}% Dud:${dudPct}% ${tdc.torpedoType}`:'No target.';
+      const ri=torpedoRangeInfo(state,tdc.targetId);
+      ne.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');
+      ne.textContent=tdc.targetId
+        ?`${tdc.status} — Sol:${sq}% · ${ri?`${ri.label} · R ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}Dud:${dudPct}% · ${tdc.torpedoType}`
+        :'No target.';
     }
 
     const camp=state.campaign;
@@ -8889,7 +9435,7 @@ const TUT_STEPS=[
    check:s=>Math.abs(shortDelta(s.playerSub.orderedHeading,40))<12},
 
   {id:'speed',title:'Engines and noise',
-   body:'Surfaced you run on <b>diesels</b> (up to ~18 kn). Submerged the main induction shuts and you answer on the <b>electric</b> motors — about 8.5 kn flat out, and the battery drains fast. This boat has <b>no snorkel</b>, so she can only charge on the surface.<br><br>Charging is slow and the screws have first call on the engines: she charges fastest <b>loafing at low revs</b> and barely at all at flank. From flat, reckon on three or four hours on the roof — dangerous hours. Run on the surface at night, dive by day.<br><br>Speed is noise. Flank speed can be heard from far away; that is the trade-off in every attack.',
+   body:'On the roof you run on <b>diesels</b> (up to ~18 kn). For playability the induction is treated as usable while the boat is only awash: diesels remain on to about 12 ft and come back by about 8 ft. Deeper than that you answer on the <b>electric</b> motors — about 8.5 kn flat out, and the battery drains fast. This boat still has <b>no snorkel</b>: periscope depth is battery-only.<br><br>Charging is slow and the screws have first call on the engines: she charges fastest <b>loafing at low revs</b> and barely at all at flank. From flat, reckon on three or four hours on the roof — dangerous hours. Run on the surface at night, dive by day.<br><br>Speed is noise. Flank speed can be heard from far away; that is the trade-off in every attack.',
    goal:'Order Standard speed (250 rpm)', pane:'paneHelm', hl:'mRpm',
    check:s=>s.playerSub.propulsion.orderedRpm>=200},
 
@@ -9200,7 +9746,7 @@ class GameLoop{
     this.game=game;this.cv=cv;this.dv=dv;this.tc=tc;
     this.fdt=1/10;this.acc=0;this.last=performance.now();
     this.domAcc=0;this.domInterval=1/5;      // DOM refresh at 5 Hz — huge saving on tablets
-    this.frameMs=16;this.ambT=0;this.lastLogLen=0;
+    this.frameMs=16;this.ambT=0;this.lastLogLen=0;this.stopToastUntil=0;
     this._frame=this.frame.bind(this);
   }
   start(){requestAnimationFrame(this._frame);}
@@ -9223,7 +9769,7 @@ class GameLoop{
     const snap0=this.game.getSnapshot();
     const U=snap0.ui, Tq=snap0.time;
     if(U&&U.toasts&&U.toasts.length){
-      if(Tq.transitUntil){                       // running: hold them
+      if(Tq.transitUntil||performance.now()<this.stopToastUntil){ // running / final reason owns lane: hold them
         if(U.toasts.length>40) U.toasts.splice(0,U.toasts.length-40);
       }else{
         const q=U.toasts.splice(0,U.toasts.length);
@@ -9254,10 +9800,12 @@ class GameLoop{
           T.transitUntil=0;T.transitReason=why;
           if(why!=='ok'){
             eng.log(`Transit broken off — ${why}.`,'warn');
-            // last out of the queue, and it stays up twice as long: this is
-            // the line that answers "why did it stop?"
+            // Give the stop reason the toast lane to itself. The queued context
+            // may flash first, but this line clears it and then stays readable.
             T.stopReason=why; T.stopReasonAt=T.elapsedSeconds;
-            setTimeout(()=>Toast.bad('TRANSIT STOPPED — '+why),40);
+            this.stopToastUntil=performance.now()+6100;
+            const stopKind=transitStopToastKind(why);
+            setTimeout(()=>Toast.stop('TRANSIT STOPPED — '+why,stopKind),90);
             buzz([20,50,20]);
           }
           break;
@@ -9290,17 +9838,22 @@ class GameLoop{
       const ds=`${base.getFullYear()}-${String(base.getMonth()+1).padStart(2,'0')}-${String(base.getDate()).padStart(2,'0')} ${dn.timeStr}`;
       ['hDate','tDate'].forEach(id=>{const el=document.getElementById(id);if(el&&el.textContent!==ds)el.textContent=ds;});
 
-      // new-event toasts + haptics
+      // new-event toasts + haptics. During compressed transit the patrol log
+      // still records everything, but the screen does not build a toast stack.
+      // After an interrupt, the dedicated stop toast owns the lane for six seconds.
       const log=snap.log;
       if(log.length>this.lastLogLen){
-        for(const entry of log.slice(0,log.length-this.lastLogLen)){
-          const m=entry.message;
-          if(m.includes('HIT ')){Toast.ok('💥 '+m.slice(0,58));buzz([40,50,90]);}
-          else if(m.includes('DUD')){Toast.warn('⚠ '+m.slice(0,58));buzz(30);}
-          else if(entry.level==='bad'||TOAST_RED.test(m)){
-            Toast.auto(m.slice(0,64)); buzz([20,60,20]);
+        const suppress=!!snap.time.transitUntil||performance.now()<this.stopToastUntil;
+        if(!suppress){
+          for(const entry of log.slice(0,log.length-this.lastLogLen)){
+            const m=entry.message;
+            if(m.includes('HIT ')){Toast.ok('💥 '+m.slice(0,58));buzz([40,50,90]);}
+            else if(m.includes('DUD')){Toast.warn('⚠ '+m.slice(0,58));buzz(30);}
+            else if(entry.level==='bad'||TOAST_RED.test(m)){
+              Toast.auto(m.slice(0,64)); buzz([20,60,20]);
+            }
+            else if(entry.level==='warn'&&m.includes('SONAR')){Toast.bad('⚠ Active sonar ping');buzz(25);}
           }
-          else if(entry.level==='warn'&&m.includes('SONAR')){Toast.bad('⚠ Active sonar ping');buzz(25);}
         }
       }
       this.lastLogLen=log.length;
@@ -9571,7 +10124,12 @@ class HelmGauges{
         this.size(); buzz(8);
       },{passive:true});
     }
-    window.addEventListener('resize',()=>this.size(),{passive:true});
+    window.addEventListener('resize',()=>this.scheduleSize(),{passive:true});
+    document.addEventListener('helmshown',()=>this.scheduleSize(true),{passive:true});
+    if(window.ResizeObserver){
+      this._ro=new ResizeObserver(()=>this.scheduleSize());
+      this._ro.observe(host);
+    }
     this.size();
   }
 
@@ -9580,7 +10138,7 @@ class HelmGauges{
     const s=this.game.getSnapshot(), sub=s.playerSub, p=sub.propulsion;
     const seabed=sub.seabedFeet??3000, crush=sub.damage.crushDepthFeet||420;
     const test=crush*0.73;
-    const surf=sub.depthFeet<8, ms=surf?18:8.5;
+    const surf=p.engineMode==='DIESEL', ms=surf?18:8.5;
     const NORM=1-Math.exp(-450/170);
     const knots=r=>ms*(1-Math.exp(-clamp(r,0,450)/170))/NORM;
     const noise=r=>{const kn=knots(r);
@@ -9760,44 +10318,43 @@ class HelmGauges{
     v.cv.addEventListener('pointercancel',end);
   }
 
-  /* ── FIT THE ROOM THAT IS ACTUALLY THERE ───────────────────────────
-     A dial sized only to the column width will happily be 175 px tall in a
-     sheet that has 300 px of room for three of them, and the third one
-     falls off the bottom of the screen. So measure BOTH: the width of the
-     bank and the height left over after the buttons that share the pane,
-     then try one, two and three columns and keep whichever arrangement
-     gives the largest dial that still fits. */
+  /* ── FIT THE DIALS TO WIDTH, NOT TO A MOVING MOBILE VIEWPORT ────────
+     #tSheetBody scrolls vertically, so height is not a scarce resource here.
+     Measuring visualViewport height while browser chrome / PWA chrome is in
+     motion created a race: one transient short measurement wrote tiny fixed
+     canvas sizes and they could survive after the viewport recovered.
+
+     Portrait therefore has a stable two-column bank with the third dial below;
+     landscape uses three columns. A focused dial gets the full bank width.
+     The controls below simply scroll, which is both predictable and usable. */
+  scheduleSize(doubleFrame=false){
+    if(this._sizeRaf) cancelAnimationFrame(this._sizeRaf);
+    const run=()=>{this._sizeRaf=0;this.size();};
+    this._sizeRaf=requestAnimationFrame(doubleFrame?()=>requestAnimationFrame(run):run);
+  }
+
   size(){
     if(!this.host) return;
     const W=this.host.clientWidth;
     if(!W) return;                                   // pane is hidden: leave it alone
     const GAP=6;
-
-    /* Vertical room = the scrolling body. The button rows that share the
-       pane are deliberately NOT subtracted: the instruments get the first
-       screenful and the buttons sit below the fold, which is what a scroll
-       sheet is for. Subtracting them crushed the dials to 126 px, small
-       enough that the scale numbers had to be dropped — and a dial with no
-       numbers is a picture of a dial. */
-    const body=document.getElementById('tSheetBody');
-    const bodyH=(body&&body.clientHeight)||0;
-    const avail=Math.max(150,(bodyH||430)-12);
-
+    const touch=document.documentElement.dataset.lay==='touch';
+    const portrait=window.matchMedia?window.matchMedia('(orientation: portrait)').matches:(innerHeight>=innerWidth);
     const vis=this.views.filter(v=>!this.focus||v.key===this.focus);
     const n=Math.max(1,vis.length);
-    let best={s:0,cols:1};
-    for(let cols=1;cols<=Math.min(3,n);cols++){
-      const rows=Math.ceil(n/cols);
-      const s=Math.min((W-GAP*(cols-1))/cols,(avail-GAP*(rows-1))/rows);
-      if(s>best.s) best={s,cols};
-    }
-    const S=Math.round(clamp(best.s,88,320));
+    const cols=this.focus?1:(touch?(portrait?Math.min(2,n):Math.min(3,n)):Math.min(3,n));
+    const raw=(W-GAP*(cols-1))/cols;
+    // On a very narrow phone the physical width can be below the preferred
+    // 152 px floor; never overflow the bank just to satisfy the preference.
+    const floor=Math.min(152,raw);
+    const S=Math.round(clamp(raw,floor,320));
 
     for(const v of this.views){
       const shown=!this.focus||v.key===this.focus;
       v.el.style.display=shown?'':'none';
       if(!shown) continue;
       v.el.style.flex=`0 0 ${S}px`;
+      v.el.style.width=S+'px';
       v.el.style.maxWidth=S+'px';
       v.dpr=Math.min(window.devicePixelRatio||1,2.5);
       v.cv.style.width=S+'px'; v.cv.style.height=S+'px';
@@ -9805,7 +10362,7 @@ class HelmGauges{
       v.ctx.setTransform(v.dpr,0,0,v.dpr,0,0);
       v.geom={cx:S/2,cy:S/2,R:S*0.44};
     }
-    this._lastFit={W,avail,S,cols:best.cols};
+    this._lastFit={W,S,cols};
   }
 
   /* ── drawing ──────────────────────────────────────────────────────── */
