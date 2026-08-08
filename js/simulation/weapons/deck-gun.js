@@ -85,6 +85,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     const mult=heavy?0.34:c.type==='ESCORT'?0.58:c.type==='TANKER'?0.78:1;
     const d=(0.20+Math.random()*0.13)*mult;
     c.gunDamage=clamp((c.gunDamage||0)+d,0,4);
+    if(c.harborTarget) this.noteHarborAttack?.(c);
     c.baseSpeed=c.baseSpeed??c.speedKnots;
     c.speedKnots=Math.min(c.speedKnots,c.baseSpeed*clamp(1-c.gunDamage*0.48,0.18,1));
     c.desiredSpeed=Math.min(c.desiredSpeed??c.speedKnots,c.speedKnots);
@@ -96,7 +97,8 @@ class SimEngineDeckGun extends SimEngineAircraft {
       this.log(`Deck gun hit ${c.name} — visible damage, speed falling.`,'warn');
       return;
     }
-    c.sunk=true;c.sinkingProgress=0;c.speedKnots=0;c.hitFrac=clamp(hit.along/(hit.lenNm||1),-0.5,0.5);c.hitSide=hit.lateral>=0?1:-1;
+    c.sunk=true;c.sinkingProgress=0;c.speedKnots=0;c.hitFrac=clamp(hit.along/(hit.lenNm||1),-0.5,0.5);
+    if(c.harborTarget) this.noteHarborAttack?.(c);c.hitSide=hit.lateral>=0?1:-1;
     c.sinkStyle=Math.abs(c.hitFrac)>0.22?(c.hitFrac>0?0:1):(Math.random()<0.35?2:3);
     c.sinkDurationSec=c.sinkStyle===2?35+Math.random()*18:55+Math.random()*35;c.sunkAt=this.state.time.elapsedSeconds;
     const tr=this.state.world.contactTracks[c.id];if(tr){tr.sunk=true;tr.lastFixPosition={...c.position};tr.plotPosition={...c.position};delete tr.truePosition;}

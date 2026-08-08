@@ -151,7 +151,7 @@ class SimEngine extends SimEngineCollision {
     this.updatePosition(sub,dt);
     this.applyTerrainEffects(sub,dt);
     this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
-    this.updateDetection(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
+    this.updateDetection(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
     this.updateDmg(sub,dt); this.updateDmgCtrl(sub,dt); this.updateWarnings(sub);
@@ -399,7 +399,13 @@ class SimEngine extends SimEngineCollision {
         ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
         ex.speedEstimateKnots=lerp(ex.speedEstimateKnots,c.speedKnots,clamp(0.08+ex.confidence*0.18,0,0.35));
         const knownType=c.displayType||c.type;
-        ex.typeEstimate=ex.confidence>0.65?knownType:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
+        // The Truk heavy unit is deliberately reported only as HEAVY UNIT.
+        // Hydrophones may build a good positional track, but they do not hand
+        // the player a magical carrier/cruiser classification. Exact identity
+        // requires the visual source consumed by updateHarborKnowledge().
+        if(c.harborTarget&&c.id==='H-04'&&src!=='VISUAL')
+          ex.typeEstimate=ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
+        else ex.typeEstimate=ex.confidence>0.65?knownType:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         ex.contactType=c.type;
         // Store the fix in WORLD coordinates. This is the important bit: an old
         // bearing/range pair is relative to where ownship USED to be, so it may

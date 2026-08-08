@@ -53,7 +53,7 @@ class CanvasView extends CanvasViewPeriscope {
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
-    this.drawMapHarbor(ctx,state.world.harbor,w2s);
+    this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds);
     this.drawMapTrail(ctx,map.ownshipTrail,w2s);
     this.drawMapPlot(ctx,map.plottedCourse,w2s,sub.position,map.autoFollowPlot);
     this.drawTorpedoEnvelope(ctx,state,w2s,w,h);
@@ -430,42 +430,73 @@ class CanvasView extends CanvasViewPeriscope {
     }
   }
 
-  drawMapHarbor(ctx,H,w2s){
+  drawMapHarbor(ctx,H,I,w2s,now){
     if(!H) return;
-    const K=this.k,c=w2s(H.center.xNm,H.center.yNm);
-    const rin=H.mineInnerNm*this.zoom,rout=H.mineOuterNm*this.zoom;
-    // Intelligence gives the belt, not the individual mines.
+    const K=this.k,c=w2s(H.center.xNm,H.center.yNm), mine=I?.minefield, ch=I?.channel;
+    const hasKnowledge=!!I&&(mine?.level!=='NONE'||ch?.level!=='NONE'||I.net?.known||(I.batteries||[]).length);
+    const lightActive=(H.searchlightActiveUntil||-1)>(now||0);
+    if(!hasKnowledge&&!lightActive&&H.alert<=0) return; // before intel: the port symbol is all the chart knows
     ctx.save();
-    ctx.strokeStyle='rgba(227,107,93,.34)';ctx.lineWidth=Math.max(1,1.4*K);ctx.setLineDash([5,6]);
-    ctx.beginPath();ctx.arc(c.x,c.y,rout,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.arc(c.x,c.y,rin,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='rgba(227,107,93,.62)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';
-    ctx.fillText('CHARTED MINE BELT',c.x,c.y-rout-7*K);
 
-    // Swept channel: two faint rails from the outer belt to the net gate.
-    const r=degToRad(H.channelBearing),sx=Math.cos(r),sy=Math.sin(r);
-    const point=(along,side)=>({xNm:H.center.xNm+Math.sin(r)*along+sx*side,
-                                yNm:H.center.yNm-Math.cos(r)*along+sy*side});
-    ctx.strokeStyle='rgba(123,224,143,.42)';ctx.lineWidth=Math.max(1,1.5*K);ctx.setLineDash([7,5]);
-    for(const side of [-H.channelHalfWidthNm,H.channelHalfWidthNm]){
-      const a=point(H.netRangeNm,side),b=point(H.mineOuterNm+0.5,side),pa=w2s(a.xNm,a.yNm),pb=w2s(b.xNm,b.yNm);
-      ctx.beginPath();ctx.moveTo(pa.x,pa.y);ctx.lineTo(pb.x,pb.y);ctx.stroke();
+    // REPORTED / OBSERVED MINEFIELD: deliberately fuzzy knowledge, never the
+    // physical mine points and never the exact truth radii from world.harbor.
+    if(mine&&mine.level!=='NONE'){
+      const observed=mine.level==='OBSERVED';
+      const cc=w2s(H.center.xNm+(observed?0:mine.reportCenterDx||0),H.center.yNm+(observed?0:mine.reportCenterDy||0));
+      const rin=(observed?mine.observedInnerNm:mine.reportedInnerNm)*this.zoom;
+      const rout=(observed?mine.observedOuterNm:mine.reportedOuterNm)*this.zoom;
+      ctx.strokeStyle=observed?'rgba(227,107,93,.48)':'rgba(227,107,93,.30)';ctx.lineWidth=Math.max(1,1.25*K);ctx.setLineDash([7,7]);
+      ctx.beginPath();ctx.arc(cc.x,cc.y,rout,0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.arc(cc.x,cc.y,rin,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      // sparse chart hatching across the reported annulus; clipped only to the
+      // approximate report, so it cannot be reverse-engineered into mine truth.
+      ctx.save();ctx.beginPath();ctx.arc(cc.x,cc.y,rout,0,Math.PI*2);ctx.clip();
+      ctx.strokeStyle=observed?'rgba(227,107,93,.13)':'rgba(227,107,93,.09)';ctx.lineWidth=1;
+      const step=Math.max(11*K,18);
+      for(let x=cc.x-rout*1.4;x<cc.x+rout*1.4;x+=step){ctx.beginPath();ctx.moveTo(x,cc.y-rout);ctx.lineTo(x+rout*.75,cc.y+rout);ctx.stroke();}
+      ctx.restore();
+      ctx.fillStyle=observed?'rgba(227,107,93,.72)':'rgba(227,107,93,.58)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';
+      ctx.fillText(observed?'OBSERVED MINEFIELD':'REPORTED MINEFIELDS',cc.x,cc.y-rout-7*K);
     }
-    ctx.setLineDash([]);
 
-    // Torpedo net with a real centre gap.
-    const gate=point(H.netRangeNm,0),gp=w2s(gate.xNm,gate.yNm);
-    const at=d=>w2s(gate.xNm+sx*d,gate.yNm+sy*d);
-    ctx.strokeStyle='rgba(245,198,92,.82)';ctx.lineWidth=Math.max(2,2.4*K);
-    for(const [a,b] of [[H.netGapHalfNm,H.netHalfSpanNm],[-H.netGapHalfNm,-H.netHalfSpanNm]]){
-      const p1=at(a),p2=at(b);ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+    // The radio gives only a broad approach corridor. Close reconnaissance
+    // tightens it, but there is still no exact net gate until the net is seen.
+    if(ch&&ch.level!=='NONE'){
+      const observed=ch.level==='OBSERVED',bearing=observed?ch.observedBearing:ch.reportedBearing;
+      const half=observed?ch.observedHalfWidthNm:ch.reportedHalfWidthNm;
+      const r=degToRad(bearing),sx=Math.cos(r),sy=Math.sin(r);
+      const point=(along,side)=>({xNm:H.center.xNm+Math.sin(r)*along+sx*side,yNm:H.center.yNm-Math.cos(r)*along+sy*side});
+      const inner=observed?1.15:.75,outer=(mine?.level!=='NONE'?(mine.level==='OBSERVED'?mine.observedOuterNm:mine.reportedOuterNm):5.4)+.55;
+      const toScreen=p=>w2s(p.xNm,p.yNm);
+      const a1=toScreen(point(inner,-half)),a2=toScreen(point(inner,half)),b2=toScreen(point(outer,half)),b1=toScreen(point(outer,-half));
+      ctx.fillStyle=observed?'rgba(111,224,143,.09)':'rgba(111,224,143,.055)';ctx.strokeStyle=observed?'rgba(111,224,143,.50)':'rgba(111,224,143,.28)';ctx.lineWidth=Math.max(1,1.4*K);ctx.setLineDash(observed?[6,5]:[10,8]);
+      ctx.beginPath();ctx.moveTo(a1.x,a1.y);ctx.lineTo(a2.x,a2.y);ctx.lineTo(b2.x,b2.y);ctx.lineTo(b1.x,b1.y);ctx.closePath();ctx.fill();ctx.stroke();ctx.setLineDash([]);
+      const lp=w2s(point(outer*.72,0).xNm,point(outer*.72,0).yNm);ctx.fillStyle=observed?'rgba(111,224,143,.78)':'rgba(111,224,143,.57)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';
+      ctx.fillText(observed?'OBSERVED CHANNEL':'REPORTED SWEPT CHANNEL',lp.x,lp.y-6*K);
     }
-    ctx.fillStyle='rgba(245,198,92,.82)';ctx.font=this.fnt(7.5,true);
-    ctx.fillText('NET GATE',gp.x,gp.y-8*K);
-    if(H.alert>0){
-      ctx.fillStyle=H.alert>=2?'rgba(239,106,88,.95)':'rgba(245,198,92,.9)';ctx.font=this.fnt(8.5,true);
-      ctx.fillText(H.alert>=2?'HARBOR ALARM':'DEFENCES ALERT',c.x,c.y+34*K);
+
+    // Exact net geometry appears only after visual recognition or close contact.
+    if(I?.net?.known){
+      const r=degToRad(H.channelBearing),sx=Math.cos(r),sy=Math.sin(r);
+      const gate={xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};
+      const at=d=>w2s(gate.xNm+sx*d,gate.yNm+sy*d),gp=w2s(gate.xNm,gate.yNm);
+      ctx.strokeStyle='rgba(245,198,92,.82)';ctx.lineWidth=Math.max(2,2.4*K);
+      for(const [a,b] of [[H.netGapHalfNm,H.netHalfSpanNm],[-H.netGapHalfNm,-H.netHalfSpanNm]]){const p1=at(a),p2=at(b);ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();}
+      ctx.fillStyle='rgba(245,198,92,.82)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText('OBSERVED TORPEDO NET',gp.x,gp.y-8*K);
     }
+
+    // Battery positions are estimates created by observed fire, never truth
+    // locations or weapon-range circles.
+    for(const b of I?.batteries||[]){const p=w2s(b.xNm,b.yNm);ctx.strokeStyle='rgba(245,198,92,.70)';ctx.lineWidth=Math.max(1,1.2*K);ctx.beginPath();ctx.moveTo(p.x-4*K,p.y);ctx.lineTo(p.x+4*K,p.y);ctx.moveTo(p.x,p.y-4*K);ctx.lineTo(p.x,p.y+4*K);ctx.stroke();ctx.fillStyle='rgba(245,198,92,.72)';ctx.font=this.fnt(6.8,true);ctx.textAlign='center';ctx.fillText('POSSIBLE BATTERY',p.x,p.y-7*K);}
+
+    // A searchlight is a visible phenomenon, not a chart symbol. Draw its beam
+    // only during the actual eight-second sweep state in world.harbor.
+    if(lightActive){
+      const br=degToRad(H.searchlightBearing||0),wid=degToRad((H.searchlightWidthDeg||14)/2),len=4.4;
+      const p1=w2s(H.center.xNm+Math.sin(br-wid)*len,H.center.yNm-Math.cos(br-wid)*len),p2=w2s(H.center.xNm+Math.sin(br+wid)*len,H.center.yNm-Math.cos(br+wid)*len);
+      ctx.fillStyle='rgba(255,244,180,.075)';ctx.strokeStyle='rgba(255,244,180,.22)';ctx.lineWidth=Math.max(1,K);ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.closePath();ctx.fill();ctx.stroke();
+    }
+    if(H.alert>0){ctx.fillStyle=H.alert>=2?'rgba(239,106,88,.95)':'rgba(245,198,92,.9)';ctx.font=this.fnt(8.5,true);ctx.textAlign='center';ctx.fillText(H.alert>=2?'HARBOR ALARM':'DEFENCES ALERT',c.x,c.y+34*K);}
     ctx.restore();ctx.textAlign='left';
   }
 

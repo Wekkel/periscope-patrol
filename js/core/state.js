@@ -35,6 +35,7 @@ function createState(areaKey){
         {text:'Evade escort vessels',done:false},
         {text:'Return to friendly port',done:false}
       ],
+      optionalObjectives:[],
       friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
       tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     },
@@ -50,7 +51,7 @@ function createState(areaKey){
       enemy:{alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
         searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0},
       depthCharges:[],
-      harbor:null,harborInitialized:false,
+      harbor:null,harborInitialized:false,harborIntel:null,
       terrain:area.terrain,
       ports:area.ports,
       convoyRoutes:area.convoyRoutes,

@@ -86,10 +86,17 @@ class DomView{
     }
 
     const camp=state.campaign;
-    if(this.missionStatus) this.missionStatus.innerHTML=
-      `<strong style="color:var(--alert)">${camp.missionStatus}</strong><br>`+
-      camp.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
-      `<br><span style="color:var(--muted);font-size:10px;">Tonnage: ${camp.tonnageSunk.toLocaleString()}t | #${camp.patrolNumber} | Career: ${camp.totalScore}</span>`;
+    if(this.missionStatus){
+      const opt=(camp.optionalObjectives||[]).map(o=>{
+        const result=o.result&&o.result!=='not_attempted'?` · ${o.result.toUpperCase()}`:'';
+        return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
+      }).join('<br>');
+      this.missionStatus.innerHTML=
+        `<strong style="color:var(--alert)">${camp.missionStatus}</strong><br>`+
+        camp.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
+        (opt?`<br>${opt}`:'')+
+        `<br><span style="color:var(--muted);font-size:10px;">Tonnage: ${camp.tonnageSunk.toLocaleString()}t | #${camp.patrolNumber} | Career: ${camp.totalScore}</span>`;
+    }
   }
   renderDamage(sub){
     if(!this.damageReport) return;

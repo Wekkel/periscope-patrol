@@ -684,6 +684,7 @@ class SimEngineCore{
         {text:'Locate enemy convoy',done:false},{text:'Attack merchant shipping',done:false},
         {text:'Evade escort vessels',done:false},{text:'Return to friendly port',done:false}
       ],
+      optionalObjectives:[],
       friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
       tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     };
@@ -710,7 +711,7 @@ class SimEngineCore{
       alarmedAt:-999,sdOn:true,nextCheck:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
     s.world.contacts=this.makeConvoy(area);
-    s.world.harbor=null;s.world.harborInitialized=false;
+    s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
     this.setupHarbor(key);
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
     this.log(`${area.description}`);

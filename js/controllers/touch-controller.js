@@ -674,8 +674,13 @@ class TouchCtrl{
         `<span class="lbl">Torps</span><span class="val">${W.torpedoInventory} reserve</span>`+
         `<span class="lbl">Hits / duds</span><span class="val">${W.hits.length} / ${(W.duds||[]).length}</span>`);
       const c2=state.campaign;
+      const opt2=(c2.optionalObjectives||[]).map(o=>{
+        const result=o.result&&o.result!=='not_attempted'?` · ${o.result.toUpperCase()}`:'';
+        return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
+      }).join('<br>');
       html('mMission',`<strong style="color:var(--alert)">${c2.missionStatus}</strong><br>`+
         c2.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
+        (opt2?`<br>${opt2}`:'')+
         `<br><span style="color:var(--dim);font-size:10px;">Tonnage ${c2.tonnageSunk.toLocaleString()}t · patrol #${c2.patrolNumber} · career ${c2.totalScore}</span>`);
       const d=sub.damage;
       const bar=(l,v)=>{const col=v>0.65?'#ef6a58':v>0.3?'#f5c65c':'#6fe08f';
@@ -727,7 +732,7 @@ class TouchCtrl{
         :'<div class="intel-empty">Nothing held. Listen on the hydrophones, sweep with the scope, and come shallow for the broadcast.</div>');
 
       html('mRadio',R.inbox.length?R.inbox.map((m,i)=>
-        `<div class="log-entry"><b style="color:${m.type==='ULTRA'?'var(--ok)':m.type==='WARNING'?'var(--alert)':'var(--ink)'}">`+
+        `<div class="log-entry"><b style="color:${m.type==='ULTRA'?'var(--ok)':(m.type==='WARNING'||m.type==='SPECIAL INTELLIGENCE')?'var(--alert)':'var(--ink)'}">`+
         `${m.type} · ${m.subject}</b>${i===0?'<span class="sig-new">LATEST</span>':''}`+
         `<span class="sig-age">${agef(now2-(m.time||now2))} ago</span><br>${m.text}</div>`).join('')
         :'<span style="color:var(--dim)">No traffic copied yet. Come shallower than 42 ft when the broadcast is up.</span>');

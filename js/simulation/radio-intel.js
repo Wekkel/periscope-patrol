@@ -6,6 +6,13 @@ class SimEngineIntel extends SimEngineAAGun {
     const R=W.radio;
 
     if(!R.pending){
+      // Truk's special report is a broadcast like any other: knowing that the
+      // transmitter is up is not the same as copying the message. Once its
+      // window opens, give it a near-term radio slot but never create mission
+      // knowledge until applySignal() is reached after 40 seconds of copy.
+      const HI=this.ensureHarborIntel?.();
+      if(HI&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
+         &&now>=HI.specialSignal.eligibleAt&&R.nextBroadcast>30) R.nextBroadcast=30;
       /* If the boat has held nothing for a long while, the trail is cold and
          another eight hours of empty sea is not a game. Fleet sends an
          amplifying report: the same convoy, freshly fixed. You still have to
@@ -39,6 +46,13 @@ class SimEngineIntel extends SimEngineAAGun {
 
   composeSignal(){
     const W=this.state.world, camp=this.state.campaign;
+    const HI=this.ensureHarborIntel?.();
+    if(HI&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
+       &&this.state.time.elapsedSeconds>=HI.specialSignal.eligibleAt){
+      HI.specialSignal.broadcast=true;HI.specialSignal.broadcastAt=this.state.time.elapsedSeconds;
+      return{type:'SPECIAL INTELLIGENCE',subject:'TRUK ANCHORAGE',harborSpecial:true,
+        text:`HEAVY UNIT REPORTED AT TRUK ANCHORAGE. DEPARTURE UNKNOWN. ATTACK AT COMMANDING OFFICER'S DISCRETION.`};
+    }
     const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT'&&!c.harborTarget);
     const R=W.radio||{};
     const forced=!!R.forceUltra; R.forceUltra=false;
@@ -171,7 +185,9 @@ class SimEngineIntel extends SimEngineAAGun {
 
   applySignal(m){
     const W=this.state.world;
-    this.log(`RADIO — ${m.subject}: ${m.text}`,'warn');
+    if(m.harborSpecial) this.log(`SPECIAL INTELLIGENCE — ${m.text}`,'warn');
+    else this.log(`RADIO — ${m.subject}: ${m.text}`,'warn');
+    if(m.harborSpecial) this.grantHarborSpecialIntel?.();
     if(m.intel){
       // An ULTRA signal is a position report that is already some hours old.
       // It is plotted where the convoy WAS, and dead-reckoned forward from the

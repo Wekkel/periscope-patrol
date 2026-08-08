@@ -130,6 +130,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       if(t.rangeRunNm>=t.maxRangeNm){t.status='EXPIRED';this.reportMiss(t,true);continue;}
       if(t.rangeRunNm<t.armedAfterNm) continue;
       if(this.harborTorpedoNetHit(t.position)){
+        this.revealHarborNet?.('CONTACT');
         t.status='NETTED';
         W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'NET',kind:'dud'});
         this.notify(`${t.id} caught in the harbour torpedo net — warhead spent against the boom.`,'warn');
@@ -169,6 +170,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
           const angOff=Math.abs(shortDelta(t.heading,c.heading));
           const incidence=Math.min(angOff,180-angOff);      // 90° = square hit on the beam
           const where=hitFrac>0.22?'bow':hitFrac<-0.22?'stern':'amidships';
+          if(c.harborTarget) this.noteHarborAttack?.(c);
 
           // A very shallow track angle and the warhead simply glances off the
           // plating — the exploder never gets a square blow.
@@ -225,6 +227,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             camp.score+=pts; camp.tonnageSunk+=(c.tonsFactor||3000);
             if(c.harborTarget&&this.state.world.harbor){
               this.state.world.harbor.alert=2;this.state.world.harbor.suspicion=100;
+              this.noteHarborAttack?.(c);
             }
             if(c.type==='ESCORT') camp.escortsSunk++;
             if(camp.objectives[1]) camp.objectives[1].done=true;
