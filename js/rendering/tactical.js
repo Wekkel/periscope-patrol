@@ -288,7 +288,7 @@ class CanvasViewTactical extends CanvasViewCore {
     ctx.fillRect(-bl*0.08,-bh2*1.15,bl*0.17,bh2*0.85);   // sail
     ctx.fillStyle=hullCol;
     ctx.fillRect(-bl*0.5,-bh2*0.1,bl*0.06,bh2*0.9);      // stern planes
-    if(sub.depthFeet<66&&sub.damage.periscopeDamage<0.75){ // raised scope
+    if(sub.depthFeet<66&&sub.damage.periscopeDamage<0.92){ // raised scope
       ctx.fillStyle='#dff7ea';ctx.fillRect(-bl*0.02,-bh2*2.0,Math.max(1.5,1.6*k),bh2*0.9);
     }
     ctx.globalAlpha=1;ctx.restore();

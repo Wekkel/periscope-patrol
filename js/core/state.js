@@ -63,7 +63,9 @@ function createState(areaKey){
       propulsion:{engineMode:'DIESEL',orderedRpm:250,actualRpm:0,speedKnots:0,fuel:100,battery:100,chargeRate:0},
       stealth:{silentRunning:false,acousticSignature:0,visualProfile:1},
       damage:{hullIntegrity:100,crushDepthFeet:420,flooding:0,ballastDamage:0,motorDamage:0,
-        rudderDamage:0,periscopeDamage:0,pumpActive:false,damageControlActive:false,
+        rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
+        pumpActive:false,pumpTripped:false,pumpLoadSec:0,damageControlActive:false,repairPriority:'FLOODING',
+        driveBankOffline:false,damageEventSeq:0,repairFloor:{},instrumentBias:{},
         crewFatigue:0,oxygen:100,warnings:[]},
       inShallowWater:false,groundingRisk:false,diveDelay:0,
       seabedFeet:3000,keelClearanceFeet:3000,bottomType:'DEEP',bottomed:false,suction:0

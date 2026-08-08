@@ -1,8 +1,7 @@
 class CanvasViewPeriscope extends CanvasViewDeckGun {
   drawPeriscope(ctx,w,h,state){
     const sub=state.playerSub, tact=state.tactical, env=state.world.environment;
-    const opt=SCOPE_OPTICS[tact.periscopeZoom===1?0:1];
-    const isDamaged=sub.damage.periscopeDamage>0.75;
+    const opt=SCOPE_OPTICS[tact.periscopeZoom===1?0:1], prof=scopeOpticProfile(sub.damage.periscopeDamage);
     const tooDeep=sub.depthFeet>70;
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
     const r=Math.min(w*0.48,h*0.41);
@@ -13,13 +12,19 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     this.scopeGeom.hor=cam.horizonY;
 
     ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
-    if(isDamaged) this.drawScopeDamaged(ctx,w,h,cx,cy);
+    if(prof.unusable) this.drawScopeDamaged(ctx,w,h,cx,cy,prof);
     else if(tooDeep) this.drawScopeDeep(ctx,w,h,cx,cy);
-    else this.drawScopeScene(ctx,w,h,cam,state,opt,env);
+    else{
+      ctx.save();
+      if(prof.blurPx>0)ctx.filter=`blur(${prof.blurPx.toFixed(2)}px) contrast(${prof.contrast.toFixed(2)}) saturate(${clamp(1-prof.damage*.25,.65,1).toFixed(2)})`;
+      this.drawScopeScene(ctx,w,h,cam,state,opt,env);
+      ctx.restore();
+      if(prof.scratches) this.drawScopeDamageOverlay(ctx,cx,cy,r,prof,state);
+    }
     ctx.restore();
     this.subRef=sub;
     this.drawScopeFrame(ctx,w,h,cx,cy,r,r,tact,opt,env.daylight,cam);
-    this.drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,isDamaged,tooDeep);
+    this.drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,prof,tooDeep);
   }
 
   drawScopeScene(ctx,w,h,cam,state,opt,env){
@@ -644,8 +649,10 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
     ctx.textAlign='left';
 
-    // bearing tape
+    // bearing tape. The glass still points where the tube really points, but a
+    // damaged repeater can carry a fixed calibration error until repaired.
     ctx.textAlign='center';
+    const displayBearing=normDeg(tact.periscopeBearing+(this.subRef?.damage?.instrumentBias?.scopeBearingDeg||0));
     const marks=this.portrait?5:7, halfSpan=opt.fov/2*0.82;
     for(let i=-Math.floor(marks/2);i<=Math.floor(marks/2);i++){
       const off=(i/(marks/2))*halfSpan;
@@ -653,7 +660,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       if(bx<cx-r*0.95||bx>cx+r*0.95) continue;
       ctx.fillStyle=i===0?'rgba(245,198,92,.95)':'rgba(215,245,231,.62)';
       ctx.font=i===0?this.fnt(10.5,true):this.fnt(9);
-      ctx.fillText(fmtDeg(normDeg(tact.periscopeBearing+off)),bx,cy-r*0.80);
+      ctx.fillText(fmtDeg(normDeg(displayBearing+off)),bx,cy-r*0.80);
       ctx.strokeStyle='rgba(215,245,231,.35)';ctx.lineWidth=1;
       ctx.beginPath();ctx.moveTo(bx,cy-r*0.86);ctx.lineTo(bx,cy-r*0.92);ctx.stroke();
     }
@@ -716,19 +723,22 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     ctx.restore();
   }
 
-  drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,isDamaged,tooDeep){
+  drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,prof,tooDeep){
     const k=this.k, pad=Math.round(9*k);
     ctx.fillStyle='rgba(4,12,15,.62)';this.rr(ctx,pad*0.6,pad*0.5,Math.round(178*k),Math.round(60*k),5*k);ctx.fill();
     ctx.fillStyle='#8fb8a8';ctx.font=this.fnt(10.5,true);
-    ctx.fillText(`BRG ${fmtDeg(tact.periscopeBearing)}`,pad,Math.round(17*k));
+    ctx.fillText(`BRG ${fmtDeg(scopeMeasuredBearing(state,tact.periscopeBearing))}`,pad,Math.round(17*k));
     ctx.font=this.fnt(8.5);ctx.fillStyle='rgba(140,175,160,.9)';
     ctx.fillText(`${opt.label} ${opt.name} · FIELD ${opt.fov}°`,pad,Math.round(29*k));
     const camH=sub.depthFeet<8?6.5:clamp(1.8-(sub.depthFeet-45)*0.06,0.35,1.9);
     const horNm=Math.sqrt(2*EARTH_R*camH)/NM_M;
     ctx.fillText(`VIS ${env.visibilityNm.toFixed(1)}nm · HORIZON ${horNm.toFixed(1)}nm`,pad,Math.round(40*k));
     let msg='SCOPE ACTIVE',col='#6fe08f';
-    if(isDamaged){msg='OPTICS DAMAGED';col='#ef6a58';}
+    if(prof.unusable){msg='OPTICS CRITICAL — IMAGE MOSTLY LOST';col='#ef6a58';}
     else if(tooDeep){msg=`TOO DEEP — ${sub.depthFeet.toFixed(0)}ft`;col='#f5c65c';}
+    else if(prof.damage>.62){msg='OPTICAL DISTORTION — MEASUREMENTS UNRELIABLE';col='#ef6a58';}
+    else if(prof.damage>.28){msg='OPTICS DAMAGED — BLUR / CALIBRATION ERROR';col='#f5c65c';}
+    else if(prof.damage>.07){msg='OPTICS SCRATCHED — CONTRAST REDUCED';col='#f5c65c';}
     else if(sub.depthFeet<8) msg='SURFACED — BRIDGE LOOKOUT';
     ctx.fillStyle=col;ctx.font=this.fnt(9,true);ctx.fillText(msg,pad,Math.round(52*k));
 
@@ -1220,7 +1230,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const lift=sel?clamp(pxLen*0.16,9*this.k,34*this.k):0;
       const ly=top.y-lift;
       if(sel&&fresh){
-        const line2=`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${(it.d/NM_M).toFixed(1)}nm`;
+        const line2=`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${scopeMeasuredRangeNm(state,it.d/NM_M).toFixed(1)}nm`;
         ctx.font=this.fnt(9,true);const w=ctx.measureText(line2).width+10*this.k;
         const bw=Math.max(58*this.k,w),bh=22*this.k;
         ctx.fillStyle='rgba(3,13,16,.72)';this.rr(ctx,top.x-bw/2,ly-15*this.k,bw,bh,3*this.k);ctx.fill();
@@ -1232,7 +1242,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         // Tap the selected ship again to reveal the full card for another beat.
         ctx.textAlign='center';ctx.font=this.fnt(sel?8.5:9,sel);ctx.fillStyle=sinking?'rgba(239,106,88,.78)':sel?'rgba(210,240,228,.28)':'rgba(245,198,92,.85)';
         ctx.fillText(sinking?`${c.id} SINKING`:c.id,top.x,ly-4*this.k);
-        if(!sel){ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(220,236,230,.62)';ctx.fillText(`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${(it.d/NM_M).toFixed(1)}nm`,top.x,ly+6*this.k);}
+        if(!sel){ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(220,236,230,.62)';ctx.fillText(`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${scopeMeasuredRangeNm(state,it.d/NM_M).toFixed(1)}nm`,top.x,ly+6*this.k);}
       }
       ctx.textAlign='left';
       if(sel){
@@ -1581,16 +1591,36 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
   }
 
-  drawScopeDamaged(ctx,w,h,cx,cy){
-    ctx.fillStyle='#05080a';ctx.fillRect(0,0,w,h);
-    ctx.strokeStyle='rgba(239,106,88,.4)';ctx.lineWidth=2;
-    for(let i=0;i<8;i++){
-      const a=i*0.785+0.3, l=Math.min(w,h)*0.35;
-      ctx.beginPath();ctx.moveTo(cx,cy);
-      ctx.lineTo(cx+Math.cos(a)*l*(0.6+((i*37)%50)/100),cy+Math.sin(a)*l*(0.6+((i*17)%50)/100));ctx.stroke();
+  drawScopeDamageOverlay(ctx,cx,cy,r,prof,state){
+    // Scratches are fixed to the glass, not the world. Their layout derives
+    // from the patrol seed so damaged optics look stable while the scope turns.
+    const seed=state.campaign?.scenarioSeed||1;
+    ctx.save();
+    if(prof.haze>0){ctx.fillStyle=`rgba(205,220,214,${prof.haze})`;ctx.fillRect(cx-r,cy-r,r*2,r*2);}
+    ctx.strokeStyle=`rgba(232,242,235,${clamp(.08+prof.damage*.25,.08,.30)})`;ctx.lineWidth=Math.max(.7,this.k*.85);
+    for(let i=0;i<prof.scratches;i++){
+      const a=_damageSeedUnit(seed,400+i)*Math.PI*2,rr=r*(.18+_damageSeedUnit(seed,500+i)*.72);
+      const x=cx+Math.cos(a)*rr,y=cy+Math.sin(a)*rr,len=r*(.05+_damageSeedUnit(seed,600+i)*.16);
+      const ang=a+(_damageSeedUnit(seed,700+i)-.5)*1.8;
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.cos(ang)*len,y+Math.sin(ang)*len);ctx.stroke();
     }
-    ctx.fillStyle='rgba(239,106,88,.75)';ctx.font=this.fnt(13,true);ctx.textAlign='center';
-    ctx.fillText('PERISCOPE OPTICS DAMAGED',cx,cy);ctx.textAlign='left';
+    if(prof.distortion>0){
+      ctx.strokeStyle=`rgba(245,198,92,${prof.distortion*.22})`;ctx.lineWidth=Math.max(1,1.2*this.k);
+      for(let i=0;i<3;i++){const rr=r*(.34+i*.17);ctx.beginPath();ctx.arc(cx+Math.sin(i*2.1)*r*.04,cy,rr,-1.1,1.05);ctx.stroke();}
+    }
+    ctx.restore();
+  }
+
+  drawScopeDamaged(ctx,w,h,cx,cy,prof){
+    ctx.fillStyle='#05080a';ctx.fillRect(0,0,w,h);
+    ctx.strokeStyle='rgba(239,106,88,.45)';ctx.lineWidth=2;
+    for(let i=0;i<10;i++){
+      const a=i*0.628+0.3,l=Math.min(w,h)*0.38;
+      ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.cos(a)*l*(.55+((i*37)%50)/100),cy+Math.sin(a)*l*(.55+((i*17)%50)/100));ctx.stroke();
+    }
+    ctx.fillStyle='rgba(239,106,88,.82)';ctx.font=this.fnt(13,true);ctx.textAlign='center';
+    ctx.fillText('PERISCOPE OPTICS CRITICAL',cx,cy-4*this.k);
+    ctx.font=this.fnt(9);ctx.fillStyle='rgba(220,235,228,.6)';ctx.fillText(`${Math.round(prof.damage*100)}% damage — only light and motion discernible`,cx,cy+14*this.k);ctx.textAlign='left';
   }
 
   drawScopeDeep(ctx,w,h,cx,cy){

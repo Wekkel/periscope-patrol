@@ -30,6 +30,10 @@ class DomView{
     document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
     const dg=state.weapons.deckGun,ds=document.getElementById('deckGunStatus');
     if(ds&&dg)ds.textContent=`${dg.manned?'CREW TOPSIDE — automatic':'crew secured — enter GUN station to man automatically'} · train ${dg.trainDeg.toFixed(1)}° · elev ${dg.elevationDeg.toFixed(1)}° · ammo ${dg.ammo} · drag 3D view to aim`;
+    const rp=sub.damage.repairPriority||'FLOODING';
+    const ids={FLOODING:'dcFloodButton',PROPULSION:'dcPropButton',STEERING:'dcSteerButton',OPTICS_FIRE_CONTROL:'dcOpticsButton'};
+    for(const [k,id] of Object.entries(ids))document.getElementById(id)?.classList.toggle('on',k===rp);
+    const dn=document.getElementById('deskDcNote');if(dn){const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);dn.textContent=`Priority ${repairPriorityLabel(rp)} · ${sub.damage.damageControlActive?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · drive bank offline':''}`;}
     this.renderAlerts(state);
     this.renderOrders(sub,state);
     this.renderDamage(sub);
@@ -107,7 +111,9 @@ class DomView{
     this.damageReport.innerHTML=
       `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
       bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
-      bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
+      bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
+      bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
+      `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
       `<div class="dmg-row"><span class="dmg-lbl">Oxygen</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#e36b5d':d.oxygen<50?'#f0c35a':'#7be08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`;
   }
   renderGauges(sub,state){

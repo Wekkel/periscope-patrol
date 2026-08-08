@@ -198,7 +198,9 @@ class Tutorial{
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
     sub.stealth.silentRunning=false;
     Object.assign(sub.damage,{hullIntegrity:100,flooding:0,ballastDamage:0,motorDamage:0,
-      rudderDamage:0,periscopeDamage:0,oxygen:100,pumpActive:false,damageControlActive:false});
+      rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
+      oxygen:100,pumpActive:false,pumpTripped:false,pumpLoadSec:0,damageControlActive:false,
+      repairPriority:'FLOODING',driveBankOffline:false,damageEventSeq:0,repairFloor:{},instrumentBias:{}});
     s.campaign.missionStatus='TRAINING';
     s.campaign.objectives=[
       {text:'Find the merchant',done:false},{text:'Sink it',done:false},

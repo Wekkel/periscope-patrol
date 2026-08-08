@@ -1,0 +1,20 @@
+PASS: JavaScript syntaxcheck — {"files":48}
+PASS: new Truk patrol has physical harbor + heavy unit but no optional objective — {"optional":0,"harbor":true,"heavy":{"id":"H-04","displayType":"HEAVY CRUISER","sunk":false},"knowledge":{"mine":"NONE","channel":"NONE","net":false,"reported":false,"identified":false},"truthMines":30}
+PASS: special intel broadcast pending but not copied creates no objective — {"type":"SPECIAL INTELLIGENCE","text":"HEAVY UNIT REPORTED AT TRUK ANCHORAGE. DEPARTURE UNKNOWN. ATTACK AT COMMANDING OFFICER'S DISCRETION.","broadcast":true,"copied":false,"optional":0}
+PASS: copying special intel creates optional objective and only reported defensive knowledge — {"inbox":1,"copied":true,"optional":1,"objective":"Investigate Truk Anchorage","mine":"REPORTED","channel":"REPORTED","net":false,"result":"not_attempted"}
+PASS: reported harbor chart shows fuzzy mine/channel report but no exact net gate — {"labels":["REPORTED MINEFIELDS","REPORTED SWEPT CHANNEL"],"ops":97}
+PASS: approach observation improves minefield/channel confidence without auto-revealing net — {"mine":"OBSERVED","channel":"OBSERVED","net":false}
+PASS: close visual/contact reconnaissance reveals torpedo net and map line — {"known":true,"source":"VISUAL","labels":["OBSERVED MINEFIELD","OBSERVED CHANNEL","OBSERVED TORPEDO NET"]}
+PASS: real visual contact tracking identifies the actual heavy unit — {"track":{"source":"VISUAL","confidence":0.84,"type":"HEAVY CRUISER"},"known":{"reported":true,"identified":true,"identity":"HEAVY CRUISER","identifiedAt":0},"objective":"Heavy cruiser identified at Truk Anchorage"}
+PASS: optional objective is rendered at UI level with OPTIONAL prefix — {"missionHTML":"<strong style=\"color:var(--alert)\">PATROL</strong><br><span style=\"color:var(--muted)\">○ Locate enemy convoy</span><br><span style=\"color:var(--muted)\">○ Attack merchant shipping</span><br><span style=\"color:var(--muted)\">○ Evade escort vessels</span><br><span style=\"color:var(--muted)\">○ Return to friendly port</span><br><span style=\"color:var(--alert)\">◇ OPTIONAL — Heavy cruiser identified at Truk Anchorage</span><br><span style=\"color:var(--muted);font-size:10px;\">Tonnage: 0t | #2 | Career: 0</span>"}
+PASS: harbor knowledge and optional objective persist through save/load — {"identified":true,"identity":"HEAVY CRUISER","objective":"Heavy cruiser identified at Truk Anchorage"}
+PASS: heavy-unit deck-gun damage registers optional result DAMAGED — {"result":"damaged","gunDamage":0.071599914006074,"objectiveResult":"damaged"}
+PASS: heavy-unit destruction upgrades optional result to SUNK without failure — {"result":"sunk","done":true,"failed":false}
+PASS: returning without raid completes patrol with NOT ATTEMPTED and no optional failure — {"mission":"COMPLETED","result":"not_attempted","failed":false,"done":false,"text":"Investigate Truk Anchorage"}
+PASS: raid entered then abandoned is recorded as ABANDONED, not failed — {"attempted":true,"result":"abandoned","failed":false}
+PASS: searchlight has no map drawing while inactive and a transient drawing while active — {"inactiveOps":0,"activeOps":9}
+PASS: acoustic-only H-04 track does not reveal carrier/cruiser identity — {"source":"HYDROPHONE","confidence":1,"type":"SURFACE SHIP","known":false}
+PASS: unknown physical net and mine still exist and function independently of chart knowledge — {"netKnownBefore":false,"netPhysical":true,"mineKnownBefore":"NONE","mineTriggered":true,"hullBefore":100,"hullAfter":56.018599477148335}
+PASS: coastal battery appears only as POSSIBLE BATTERY estimate after actual fire — {"estimates":1,"labels":["POSSIBLE BATTERY"]}
+PASS: harbor map draws no hydrophone or coastal-battery range circles — {"hydroRangeRef":false,"batteryRangeRef":false}
+PHASE 2 TRUK OPTIONAL RAID CONTRACT: PASS

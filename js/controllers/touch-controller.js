@@ -248,6 +248,10 @@ class TouchCtrl{
     btn('mBlow',     ()=>{D({type:'EMERGENCY_BLOW'});this.setDepthSlider(0);buzz([20,40,20]);});
     btn('mSilent',   ()=>D({type:'TOGGLE_SILENT_RUNNING'}));
     btn('mPumps',    ()=>D({type:'TOGGLE_PUMPS'}));
+    btn('mDcFlood',  ()=>D({type:'SET_REPAIR_PRIORITY',priority:'FLOODING'}));
+    btn('mDcProp',   ()=>D({type:'SET_REPAIR_PRIORITY',priority:'PROPULSION'}));
+    btn('mDcSteer',  ()=>D({type:'SET_REPAIR_PRIORITY',priority:'STEERING'}));
+    btn('mDcOptics', ()=>D({type:'SET_REPAIR_PRIORITY',priority:'OPTICS_FIRE_CONTROL'}));
     btn('mSteerWp',  ()=>D({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('mAutoPilot',()=>{D({type:'TOGGLE_AUTOPILOT'});buzz(10);});
     const transit=secs=>{D({type:'START_TRANSIT',seconds:secs});this.setPane('view');buzz(12);};
@@ -633,8 +637,13 @@ class TouchCtrl{
       : 'No waypoints. Tap open water on the map to plot one, tap a waypoint to delete it.');
     cls('mSilent','on',sub.stealth.silentRunning);
     cls('mPumps','on',sub.damage.pumpActive);
+    const rp=sub.damage.repairPriority||'FLOODING';
+    cls('mDcFlood','on',rp==='FLOODING');cls('mDcProp','on',rp==='PROPULSION');
+    cls('mDcSteer','on',rp==='STEERING');cls('mDcOptics','on',rp==='OPTICS_FIRE_CONTROL');
     {const G=state.weapons.deckGun, aa=state.world.aaManned, dc=sub.damage.damageControlActive;
-      set('mAutoCrewStatus',`AUTO CREW · SD RADAR ${sub.depthFeet<12?'ON':'STANDBY'} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);}
+      set('mAutoCrewStatus',`AUTO CREW · SD RADAR ${sub.depthFeet<12?'ON':'STANDBY'} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
+      const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);
+      set('mDcStatus',`PRIORITY ${repairPriorityLabel(rp)} · ${dc?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · DRIVE BANK OFFLINE':''}`);}
     set('rpmNote',`${p.engineMode} · ${p.speedKnots.toFixed(1)} kn · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);
 
     // ── panes (only refresh the visible one) ──
@@ -689,7 +698,9 @@ class TouchCtrl{
       html('mDamage',
         `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
         bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
-        bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
+        bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
+        bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
+        `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
         `<div class="dmg-row"><span class="dmg-lbl">Oxygen</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#ef6a58':d.oxygen<50?'#f5c65c':'#6fe08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`);
       html('mGauges',
         `<span>Contacts</span><strong>${Object.keys(state.world.contactTracks).length}</strong>`+

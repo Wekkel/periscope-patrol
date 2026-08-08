@@ -257,6 +257,14 @@
       <button id="pumpButton">Toggle Pumps</button>
       <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
     </div>
+    <div class="ptitle" style="margin-top:8px;">Damage Control Priority</div>
+    <div class="cgroup" id="deskRepairPriority">
+      <button id="dcFloodButton" class="on">Flooding</button>
+      <button id="dcPropButton">Propulsion</button>
+      <button id="dcSteerButton">Steering</button>
+      <button id="dcOpticsButton">Optics / Fire Control</button>
+      <div class="note" id="deskDcNote">Repair parties deploy automatically; one priority receives most of their effort.</div>
+    </div>
     <div class="ptitle" style="margin-top:8px;">Periscope</div>
     <div class="cgroup">
       <button id="scopeLeftButton">◄ Rotate Left (←)</button>
@@ -328,7 +336,7 @@
       <button id="portButton">Head To Port (H)</button>
       <button id="newScenarioButton">⚓ Mission Select (M)</button>
       <button id="saveGameButton">💾 Save Game</button>
-      <div class="note">Hotkeys: 1=Tactical 2=Scope 3=Map 4=Deck Gun Space=Pause S=Silent E=Blow D=DmgCtrl P=Pumps ←/→=Scope H=Port M=Mission</div>
+      <div class="note">Hotkeys: 1=Tactical 2=Scope 3=Map 4=Deck Gun Space=Pause S=Silent E=Blow P=Pumps ←/→=Scope H=Port M=Mission</div>
     </div>
   </aside>
 
@@ -517,7 +525,16 @@
           <button id="mPumps">💧 Pumps</button>
           <select id="mTimeSel" title="Time scale" style="margin:0;grid-column:1/-1;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
         </div>
-        <div id="mAutoCrewStatus" class="note">AUTO CREW · SD radar · AA · deck-gun crew · damage control</div>
+        <div id="mAutoCrewStatus" class="note">AUTO CREW · SD radar · AA · deck-gun crew · damage-control parties</div>
+
+        <div class="ptitle" style="margin-top:14px;">Damage Control Priority</div>
+        <div class="g2" id="mRepairPriority">
+          <button id="mDcFlood" class="on">Flooding</button>
+          <button id="mDcProp">Propulsion</button>
+          <button id="mDcSteer">Steering</button>
+          <button id="mDcOptics">Optics / Fire Control</button>
+        </div>
+        <div id="mDcStatus" class="note">Repair parties deploy automatically. The selected priority gets most of the available repair capacity.</div>
 
         <div class="ptitle" style="margin-top:14px;">Transit — skip the empty water</div>
         <div class="g3">
@@ -645,6 +662,7 @@
 <script src="./js/simulation/sensors.js"></script>
 <script src="./js/simulation/ai/escort-asw.js"></script>
 <script src="./js/simulation/collision/vessel-collision.js"></script>
+<script src="./js/simulation/damage-control.js"></script>
 <script src="./js/simulation/physics-navigation.js"></script>
 <script src="./js/rendering/world-geometry.js"></script>
 <script src="./js/rendering/canvas-core.js"></script>

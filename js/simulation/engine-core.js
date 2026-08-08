@@ -145,9 +145,13 @@ class SimEngineCore{
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
         this.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); audio.playSurface(); break;
       case'TOGGLE_DAMAGE_CONTROL':
-        this.notify('Damage control is automatic — repair parties deploy whenever there is repairable damage.','ok'); break;
-      case'TOGGLE_PUMPS': sub.damage.pumpActive=!sub.damage.pumpActive;
-        this.log(sub.damage.pumpActive?'Pumps running — noise increases.':'Pumps stopped.'); break;
+        this.notify(`Damage control parties are automatic. Choose one repair priority instead — currently ${repairPriorityLabel(sub.damage.repairPriority)}.`,'ok'); break;
+      case'SET_REPAIR_PRIORITY': this.setRepairPriority(cmd.priority); break;
+      case'TOGGLE_PUMPS':
+        this.ensureDamageState();
+        if(sub.damage.pumpTripped){this.notify('Dewatering pump is tripped and cannot be restarted until damage control repairs it.','bad');break;}
+        sub.damage.pumpActive=!sub.damage.pumpActive;
+        this.log(sub.damage.pumpActive?`Pumps running at ${Math.round(clamp(1-sub.damage.pumpDamage*.78,.16,1)*100)}% capacity — noise increases.`:'Pumps stopped.'); break;
       case'START_TRANSIT':{
         const t=this.state.time;
         if(sub.mode==='SUNK') break;
@@ -698,8 +702,10 @@ class SimEngineCore{
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
     sub.stealth.silentRunning=false;sub.stealth.acousticSignature=0;
     Object.assign(sub.damage,{hullIntegrity:100,flooding:0,ballastDamage:0,motorDamage:0,
-      rudderDamage:0,periscopeDamage:0,crewFatigue:0,oxygen:100,
-      pumpActive:false,damageControlActive:false,warnings:[]});
+      rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
+      crewFatigue:0,oxygen:100,pumpActive:false,pumpTripped:false,pumpLoadSec:0,
+      damageControlActive:false,repairPriority:'FLOODING',driveBankOffline:false,damageEventSeq:0,
+      repairFloor:{},instrumentBias:{},warnings:[]});
     sub.inShallowWater=false;sub.groundingRisk=false;sub.inShallowWarned=false;
     sub.bottomed=false;sub.suction=0;sub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
     s.weapons.torpedoInventory=16;s.weapons.duds=[];s.weapons.nextTorpedoId=1;

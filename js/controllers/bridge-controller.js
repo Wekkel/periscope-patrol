@@ -24,6 +24,10 @@ class BridgeController{
     btn('silentButton',     ()=>this.game.dispatch({type:'TOGGLE_SILENT_RUNNING'}));
     btn('emergencyBlowButton',()=>{if(di){di.value=0;dv.textContent='0 ft';}this.game.dispatch({type:'EMERGENCY_BLOW'});});
     btn('pumpButton',       ()=>this.game.dispatch({type:'TOGGLE_PUMPS'}));
+    btn('dcFloodButton',     ()=>this.game.dispatch({type:'SET_REPAIR_PRIORITY',priority:'FLOODING'}));
+    btn('dcPropButton',      ()=>this.game.dispatch({type:'SET_REPAIR_PRIORITY',priority:'PROPULSION'}));
+    btn('dcSteerButton',     ()=>this.game.dispatch({type:'SET_REPAIR_PRIORITY',priority:'STEERING'}));
+    btn('dcOpticsButton',    ()=>this.game.dispatch({type:'SET_REPAIR_PRIORITY',priority:'OPTICS_FIRE_CONTROL'}));
     const tsel=document.getElementById('timeSelect');
     tsel?.addEventListener('change',e=>{
       const v=e.target.value;

@@ -1,4 +1,4 @@
-class SimEngine extends SimEngineCollision {
+class SimEngine extends SimEngineDamage {
   snapshotWatch(){
     const s=this.state;
     s.time._watch={
@@ -82,47 +82,7 @@ class SimEngine extends SimEngineCollision {
     W.shakeMag=Math.min((W.shakeMag||0)+mag,9);
   }
 
-  applyShock(d){
-    this.shake(clamp(d/6,0.5,7));
-    const sub=this.state.playerSub; const dm=sub.damage;
-    dm.hullIntegrity=clamp(dm.hullIntegrity-d,0,100);
-    dm.flooding=clamp(dm.flooding+d/180,0,1);
-    dm.ballastDamage=clamp(dm.ballastDamage+d/230,0,1);
-    dm.motorDamage=clamp(dm.motorDamage+d/270,0,1);
-    dm.rudderDamage=clamp(dm.rudderDamage+d/310,0,1);
-    if(d>12) dm.periscopeDamage=clamp(dm.periscopeDamage+d/260,0,1);
-    if(dm.hullIntegrity<=0&&sub.mode!=='SUNK'){
-      sub.mode='SUNK'; this.state.campaign.missionStatus='LOST';
-      this.log('HULL FAILURE — boat lost. Open ⚓ Missions to start a new patrol.','bad');
-    }
-  }
-
-  updateDmgCtrl(sub,dt){
-    const d=sub.damage;
-    // Damage control is crew doctrine, not a player switch. Parties deploy as
-    // soon as there is something they can actually repair, and stand down when
-    // those repairable items are effectively clean again.
-    const needDC=sub.mode!=='SUNK'&&(d.flooding>0.005||d.ballastDamage>0.005||d.motorDamage>0.005||d.rudderDamage>0.005||d.periscopeDamage>0.005);
-    if(needDC!==!!d.damageControlActive){
-      d.damageControlActive=needDC;
-      this.log(needDC?'Damage control parties deployed automatically.':'Damage control reports repairs complete — parties stood down.');
-    }
-    if(sub.depthFeet>8) d.oxygen=clamp(d.oxygen-dt*0.006*(sub.stealth.silentRunning?1.2:1),0,100);
-    else d.oxygen=clamp(d.oxygen+dt*0.15,0,100);
-    if(sub.stealth.silentRunning) d.crewFatigue=clamp(d.crewFatigue+dt/900,0,1);
-    else d.crewFatigue=clamp(d.crewFatigue-dt/1500,0,1);
-    if(d.pumpActive){d.flooding=clamp(d.flooding-dt/240,0,1);sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.025,0,1.5);}
-    if(d.damageControlActive&&sub.mode!=='SUNK'){
-      const fp=1-d.crewFatigue*0.65; const rr=dt/420*fp;
-      d.flooding=clamp(d.flooding-rr*1.1,0,1);
-      d.ballastDamage=clamp(d.ballastDamage-rr*0.6,0,1);
-      d.motorDamage=clamp(d.motorDamage-rr*0.45,0,1);
-      d.rudderDamage=clamp(d.rudderDamage-rr*0.55,0,1);
-      d.periscopeDamage=clamp(d.periscopeDamage-rr*0.35,0,1);
-    }
-    if(d.flooding>=0.98&&sub.mode!=='SUNK'){sub.mode='SUNK';this.state.campaign.missionStatus='LOST';
-      this.log('Flooding uncontrolled. Boat lost. Open ⚓ Missions to start a new patrol.','bad');}
-  }
+  // Subsystem damage and damage-control doctrine live in damage-control.js.
 
   checkMissionObjectives(){
     const camp=this.state.campaign;
@@ -176,7 +136,11 @@ class SimEngine extends SimEngineCollision {
     const mv=em?6.5*be:2.4*be;
     const cv=clamp(de*0.045,-mv,mv);
     const sp=em?clamp(sub.propulsion.speedKnots/12,0.5,1.2):clamp(sub.propulsion.speedKnots/12,0.15,1.2); // Fix B: crash dive works at low speed
-    sub.verticalSpeedFps=lerp(sub.verticalSpeedFps,cv*sp+fp,clamp(dt*0.8,0,1));
+    // Damaged ballast gear gives the boat a persistent trim tendency. It is
+    // deliberately stable for the patrol seed, so the skipper can learn and
+    // compensate for it instead of chasing per-frame random noise.
+    const trimBias=(sub.damage.instrumentBias?.ballastTrimFps??damageBiasesFor(this.state).ballastTrimFps)*(em?.35:1);
+    sub.verticalSpeedFps=lerp(sub.verticalSpeedFps,cv*sp+fp+trimBias,clamp(dt*0.8,0,1));
     if(sub.diveDelay>0){sub.diveDelay-=dt;sub.verticalSpeedFps=Math.min(sub.verticalSpeedFps,0);}
     sub.depthFeet=clamp(sub.depthFeet+sub.verticalSpeedFps*dt,0,sub.damage.crushDepthFeet+80);
     if(Math.abs(de)<2&&Math.abs(sub.verticalSpeedFps)<0.25) sub.verticalSpeedFps=0;
@@ -225,12 +189,14 @@ class SimEngine extends SimEngineCollision {
     p.engineMode=subm?'ELECTRIC':'DIESEL';
     if(subm&&!wasSub) this.log('Main induction closed — diesels secured, answering on the motors. No snorkel in this boat: she cannot charge until she is on the roof.','warn');
     else if(!subm&&wasSub) this.log('Surfaced — induction open, diesels on line. Battery charging.','warn');
-    let rpm=p.orderedRpm; const me=1-sub.damage.motorDamage*0.8;
+    const dmg=sub.damage, me=1-dmg.motorDamage*0.8, ee=1-(dmg.electricalDamage||0)*0.34;
+    let rpm=p.orderedRpm;
+    if(dmg.driveBankOffline) rpm=Math.min(rpm,320);
     if(sub.stealth.silentRunning) rpm=Math.min(rpm,120);
     if(sub.mode==='CRASH_DIVING') rpm=Math.min(rpm,220);
     p.actualRpm=lerp(p.actualRpm,rpm,clamp(dt*0.7,0,1));
-    const ms=subm?8.5:18; const rc=1-Math.exp(-p.actualRpm/170);
-    p.speedKnots=ms*rc*(sub.stealth.silentRunning?0.72:1)*me;
+    const ms=subm?8.5:18, bank=dmg.driveBankOffline?.72:1, rc=1-Math.exp(-p.actualRpm/170);
+    p.speedKnots=ms*rc*(sub.stealth.silentRunning?0.72:1)*me*ee*bank;
     const rl=p.actualRpm/450;
     if(p.engineMode==='DIESEL'){
       /* FUEL. The old rule burned linearly with revolutions and emptied the
@@ -253,7 +219,7 @@ class SimEngine extends SimEngineCollision {
          the Pacific hated that arithmetic. */
       const share=clamp(1-rl*rl*1.15,0,1);
       const taper=clamp(1-Math.pow(p.battery/100,3)*0.75,0.22,1);
-      const chg=p.fuel>0?0.009*share*taper:0;
+      const chg=p.fuel>0?0.009*share*taper*clamp(1-(dmg.electricalDamage||0)*.55,.32,1):0;
       if(chg>0&&p.battery<100){
         p.battery=clamp(p.battery+chg*dt,0,100);
         p.fuel=clamp(p.fuel-share*0.35*dt/3600,0,100);  // the generators drink too — ~1.4% for a full charge
@@ -261,7 +227,7 @@ class SimEngine extends SimEngineCollision {
       p.chargeRate=chg;
       if(p.fuel<=0)p.speedKnots*=0.1;
     }
-    else{p.chargeRate=0;const bd=(0.015+rl*rl*0.12)*dt;p.battery=clamp(p.battery-bd,0,100);if(p.battery<=0){p.speedKnots*=0.05;p.actualRpm*=0.1;}}
+    else{p.chargeRate=0;const bd=(0.015+rl*rl*0.12)*dt*(1+(dmg.electricalDamage||0)*.28);p.battery=clamp(p.battery-bd,0,100);if(p.battery<=0){p.speedKnots*=0.05;p.actualRpm*=0.1;}}
   }
 
   updatePosition(sub,dt){
@@ -447,17 +413,25 @@ class SimEngine extends SimEngineCollision {
     const tr=this.state.world.contactTracks[tdc.targetId];
     const manual=tdc.targetId==='MANUAL';
     if(!manual&&(!tr||tr.confidence<=0.02)){tdc.status='TRACK LOST';tdc.solutionQuality=0;return;}
-    const sub=this.state.playerSub;
+    const sub=this.state.playerSub,d=sub.damage,bias=d.instrumentBias||damageBiasesFor(this.state);
     const bear=manual?tdc.bearing:(tdc.bearing??tr.bearing);
     const rng=manual?tdc.rangeNm:(tdc.rangeNm??tr.rangeEstimateNm);
     const crs=manual?tdc.targetCourse:(tdc.targetCourse??tr.courseEstimate);
     const spd=manual?tdc.targetSpeedKnots:(tdc.targetSpeedKnots??tr.speedEstimateKnots);
-    const res=calcTdc({ownPosition:sub.position,ownHeading:sub.heading,bearing:bear,
-      rangeNm:rng,targetCourse:crs,targetSpeedKnots:spd,
+    // A damaged TDC is wrong in a repeatable way, not a dice roll each tick.
+    // The stored observations remain what the crew entered; only the machine's
+    // internal calculation carries its calibration errors.
+    const calcBear=normDeg(bear+(bias.tdcBearingDeg||0));
+    const calcRng=Math.max(.05,rng*(1+(bias.tdcRangePct||0)));
+    const calcCrs=normDeg(crs+(bias.tdcCourseDeg||0));
+    const calcSpd=Math.max(0,spd+(bias.tdcSpeedKnots||0));
+    const res=calcTdc({ownPosition:sub.position,ownHeading:sub.heading,bearing:calcBear,
+      rangeNm:calcRng,targetCourse:calcCrs,targetSpeedKnots:calcSpd,
       torpedoSpeedKnots:tdc.torpedoSpeedKnots,confidence:manual?0.55:tr.confidence});
     tdc.bearing=bear;tdc.rangeNm=rng;tdc.targetCourse=crs;tdc.targetSpeedKnots=spd;
-    tdc.gyroAngle=res.gyroAngle;tdc.angleOnBow=res.angleOnBow;
-    tdc.timeToImpactSec=res.timeToImpactSec;tdc.solutionQuality=res.solutionQuality;
+    tdc.gyroAngle=res.gyroAngle===null?null:res.gyroAngle+(bias.gyroDeg||0);tdc.angleOnBow=res.angleOnBow;
+    tdc.timeToImpactSec=res.timeToImpactSec;
+    tdc.solutionQuality=clamp(res.solutionQuality*(1-(d.tdcDamage||0)*.18-(d.gyroDamage||0)*.10),0,1);
     tdc.status=res.valid?'SOLUTION':'NO SOLUTION';
   }
 
@@ -539,9 +513,16 @@ class SimEngine extends SimEngineCollision {
     if(H&&H.alert>=2) W.push({level:'critical',text:'HARBOR DEFENSES ALERT'});
     else if(H&&H.alert===1) W.push({level:'warn',text:'HARBOR DEFENSES LISTENING'});
     if(this.state.world.depthCharges.some(dc=>dc.status==='SINKING')) W.push({level:'critical',text:'DEPTH CHARGES IN WATER'});
-    if(d.periscopeDamage>0.75) W.push({level:'warn',text:'PERISCOPE DAMAGED'});
+    if(d.periscopeDamage>0.72) W.push({level:'warn',text:'PERISCOPE OPTICS BADLY DAMAGED'});
+    else if(d.periscopeDamage>0.28) W.push({level:'warn',text:'PERISCOPE OPTICS DEGRADED'});
     if(d.motorDamage>0.5) W.push({level:'warn',text:'MOTOR DAMAGE'});
+    if(d.electricalDamage>0.5) W.push({level:'warn',text:'ELECTRICAL DAMAGE'});
+    if(d.driveBankOffline) W.push({level:'critical',text:'ONE DRIVE BANK OFFLINE'});
     if(d.ballastDamage>0.5) W.push({level:'warn',text:'BALLAST DAMAGE'});
+    if(d.rudderDamage>0.55) W.push({level:'warn',text:'STEERING DAMAGE'});
+    if(d.tdcDamage>0.45||d.gyroDamage>0.45) W.push({level:'warn',text:'FIRE CONTROL CALIBRATION OFF'});
+    if(d.pumpTripped) W.push({level:'critical',text:'DEWATERING PUMP TRIPPED'});
+    else if(d.pumpDamage>0.5) W.push({level:'warn',text:'PUMP CAPACITY REDUCED'});
     if(sub.cannotHoldDepth) W.push({level:'critical',text:'WILL NOT HOLD DEPTH'});
     if(this.state.world.aaManned) W.push({level:'warn',text:'AA CREW TOPSIDE — DIVE WILL AUTO-CLEAR DECK'});
     if(this.state.weapons.deckGun?.manned) W.push({level:'warn',text:'DECK GUN CREW TOPSIDE — DIVE WILL AUTO-CLEAR DECK'});
@@ -589,10 +570,11 @@ class SimEngine extends SimEngineCollision {
     const tr=this.state.world.contactTracks[sid];
     if(!tr){this.log('Track lost.','warn');return;}
     const tdc=this.state.tdc;
-    tdc.targetId=sid;tdc.bearing=tr.bearing;tdc.rangeNm=tr.rangeEstimateNm;
+    const mb=scopeMeasuredBearing(this.state,tr.bearing),mr=scopeMeasuredRangeNm(this.state,tr.rangeEstimateNm);
+    tdc.targetId=sid;tdc.bearing=mb;tdc.rangeNm=mr;
     tdc.targetCourse=tr.courseEstimate;tdc.targetSpeedKnots=tr.speedEstimateKnots;
     this.updateTdc();
-    this.log(`TDC: ${sid} B${fmtDeg(tr.bearing)} R${tr.rangeEstimateNm.toFixed(1)}nm C${fmtDeg(tr.courseEstimate)} S${tr.speedEstimateKnots.toFixed(1)}kn`);
+    this.log(`TDC: ${sid} B${fmtDeg(mb)} R${mr.toFixed(1)}nm C${fmtDeg(tr.courseEstimate)} S${tr.speedEstimateKnots.toFixed(1)}kn${this.state.playerSub.damage.periscopeDamage>.12?' — optical measurement degraded':''}`);
   }
 
   nearestScopeTrack(){
