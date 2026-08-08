@@ -120,7 +120,6 @@
       <div class="hk-row"><span class="hk-key">← →</span><span class="hk-desc">Rotate periscope</span></div>
       <div class="hk-row"><span class="hk-key">S</span><span class="hk-desc">Toggle silent running</span></div>
       <div class="hk-row"><span class="hk-key">E</span><span class="hk-desc">Emergency blow</span></div>
-      <div class="hk-row"><span class="hk-key">D</span><span class="hk-desc">Damage control</span></div>
       <div class="hk-row"><span class="hk-key">P</span><span class="hk-desc">Toggle pumps</span></div>
       <div class="hk-row"><span class="hk-key">H</span><span class="hk-desc">Head to port</span></div>
     </div>
@@ -255,7 +254,6 @@
     <div class="cgroup">
       <button id="silentButton">Toggle Silent Running</button>
       <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
-      <button id="damageControlButton">Toggle Damage Control</button>
       <button id="pumpButton">Toggle Pumps</button>
       <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
     </div>
@@ -313,7 +311,6 @@
     </div>
     <div class="ptitle">Deck Gun</div>
     <div class="cgroup">
-      <button id="deckGunManningButton">🔫 Man 3"/50 Deck Gun</button>
       <button id="deckGunLayButton">🎯 Lay On Selected Target</button>
       <div class="g2">
         <button id="deckGunLeftButton">◀ Train</button><button id="deckGunRightButton">Train ▶</button>
@@ -322,7 +319,7 @@
         <button id="deckGunUpButton">Elev +</button><button id="deckGunDownButton">Elev −</button>
       </div>
       <button id="deckGunFireButton" class="danger">💥 Fire Deck Gun</button>
-      <div id="deckGunStatus" class="note">Surface, man the gun, then drag the 3D view to train/elevate.</div>
+      <div id="deckGunStatus" class="note">Enter the GUN station while surfaced; the crew mans and secures the gun automatically.</div>
     </div>
     <div class="ptitle">Navigation</div>
     <div class="cgroup">
@@ -518,12 +515,9 @@
         <div class="g2">
           <button id="mSilent">🔇 Silent Running</button>
           <button id="mPumps">💧 Pumps</button>
-          <button id="mSdRadar">📡 SD Air Radar</button>
-          <button id="mAaGun">🔫 Man AA Gun</button>
-          <button id="mDeckGun">💥 Man Deck Gun</button>
-          <button id="mDmgCtrl">🔧 Damage Control</button>
-          <select id="mTimeSel" title="Time scale" style="margin:0;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
+          <select id="mTimeSel" title="Time scale" style="margin:0;grid-column:1/-1;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
         </div>
+        <div id="mAutoCrewStatus" class="note">AUTO CREW · SD radar · AA · deck-gun crew · damage control</div>
 
         <div class="ptitle" style="margin-top:14px;">Transit — skip the empty water</div>
         <div class="g3">
