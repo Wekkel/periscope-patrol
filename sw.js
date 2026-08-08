@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.7.5'; // Refactor toast message handling for clarity
+const VERSION = '0.8.0'; //various optimalisations, bug fixes, intro harbour raid module
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
