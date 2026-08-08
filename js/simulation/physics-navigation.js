@@ -97,6 +97,14 @@ class SimEngine extends SimEngineASW {
 
   updateDmgCtrl(sub,dt){
     const d=sub.damage;
+    // Damage control is crew doctrine, not a player switch. Parties deploy as
+    // soon as there is something they can actually repair, and stand down when
+    // those repairable items are effectively clean again.
+    const needDC=sub.mode!=='SUNK'&&(d.flooding>0.005||d.ballastDamage>0.005||d.motorDamage>0.005||d.rudderDamage>0.005||d.periscopeDamage>0.005);
+    if(needDC!==!!d.damageControlActive){
+      d.damageControlActive=needDC;
+      this.log(needDC?'Damage control parties deployed automatically.':'Damage control reports repairs complete — parties stood down.');
+    }
     if(sub.depthFeet>8) d.oxygen=clamp(d.oxygen-dt*0.006*(sub.stealth.silentRunning?1.2:1),0,100);
     else d.oxygen=clamp(d.oxygen+dt*0.15,0,100);
     if(sub.stealth.silentRunning) d.crewFatigue=clamp(d.crewFatigue+dt/900,0,1);
@@ -525,8 +533,8 @@ class SimEngine extends SimEngineASW {
     if(d.motorDamage>0.5) W.push({level:'warn',text:'MOTOR DAMAGE'});
     if(d.ballastDamage>0.5) W.push({level:'warn',text:'BALLAST DAMAGE'});
     if(sub.cannotHoldDepth) W.push({level:'critical',text:'WILL NOT HOLD DEPTH'});
-    if(this.state.world.aaManned) W.push({level:'critical',text:'AA GUN CREW TOPSIDE — CANNOT DIVE'});
-    if(this.state.weapons.deckGun?.manned) W.push({level:'critical',text:'DECK GUN CREW TOPSIDE — CANNOT DIVE'});
+    if(this.state.world.aaManned) W.push({level:'warn',text:'AA CREW TOPSIDE — DIVE WILL AUTO-CLEAR DECK'});
+    if(this.state.weapons.deckGun?.manned) W.push({level:'warn',text:'DECK GUN CREW TOPSIDE — DIVE WILL AUTO-CLEAR DECK'});
     const camp=this.state.campaign;
     if(camp.missionStatus==='RETURN TO BASE'){
       const r=this.friendlyPortNav();

@@ -5,7 +5,7 @@ const TUT_STEPS=[
    goal:'Tap NEXT when you have had a look around'},
 
   {id:'stations',title:'Four stations',
-   body:'Top right of the picture you can switch between four stations:<br>• <b>TAC</b> — compass, depth column, stealth meters<br>• <b>SCOPE</b> — what the periscope sees<br>• <b>MAP</b> — the navigation plot<br>• <b>GUN</b> — the 3-inch deck-gun sight when surfaced and manned<br><br>Open the map now.',
+   body:'Top right of the picture you can switch between four stations:<br>• <b>TAC</b> — compass, depth column, stealth meters<br>• <b>SCOPE</b> — what the periscope sees<br>• <b>MAP</b> — the navigation plot<br>• <b>GUN</b> — the 3-inch deck-gun sight; entering it while surfaced automatically sends the crew topside<br><br>Open the map now.',
    goal:'Switch to the MAP station', hl:'ovlStations',
    check:s=>s.tactical.activeStation==='MAP'},
 
@@ -78,7 +78,7 @@ const TUT_STEPS=[
    check:s=>s.playerSub.stealth.silentRunning&&s.playerSub.depthFeet>140},
 
   {id:'air',title:'Aircraft, and the gun',
-   body:'Aeroplanes are the thing that kills submarines. A boat on the surface is visible from the air for miles, and the only real answer is <b>dive</b> — depth is what saves you, and the SD radar in the Helm tab buys you the seconds to use it.<br><br>The <b>20 mm</b> is not a weapon of choice. What it does is make the pilot flinch: he comes in higher, releases early, and puts his bombs in the sea. That is worth a great deal. But four men and an open hatch mean <b>she cannot dive</b> — a crash dive is held while they tumble below — and an aeroplane out of bombs may come back with guns for an exposed deck.<br><br>Man it when you have left it too late to dive. Otherwise: <b>pull the plug</b>.',
+   body:'Aeroplanes are the thing that kills submarines. A boat on the surface is visible from the air for miles, and the only real answer is <b>dive</b> — depth is what saves you. The crew now handles SD air-search radar automatically while it can be used.<br><br>The <b>20 mm</b> is an automatic last-ditch fallback, not another switch for the skipper. If an attack gets close while you are still surfaced, the crew mans it and tries to spoil the pilot\'s aim. Order a dive at any time: the crew clears the deck automatically, but the boat may be held for a few tense seconds until the hatch is shut.<br><br>Your decision is simply the important one: <b>stay and fight, or dive</b>.',
    goal:'Tap NEXT — you will not want to practise this one'},
 
   {id:'done',title:'Qualified',

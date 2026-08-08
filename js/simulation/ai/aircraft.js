@@ -5,6 +5,9 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     W.aircraft=W.aircraft||[];
     W.airThreat=W.airThreat||{level:env.airThreat===undefined?0.5:env.airThreat,alarmedAt:-999,sdOn:true};
     const air=W.airThreat;
+    // Crew-managed arcade assist: SD is not a player toggle. It is available
+    // automatically whenever the surfaced-only detection test below can use it.
+    air.sdOn=true;
 
     // ── does a patrol turn up? ──
     air.nextCheck=(air.nextCheck||0)-dt;

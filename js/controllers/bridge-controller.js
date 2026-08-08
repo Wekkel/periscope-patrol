@@ -23,7 +23,6 @@ class BridgeController{
     btn('crashDiveButton',  ()=>{if(di){di.value=150;dv.textContent='150 ft';}this.game.dispatch({type:'CRASH_DIVE'});});
     btn('silentButton',     ()=>this.game.dispatch({type:'TOGGLE_SILENT_RUNNING'}));
     btn('emergencyBlowButton',()=>{if(di){di.value=0;dv.textContent='0 ft';}this.game.dispatch({type:'EMERGENCY_BLOW'});});
-    btn('damageControlButton',()=>this.game.dispatch({type:'TOGGLE_DAMAGE_CONTROL'}));
     btn('pumpButton',       ()=>this.game.dispatch({type:'TOGGLE_PUMPS'}));
     const tsel=document.getElementById('timeSelect');
     tsel?.addEventListener('change',e=>{
@@ -51,7 +50,6 @@ class BridgeController{
     btn('stationPeriscope', ()=>setSta('PERISCOPE',stP,[stT,stM,stG]));
     btn('stationMap',       ()=>setSta('MAP',stM,[stT,stP,stG]));
     btn('stationDeckGun',   ()=>setSta('DECK_GUN',stG,[stT,stP,stM]));
-    btn('deckGunManningButton',()=>this.game.dispatch({type:'TOGGLE_DECK_GUN'}));
     btn('deckGunLayButton', ()=>this.game.dispatch({type:'LAY_DECK_GUN'}));
     btn('deckGunFireButton',()=>this.game.dispatch({type:'FIRE_DECK_GUN'}));
     btn('deckGunLeftButton',()=>this.game.dispatch({type:'ADJUST_DECK_GUN',deltaTrainDeg:-1}));
@@ -80,7 +78,6 @@ class BridgeController{
       if(k==='1'&&stT) stT.click(); if(k==='2'&&stP) stP.click(); if(k==='3'&&stM) stM.click(); if(k==='4'&&stG) stG.click();
       if(k==='s') this.game.dispatch({type:'TOGGLE_SILENT_RUNNING'});
       if(k==='e') this.game.dispatch({type:'EMERGENCY_BLOW'});
-      if(k==='d') this.game.dispatch({type:'TOGGLE_DAMAGE_CONTROL'});
       if(k==='p') this.game.dispatch({type:'TOGGLE_PUMPS'});
       if(k==='h') this.game.dispatch({type:'HEAD_TO_PORT'});
       if(k==='arrowleft') this.game.dispatch({type:'ROTATE_PERISCOPE',deltaDeg:-5});

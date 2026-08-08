@@ -248,10 +248,6 @@ class TouchCtrl{
     btn('mBlow',     ()=>{D({type:'EMERGENCY_BLOW'});this.setDepthSlider(0);buzz([20,40,20]);});
     btn('mSilent',   ()=>D({type:'TOGGLE_SILENT_RUNNING'}));
     btn('mPumps',    ()=>D({type:'TOGGLE_PUMPS'}));
-    btn('mSdRadar',  ()=>D({type:'TOGGLE_SD_RADAR'}));
-    btn('mAaGun',    ()=>D({type:'TOGGLE_AA_GUN'}));
-    btn('mDeckGun',  ()=>{D({type:'TOGGLE_DECK_GUN'});this.setPane('view');});
-    btn('mDmgCtrl',  ()=>D({type:'TOGGLE_DAMAGE_CONTROL'}));
     btn('mSteerWp',  ()=>D({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('mAutoPilot',()=>{D({type:'TOGGLE_AUTOPILOT'});buzz(10);});
     const transit=secs=>{D({type:'START_TRANSIT',seconds:secs});this.setPane('view');buzz(12);};
@@ -569,7 +565,7 @@ class TouchCtrl{
         : sub.cannotHoldDepth
         ? 'SHE WILL NOT ANSWER THE PLANES — blow main ballast, pumps on, get way on her.'
         : (state.world.aaManned||state.weapons.deckGun?.manned)
-        ? `${state.weapons.deckGun?.manned?'Deck gun':'AA gun'} crew are topside — she cannot dive until they are below.`
+        ? `${state.weapons.deckGun?.manned?'Deck-gun':'AA'} crew topside — a dive order will clear the deck automatically and wait briefly for the hatch.`
         : sea<3000
         ? `Fathometer ${sea.toFixed(0)} ft, ${(sub.bottomType||'').toLowerCase()} — safe to ${Math.max(0,sea-25).toFixed(0)} ft. Crush depth ${sub.damage.crushDepthFeet.toFixed(0)} ft.`
         : `Deep water. Periscope depth 55 ft. Crush depth ${sub.damage.crushDepthFeet.toFixed(0)} ft.`);
@@ -637,15 +633,8 @@ class TouchCtrl{
       : 'No waypoints. Tap open water on the map to plot one, tap a waypoint to delete it.');
     cls('mSilent','on',sub.stealth.silentRunning);
     cls('mPumps','on',sub.damage.pumpActive);
-    cls('mSdRadar','on',(state.world.airThreat||{}).sdOn);
-    cls('mAaGun','on',state.world.aaManned);
-    {const b=document.getElementById('mAaGun');
-     if(b){const am=state.world.aaAmmo??1200;
-       b.textContent=state.world.aaManned?`🔫 AA Crew Below (${Math.round(am)} rds)`
-                                         :`🔫 Man AA Gun (${Math.round(am)} rds)`;}}
-    cls('mDeckGun','on',!!state.weapons.deckGun?.manned);
-    {const b=document.getElementById('mDeckGun'),G=state.weapons.deckGun;if(b&&G)b.textContent=G.manned?`💥 Secure Deck Gun (${G.ammo} rds)`:`💥 Man Deck Gun (${G.ammo} rds)`;}
-    cls('mDmgCtrl','on',sub.damage.damageControlActive);
+    {const G=state.weapons.deckGun, aa=state.world.aaManned, dc=sub.damage.damageControlActive;
+      set('mAutoCrewStatus',`AUTO CREW · SD RADAR ${sub.depthFeet<12?'ON':'STANDBY'} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);}
     set('rpmNote',`${p.engineMode} · ${p.speedKnots.toFixed(1)} kn · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);
 
     // ── panes (only refresh the visible one) ──

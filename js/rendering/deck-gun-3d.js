@@ -84,7 +84,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     if(!G?.manned){
       ctx.fillStyle='rgba(3,8,10,.78)';this.rr(ctx,cx-145*k,h*0.36,290*k,74*k,8*k);ctx.fill();
       ctx.fillStyle='#f5c65c';ctx.font=this.fnt(12,true);ctx.textAlign='center';ctx.fillText('DECK GUN NOT MANNED',cx,h*0.36+28*k);
-      ctx.font=this.fnt(9);ctx.fillStyle='#d7f5e7';ctx.fillText('Surface → Helm → Boat Systems → Man Deck Gun',cx,h*0.36+49*k);ctx.textAlign='left';
+      ctx.font=this.fnt(9);ctx.fillStyle='#d7f5e7';ctx.fillText('Surface and enter GUN station — crew mans automatically',cx,h*0.36+49*k);ctx.textAlign='left';
     }
   }
 

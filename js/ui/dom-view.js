@@ -28,9 +28,8 @@ class DomView{
     if(this.hArea)  this.hArea.textContent=state.campaign.patrolArea;
     if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
     document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
-    const dg=state.weapons.deckGun,db=document.getElementById('deckGunManningButton'),ds=document.getElementById('deckGunStatus');
-    if(db&&dg)db.textContent=dg.manned?`Secure 3"/50 Deck Gun (${dg.ammo} rds)`:`🔫 Man 3"/50 Deck Gun (${dg.ammo} rds)`;
-    if(ds&&dg)ds.textContent=`${dg.manned?'CREW TOPSIDE':'secured'} · train ${dg.trainDeg.toFixed(1)}° · elev ${dg.elevationDeg.toFixed(1)}° · ammo ${dg.ammo} · drag 3D view to aim`;
+    const dg=state.weapons.deckGun,ds=document.getElementById('deckGunStatus');
+    if(ds&&dg)ds.textContent=`${dg.manned?'CREW TOPSIDE — automatic':'crew secured — enter GUN station to man automatically'} · train ${dg.trainDeg.toFixed(1)}° · elev ${dg.elevationDeg.toFixed(1)}° · ammo ${dg.ammo} · drag 3D view to aim`;
     this.renderAlerts(state);
     this.renderOrders(sub,state);
     this.renderDamage(sub);

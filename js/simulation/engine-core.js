@@ -33,6 +33,43 @@ class SimEngineCore{
     if(u.toasts.length>40) u.toasts.shift();
   }
 
+  clearDeckForDive(label='Dive'){
+    const sub=this.state.playerSub, W=this.state.world, G=this.state.weapons.deckGun;
+    let delay=0; const crews=[];
+    if(G?.manned){
+      G.manned=false;delay=Math.max(delay,18);crews.push('deck-gun crew');
+      if(this.state.tactical.activeStation==='DECK_GUN') this.state.tactical.activeStation='MAP';
+    }
+    if(W.aaManned){
+      W.aaManned=false;delay=Math.max(delay,14);crews.push('AA crew');
+    }
+    if(delay>0){
+      sub.diveDelay=Math.max(sub.diveDelay||0,delay);
+      this.notify(`${label}: ${crews.join(' and ')} clearing the deck automatically — dive held about ${delay} seconds until the hatch is shut.`,'bad');
+    }
+    return delay;
+  }
+
+  tryAutoManDeckGun(){
+    const sub=this.state.playerSub, W=this.state.world, G=this.state.weapons.deckGun, env=W.environment;
+    if(!G) return false;
+    if(G.manned) return true;
+    if(W.aaManned){this.notify('Deck gun unavailable while the automatic AA crew is engaged. Clear the air threat or dive.','warn');return false;}
+    if(sub.depthFeet>8){this.notify(`Deck gun unavailable at ${sub.depthFeet.toFixed(0)} ft — surface first.`,'warn');return false;}
+    if(env.seaState>0.82){this.notify('Green water is sweeping the foredeck — the deck gun cannot be worked in this sea.','warn');return false;}
+    if(G.ammo<=0){this.notify('Deck gun magazine is empty.','warn');return false;}
+    G.manned=true;G.trainDeg=clamp(G.trainDeg||0,-140,140);G.elevationDeg=clamp(G.elevationDeg||1,0,22);
+    this.notify(`Deck gun crew topside automatically — ${G.ammo} rounds ready. Any dive order will clear the deck first.`,'warn');
+    return true;
+  }
+
+  secureDeckGunAuto(){
+    const G=this.state.weapons.deckGun;
+    if(!G?.manned) return;
+    G.manned=false;
+    this.log('Deck gun secured — crew below automatically.');
+  }
+
   applyCmd(cmd){
     const sub=this.state.playerSub;
     // a lost boat takes no more orders — only the menus stay live
@@ -57,62 +94,41 @@ class SimEngineCore{
         }
         break;
       case'SET_ENGINE_RPM': sub.propulsion.orderedRpm=clamp(cmd.rpm,0,450); break;
-      case'SET_ORDERED_DEPTH': sub.orderedDepthFeet=clamp(cmd.depthFeet,0,300); this.derivMode(); break;
+      case'SET_ORDERED_DEPTH':
+        if(+cmd.depthFeet>10) this.clearDeckForDive('Dive order');
+        sub.orderedDepthFeet=clamp(cmd.depthFeet,0,300); this.derivMode(); break;
       case'SURFACE': sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); audio.playSurface(); break;
-      case'DIVE': sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); audio.playDive(); break;
-      case'PERISCOPE_DEPTH': sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); audio.playDive(); break;
+      case'DIVE':
+        this.clearDeckForDive('Dive order');
+        sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); audio.playDive(); break;
+      case'PERISCOPE_DEPTH':
+        this.clearDeckForDive('Periscope-depth order');
+        sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); audio.playDive(); break;
       case'CRASH_DIVE':
-        if(this.state.weapons.deckGun?.manned){
-          this.state.weapons.deckGun.manned=false;
-          this.notify('Deck gun crew racing for the hatch — THE DIVE IS HELD until the deck is clear.','bad');
-          sub.diveDelay=Math.max(sub.diveDelay||0,18);
-          if(this.state.tactical.activeStation==='DECK_GUN') this.state.tactical.activeStation='TACTICAL';
-        }
-        if(this.state.world.aaManned){
-          this.state.world.aaManned=false;
-          // Four men, a gun, and one hatch. Nobody dives until the last of
-          // them is down and the lid is shut — the longest twenty seconds
-          // in the boat, and the reason doctrine said dive FIRST and argue
-          // about the gun afterwards.
-          this.notify('Gun crew tumbling down the hatch — THE DIVE IS HELD until she is shut.','bad');
-          sub.diveDelay=Math.max(sub.diveDelay||0,14);
-        } 
+        this.clearDeckForDive('Crash dive');
         sub.orderedDepthFeet=150; sub.mode='CRASH_DIVING'; sub.ballastState='FLOODING';
         // Fix H: auto-set RPM for faster dive if nearly stopped
         if(sub.propulsion.speedKnots<5) sub.propulsion.orderedRpm=350;
         this.log('CRASH DIVE! Flooding ballast tanks.','warn'); audio.playCrashDive(); break;
       case'TOGGLE_SD_RADAR':{
-        const a=this.state.world.airThreat;a.sdOn=!a.sdOn;
-        this.log(a.sdOn?'SD air-search radar on — it will warn us, but they can home on the emission.'
-                       :'SD radar secured. We are deaf to aircraft now.','warn');break;}
+        const a=this.state.world.airThreat;a.sdOn=true;
+        this.notify('SD air-search radar is crew-managed automatically whenever it can be used.','ok');break;}
       case'BOTTOM_OUT':{
         if(sub.bottomed){this.unbottom(sub);break;}
         const sea=this.seabedFeet(sub.position);
         if(sea>=3000){this.notify('Blue water — there is no bottom here to lie on.','warn');break;}
         if(sub.propulsion.speedKnots>1.5){this.notify('Take the way off her first — you do not put a boat on the bottom at speed.','warn');break;}
+        this.clearDeckForDive('Bottoming order');
         sub.orderedDepthFeet=Math.round(sea-2);
         this.bottomOut(sub,sea,true);
         break;}
-      case'TOGGLE_AA_GUN':{
-        const W=this.state.world; const env=W.environment;
-        if(W.aaManned){W.aaManned=false;this.notify('AA gun crew below, hatch shut — clear to dive.','ok');break;}
-        if(this.state.weapons.deckGun?.manned){this.notify('Main deck gun crew already topside — stand them down before manning the 20 mm.','warn');break;}
-        if(sub.depthFeet>10){this.notify(`Cannot man the gun at ${sub.depthFeet.toFixed(0)} ft — the platform is under water. Surface first.`,'warn');break;}
-        if(env.seaState>0.82){this.notify('Green water breaking over the gun platform — no man could stand there.','warn');break;}
-        if((W.aaAmmo??1200)<=0){this.notify('Ready-use lockers are empty. Nothing to man the gun with.','warn');break;}
-        W.aaManned=true;
-        this.notify('Gun crew to the 20 mm — SHE CANNOT DIVE until they are below.','bad');
-        break;}
+      case'TOGGLE_AA_GUN':
+        this.notify('AA is automatic now — the 20 mm crew man the gun only when an air attack gets close, and clear the deck automatically for any dive order.','ok');
+        break;
       case'TOGGLE_DECK_GUN':{
-        const G=this.state.weapons.deckGun, env=this.state.world.environment;
-        if(G.manned){G.manned=false;if(this.state.tactical.activeStation==='DECK_GUN')this.state.tactical.activeStation='TACTICAL';this.notify('Deck gun crew below — gun secured.','ok');break;}
-        if(this.state.world.aaManned){this.notify('20 mm crew are already topside — stand them down before manning the deck gun.','warn');break;}
-        if(sub.depthFeet>8){this.notify(`Cannot man the deck gun at ${sub.depthFeet.toFixed(0)} ft — surface first.`,'warn');break;}
-        if(env.seaState>0.82){this.notify('Green water sweeping the foredeck — deck gun cannot be manned in this sea.','warn');break;}
-        if(G.ammo<=0){this.notify('Deck gun magazine is empty.','warn');break;}
-        G.manned=true;G.trainDeg=clamp(G.trainDeg||0,-140,140);G.elevationDeg=clamp(G.elevationDeg||1,0,22);
-        this.state.tactical.activeStation='DECK_GUN';
-        this.notify(`3-inch deck gun manned — ${G.ammo} rounds ready. Drag the sight to train and elevate.`,'warn');
+        const G=this.state.weapons.deckGun;
+        if(G?.manned){this.secureDeckGunAuto();if(this.state.tactical.activeStation==='DECK_GUN')this.state.tactical.activeStation='MAP';break;}
+        if(this.tryAutoManDeckGun()) this.state.tactical.activeStation='DECK_GUN';
         break;}
       case'ADJUST_DECK_GUN':{
         const G=this.state.weapons.deckGun;
@@ -125,8 +141,8 @@ class SimEngineCore{
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
         this.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); audio.playSurface(); break;
-      case'TOGGLE_DAMAGE_CONTROL': sub.damage.damageControlActive=!sub.damage.damageControlActive;
-        this.log(sub.damage.damageControlActive?'Damage control parties deployed.':'Damage control stood down.'); break;
+      case'TOGGLE_DAMAGE_CONTROL':
+        this.notify('Damage control is automatic — repair parties deploy whenever there is repairable damage.','ok'); break;
       case'TOGGLE_PUMPS': sub.damage.pumpActive=!sub.damage.pumpActive;
         this.log(sub.damage.pumpActive?'Pumps running — noise increases.':'Pumps stopped.'); break;
       case'START_TRANSIT':{
@@ -155,8 +171,15 @@ class SimEngineCore{
         const opts=[0,1,8,16,32]; const i=opts.indexOf(this.state.time.timeScale);
         this.state.time.timeScale=opts[(i+1)%opts.length];
         this.log(this.state.time.timeScale===0?'Simulation paused.':`Time scale: ${this.state.time.timeScale}x.`); break;}
-      case'SET_ACTIVE_STATION': this.state.tactical.activeStation=cmd.station;
-        if(cmd.station==='PERISCOPE') this.state.tactical.periscopeBearing=sub.heading; break;
+      case'SET_ACTIVE_STATION':{
+        if(cmd.station==='DECK_GUN'){
+          if(this.tryAutoManDeckGun()) this.state.tactical.activeStation='DECK_GUN';
+          break;
+        }
+        if(this.state.tactical.activeStation==='DECK_GUN') this.secureDeckGunAuto();
+        this.state.tactical.activeStation=cmd.station;
+        if(cmd.station==='PERISCOPE') this.state.tactical.periscopeBearing=sub.heading;
+        break;}
       case'ROTATE_PERISCOPE': this.state.tactical.periscopeBearing=normDeg(this.state.tactical.periscopeBearing+cmd.deltaDeg); break;
       case'TOGGLE_PERISCOPE_ZOOM': this.state.tactical.periscopeZoom=this.state.tactical.periscopeZoom===1?2.5:1; break;
       case'PERISCOPE_SELECT_CENTER_CONTACT': this.selectScopeContact(); break;
