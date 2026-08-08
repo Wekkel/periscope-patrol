@@ -367,6 +367,9 @@
     /* ── TOASTS ── */
     #toastContainer{position:fixed;top:calc(var(--sat) + 10px);left:50%;transform:translateX(-50%);
       z-index:300;display:flex;flex-direction:column;gap:6px;pointer-events:none;min-width:min(300px,86vw);max-width:92vw;}
+    /* On touch the clock/time-skip control lives in the 42px top bar. Toasts
+       start below it instead of covering the selector the player may need next. */
+    html[data-lay="touch"] #toastContainer{top:calc(var(--sat) + 52px);}
     .toast{background:rgba(9,26,31,.97);border:1px solid var(--line);border-radius:6px;padding:9px 16px;
       font-size:12.5px;letter-spacing:.4px;text-align:center;backdrop-filter:blur(4px);
       box-shadow:0 4px 18px rgba(0,0,0,.6);
@@ -1646,7 +1649,56 @@ const PATROL_AREAS={
     environment:{daylight:0.9,visibilityNm:18,seaState:0.2,layerDepthFt:255,weather:'TROPICAL CLEAR'},
     convoySpeedRange:[6,8],convoyCountRange:[2,4]
   }
-};
+ };
+
+/* ═══════════════════════════════════════════════════ WATER ROUTE GEOMETRY
+   Convoys and Fleet intelligence must agree about where a shipping lane is.
+   These helpers work in nautical-mile world coordinates and deliberately know
+   nothing about rendering. A route may bend round an island; distance along
+   the polyline, not a straight chord through the island, is the truth. */
+function routeCum(path){
+  const c=[0];
+  for(let i=1;i<path.length;i++) c.push(c[i-1]+distNm(path[i-1],path[i]));
+  return c;
+}
+function routeProject(path,p){
+  if(!path||path.length<2) return{s:0,pos:path?.[0]||p,seg:0};
+  const C=routeCum(path);let best=null;
+  for(let i=0;i<path.length-1;i++){
+    const a=path[i],b=path[i+1],vx=b.xNm-a.xNm,vy=b.yNm-a.yNm;
+    const vv=vx*vx+vy*vy||1e-9,wx=p.xNm-a.xNm,wy=p.yNm-a.yNm;
+    const t=clamp((wx*vx+wy*vy)/vv,0,1);
+    const q={xNm:a.xNm+vx*t,yNm:a.yNm+vy*t};const d=distNm(p,q);
+    if(!best||d<best.d) best={d,s:C[i]+Math.sqrt(vv)*t,pos:q,seg:i};
+  }
+  return best;
+}
+function routePointAt(path,s){
+  if(!path||!path.length) return{pos:{xNm:0,yNm:0},heading:0,s:0};
+  if(path.length===1) return{pos:{...path[0]},heading:0,s:0};
+  const C=routeCum(path),L=C[C.length-1];s=clamp(s,0,L);
+  let i=0;while(i<C.length-2&&C[i+1]<s)i++;
+  const a=path[i],b=path[i+1],seg=Math.max(1e-9,C[i+1]-C[i]);
+  const t=clamp((s-C[i])/seg,0,1);
+  return{pos:{xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)},
+         heading:bearingBetween(a,b),s};
+}
+function routeAdvance(path,s,dir,deltaNm){
+  if(!path||path.length<2) return{...routePointAt(path,s),dir:dir>=0?1:-1};
+  const C=routeCum(path),L=C[C.length-1];if(L<1e-6)return{...routePointAt(path,0),dir:1};
+  // Unfold the out-and-back lane to a 2L loop. Signed delta works forwards
+  // and backwards in time and naturally reflects at either end of the lane.
+  let u=(dir>=0?s:2*L-s)+deltaNm, P=2*L;
+  u=((u%P)+P)%P;
+  const nd=u<=L?1:-1, ns=u<=L?u:2*L-u;
+  const q=routePointAt(path,ns);
+  q.dir=nd;q.heading=nd>0?q.heading:normDeg(q.heading+180);return q;
+}
+function routeTrace(path,s,dir,deltaNm,stepNm=1.0){
+  const out=[];const n=Math.max(1,Math.ceil(Math.abs(deltaNm)/Math.max(.2,stepNm)));
+  for(let i=0;i<=n;i++) out.push(routeAdvance(path,s,dir,deltaNm*i/n));
+  return out;
+}
 
 // ═══════════════════════════════════════════════════ TDC MATH
 function calcTdc(inp){
@@ -2469,11 +2521,67 @@ class SimEngine{
     return {xNm:clamp(pos.xNm,A.x0+1,A.x1-1),yNm:clamp(pos.yNm,A.y0+1,A.y1-1)};
   }
 
+  /* Build a shipping lane through water, once per patrol area. The bathymetry
+     grid is already available for depth/grounding, so use that same truth for
+     traffic. A* is paid once; ships then follow the resulting light polyline. */
+  ensureWaterRoute(route){
+    if(!route) return[];
+    if(route.waterPath&&route.waterPath.length>1) return route.waterPath;
+    const B=Bathy.ensure(this.state.world.terrain);
+    if(!B){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    const {grid,nx,ny,x0,y0,cell}=B;
+    const valid=(i,j)=>i>=0&&j>=0&&i<nx&&j<ny&&grid[j*nx+i]>=5; // >=30 ft
+    const nearest=(p)=>{
+      const ci=Math.round((p.xNm-x0)/cell),cj=Math.round((p.yNm-y0)/cell);
+      if(valid(ci,cj))return[ci,cj];
+      for(let r=1;r<12;r++) for(let dj=-r;dj<=r;dj++) for(let di=-r;di<=r;di++){
+        if(Math.max(Math.abs(di),Math.abs(dj))!==r)continue;
+        if(valid(ci+di,cj+dj))return[ci+di,cj+dj];
+      }
+      return null;
+    };
+    const S=nearest(route.from),G=nearest(route.to);
+    if(!S||!G){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    const N=nx*ny,INF=1e30,g=new Float64Array(N),parent=new Int32Array(N),closed=new Uint8Array(N);
+    g.fill(INF);parent.fill(-1);
+    const idx=(i,j)=>j*nx+i, gi=idx(G[0],G[1]), si=idx(S[0],S[1]);g[si]=0;
+    const heap=[];
+    const push=(node,f)=>{heap.push([f,node]);let k=heap.length-1;while(k){const p=(k-1)>>1;if(heap[p][0]<=f)break;heap[k]=heap[p];k=p;}heap[k]=[f,node];};
+    const pop=()=>{const root=heap[0],last=heap.pop();if(heap.length&&last){let k=0;while(true){let l=k*2+1,r=l+1;if(l>=heap.length)break;let c=r<heap.length&&heap[r][0]<heap[l][0]?r:l;if(heap[c][0]>=last[0])break;heap[k]=heap[c];k=c;}heap[k]=last;}return root;};
+    const h=(i,j)=>Math.hypot(i-G[0],j-G[1]);push(si,h(S[0],S[1]));
+    const D=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+    while(heap.length){
+      const [,u]=pop();if(closed[u])continue;closed[u]=1;if(u===gi)break;
+      const ui=u%nx,uj=(u/nx)|0;
+      for(const [di,dj] of D){const vi=ui+di,vj=uj+dj;if(!valid(vi,vj))continue;
+        if(di&&dj&&(!valid(ui+di,uj)||!valid(ui,uj+dj)))continue; // no corner cutting through land
+        const v=idx(vi,vj);if(closed[v])continue;
+        const fm=grid[v],shallow=fm<12?(12-fm)*0.18:0;
+        let coast=0;for(let yy=-1;yy<=1;yy++)for(let xx=-1;xx<=1;xx++)if((xx||yy)&&!valid(vi+xx,vj+yy))coast+=0.20;
+        const step=(di&&dj?1.41421356:1)*(1+shallow+coast),ng=g[u]+step;
+        if(ng<g[v]){g[v]=ng;parent[v]=u;push(v,ng+h(vi,vj));}
+      }
+    }
+    if(parent[gi]<0&&gi!==si){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    const raw=[];let u=gi;raw.push(u);while(u!==si&&u>=0){u=parent[u];if(u>=0)raw.push(u);}raw.reverse();
+    let pts=raw.map(k=>({xNm:x0+(k%nx)*cell,yNm:y0+((k/nx)|0)*cell}));
+    const waterLine=(a,b)=>{const L=distNm(a,b),n=Math.max(1,Math.ceil(L/Math.max(.25,cell*.20)));for(let q=0;q<=n;q++){const t=q/n;if(Bathy.feet(lerp(a.xNm,b.xNm,t),lerp(a.yNm,b.yNm,t))<30)return false;}return true;};
+    if(Bathy.feet(route.from.xNm,route.from.yNm)>=30&&waterLine(route.from,pts[0]))pts[0]={...route.from};
+    if(Bathy.feet(route.to.xNm,route.to.yNm)>=30&&waterLine(pts[pts.length-1],route.to))pts[pts.length-1]={...route.to};
+    // Line-of-sight simplification removes A* stair-steps but never replaces a
+    // water bend by a chord that cuts across an island.
+    const simple=[];let i=0;simple.push(pts[0]);
+    while(i<pts.length-1){let j=pts.length-1;while(j>i+1&&!waterLine(pts[i],pts[j]))j--;simple.push(pts[j]);i=j;}
+    route.waterPath=simple;return route.waterPath;
+  }
+
   makeConvoy(area){
     const cr=area.convoyRoutes[0];
+    const path=this.ensureWaterRoute(cr);
+    const spawn=path[0]||cr.from, next=path[1]||cr.to;
     const spd=area.convoySpeedRange[0]+Math.random()*(area.convoySpeedRange[1]-area.convoySpeedRange[0]);
     const count=Math.floor(area.convoyCountRange[0]+Math.random()*(area.convoyCountRange[1]-area.convoyCountRange[0]+1));
-    const crs=bearingBetween(cr.from,cr.to);
+    const crs=bearingBetween(spawn,next);
     const crsRad=degToRad(crs);
     const perpRad=degToRad(crs+90);
     const contacts=[];
@@ -2504,8 +2612,8 @@ class SimEngine{
       const t=merchantTemplates[i];
       contacts.push({...t,
         position:{
-          xNm:cr.from.xNm+Math.cos(crsRad)*off.fwd+Math.cos(perpRad)*off.side,
-          yNm:cr.from.yNm+Math.sin(crsRad)*off.fwd+Math.sin(perpRad)*off.side
+          xNm:spawn.xNm+Math.sin(crsRad)*off.fwd+Math.cos(crsRad)*off.side,
+          yNm:spawn.yNm-Math.cos(crsRad)*off.fwd+Math.sin(crsRad)*off.side
         },
         heading:crs+(Math.random()-0.5)*8,
         speedKnots:spd+(Math.random()-0.5)*0.5, baseSpeed:spd,
@@ -2526,8 +2634,8 @@ class SimEngine{
       const t=escortTemplates[i];
       contacts.push({...t,
         position:{
-          xNm:cr.from.xNm+Math.cos(crsRad)*off.fwd+Math.cos(perpRad)*off.side,
-          yNm:cr.from.yNm+Math.sin(crsRad)*off.fwd+Math.sin(perpRad)*off.side
+          xNm:spawn.xNm+Math.sin(crsRad)*off.fwd+Math.cos(crsRad)*off.side,
+          yNm:spawn.yNm-Math.cos(crsRad)*off.fwd+Math.sin(crsRad)*off.side
         },
         heading:crs+(Math.random()-0.5)*5,
         speedKnots:spd+4+(Math.random()-0.5)*1,
@@ -3419,12 +3527,22 @@ class SimEngine{
       const err=forced?(0.4+Math.random()*0.8):(0.8+Math.random()*2.2);
       const ageSec=forced?(600+Math.random()*1800):(1800+Math.random()*7200);
       const back=knotsNmSec(t.speedKnots)*ageSec;
-      const br=degToRad(t.heading);
-      const pos={xNm:t.position.xNm-Math.sin(br)*back+(Math.random()-0.5)*2*err,
-                 yNm:t.position.yNm+Math.cos(br)*back+(Math.random()-0.5)*2*err};
+      const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);
+      let pos,courseDeg=t.heading,routeS=null,routeDir=null;
+      if(t.convoyId==='MAIN'&&path&&path.length>1){
+        const cur=routeProject(path,t.position);
+        // Walk backwards along the actual shipping lane, then put the reporting
+        // error mostly along that lane. The fix remains plausible water, never land.
+        const hist=routeAdvance(path,cur.s,W.convoyLeg||1,-back);
+        const noisy=routeAdvance(path,hist.s,hist.dir,(Math.random()-0.5)*2*err);
+        pos=noisy.pos;courseDeg=noisy.heading;routeS=noisy.s;routeDir=noisy.dir;
+      }else{
+        const br=degToRad(t.heading);
+        pos={xNm:t.position.xNm-Math.sin(br)*back,yNm:t.position.yNm+Math.cos(br)*back};
+      }
       return{type:'ULTRA',subject:forced?'CONVOY ROUTING — AMPLIFYING REPORT':'CONVOY ROUTING',
-        text:`ULTRA. Convoy of ${alive.length} in ${camp.patrolArea}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(t.heading)}, speed ${t.speedKnots.toFixed(0)} knots. Run ahead of her track and intercept.`,
-        intel:{pos,courseDeg:t.heading,speedKn:t.speedKnots,ageSec}};
+        text:`ULTRA. Convoy of ${alive.length} in ${camp.patrolArea}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(courseDeg)}, speed ${t.speedKnots.toFixed(0)} knots. Run ahead of her track and intercept.`,
+        intel:{pos,courseDeg,speedKn:t.speedKnots,ageSec,routeS,routeDir,uncBaseNm:err}};
     }
     if(roll<0.68){
       return{type:'WARNING',subject:'AIR ACTIVITY',
@@ -3454,22 +3572,25 @@ class SimEngine{
     if(U){
       const age=now-U.reportedAt;
       if(age<=6*3600){
-        const r=degToRad(U.courseDeg), run=knotsNmSec(U.speedKn)*age;
-        const dr={xNm:U.reportPos.xNm+Math.sin(r)*run,yNm:U.reportPos.yNm-Math.cos(r)*run};
+        const run=knotsNmSec(U.speedKn)*age;
+        const route=(W.convoyRoutes||[])[0],path=route?.waterPath;
+        const routed=path&&path.length>1&&U.routeS!=null&&U.routeDir!=null;
+        const nowFix=routed?routeAdvance(path,U.routeS,U.routeDir,run):null;
+        const dr=routed?nowFix.pos:(()=>{const r=degToRad(U.courseDeg);return{xNm:U.reportPos.xNm+Math.sin(r)*run,yNm:U.reportPos.yNm-Math.cos(r)*run};})();
         const rng=distNm(sub.position,dr);
-        // is she opening or closing? compare with where she will be in ten minutes
-        const r2=knotsNmSec(U.speedKn)*600;
-        const fwd={xNm:dr.xNm+Math.sin(r)*r2,yNm:dr.yNm-Math.cos(r)*r2};
+        // is she opening or closing? compare with where the lane puts her in ten minutes
+        const fwd=routed?routeAdvance(path,nowFix.s,nowFix.dir,knotsNmSec(U.speedKn)*600).pos
+                         :(()=>{const r=degToRad(U.courseDeg),r2=knotsNmSec(U.speedKn)*600;return{xNm:dr.xNm+Math.sin(r)*r2,yNm:dr.yNm-Math.cos(r)*r2};})();
         /* Two solutions: one at the speed she is making now, one at flank on
            the roof. If only the second exists, the answer to "why can I never
            find them" is: you have to surface and run. */
         const now2=sub.propulsion.speedKnots;
         out.push({kind:'ULTRA',name:'Convoy (ULTRA estimate)',pos:dr,rngNm:rng,
-          brg:bearingBetween(sub.position,dr),ageSec:age,courseDeg:U.courseDeg,speedKn:U.speedKn,
+          brg:bearingBetween(sub.position,dr),ageSec:age,courseDeg:(nowFix?.heading??U.courseDeg),speedKn:U.speedKn,
           closing:distNm(sub.position,fwd)<rng,
           icptNow:this.interceptSolution(dr,U.courseDeg,U.speedKn,now2),
           icptFlank:this.interceptSolution(dr,U.courseDeg,U.speedKn,17.5),
-          uncNm:clamp(U.speedKn*age/3600*0.12+0.8,0.8,9)});
+          uncNm:clamp((U.uncBaseNm||0.8)+U.speedKn*age/3600*0.10,0.8,9)});
       }
     }
     for(const tr of Object.values(W.contactTracks||{})){
@@ -3532,6 +3653,7 @@ class SimEngine{
       // reported course and speed — that estimate is what you steer to
       // intercept. It is a fixed plot in the sea, not a marker on your boat.
       W.ultra={reportPos:this.clampToArea(m.intel.pos),courseDeg:m.intel.courseDeg,speedKn:m.intel.speedKn,
+        routeS:m.intel.routeS??null,routeDir:m.intel.routeDir??null,uncBaseNm:m.intel.uncBaseNm??0.8,
         reportedAt:this.state.time.elapsedSeconds-(m.intel.ageSec||0),
         receivedAt:this.state.time.elapsedSeconds,label:m.subject};
       delete W.contactTracks['ULTRA'];
@@ -4200,37 +4322,27 @@ class SimEngine{
   updateConvoyNavigation(){
     const W=this.state.world, route=(W.convoyRoutes||[])[0];
     if(!route) return;
+    const path=this.ensureWaterRoute(route);if(path.length<2)return;
     const merchants=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.convoyRole==='MERCHANT'&&!c.sunk);
     if(!merchants.length) return;
     merchants.sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0));
-    const lead=merchants[0];
+    const lead=merchants[0],pr=routeProject(path,lead.position);
     W.convoyLeg=W.convoyLeg===-1?-1:1;
-    let endpoint=W.convoyLeg>0?route.to:route.from;
-    const A=this.areaBounds();
-    const nearEdge=A&&(lead.position.xNm<A.x0+7||lead.position.xNm>A.x1-7||lead.position.yNm<A.y0+7||lead.position.yNm>A.y1-7);
-    if(distNm(lead.position,endpoint)<7||nearEdge){
-      W.convoyLeg*=-1;
-      endpoint=W.convoyLeg>0?route.to:route.from;
-      if(!W._convoyTurnLogged){
-        W._convoyTurnLogged=true;
-        setTimeout(()=>{if(this.state.world) this.state.world._convoyTurnLogged=false;},1500);
-      }
-    }
+    const C=routeCum(path),L=C[C.length-1];
+    if((W.convoyLeg>0&&L-pr.s<1.6)||(W.convoyLeg<0&&pr.s<1.6)) W.convoyLeg*=-1;
+    const aim=routeAdvance(path,pr.s,W.convoyLeg,1.25);W.convoyLeg=aim.dir;W.convoyRouteS=pr.s;
     if(!lead.scattering){
-      lead.desiredHeading=bearingBetween(lead.position,endpoint);
+      lead.desiredHeading=bearingBetween(lead.position,aim.pos);
       lead.desiredSpeed=lead.baseSpeed||lead.speedKnots;
     }
-    // The rest of the merchants hold actual formation stations behind the lead
-    // instead of each ship independently choosing a random point at a chart edge.
+    // Followers keep stations relative to the tangent of the shared water lane.
     const hdg=lead.desiredHeading===undefined?lead.heading:lead.desiredHeading;
-    const r=degToRad(hdg), fx=Math.sin(r), fy=-Math.cos(r), sx=Math.cos(r), sy=Math.sin(r);
+    const r=degToRad(hdg),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
     for(const c of merchants.slice(1)){
       if(c.scattering) continue;
-      const f=c.formationFwd??(-(c.formationIndex||1)*1.2), side=c.formationSide||0;
-      const tgt={xNm:lead.position.xNm+fx*f+sx*side,
-                 yNm:lead.position.yNm+fy*f+sy*side};
-      const err=distNm(c.position,tgt);
-      c.desiredHeading=bearingBetween(c.position,tgt);
+      const f=c.formationFwd??(-(c.formationIndex||1)*1.2),side=c.formationSide||0;
+      const tgt={xNm:lead.position.xNm+fx*f+sx*side,yNm:lead.position.yNm+fy*f+sy*side};
+      const err=distNm(c.position,tgt);c.desiredHeading=bearingBetween(c.position,tgt);
       c.desiredSpeed=clamp((lead.baseSpeed||lead.speedKnots)+err*0.55,3,16);
     }
   }
@@ -4255,7 +4367,15 @@ class SimEngine{
       }
       this.steerShip(c,dt);
       const d=knotsNmSec(c.speedKnots)*dt; const r=degToRad(c.heading);
+      const prev={...c.position};
       c.position.xNm+=Math.sin(r)*d; c.position.yNm-=Math.cos(r)*d;
+      // No surface ship is allowed to cut a corner through an island. This is
+      // a last safety net behind the water-route steering, including escorts.
+      if(Bathy.feet(c.position.xNm,c.position.yNm)<24){
+        c.position=prev;c.speedKnots*=0.72;
+        const route=(this.state.world.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);
+        if(path&&path.length>1){const pr=routeProject(path,prev),aim=routeAdvance(path,pr.s,this.state.world.convoyLeg||1,1.0);c.desiredHeading=bearingBetween(prev,aim.pos);}
+      }
       this.keepInArea(c);
       if(this.state.tactical.activeStation==='MAP') particles.spawnWake(c.position.xNm,c.position.yNm,c.heading,c.speedKnots);
     }
@@ -4800,6 +4920,7 @@ class CanvasView{
     this.showLegend=false;
     this.scopeGeom={cx:0,cy:0,r:100,hor:0};
     this.quality=1;               // 0..1 — lowered automatically on slow frames
+    this.scopeLabelId=null;this.scopeLabelUntil=0;
     this.resize(true);
   }
 
@@ -4832,6 +4953,7 @@ class CanvasView{
     ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);
     ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();
   }
+  revealScopeLabel(id,ms=3200){this.scopeLabelId=id;this.scopeLabelUntil=performance.now()+ms;}
 
   render(state){
     const ctx=this.ctx,w=this.w,h=this.h;
@@ -6489,20 +6611,30 @@ class CanvasView{
       const tr=state.world.contactTracks[c.id];
       const sinking=(c.sinkingProgress??0)>0;
       const sel=state.tactical.selectedTrackId===c.id;
-      ctx.font=this.fnt(sel?11:9,true);ctx.textAlign='center';
-      ctx.fillStyle=sinking?'rgba(239,106,88,.95)':sel?'rgba(226,255,240,.99)':'rgba(245,198,92,.85)';
-      if(sel){
-        const txt=`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${(it.d/NM_M).toFixed(1)}nm`;
-        const w=Math.max(86*this.k,ctx.measureText(txt).width+14*this.k);
-        ctx.fillStyle='rgba(3,13,16,.84)';ctx.fillRect(top.x-w/2,top.y-21*this.k,w,32*this.k);
-        ctx.fillStyle='rgba(226,255,240,.99)';
+      if(sel&&this.scopeLabelId!==c.id) this.revealScopeLabel(c.id);
+      const fresh=sel&&performance.now()<this.scopeLabelUntil;
+      // At low scope magnification a large merchant fills the optic; lift the
+      // annotation by its projected size so the card never parks on the ship.
+      const lift=sel?clamp(pxLen*0.16,9*this.k,34*this.k):0;
+      const ly=top.y-lift;
+      if(sel&&fresh){
+        const line2=`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${(it.d/NM_M).toFixed(1)}nm`;
+        ctx.font=this.fnt(9,true);const w=ctx.measureText(line2).width+10*this.k;
+        const bw=Math.max(58*this.k,w),bh=22*this.k;
+        ctx.fillStyle='rgba(3,13,16,.72)';this.rr(ctx,top.x-bw/2,ly-15*this.k,bw,bh,3*this.k);ctx.fill();
+        ctx.textAlign='center';ctx.font=this.fnt(10,true);ctx.fillStyle=sinking?'rgba(239,106,88,.96)':'rgba(226,255,240,.98)';
+        ctx.fillText(sinking?`${c.id} SINKING`:c.id,top.x,ly-6*this.k);
+        ctx.font=this.fnt(8.5);ctx.fillStyle='rgba(210,240,228,.94)';ctx.fillText(line2,top.x,ly+3*this.k);
+      }else{
+        // After a few seconds the information recedes to quiet glass-writing.
+        // Tap the selected ship again to reveal the full card for another beat.
+        ctx.textAlign='center';ctx.font=this.fnt(sel?8.5:9,sel);ctx.fillStyle=sinking?'rgba(239,106,88,.78)':sel?'rgba(210,240,228,.28)':'rgba(245,198,92,.85)';
+        ctx.fillText(sinking?`${c.id} SINKING`:c.id,top.x,ly-4*this.k);
+        if(!sel){ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(220,236,230,.62)';ctx.fillText(`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${(it.d/NM_M).toFixed(1)}nm`,top.x,ly+6*this.k);}
       }
-      ctx.fillText(sinking?`${c.id} SINKING`:`${c.id}`,top.x,top.y-6*this.k);
-      ctx.font=this.fnt(sel?9:7.5);ctx.fillStyle=sel?'rgba(210,240,228,.96)':'rgba(220,236,230,.62)';
-      ctx.fillText(`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${(it.d/NM_M).toFixed(1)}nm`,top.x,top.y+4*this.k);
       ctx.textAlign='left';
       if(sel){
-        ctx.strokeStyle='rgba(111,224,143,.55)';ctx.lineWidth=1;
+        ctx.strokeStyle=`rgba(111,224,143,${fresh ? .55 : .22})`;ctx.lineWidth=1;
         const half=Math.max(8,realLen/it.d*cam.f*0.55);
         ctx.strokeRect(top.x-half,top.y-2*this.k,half*2,Math.max(10,half*0.5));
       }
@@ -6514,164 +6646,86 @@ class CanvasView{
      burning oil for the first minute or so, and a thinning wisp of smoke.
      Fades out over about five minutes.                                    */
   drawWreck3D(ctx,cam,c,state,dl,t){
-    const since=state.time.elapsedSeconds-((c.sunkAt||0)+ (c.sinkDurationSec||45));
+    const since=state.time.elapsedSeconds-((c.sunkAt||0)+(c.sinkDurationSec||45));
     if(since<0||since>300) return;
-    const p=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);
-    if(!p) return;
-    const sub=state.playerSub;
-    const bd=shortDelta(state.tactical.periscopeBearing,bearingBetween(sub.position,c.position));
-    if(Math.abs(bd)>cam.fovDeg*0.9) return;
-    for(const o of (this._landOcc||[])){
-      if(p.x>=o.x0-4&&p.x<=o.x1+4&&p.d>o.d*1.02) return;
-    }
-    const sc=cam.f/p.d;
-    const lenM=(c.lengthYards||400)*0.9144;
-    const fade=clamp(1-since/300,0,1);
+    const p=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);if(!p)return;
+    const sub=state.playerSub,bd=shortDelta(state.tactical.periscopeBearing,bearingBetween(sub.position,c.position));
+    if(Math.abs(bd)>cam.fovDeg*0.9)return;
+    for(const o of (this._landOcc||[]))if(p.x>=o.x0-4&&p.x<=o.x1+4&&p.d>o.d*1.02)return;
+    const sc=cam.f/p.d,lenM=(c.lengthYards||400)*0.9144,fade=clamp(1-since/300,0,1);
     const seed=(c.id||'X').split('').reduce((a,ch)=>a+ch.charCodeAt(0),0);
     const rnd=n=>{const x=Math.sin(seed*12.9898+n*78.233)*43758.5453;return x-Math.floor(x);};
-    const env=state.world.environment||{};
-    const windX=Math.sin(seed*0.7)*0.6+0.5;               // a fixed drift for this wreck
-    ctx.save();
+    const wind=(rnd(901)-.5)*1.15, R=Math.max(4,lenM*(0.44+Math.sqrt(since)*0.10)*sc),flat=Math.max(1.2,R*.18);
+    const waterY=cam.horizonY;
 
-    /* ══ THE SLICK ══════════════════════════════════════════════════════
-       Oil on water is not a grey ellipse. It is a slowly breathing raft of
-       overlapping lobes with a torn edge, dead flat where it lies — the sea
-       under it stops sparkling, which is what actually gives it away from a
-       periscope — and it is rimmed with the thin film that throws the
-       rainbow sheen. So: several lobes, each drifting and swelling at its
-       own rate, drawn as a dark matte that suppresses the water rather than
-       a blob painted on top of it. */
-    const R=Math.max(4,lenM*(0.45+Math.sqrt(since)*0.10)*sc);
-    const flat=Math.max(1.4,R*0.20);                      // foreshortening
-    const LOBES=this.quality>0.5?7:4;
+    /* OIL / FLOTSAM / FIRE BASE live on the surface. Clip them to the sea half
+       of the optic: a slick can reach the horizon, never float in the sky. */
+    ctx.save();ctx.beginPath();ctx.rect(0,waterY,this.w,Math.max(0,this.h-waterY));ctx.clip();
     ctx.globalCompositeOperation='multiply';
+    const LOBES=this.quality>.5?8:5;
     for(let i=0;i<LOBES;i++){
-      const ph=rnd(i)*6.283;
-      const dr=0.20+rnd(i+40)*0.62;
-      const breathe=1+0.10*Math.sin(t*(0.22+rnd(i+9)*0.16)+ph);
-      const ox=Math.cos(ph)*R*dr+windX*since*sc*0.55;
-      const oy=Math.sin(ph)*flat*dr;
-      const rr=R*(0.34+rnd(i+70)*0.42)*breathe;
-      const g2=ctx.createRadialGradient(p.x+ox,p.y+oy,0,p.x+ox,p.y+oy,rr);
-      const dark=0.30+0.16*rnd(i+3);
-      g2.addColorStop(0,`rgba(38,36,30,${1-dark*fade})`);
-      g2.addColorStop(0.62,`rgba(52,50,44,${1-dark*0.62*fade})`);
-      g2.addColorStop(1,'rgba(255,255,255,1)');
-      ctx.fillStyle=g2;
-      ctx.beginPath();ctx.ellipse(p.x+ox,p.y+oy,rr,rr*0.22,0,0,Math.PI*2);ctx.fill();
+      const ph=rnd(i)*Math.PI*2,dr=.12+rnd(i+40)*.72,breathe=1+.07*Math.sin(t*(.18+rnd(i+9)*.12)+ph);
+      const ox=Math.cos(ph)*R*dr+wind*since*sc*.42,oy=Math.sin(ph)*flat*dr,rr=R*(.30+rnd(i+70)*.40)*breathe;
+      const g=ctx.createRadialGradient(p.x+ox,p.y+oy,0,p.x+ox,p.y+oy,rr);
+      g.addColorStop(0,`rgba(28,27,24,${.74*fade})`);g.addColorStop(.72,`rgba(48,45,39,${.48*fade})`);g.addColorStop(1,'rgba(255,255,255,1)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(p.x+ox,p.y+oy,rr,rr*.20,0,0,Math.PI*2);ctx.fill();
     }
     ctx.globalCompositeOperation='source-over';
-
-    /* the sheen: a thin iridescent rim, only where the light is on it */
-    if(dl>0.35&&this.quality>0.4){
+    if(dl>.35&&this.quality>.4){
       for(let i=0;i<3;i++){
-        const ph=rnd(i+120)*6.283;
-        const rr=R*(0.75+i*0.10)*(1+0.05*Math.sin(t*0.3+ph));
-        const cx2=p.x+windX*since*sc*0.55, cy2=p.y;
-        const gg=ctx.createLinearGradient(cx2-rr,cy2,cx2+rr,cy2);
-        const a=0.10*fade*(1-i*0.25)*dl;
-        gg.addColorStop(0,'rgba(120,150,190,0)');
-        gg.addColorStop(0.35,`rgba(150,170,120,${a})`);
-        gg.addColorStop(0.55,`rgba(190,140,170,${a*1.2})`);
-        gg.addColorStop(0.75,`rgba(120,170,180,${a})`);
-        gg.addColorStop(1,'rgba(120,150,190,0)');
-        ctx.strokeStyle=gg;ctx.lineWidth=Math.max(1,R*0.030);
-        ctx.beginPath();ctx.ellipse(cx2,cy2,rr,rr*0.21,0,0,Math.PI*2);ctx.stroke();
+        const rr=R*(.72+i*.11),cx=p.x+wind*since*sc*.42,gg=ctx.createLinearGradient(cx-rr,p.y,cx+rr,p.y),a=.09*fade*dl;
+        gg.addColorStop(0,'rgba(120,150,190,0)');gg.addColorStop(.38,`rgba(160,180,120,${a})`);gg.addColorStop(.57,`rgba(190,135,170,${a*1.15})`);gg.addColorStop(1,'rgba(120,150,190,0)');
+        ctx.strokeStyle=gg;ctx.lineWidth=Math.max(1,R*.025);ctx.beginPath();ctx.ellipse(cx,p.y,rr,rr*.19,0,0,Math.PI*2);ctx.stroke();
       }
     }
-
-    /* flotsam, each piece riding its own little swell */
-    if(this.quality>0.4){
-      for(let i=0;i<9;i++){
-        const a2=rnd(i+200)*6.283, r2=R*(0.12+rnd(i+210)*0.78);
-        const bob=Math.sin(t*(1.0+rnd(i+220)*0.9)+i*2.1)*Math.max(0.6,R*0.012);
-        const px2=p.x+Math.cos(a2)*r2+windX*since*sc*0.55, py2=p.y+Math.sin(a2)*r2*0.22+bob;
-        const w2=Math.max(1,lenM*(0.012+rnd(i+230)*0.020)*sc);
-        ctx.fillStyle=`rgba(${58+rnd(i+240)*30|0},${46+rnd(i+250)*24|0},34,${(0.55+rnd(i+260)*0.35)*fade})`;
-        ctx.save();ctx.translate(px2,py2);ctx.rotate((rnd(i+270)-0.5)*0.9+Math.sin(t*0.7+i)*0.10);
-        ctx.fillRect(-w2/2,-Math.max(0.7,w2*0.20),w2,Math.max(1.2,w2*0.28));
-        ctx.restore();
-      }
+    if(this.quality>.4)for(let i=0;i<8;i++){
+      const a=rnd(i+200)*Math.PI*2,r2=R*(.10+rnd(i+210)*.78),bob=Math.sin(t*(1+rnd(i+220)*.8)+i)*Math.max(.4,R*.009);
+      const x=p.x+Math.cos(a)*r2+wind*since*sc*.42,y=p.y+Math.sin(a)*r2*.20+bob,w=Math.max(1,lenM*(.012+rnd(i+230)*.018)*sc);
+      ctx.fillStyle=`rgba(62,48,34,${(.48+rnd(i+240)*.30)*fade})`;ctx.save();ctx.translate(x,y);ctx.rotate((rnd(i+250)-.5)*.9);ctx.fillRect(-w/2,-w*.10,w,Math.max(1,w*.22));ctx.restore();
     }
+    // Firelight on the water belongs under the horizon too.
+    const fires=[];
+    for(let i=0;i<4;i++){
+      const born=rnd(i+300)*35,life=55+rnd(i+310)*65,age=since-born;if(age<0||age>life)continue;
+      const amp=clamp(age/6,0,1)*clamp(1-(age-(life-16))/16,0,1);if(amp<.02)continue;
+      const ph=rnd(i+320)*Math.PI*2,dr=.14+rnd(i+330)*.52;
+      const fx=p.x+Math.cos(ph)*R*dr+wind*since*sc*.42,fy=p.y+Math.sin(ph)*flat*dr;
+      const flick=.78+.22*Math.sin(t*(8+i*2.1)+ph),fr=Math.max(1.7,lenM*.028*sc)*(0.7+flick*.75)*amp;
+      fires.push({fx,fy,fr,amp,ph,i});
+      const glow=ctx.createRadialGradient(fx,fy,0,fx,fy,fr*2.5);glow.addColorStop(0,`rgba(255,165,55,${.40*amp})`);glow.addColorStop(1,'rgba(255,110,25,0)');
+      ctx.fillStyle=glow;ctx.beginPath();ctx.ellipse(fx,fy,fr*2.5,fr*.55,0,0,Math.PI*2);ctx.fill();
+    }
+    ctx.restore(); // no sea clip beyond this point
 
-    /* ══ BURNING OIL ════════════════════════════════════════════════════
-       Fuel oil burns in separate patches that wander with the slick, gutter,
-       flare and go out one at a time — not one steady orange lozenge. Each
-       patch has its own birth, life and death, and its own smoke. */
-    const FIRES=4;
-    for(let i=0;i<FIRES;i++){
-      const born=rnd(i+300)*40;                            // staggered ignition
-      const life=55+rnd(i+310)*70;
-      const age=since-born;
-      if(age<0||age>life) continue;
-      const grow=clamp(age/6,0,1), die=clamp(1-(age-(life-18))/18,0,1);
-      const amp=grow*die;
-      if(amp<=0.01) continue;
-      const ph=rnd(i+320)*6.283, dr=0.15+rnd(i+330)*0.55;
-      const fx=p.x+Math.cos(ph)*R*dr+windX*since*sc*0.55
-               +Math.sin(t*0.35+ph)*R*0.05;
-      const fy=p.y+Math.sin(ph)*flat*dr;
-      // guttering: a slow flare-and-fade on top of a fast flicker
-      const gut=0.55+0.45*Math.sin(t*(0.7+rnd(i+340)*0.5)+ph*2);
-      const flick=0.72+0.28*Math.sin(t*(9+i*2.3)+ph)+0.12*Math.sin(t*(21+i*3)+ph*3);
-      const fr=Math.max(1.6,lenM*0.028*sc)*(0.6+gut*0.8)*flick*amp;
-
-      // the fire lying ON the water: a flat pool of light first
-      const pg=ctx.createRadialGradient(fx,fy,0,fx,fy,fr*2.6);
-      pg.addColorStop(0,`rgba(255,170,70,${0.42*amp})`);
-      pg.addColorStop(1,'rgba(255,110,30,0)');
-      ctx.fillStyle=pg;
-      ctx.beginPath();ctx.ellipse(fx,fy,fr*2.6,fr*0.7,0,0,Math.PI*2);ctx.fill();
-
-      // two or three tongues leaning downwind
-      const tongues=this.quality>0.5?3:2;
+    /* Flames rise out of the surface and smoke is a separate volumetric-looking
+       layer: irregular round billows, narrow/black at the root and broad/grey
+       aloft. No flattened oil ellipses are reused as smoke. */
+    for(const F of fires){
+      const {fx,fy,fr,amp,ph,i}=F;
+      const tongues=this.quality>.5?3:2;
       for(let k=0;k<tongues;k++){
-        const kk=rnd(i*7+k+350);
-        const ox=(k-(tongues-1)/2)*fr*0.7+windX*fr*0.5;
-        const hgt=fr*(1.5+1.0*Math.abs(Math.sin(t*(7+k*2.7)+ph+kk*6)));
-        const lean=windX*hgt*0.35;
-        const g3=ctx.createLinearGradient(fx+ox,fy,fx+ox+lean,fy-hgt);
-        g3.addColorStop(0,`rgba(255,235,160,${0.85*amp})`);
-        g3.addColorStop(0.45,`rgba(255,140,40,${0.62*amp})`);
-        g3.addColorStop(1,'rgba(120,30,10,0)');
-        ctx.fillStyle=g3;
-        ctx.beginPath();
-        ctx.moveTo(fx+ox-fr*0.45,fy);
-        ctx.quadraticCurveTo(fx+ox-fr*0.15+lean*0.5,fy-hgt*0.55,fx+ox+lean,fy-hgt);
-        ctx.quadraticCurveTo(fx+ox+fr*0.20+lean*0.5,fy-hgt*0.55,fx+ox+fr*0.45,fy);
-        ctx.closePath();ctx.fill();
+        const ox=(k-(tongues-1)/2)*fr*.62, hgt=fr*(1.5+.8*Math.abs(Math.sin(t*(7+k*2.4)+ph))),lean=wind*hgt*.34;
+        const g=ctx.createLinearGradient(fx+ox,fy,fx+ox+lean,fy-hgt);g.addColorStop(0,`rgba(255,238,165,${.88*amp})`);g.addColorStop(.45,`rgba(255,135,35,${.68*amp})`);g.addColorStop(1,'rgba(110,25,8,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(fx+ox-fr*.42,fy);ctx.quadraticCurveTo(fx+ox+lean*.30,fy-hgt*.52,fx+ox+lean,fy-hgt);ctx.quadraticCurveTo(fx+ox+fr*.35+lean*.30,fy-hgt*.48,fx+ox+fr*.42,fy);ctx.closePath();ctx.fill();
       }
-
-      /* ══ ITS SMOKE ════════════════════════════════════════════════════
-         Burning fuel oil makes the blackest smoke there is. It leaves the
-         flame fast and narrow, then slows, spreads and greys as it entrains
-         air, leaning further downwind the higher it gets. Puffs are shed at
-         a fixed rate and each one is drawn at its own age, so the column
-         churns instead of sliding. */
-      if(this.quality>0.3){
-        const PUFF=this.quality>0.55?9:5;
-        const shed=1.5;                                    // seconds between puffs
+      if(this.quality>.3){
+        const PUFF=this.quality>.55?10:6,shed=1.35;
         for(let k=0;k<PUFF;k++){
-          const pa=((t/shed)+k)%PUFF*shed;                 // this puff's age
-          const rise=Math.pow(pa,0.78)*fr*1.5;
-          const spread=fr*(0.55+pa*0.42);
-          const lean2=windX*Math.pow(pa,1.35)*fr*0.85;
-          const soot=clamp(1-pa/16,0,1);
-          const a=0.40*amp*soot*clamp(1-pa/22,0,1);
-          if(a<0.012) continue;
-          const g4=ctx.createRadialGradient(fx+lean2,fy-rise,0,fx+lean2,fy-rise,spread);
-          const v=18+(1-soot)*46;                          // black at the root, grey aloft
-          g4.addColorStop(0,`rgba(${v},${v-2},${v-4},${a})`);
-          g4.addColorStop(1,`rgba(${v+14},${v+12},${v+10},0)`);
-          ctx.fillStyle=g4;
-          ctx.beginPath();
-          ctx.ellipse(fx+lean2,fy-rise,spread,spread*0.86,windX*0.3,0,Math.PI*2);
-          ctx.fill();
+          const pa=((t/shed)+k)%PUFF*shed,rise=Math.pow(pa,.80)*fr*1.55,spread=fr*(.48+pa*.38),lean=wind*Math.pow(pa,1.28)*fr*.95;
+          const soot=clamp(1-pa/15,0,1),alpha=.34*amp*clamp(1-pa/20,0,1);if(alpha<.012)continue;
+          const cx=fx+lean+(rnd(i*50+k+500)-.5)*spread*.32,cy=fy-rise;
+          const lobes=6;ctx.beginPath();
+          for(let q=0;q<lobes;q++){
+            const ang=q/lobes*Math.PI*2,rad=spread*(.72+.30*rnd(i*100+k*10+q+540));
+            const x=cx+Math.cos(ang)*rad,y=cy+Math.sin(ang)*rad*.82;
+            if(q===0)ctx.moveTo(x,y);else{const pang=(q-.5)/lobes*Math.PI*2,pr=spread*(.68+.20*rnd(i*90+k*8+q+610));ctx.quadraticCurveTo(cx+Math.cos(pang)*pr,cy+Math.sin(pang)*pr*.82,x,y);}
+          }
+          ctx.closePath();const v=Math.round(15+(1-soot)*50);ctx.fillStyle=`rgba(${v},${Math.max(0,v-2)},${Math.max(0,v-5)},${alpha})`;ctx.fill();
+          // Dense soot core gives the plume depth instead of a stack of discs.
+          ctx.fillStyle=`rgba(8,10,10,${alpha*.30*soot})`;ctx.beginPath();ctx.arc(cx-spread*.10,cy,spread*.32,0,Math.PI*2);ctx.fill();
         }
       }
     }
-
-    ctx.restore();
   }
 
   /* ── Your own wake ──────────────────────────────────────────────────
@@ -6977,16 +7031,16 @@ class CanvasView{
       }
     }
 
-    // convoy routes
+    // convoy routes — the actual water lane the ships and ULTRA use
     for(const route of state.world.convoyRoutes){
-      const pf=w2s(route.from.xNm,route.from.yNm), pt=w2s(route.to.xNm,route.to.yNm);
+      const path=route.waterPath&&route.waterPath.length>1?route.waterPath:[route.from,route.to];
+      const P=path.map(q=>w2s(q.xNm,q.yNm));
       ctx.strokeStyle='rgba(245,198,92,0.16)';ctx.lineWidth=Math.max(6,12*k);ctx.setLineDash([10,9]);
-      ctx.beginPath();ctx.moveTo(pf.x,pf.y);ctx.lineTo(pt.x,pt.y);ctx.stroke();
+      ctx.beginPath();P.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.stroke();
       ctx.strokeStyle='rgba(245,198,92,0.38)';ctx.lineWidth=Math.max(1,1.6*k);
-      ctx.beginPath();ctx.moveTo(pf.x,pf.y);ctx.lineTo(pt.x,pt.y);ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle='rgba(245,198,92,0.55)';ctx.font=this.fnt(9);ctx.textAlign='center';
-      ctx.fillText(route.label,(pf.x+pt.x)/2,(pf.y+pt.y)/2-8*k);ctx.textAlign='left';
+      ctx.beginPath();P.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.stroke();ctx.setLineDash([]);
+      const mid=routePointAt(path,routeCum(path).at(-1)/2).pos,pm=w2s(mid.xNm,mid.yNm);
+      ctx.fillStyle='rgba(245,198,92,0.55)';ctx.font=this.fnt(9);ctx.textAlign='center';ctx.fillText(route.label,pm.x,pm.y-8*k);ctx.textAlign='left';
     }
 
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
@@ -7051,37 +7105,30 @@ class CanvasView{
   }
 
   drawUltra(ctx,state,w2s){
-    const U=state.world.ultra;
-    if(!U) return;
-    const K=this.k, now=state.time.elapsedSeconds;
-    const age=now-U.reportedAt;
-    if(age>6*3600){delete state.world.ultra;return;}       // the report goes stale
-    const r=degToRad(U.courseDeg);
-    const run=knotsNmSec(U.speedKn)*age;
-    const dr={xNm:U.reportPos.xNm+Math.sin(r)*run,yNm:U.reportPos.yNm-Math.cos(r)*run};
-    const a=w2s(U.reportPos.xNm,U.reportPos.yNm), b=w2s(dr.xNm,dr.yNm);
-    // her track from the reported fix to where she should be now
-    ctx.strokeStyle='rgba(160,200,255,.45)';ctx.lineWidth=Math.max(1,1.6*K);ctx.setLineDash([8,6]);
-    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);
-    // the old fix
-    ctx.strokeStyle='rgba(160,200,255,.5)';ctx.lineWidth=Math.max(1,1.4*K);
-    ctx.beginPath();ctx.arc(a.x,a.y,6*K,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle='rgba(160,200,255,.65)';ctx.font=this.fnt(7.5);
-    ctx.fillText(`ULTRA fix ${(age/3600).toFixed(1)}h old`,a.x+9*K,a.y+3*K);
-    // where she should be now — the point to aim for
-    const unc=clamp(U.speedKn*age/3600*0.12+0.8,0.8,9);
-    ctx.strokeStyle='rgba(120,190,255,.55)';ctx.setLineDash([4,5]);
-    ctx.beginPath();ctx.arc(b.x,b.y,Math.max(8,unc*this.zoom),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='rgba(150,205,255,.95)';ctx.font=this.fnt(9,true);
-    ctx.fillText('ULTRA — ESTIMATED CONVOY',b.x+11*K,b.y-3*K);
-    ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(150,205,255,.7)';
-    ctx.fillText(`course ${fmtDeg(U.courseDeg)} · ${U.speedKn.toFixed(0)}kn · ±${unc.toFixed(1)}nm`,b.x+11*K,b.y+8*K);
-    // and the two numbers you actually steer on
-    const sp=state.playerSub.position;
-    ctx.fillStyle='rgba(190,225,255,.9)';ctx.font=this.fnt(8,true);
-    ctx.fillText(`${distNm(sp,dr).toFixed(1)} nm · steer ${fmtDeg(bearingBetween(sp,dr))}`,b.x+11*K,b.y+18*K);
-    this.shipIcon(ctx,b.x,b.y,U.courseDeg,clamp(0.22*this.zoom,14*K,40*K),'MERCHANT',
-      'rgba(120,190,255,.30)','rgba(160,210,255,.8)',0.95);
+    const U=state.world.ultra;if(!U)return;
+    const K=this.k,now=state.time.elapsedSeconds,age=now-U.reportedAt;
+    if(age>6*3600){delete state.world.ultra;return;}
+    const run=knotsNmSec(U.speedKn)*age,route=(state.world.convoyRoutes||[])[0],path=route?.waterPath;
+    const routed=path&&path.length>1&&U.routeS!=null&&U.routeDir!=null;
+    let dr,heading=U.courseDeg,trace;
+    if(routed){
+      trace=routeTrace(path,U.routeS,U.routeDir,run,.8);const q=trace[trace.length-1];dr=q.pos;heading=q.heading;
+    }else{
+      const r=degToRad(U.courseDeg);dr={xNm:U.reportPos.xNm+Math.sin(r)*run,yNm:U.reportPos.yNm-Math.cos(r)*run};
+      trace=[{pos:U.reportPos},{pos:dr}];
+    }
+    const a=w2s(U.reportPos.xNm,U.reportPos.yNm),b=w2s(dr.xNm,dr.yNm);
+    // Dead-reckoning follows the same navigable lane as the physical convoy.
+    ctx.strokeStyle='rgba(160,200,255,.45)';ctx.lineWidth=Math.max(1,1.6*K);ctx.setLineDash([8,6]);ctx.beginPath();
+    trace.forEach((q,i)=>{const z=w2s(q.pos.xNm,q.pos.yNm);i?ctx.lineTo(z.x,z.y):ctx.moveTo(z.x,z.y);});ctx.stroke();ctx.setLineDash([]);
+    ctx.strokeStyle='rgba(160,200,255,.5)';ctx.lineWidth=Math.max(1,1.4*K);ctx.beginPath();ctx.arc(a.x,a.y,6*K,0,Math.PI*2);ctx.stroke();
+    ctx.fillStyle='rgba(160,200,255,.65)';ctx.font=this.fnt(7.5);ctx.fillText(`ULTRA fix ${(age/3600).toFixed(1)}h old`,a.x+9*K,a.y+3*K);
+    const unc=clamp((U.uncBaseNm||.8)+U.speedKn*age/3600*.10,.8,9);
+    ctx.strokeStyle='rgba(120,190,255,.55)';ctx.setLineDash([4,5]);ctx.beginPath();ctx.arc(b.x,b.y,Math.max(8,unc*this.zoom),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='rgba(150,205,255,.95)';ctx.font=this.fnt(9,true);ctx.fillText('ULTRA — ESTIMATED CONVOY',b.x+11*K,b.y-3*K);
+    ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(150,205,255,.7)';ctx.fillText(`course ${fmtDeg(heading)} · ${U.speedKn.toFixed(0)}kn · ±${unc.toFixed(1)}nm`,b.x+11*K,b.y+8*K);
+    const sp=state.playerSub.position;ctx.fillStyle='rgba(190,225,255,.9)';ctx.font=this.fnt(8,true);ctx.fillText(`${distNm(sp,dr).toFixed(1)} nm · steer ${fmtDeg(bearingBetween(sp,dr))}`,b.x+11*K,b.y+18*K);
+    this.shipIcon(ctx,b.x,b.y,heading,clamp(.22*this.zoom,14*K,40*K),'MERCHANT','rgba(120,190,255,.30)','rgba(160,210,255,.8)',.95);
   }
 
   drawMapAircraft(ctx,list,w2s,sub){
@@ -8233,9 +8280,9 @@ const Toast = {
   },
   clear(){ document.getElementById('toastContainer')?.replaceChildren(); },
   stop(msg,type='bad'){
-    // The reason compressed time stopped gets the whole toast lane to itself.
-    // It deliberately outlives ordinary messages so the skipper can read it.
-    this.show(msg,type,6000,true);
+    // The reason compressed time stopped gets the whole toast lane to itself,
+    // but four seconds is enough to read it without turning it into a HUD panel.
+    this.show(msg,type,3900,true);
   },
   ok(msg)   { this.show(msg,'ok'); },
   warn(msg) { this.show(msg,'warn'); },
@@ -8955,7 +9002,7 @@ class TouchCtrl{
       }
       if(dbl){D({type:'TOGGLE_PERISCOPE_ZOOM'});return;}
       const id=this.cv.pickScopeContact(s,e.clientX,e.clientY);
-      if(id){D({type:'SELECT_TRACK',trackId:id});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(14);}
+      if(id){this.cv.revealScopeLabel(id);D({type:'SELECT_TRACK',trackId:id});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(14);}
     }else{
       if(dbl){D({type:'CYCLE_TIME_SCALE'});}
     }
@@ -9803,7 +9850,7 @@ class GameLoop{
             // Give the stop reason the toast lane to itself. The queued context
             // may flash first, but this line clears it and then stays readable.
             T.stopReason=why; T.stopReasonAt=T.elapsedSeconds;
-            this.stopToastUntil=performance.now()+6100;
+            this.stopToastUntil=performance.now()+4000;
             const stopKind=transitStopToastKind(why);
             setTimeout(()=>Toast.stop('TRANSIT STOPPED — '+why,stopKind),90);
             buzz([20,50,20]);
@@ -9840,7 +9887,7 @@ class GameLoop{
 
       // new-event toasts + haptics. During compressed transit the patrol log
       // still records everything, but the screen does not build a toast stack.
-      // After an interrupt, the dedicated stop toast owns the lane for six seconds.
+      // After an interrupt, the dedicated stop toast owns the lane for four seconds.
       const log=snap.log;
       if(log.length>this.lastLogLen){
         const suppress=!!snap.time.transitUntil||performance.now()<this.stopToastUntil;
