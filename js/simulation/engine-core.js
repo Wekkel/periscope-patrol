@@ -668,6 +668,10 @@ class SimEngineCore{
     s.world.shallowZones=area.terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment={...area.environment};
     s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];
+    // A fresh patrol always gets a fresh chart origin.  The renderer consumes
+    // this sequence once, so a map that was panned/free on the previous patrol
+    // cannot strand the new boat off-screen.  Undefined in old saves is fine.
+    s.map.recenterSeq=(s.map.recenterSeq||0)+1;
     s.tactical.selectedTrackId=null; s.tdc.targetId=null; s.tdc.solutionQuality=0;
     s.campaign={
       patrolArea:key,score:0,scenarioSeed:Math.floor(Math.random()*9999),

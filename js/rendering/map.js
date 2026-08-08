@@ -2,6 +2,14 @@ class CanvasView extends CanvasViewPeriscope {
   drawMap(ctx,w,h,state){
     const sub=state.playerSub, map=state.map, k=this.k;
     const pxPerNm=this.zoom;
+    // NEW_PATROL raises a state-side recenter sequence. Consume it here rather
+    // than reaching from simulation into the CanvasView instance. This keeps
+    // the dependency direction one-way and also works if MAP is opened later.
+    const recenterSeq=map.recenterSeq||0;
+    if(this._mapRecenterSeq!==recenterSeq){
+      this._mapRecenterSeq=recenterSeq;
+      this.recenter(sub);
+    }
     if(this.follow){this.mapCenter.xNm=sub.position.xNm;this.mapCenter.yNm=sub.position.yNm;}
     const cx=w/2, cy=h/2;
     const w2s=(xNm,yNm)=>({x:cx+(xNm-this.mapCenter.xNm)*pxPerNm,y:cy+(yNm-this.mapCenter.yNm)*pxPerNm});

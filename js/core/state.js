@@ -39,7 +39,8 @@ function createState(areaKey){
       tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     },
     map:{cellSizeNm:5,exploredCells:{},ownshipTrail:[],plottedCourse:[],
-      estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true},
+      estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true,
+      recenterSeq:0},
     world:{
       contacts:[],contactTracks:{},aircraft:[],knuckles:[],
       aaManned:false,aaAmmo:1200,aaKills:0,aaHurt:0,
