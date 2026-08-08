@@ -1,0 +1,13 @@
+{
+  "currentSaveTransfer": {
+    "area": "Truk Approaches",
+    "heading": 217,
+    "rpm": 175,
+    "deckGun": true,
+    "harborInitialized": true
+  },
+  "legacyFieldMigration": {
+    "deckGun": true,
+    "harborInitialized": true
+  }
+}

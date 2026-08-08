@@ -1,0 +1,926 @@
+    /* ══════════════════════════════════════════════════════════
+       PERISCOPE PATROL
+       ────────────────────────────────────────────────────────────────
+       VERSION NUMBERING lives in ONE place: the VERSION constant at the
+       top of sw.js. Bump it there and nothing else — it names the cache
+       (so old ones are retired), it drives the update prompt, and it is
+       what the chip in the top bar shows the player.
+       v11 — the visuals round:
+         · impact model: hit position along the hull + track angle decide the
+           outcome — glancing shots (<22°) can bounce off, square hits crush
+           the Mk14 contact exploder (higher dud chance), oblique fires best
+         · sinking follows the wound: bow hit → down by the head, stern hit →
+           down by the stern, amidships → back broken (broken ends flood and
+           go under FIRST, bow and stern rear up) or settling on even keel
+         · land view rebuilt: world-azimuth terrain profiles (edge-sampled,
+           cached) — rock-steady while training the scope, layered ridges,
+           seeded relief, surf line, islands now occlude ships behind them
+         · sea: sky-reflection band, hull mirrored on calm water
+         · sky: volumetric cumulus with shaded bases, cirrus, storm lightning
+         · ships: Kelvin bow wave, waterline foam, propeller churn,
+           transverse wake crests; burning wound + oil smoke while sinking;
+           oil slick, flotsam and burning fuel after she goes under
+         · explosions rebuilt: flash, fireball, collapsing water column with
+           falling spray, expanding foam ring, thrown debris, smoke pall
+
+       v11.1 — the engineering round:
+         · a flat battery or foul air now breaks off a transit ONCE, on the
+           crossing, instead of walling the clock off for good
+         · new warning when the water is coming in faster than the planes can
+           lift her — with the answer: blow main ballast, pumps, way on her
+         · the main induction now announces itself when it shuts, and says
+           why the diesels cannot follow her down: no snorkel in this boat
+         · charging rewritten: the screws have first call on the diesels, so
+           she charges fastest loafing and not at all at flank — three to four
+           hours from flat, the arithmetic every Pacific skipper hated
+
+       v11.2 — the water round:
+         · the sea is now a true wave field in world metres — two swell
+           systems and a wind chop, facet-lit by their slope, Fresnel-mixed
+           with the sky (mirror at the horizon, glass-dark up close). Train
+           the scope and the sea holds still; only the waves march
+         · breaking crests ride the forward faces of real waves; spindrift
+           streaks lie down the wind in half a gale; the sun's glitter path
+           narrows on a calm sea and shatters wide on a rough one
+         · the chart got its bathymetry: a synthesised shelf falling away
+           from every coast, washed in the palest chart tints, with spot
+           soundings in fathoms when zoomed close — and the two lines a
+           submariner actually read: the 10-fathom danger line and the
+           100-fathom curve, outside which the deep ocean will hide you
+         · built with a scanline land mask and chamfer distance transform:
+           the whole seafloor costs ~60 ms once per patrol
+
+       v11.3 — the coaching round:
+         · the tutorial card folds. On a phone held upright it opens long
+           enough to be read, then collapses to a one-line peek strip —
+           title, tick, progress — leaving the controls it is talking about
+           free to press. Tap the strip to open it again; that choice sticks
+           for the rest of the step
+         · it dodges: if the card covers the very control being highlighted,
+           it moves to the other end of the screen. If neither end is clear,
+           it folds, which always is
+         · it never strands you: on a read-only step, where the only way on
+           is the NEXT button inside the card, it will not fold itself away
+
+       v11.4 — PERISCOPE PATROL (renamed), installable, and the gun rebuilt:
+         · the 20 mm no longer rolls one die after the bombs have fallen. It
+           fires continuously while an aircraft is inside about a mile, and
+           what it mostly buys is a rattled pilot: he comes in higher and
+           releases early, and the bombs go in the sea. Measured over full
+           three-run engagements in daylight and a calm sea: mean bomb damage
+           drops from ~16% to ~3%, roughly a fifth are driven off, and about
+           one in twelve is splashed. At night or in a rough sea it achieves
+           almost nothing — an iron ring sight on a pitching deck
+         · the price is real: she cannot dive, a crash dive is held 14 s while
+           the crew tumble below, close bursts wound them, ready-use ammunition
+           runs out, and an aircraft out of bombs will come back with guns for
+           an exposed deck. Doctrine said DIVE, and the model now agrees
+         · installable as a PWA: manifest, icons, offline app shell
+         · version numbering has exactly one home — the VERSION constant at
+           the top of sw.js. The game reads it back from the running worker
+           (falling back to reading the file) and shows it as a chip in the
+           top bar; tap it to copy the build string. A new build raises a
+           reload prompt rather than swapping under a patrol in progress
+
+       ── the usability round ──────────────────────────────────────────
+         · torpedoes: the hit test was a 240 m circle round the ship's
+           CENTRE, so a fish crossing her beam "hit" while still 200 m clear
+           and the column of water went up in open sea. It is now the actual
+           hull box (7.2:1 merchant, 11:1 escort) and the explosion is placed
+           on the plating. A miss is a miss — no splash — but it is reported:
+           range in yards, which side, and whether she crossed ahead of the
+           stem or astern of the rudder, with the correction to make
+         · notify(): anything the boat refuses or confirms now reaches the
+           player as a toast wherever he is looking, not just the log on
+           another tab. This is what made "Man AA Gun" look broken — the
+           refusal ("the platform is under water") was invisible from Helm
+         · a lost boat says so when you work her controls, once every few
+           seconds, instead of swallowing the order in silence
+         · waypoints: a pinch never accumulated into `moved`, so releasing
+           two fingers looked exactly like a tap. Now a second finger is
+           remembered, the tap window is tighter (7 px / 300 ms), and there
+           is a 260 ms settle after any gesture. Dropping one confirms
+         · press feedback on every touch button and tab: scale, brightness
+           and a buzz on pointerdown, before the command is even dispatched
+         · depth and speed: the DEPTH and SPEED read-outs in the permanent
+           strip ARE the control now. Tap the number, an order pad opens over
+           the picture with presets, ±10/±50 ft and ±25/±50 rpm steppers,
+           crash dive and emergency blow. Steppers added to the Helm pane
+           too; the sliders remain, demoted to fine adjustment
+         · map zoom 0.9–900 px/nm (was 5–120), with waypoint snapping that
+           tightens as you zoom in
+         · the oil slick is three separately animated systems instead of one
+           grey ellipse: overlapping lobes that breathe and drift, drawn in
+           multiply so they SUPPRESS the water rather than sit on it; an
+           iridescent sheen rim; and burning patches with their own ignition,
+           guttering and death, each shedding its own smoke column that
+           leaves black and narrow and greys as it spreads
+         · autosave on visibilitychange / pagehide / blur / freeze plus a
+           45 s heartbeat, into its own key so it can never overwrite a
+           manual slot. A resume bar offers the patrol back on next launch
+         · intel board: everything the boat holds, nearest first, each with a
+           course to steer and the age of the fix — the ULTRA estimate dead
+           reckoned forward and marked closing or opening, sunk contacts
+           dropped, and the newest signal badged LATEST
+
+       ── the helm becomes instruments ─────────────────────────────────
+         Three sliders nobody dragged are gone. In their place: a gyro
+         repeater, a depth gauge and an engine telegraph, sharing one
+         grammar — heavy pale needle for where she IS, thin amber for where
+         she has been ORDERED, and the gap between them is the state of the
+         boat. Tap the rim to send an order there; drag the face to nudge.
+         Tap a dial's name to give it the full width.
+         · DEPTH rescales between a fine and a deep range with hysteresis,
+           and the sea floor is a hatched sector she cannot be ordered into
+         · COURSE is a full circle, geared down to a third on the face so a
+           five-pixel wobble is worth half a degree. The shortest way round
+           is drawn as the turn arc; pips mark the TDC target and the next
+           waypoint; the light sector is the ±90° torpedo gyro envelope
+         · POWER is linear in revolutions, but the knots are marked at their
+           true positions and bunch towards flank — the last hundred
+           revolutions buy almost no speed and a great deal of noise, and
+           the noise is an amber-to-red sector on the rim. Dive and the
+           whole dial changes meaning: 18 kn becomes 8.5, and the quiet band
+           widens from 125 rpm to 230
+         · 60 Hz canvas, gated on visibility so it costs nothing off-screen
+         · the bank fits the room it is given: it measures the sheet's width
+           AND height and tries one, two and three columns, keeping whichever
+           arrangement yields the largest dial that still fits — 171 px on a
+           phone in portrait, 187 landscape, 245 on a tablet, 318 focused.
+           The button rows are deliberately NOT subtracted; the instruments
+           get the first screenful and the buttons scroll below, because
+           subtracting them crushed the dials to 126 px, small enough that
+           the scale numbers had to go — and a dial with no numbers is a
+           picture of a dial. Three legibility tiers replace one hard cliff
+         · the value you are setting has left the canvas. It used to be drawn
+           a fifth of a radius above the touch point, which on a 170 px gauge
+           is directly under the fingertip. It is now a chip pinned to the top
+           or the bottom of the screen depending on which half your hand is
+           in — the finger cannot be in both
+         · THE NEEDLE WOULD NOT MOVE. The relative drag wrote the SNAPPED
+           value back into its own accumulator, so once the needle caught a
+           detent every following frame started again from that detent — and
+           one frame of a normal swipe moves about 2 ft against a 3.3 ft
+           detent window, so it could never climb out. The thumb kept
+           sliding, the phone kept buzzing, and nothing happened. The
+           accumulator now stays raw and snapping happens only on the way
+           out to the boat; detents also hold 45% wider once you are in one,
+           so the needle cannot chatter on the boundary
+         · the depth dial's fine/deep rescale was declared and never
+           computed, so it was stuck on the 200 ft scale and anything ordered
+           deeper pinned the needle at the stop. It now rescales with
+           hysteresis, as designed
+
+       ── fuel, transit, and shots that cannot reach ───────────────────
+         · FUEL burned linearly with revolutions and emptied the bunkers in
+           twelve and a half hours of cruising — you could not cross a patrol
+           area without limping home. A Gato carried 94,000 gallons and had a
+           designed radius of 11,000 miles at 10 knots. Power goes as the
+           cube of speed, so that is the law now, scaled to keep the decision
+           without the leash: 169 h and ~2,300 nm at cruise, 33 h and ~550 nm
+           at flank. Fast transit is expensive, not forbidden. Warnings at
+           25% and 12%
+         · TRANSIT is no longer capped at eight hours. "Until something
+           happens" runs with no clock at all and stops on the first event —
+           and the edge of the patrol area and the fuel falling under 20% are
+           now events in their own right
+         · TORPEDO RANGE is checked before the fish leaves the tube, against
+           the run to the INTERCEPT rather than the present range, because a
+           target drawing away is further than she looks: at 3 nm a 10-knot
+           target opening from you makes it a 3.8 nm run. A shot that cannot
+           reach is refused primarily in nautical miles (yards only as a
+           secondary detail); a shot inside 85% of the run fires with a warning
+
+       ── the needle really moves now ──────────────────────────────────
+         · shortDelta(from,to) returns to − from, and the drag handler had
+           the arguments the other way round. The finger's travel was
+           negated, so on the depth dial (0 ft at twelve o'clock, deeper
+           clockwise) dragging the natural way pushed the value DOWN into the
+           clamp at zero and nothing happened — it only answered when the
+           thumb went round backwards. The same slip had inverted three other
+           things: the "port/starboard N° to go" line, the relative bearing
+           to the target, and the direction the turn arc is drawn
+         · the drag step now lives in relStep(), which the tests drive — the
+           reason this survived two rounds is that every test called order()
+           directly and never went through the gesture
+
+       ── knowing where you are in the patrol ──────────────────────────
+         · when the last merchant is accounted for, the objective completing
+           is announced on screen with the rendezvous named, its range and
+           the course to steer, and a standing line in the warnings panel
+         · GOING ALONGSIDE is now a deliberate act rather than something you
+           could do by accident while passing: the 1.5 nm line is only the
+           approach station. The transfer starts inside 0.3 nm, surfaced and
+           below 3 knots, and must be held for three minutes of ship's time.
+           Dive, speed up or drift off and it stops and says so. A tender
+           transfers fuel and torpedoes with hoses and a crane; it is not a
+           checkpoint you drive through
+         · "until something happens" is in all three time menus, not only on
+           the panel button
+         · the native <select> is gone from the touch shell. Android drew its
+           own full-screen system picker for it, which is white, enormous and
+           nothing to do with a 1943 control room. The select stays in the DOM
+           as the source of truth — every existing change handler goes on
+           working — behind a button of our own, with a compact popover in the
+           app's colours, a tick on the current choice and a rule between the
+           time scales and the skip actions
+
+       ── finding them, and not running aground looking ────────────────
+         · THE INTERCEPT TRIANGLE. The intel board used to give the bearing
+           TO the convoy, which is a pursuit curve: you end up in her wake
+           doing her speed and never arrive. It now solves the collision
+           course — the heading that holds her on a constant bearing while
+           the range closes — and reports the time to meet. When there is no
+           solution at the speed she is making it says SURFACE AND RUN with
+           the flank answer; when there is none at all it says CANNOT BE
+           CAUGHT, which is worth as much as the course
+         · convoys used to sail a straight line out of the charted box and be
+           gone for good. They now put the helm over eight miles from the
+           boundary and work the lane back, the way real traffic shuttles
+         · hold nothing for twenty-five minutes and Fleet sends an AMPLIFYING
+           REPORT: the same convoy, freshly fixed — a third of the error and
+           hours less stale. You still have to run the intercept
+         · ULTRA fixes and contacts are clamped inside the patrol area; a plot
+           out in the blank was the clearest possible way of telling a player
+           to go somewhere that does not exist
+         · THE PATROL AREA is drawn: a dashed boundary with the six-mile
+           margin shaded, and a legend entry. The edge interrupt was a
+           CONDITION and re-fired the instant you set a course away from it,
+           which made the boundary impossible to leave under time compression.
+           It is now latched and directional: only standing OUT counts, and a
+           run started on an outbound course is allowed
+         · TOASTS ARE HELD during a transit and released as at most two lines
+           plus a count, with the reason she stopped last and longest —
+           "TRANSIT STOPPED — …" — and standing in the warnings panel for a
+           further ninety seconds
+         · SHOAL WATCH. Running the clock forward is the player saying
+           "nothing is happening", not "drive her aground". Whenever time is
+           compressed at all — a transit or any scale above 1× — less than
+           45 ft under the keel takes the way off her, drops the clock to real
+           time, pulls the ordered depth back and says why. At real time the
+           captain is left to con her himself
+
+       ── the bottom exists ────────────────────────────────────────────
+         The bathymetry grid was a colour on the chart and nothing else —
+         she would dive to 300 ft in 90 ft of water and never notice. The
+         grid is now shared with the simulation (Bathy), and the hundred
+         fathom line finally means something:
+         · depth orders are trimmed to the water actually under her, with
+           25 ft of keel clearance, and the fathometer says why
+         · touching the bottom hurts in proportion to speed and hardness —
+           easing on at half a knot settles her, nine knots onto coral
+           opens her up — and every escort in the sea hears it
+         · UNDER KEEL is a permanent read-out beside the depth, with the
+           bottom type; the order pad gives the safe depth for where she is
+         · and she can be LAID ON THE BOTTOM: all stop, everything shut
+           down, acoustic signature under 0.02 — the oldest trick in
+           shallow water. Sand and mud only, 210 ft or less, and not at
+           speed. Mud takes hold of her the longer she sits, and blowing
+           free once it has is a noise that carries
+       Touch-first responsive shell. Two layouts:
+         html[data-lay="touch"] → tablet / phone / any coarse pointer
+         html[data-lay="desk"]  → wide landscape + fine pointer
+    ══════════════════════════════════════════════════════════ */
+    :root{
+      --bg:#04090b; --panel:#0a191e; --panel2:#0f272e; --panel3:#16323a;
+      --ink:#dff7ea; --muted:#82a89a; --dim:#4f7168; --line:#26564f; --line2:#3a7d70;
+      --alert:#f5c65c; --danger:#ef6a58; --ok:#6fe08f; --info:#54b6ff;
+      --deep:#4a9eff; --shallow:#f0c35a; --port:#ff8844;
+      --mob-tab-h:60px;
+      --sat:env(safe-area-inset-top,0px);
+      --sab:env(safe-area-inset-bottom,0px);
+      --sal:env(safe-area-inset-left,0px);
+      --sar:env(safe-area-inset-right,0px);
+      --r:8px;
+      --mono:ui-monospace,'SFMono-Regular',Consolas,'Roboto Mono',Monaco,'Courier New',monospace;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+    html,body{height:100%;width:100%;overflow:hidden;overscroll-behavior:none;}
+    body{
+      background:radial-gradient(ellipse at 50% 25%,#0d2429 0%,var(--bg) 70%);
+      color:var(--ink);font-family:var(--mono);
+      -webkit-user-select:none;user-select:none;
+      -webkit-text-size-adjust:100%;
+      touch-action:manipulation;
+    }
+    ::-webkit-scrollbar{width:6px;height:6px;}
+    ::-webkit-scrollbar-thumb{background:#27544d;border-radius:3px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+
+    /* ── SHARED COMPONENTS ── */
+    .panel{border:1px solid var(--line);border-radius:var(--r);
+      background:linear-gradient(180deg,rgba(18,46,53,.96),rgba(7,20,24,.96));
+      box-shadow:inset 0 1px 0 rgba(120,220,180,.06),0 2px 10px rgba(0,0,0,.45);}
+    .ptitle{color:var(--alert);font-size:11px;letter-spacing:1.4px;text-transform:uppercase;
+      border-bottom:1px solid var(--line);padding-bottom:5px;margin:2px 0 9px;display:flex;
+      justify-content:space-between;align-items:center;}
+    .cgroup{margin-bottom:12px;}
+    .cgroup label{display:flex;justify-content:space-between;align-items:baseline;
+      color:var(--muted);font-size:12px;margin-bottom:2px;}
+    .cgroup label strong{color:var(--ink);font-size:14px;}
+    input[type=range]{width:100%;accent-color:var(--ok);background:transparent;}
+    button{width:100%;margin:3px 0;background:linear-gradient(180deg,#14343c,#0d242a);
+      border:1px solid var(--line);border-radius:6px;
+      color:var(--ink);padding:7px 8px;font-family:inherit;cursor:pointer;
+      text-transform:uppercase;letter-spacing:1px;font-size:11px;transition:transform .06s,background .12s,border-color .12s;}
+    button:active{transform:scale(.97);background:#1d4650;}
+    @media (hover:hover){button:hover{background:#1a414a;border-color:var(--line2);}}
+    button.danger{border-color:#7d3b34;color:#ffd9d5;background:linear-gradient(180deg,#3a1a17,#240f0d);}
+    button.danger:active{background:#5a2723;}
+    button.go{border-color:#2f7d4b;color:#c9ffd8;background:linear-gradient(180deg,#123a25,#0a2216);}
+    button.on{border-color:var(--alert);color:var(--alert);background:linear-gradient(180deg,#3d3116,#211a08);}
+    .note{color:var(--muted);font-size:11px;line-height:1.4;margin-top:6px;}
+    .orders-grid{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:12px;margin-bottom:8px;}
+    .orders-grid .lbl{color:var(--muted);}
+    .orders-grid .val{color:var(--ink);text-align:right;}
+    .orders-grid .val.changed{color:var(--alert);}
+    .dmg-row{display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:11px;}
+    .dmg-lbl{width:74px;color:var(--muted);flex-shrink:0;}
+    .dmg-bar-wrap{flex:1;height:9px;border:1px solid var(--line);background:#04090b;border-radius:5px;overflow:hidden;}
+    .dmg-bar-fill{height:100%;transition:width .3s;}
+    .dmg-val{width:34px;text-align:right;color:var(--ink);}
+    .readout{display:grid;grid-template-columns:1fr auto;gap:4px 8px;font-size:12px;}
+    .readout span{color:var(--muted);}
+    .res-bar{height:10px;border:1px solid var(--line);background:#04090b;margin:3px 0 9px;border-radius:5px;overflow:hidden;}
+    .res-bar i{display:block;height:100%;background:linear-gradient(90deg,#2b6a55,#6fe08f);transition:width .4s;}
+    .log-entry{border-bottom:1px dotted rgba(130,168,154,.16);padding:2px 0;}
+    .warn{color:var(--alert);} .bad{color:var(--danger);}
+    @keyframes blink{50%{opacity:.35;}}
+
+    /* ── TOASTS ── */
+    #toastContainer{position:fixed;top:calc(var(--sat) + 10px);left:50%;transform:translateX(-50%);
+      z-index:300;display:flex;flex-direction:column;gap:6px;pointer-events:none;min-width:min(300px,86vw);max-width:92vw;}
+    /* On touch the clock/time-skip control lives in the 42px top bar. Toasts
+       start below it instead of covering the selector the player may need next. */
+    html[data-lay="touch"] #toastContainer{top:calc(var(--sat) + 52px);}
+    .toast{background:rgba(9,26,31,.97);border:1px solid var(--line);border-radius:6px;padding:9px 16px;
+      font-size:12.5px;letter-spacing:.4px;text-align:center;backdrop-filter:blur(4px);
+      box-shadow:0 4px 18px rgba(0,0,0,.6);
+      animation:toastIn .18s ease-out,toastOut .3s ease-in var(--toast-hold,2s) forwards;}
+    .toast.ok{border-color:var(--ok);color:var(--ok);}
+    .toast.warn{border-color:var(--alert);color:var(--alert);}
+    .toast.bad{border-color:var(--danger);color:var(--danger);}
+    @keyframes toastIn{from{opacity:0;transform:translateY(-10px) scale(.96);}to{opacity:1;transform:none;}}
+    @keyframes toastOut{from{opacity:1;}to{opacity:0;}}
+
+    /* ── HOTKEY OVERLAY ── */
+    #hotkeyOverlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:180;
+      display:none;align-items:center;justify-content:center;}
+    #hotkeyOverlay.open{display:flex;}
+    #hotkeyBox{background:#0a191e;border:1px solid var(--line);border-radius:10px;padding:22px 26px;
+      max-width:680px;width:92%;max-height:86vh;overflow-y:auto;column-count:2;column-gap:28px;}
+    #hotkeyBox h2{color:var(--alert);font-size:14px;letter-spacing:2px;margin-bottom:14px;column-span:all;}
+    .hk-section{break-inside:avoid;margin-bottom:14px;}
+    .hk-title{color:var(--alert);font-size:11px;letter-spacing:1px;text-transform:uppercase;
+      border-bottom:1px solid var(--line);padding-bottom:3px;margin-bottom:6px;}
+    .hk-row{display:flex;justify-content:space-between;gap:16px;font-size:12px;padding:2px 0;}
+    .hk-key{background:#14343c;border:1px solid var(--line);padding:1px 7px;border-radius:4px;
+      color:var(--alert);font-size:11px;white-space:nowrap;flex-shrink:0;}
+    .hk-desc{color:var(--muted);}
+    #hotkeyBox .close-btn{column-span:all;margin-top:14px;width:auto;padding:10px 24px;
+      border-color:var(--ok);color:var(--ok);}
+
+    /* ── DAY / NIGHT + GYRO (live inside canvas holder) ── */
+    #dayNightBar{position:absolute;top:10px;left:10px;width:120px;height:10px;
+      border:1px solid var(--line);background:#020608;z-index:3;border-radius:6px;overflow:hidden;}
+    #dayNightFill{height:100%;transition:width .5s,background .5s;}
+    #dayNightLabel{position:absolute;top:23px;left:12px;font-size:10px;color:var(--muted);z-index:3;
+      text-shadow:0 1px 3px #000;}
+    #gyroIndicator{position:absolute;bottom:12px;right:12px;width:110px;height:110px;z-index:3;pointer-events:none;}
+
+    /* ── TORPEDO DEPTH ROW ── */
+    .torp-depth-row{display:flex;align-items:center;gap:8px;margin:4px 0 8px;}
+    .torp-depth-row label{color:var(--muted);font-size:12px;white-space:nowrap;min-width:96px;}
+    .torp-depth-row input{flex:1;accent-color:var(--ok);}
+    .torp-depth-row strong{color:var(--ink);font-size:12px;min-width:38px;text-align:right;}
+
+    /* ── OVERLAYS: SCENARIO + BRIEFING ── */
+    #scenarioOverlay{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:150;
+      display:none;align-items:center;justify-content:center;flex-direction:column;
+      padding:calc(var(--sat) + 8px) 8px calc(var(--sab) + 8px);}
+    #scenarioOverlay.open{display:flex;}
+    #scenarioBox{background:#0a191e;border:1px solid var(--line);border-radius:10px;padding:0;
+      max-width:860px;width:100%;max-height:100%;overflow:hidden;display:flex;flex-direction:column;}
+    .scen-header{padding:14px 18px 12px;border-bottom:1px solid var(--line);display:flex;
+      justify-content:space-between;align-items:center;flex-shrink:0;gap:10px;}
+    .scen-header h2{color:var(--alert);font-size:13px;letter-spacing:1.6px;text-transform:uppercase;}
+    .scen-tabs{display:flex;border-bottom:1px solid var(--line);flex-shrink:0;}
+    .scen-tab{flex:1;padding:13px 6px;text-align:center;font-size:12px;letter-spacing:1px;text-transform:uppercase;
+      color:var(--muted);cursor:pointer;border:none;border-radius:0;background:none;font-family:inherit;
+      border-right:1px solid var(--line);margin:0;}
+    .scen-tab:last-child{border-right:none;}
+    .scen-tab.active{color:var(--alert);background:rgba(245,198,92,.08);box-shadow:inset 0 -2px 0 var(--alert);}
+    .scen-body{overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch;}
+    .area-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;padding:14px;}
+    .area-card{border:1px solid var(--line);border-radius:8px;background:#061014;padding:14px;cursor:pointer;
+      transition:border-color .15s,background .15s;}
+    .area-card:active{border-color:var(--alert);}
+    .area-card.selected{border-color:var(--ok);background:#0a1f1c;box-shadow:0 0 0 1px var(--ok) inset;}
+    .area-card h3{color:var(--alert);font-size:13px;letter-spacing:1px;margin-bottom:6px;}
+    .area-card .area-desc{color:var(--muted);font-size:11px;line-height:1.5;margin-bottom:8px;}
+    .area-card .area-stats{display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:11px;}
+    .area-card .area-stats span:nth-child(odd){color:var(--muted);}
+    .area-card .area-stats span:nth-child(even){color:var(--ink);}
+    .area-card .area-diff{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;letter-spacing:1px;margin-top:6px;}
+    .diff-easy{background:rgba(111,224,143,.14);color:var(--ok);border:1px solid var(--ok);}
+    .diff-med{background:rgba(245,198,92,.14);color:var(--alert);border:1px solid var(--alert);}
+    .diff-hard{background:rgba(239,106,88,.14);color:var(--danger);border:1px solid var(--danger);}
+    .hist-list{padding:14px;display:flex;flex-direction:column;gap:10px;}
+    .hist-card{border:1px solid var(--line);border-radius:8px;background:#061014;padding:12px 14px;cursor:pointer;}
+    .hist-card:active{border-color:var(--alert);}
+    .hist-card h3{color:var(--ink);font-size:12.5px;margin-bottom:4px;}
+    .hist-card .hist-date{color:var(--alert);font-size:11px;margin-bottom:6px;}
+    .hist-card .hist-desc{color:var(--muted);font-size:11px;line-height:1.5;}
+    .save-grid{padding:14px;display:flex;flex-direction:column;gap:10px;}
+    .save-slot{border:1px solid var(--line);border-radius:8px;background:#061014;padding:11px 13px;
+      display:flex;justify-content:space-between;align-items:center;gap:10px;}
+    .save-slot .slot-info{flex:1;min-width:0;}
+    .save-slot .slot-name{color:var(--ink);font-size:12px;margin-bottom:3px;}
+    .save-slot .slot-meta{color:var(--muted);font-size:11px;}
+    .save-slot .slot-btns{display:flex;gap:6px;flex-shrink:0;}
+    .save-slot .slot-btns button{width:auto;padding:9px 13px;font-size:11px;margin:0;}
+    .scen-footer{padding:10px 14px calc(10px + var(--sab));border-top:1px solid var(--line);
+      display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;}
+    .scen-footer button{width:auto;padding:12px 22px;font-size:12px;margin:0;}
+
+    #briefingOverlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;
+      display:flex;align-items:center;justify-content:center;padding:14px;}
+    #briefingBox{background:#0a191e;border:1px solid var(--alert);border-radius:10px;padding:22px 24px;
+      max-width:520px;width:100%;max-height:88vh;overflow-y:auto;}
+    #briefingBox h2{color:var(--alert);font-size:14px;letter-spacing:2px;margin-bottom:14px;}
+    #briefingBox p{color:var(--muted);font-size:12.5px;line-height:1.65;margin-bottom:10px;}
+    #briefingBox strong{color:var(--ink);}
+    #briefingBox button{width:100%;padding:14px;margin-top:12px;border-color:var(--ok);color:var(--ok);font-size:12px;}
+
+    /* ── VERSION CHIP ──────────────────────────────────────────────────
+       Small, dim, always there. When a player writes in to say something is
+       broken, the first thing you need is which build they are running. */
+    .verchip{font-size:9.5px;letter-spacing:.6px;color:var(--dim);
+      border:1px solid var(--line);border-radius:999px;padding:1px 6px;
+      margin-left:7px;white-space:nowrap;flex-shrink:0;opacity:.85;
+      font-variant-numeric:tabular-nums;cursor:pointer;
+      -webkit-tap-highlight-color:transparent;}
+    .verchip:active{color:var(--ok);border-color:var(--ok);}
+    .verchip.upd{color:var(--alert);border-color:var(--alert);opacity:1;}
+
+    /* ── UPDATE BAR ── */
+    #updBar{position:fixed;left:8px;right:8px;z-index:80;display:none;
+      bottom:calc(var(--mob-tab-h) + 10px + var(--sab));
+      border:1px solid var(--alert);border-radius:10px;padding:10px 12px;
+      background:linear-gradient(180deg,rgba(38,30,10,.97),rgba(14,11,4,.97));
+      box-shadow:0 8px 26px rgba(0,0,0,.6);font-size:12px;color:var(--ink);
+      align-items:center;gap:10px;}
+    #updBar.on{display:flex;}
+    #resumeBar{position:fixed;left:8px;right:8px;top:calc(var(--sat) + 10px);z-index:82;
+      display:none;align-items:center;gap:10px;padding:10px 12px;
+      border:1px solid var(--ok);border-radius:10px;font-size:12px;color:var(--ink);
+      background:linear-gradient(180deg,rgba(10,38,30,.98),rgba(4,16,14,.98));
+      box-shadow:0 8px 26px rgba(0,0,0,.65);}
+    #resumeBar.on{display:flex;}
+    #resumeBar span{flex:1;line-height:1.45;}
+    #resumeBar button{margin:0;width:auto;padding:8px 14px;min-height:40px;flex-shrink:0;}
+    #resumeNo{border-color:var(--line);color:var(--muted);}
+    #resumeYes{border-color:var(--ok);color:#cfffdd;}
+    html[data-lay="desk"] #resumeBar{left:auto;right:16px;width:460px;}
+    #updBar span{flex:1;line-height:1.45;}
+    #updBar button{margin:0;width:auto;padding:8px 14px;min-height:40px;flex-shrink:0;}
+    #updLater{border-color:var(--line);color:var(--muted);}
+    html[data-lay="desk"] #updBar{left:auto;right:16px;bottom:16px;width:420px;}
+
+    /* ── SONAR PING ── */
+    #sonarPing{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+      width:0;height:0;border-radius:50%;border:3px solid var(--ok);opacity:0;pointer-events:none;z-index:50;}
+    #sonarPing.ping{animation:sonarAnim .8s ease-out forwards;}
+    @keyframes sonarAnim{0%{width:0;height:0;opacity:.8;margin:0;}100%{width:220px;height:220px;opacity:0;margin:-110px -110px;}}
+
+    /* ── TUTORIAL COACH CARD ── */
+    #coach{position:fixed;left:8px;right:8px;bottom:calc(var(--mob-tab-h) + 70px + var(--sab));
+      z-index:60;display:none;border:1px solid var(--line2);border-radius:10px;
+      background:linear-gradient(180deg,rgba(14,38,45,.985),rgba(6,17,21,.985));
+      box-shadow:0 6px 26px rgba(0,0,0,.6);padding:10px 12px 12px;backdrop-filter:blur(4px);}
+    #coach.on{display:block;}
+    #coach.up{bottom:auto;top:calc(var(--sat) + 78px);}
+    #coach h4{color:var(--alert);font-size:12px;letter-spacing:1.2px;text-transform:uppercase;
+      display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:7px;}
+    #coach h4 #tutProg{color:var(--dim);font-size:10px;letter-spacing:1px;flex-shrink:0;}
+    #tutBody{font-size:12px;line-height:1.6;color:var(--muted);max-height:26vh;overflow-y:auto;}
+    #tutBody b{color:var(--ink);}
+    #tutGoal{margin-top:8px;font-size:12px;color:var(--alert);border-top:1px solid var(--line);padding-top:7px;}
+    #tutGoal.done{color:var(--ok);}
+    #tutGoal .tick{display:inline-block;width:15px;}
+    #coach .row{display:flex;gap:8px;margin-top:9px;}
+    #coach .row button{margin:0;min-height:44px;}
+    #tutQuit{flex:0 0 34%;border-color:var(--line);color:var(--muted);}
+    #tutNext{flex:1;border-color:var(--ok);color:#cfffdd;}
+    @keyframes tutPulse{0%,100%{box-shadow:0 0 0 0 rgba(245,198,92,.6);}50%{box-shadow:0 0 0 7px rgba(245,198,92,0);}}
+    .tut-hl{animation:tutPulse 1.6s ease-out infinite;border-radius:12px;}
+    @media (orientation:landscape){
+      html[data-lay="touch"] #coach{right:auto;width:min(52%,440px);
+        bottom:calc(var(--mob-tab-h) + 54px + var(--sab));}
+      html[data-lay="touch"] #coach.up{top:auto;bottom:calc(var(--mob-tab-h) + 54px + var(--sab));}
+      #tutBody{max-height:19vh;}
+    }
+    html[data-lay="desk"] #coach{left:auto;right:16px;bottom:16px;width:390px;}
+
+    /* ── COACH: collapsed "peek" strip ──────────────────────────────────
+       On a phone held upright the card was eating the controls it was
+       telling you to press. So the whole header row is a grip: tap it and
+       the card folds down to a single line — step title, tick, progress —
+       which is all you need once you have read the instruction. It unfolds
+       again on a tap, on the next step, and the moment the step is done. */
+    #coachBar{cursor:pointer;-webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;user-select:none;}
+    #coachChev{color:var(--dim);font-size:11px;flex-shrink:0;margin-left:2px;
+      transition:transform .18s ease;display:inline-block;}
+    #coach.min #coachChev{transform:rotate(-90deg);}
+    #coach.min{padding:8px 12px 9px;}
+    #coach.min h4{margin-bottom:0;}
+    #coach.min #tutBody,#coach.min .row{display:none;}
+    #coach.min #tutGoal{margin-top:6px;padding-top:6px;font-size:11.5px;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    #coach.min #tutGoal:empty{display:none;}
+    /* portrait phones: never let the card own more than a corner of the screen */
+    @media (orientation:portrait){
+      html[data-lay="touch"] #coach{left:6px;right:6px;
+        bottom:calc(var(--mob-tab-h) + 10px + var(--sab));}
+      html[data-lay="touch"] #coach.up{top:calc(var(--sat) + 64px);bottom:auto;}
+      html[data-lay="touch"] #tutBody{max-height:22vh;}
+      html[data-lay="touch"] #coach{box-shadow:0 8px 30px rgba(0,0,0,.72);}
+    }
+    /* a highlighted control must never sit under the card */
+    .tut-hl{position:relative;z-index:61;}
+
+    /* ══════════════════════════════════════════════
+       DESKTOP LAYOUT
+    ══════════════════════════════════════════════ */
+    html[data-lay="desk"] #touchShell{display:none !important;}
+    html[data-lay="desk"] #desktopShell{
+      display:grid;height:100vh;
+      grid-template-columns:270px 1fr 310px;
+      grid-template-rows:52px 1fr 38px 128px;
+      gap:6px;padding:6px;
+    }
+    html[data-lay="desk"] #deskHeader{grid-column:1/4;display:flex;align-items:center;
+      justify-content:space-between;padding:0 14px;}
+    html[data-lay="desk"] #deskHeader h1{font-size:15px;letter-spacing:2px;text-transform:uppercase;color:var(--alert);}
+    .hstatus{display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap;align-items:center;}
+    .hstatus strong{color:var(--ink);}
+    .hstatus button{width:auto;margin:0;padding:6px 10px;font-size:10px;letter-spacing:1px;
+      border-color:var(--alert);color:var(--alert);}
+    html[data-lay="desk"] #deskBridge{grid-column:1;grid-row:2;padding:10px;overflow-y:auto;}
+    html[data-lay="desk"] #deskCanvas{grid-column:2;grid-row:2;position:relative;padding:6px;}
+    html[data-lay="desk"] #mainCanvas{width:100%;height:100%;display:block;background:#03090b;
+      border:1px solid #1f403c;border-radius:4px;cursor:crosshair;}
+    html[data-lay="desk"] #stationTabs{position:absolute;top:12px;right:12px;display:flex;gap:4px;z-index:4;}
+    html[data-lay="desk"] #stationTabs button{padding:6px 10px;font-size:11px;background:rgba(16,42,49,.92);width:auto;margin:0;}
+    html[data-lay="desk"] #stationTabs button.active{border-color:var(--alert);color:var(--alert);}
+    html[data-lay="desk"] #deskRight{grid-column:3;grid-row:2;display:flex;flex-direction:column;gap:6px;overflow:hidden;}
+    html[data-lay="desk"] #deskOrders{flex:0 0 auto;padding:10px;overflow-y:auto;max-height:40%;}
+    html[data-lay="desk"] #deskDamage{flex:0 0 auto;padding:10px;overflow-y:auto;max-height:30%;}
+    html[data-lay="desk"] #deskGauges{flex:1 1 auto;padding:10px;overflow-y:auto;}
+    html[data-lay="desk"] #deskAlert{grid-column:1/4;grid-row:3;padding:0 12px;overflow:hidden;
+      display:flex;align-items:center;gap:8px;font-size:12px;letter-spacing:1px;white-space:nowrap;
+      background:linear-gradient(90deg,rgba(18,9,9,.96),rgba(32,17,9,.96));}
+    #deskAlert .normal,#tAlert .normal{color:var(--ok);}
+    #deskAlert .warn,#tAlert .warn{color:var(--alert);}
+    #deskAlert .critical,#tAlert .critical{color:var(--danger);animation:blink 1s step-end infinite;}
+    html[data-lay="desk"] #deskLog{grid-column:1/4;grid-row:4;padding:8px 12px;overflow-y:auto;
+      font-size:12px;line-height:1.35;color:var(--muted);}
+
+    /* ══════════════════════════════════════════════
+       TOUCH LAYOUT  (tablet / phone — portrait & landscape)
+    ══════════════════════════════════════════════ */
+    html[data-lay="touch"] #desktopShell{display:none !important;}
+    html[data-lay="touch"] #touchShell{
+      display:flex;flex-direction:column;
+      position:fixed;top:0;left:0;right:0;
+      height:100vh;height:100dvh;height:var(--appH,100dvh);
+      padding:var(--sat) var(--sar) var(--sab) var(--sal);
+      overflow:hidden;
+    }
+
+    /* Top bar */
+    #tTop{flex:0 0 auto;height:42px;display:flex;align-items:center;gap:8px;
+      padding:0 8px;border-bottom:1px solid var(--line);
+      background:linear-gradient(180deg,rgba(20,50,58,.97),rgba(8,20,24,.97));}
+    #tTop .brand{color:var(--alert);font-size:11px;letter-spacing:1.5px;white-space:nowrap;
+      text-transform:uppercase;flex-shrink:0;}
+    #tTop .tstats{display:flex;gap:10px;font-size:11px;color:var(--muted);
+      flex:1;justify-content:flex-end;overflow:hidden;white-space:nowrap;}
+    #tTop .tstats strong{color:var(--ink);}
+    #tTop .tbtn{width:34px;height:32px;flex:0 0 auto;margin:0;padding:0;font-size:15px;
+      display:flex;align-items:center;justify-content:center;}
+    #tTop .tsel{flex:0 0 auto;height:32px;margin:0;padding:0 4px;font-size:11px;
+      background:linear-gradient(180deg,#14343c,#0d242a);border:1px solid var(--line);
+      border-radius:6px;color:var(--alert);font-family:inherit;letter-spacing:.5px;
+      max-width:96px;-webkit-appearance:none;appearance:none;text-align:center;}
+
+    /* Alert strip */
+    #tAlert{flex:0 0 auto;height:26px;display:flex;align-items:center;padding:0 10px;gap:8px;
+      font-size:11px;white-space:nowrap;overflow:hidden;
+      background:linear-gradient(90deg,rgba(18,9,9,.95),rgba(32,17,9,.95));
+      border-bottom:1px solid var(--line);}
+
+    /* Stage — canvas + floating controls */
+    #tStage{flex:1 1 auto;position:relative;min-height:0;overflow:hidden;}
+    html[data-lay="touch"] #deskCanvas{position:absolute;inset:0;padding:0;border:none;
+      background:none;box-shadow:none;border-radius:0;}
+    html[data-lay="touch"] #mainCanvas{width:100%;height:100%;display:block;background:#03090b;
+      touch-action:none;border:none;}
+    html[data-lay="touch"] #stationTabs{display:none;}
+    html[data-lay="touch"] #gyroIndicator{width:82px;height:82px;bottom:auto;top:62px;right:10px;opacity:.95;}
+    html[data-lay="touch"] #gyroIndicator.off{display:none;}
+
+    #transitBar{position:absolute;left:50%;top:46px;transform:translateX(-50%);z-index:12;
+      display:none;align-items:center;gap:10px;padding:7px 10px 7px 14px;border-radius:20px;
+      background:rgba(8,24,28,.94);border:1px solid var(--alert);box-shadow:0 4px 18px rgba(0,0,0,.6);
+      font-size:11.5px;color:var(--alert);letter-spacing:.5px;white-space:nowrap;}
+    #transitBar.on{display:flex;}
+    #transitBar button{width:auto;margin:0;padding:6px 12px;font-size:10.5px;
+      border-color:var(--danger);color:#ffd9d5;}
+
+    /* Floating overlay clusters on the stage */
+    .ovl{position:absolute;z-index:5;display:flex;gap:6px;pointer-events:none;}
+    .ovl > *{pointer-events:auto;}
+    #ovlStations{top:8px;right:8px;flex-direction:row;background:rgba(6,16,20,.82);
+      border:1px solid var(--line);border-radius:20px;padding:3px;backdrop-filter:blur(3px);}
+    #ovlStations button{width:auto;margin:0;padding:8px 13px;font-size:10.5px;border:none;
+      border-radius:16px;background:none;color:var(--muted);letter-spacing:1px;}
+    #ovlStations button.active{background:linear-gradient(180deg,#3d3116,#241a09);color:var(--alert);
+      box-shadow:0 0 0 1px rgba(245,198,92,.5) inset;}
+    @media(max-width:430px){
+      #ovlStations button{padding:7px 9px;font-size:9.5px;letter-spacing:.7px;}
+    }
+    #oGunFire{border-color:#7d3b34;color:#ffd9d5;background:rgba(60,18,14,.92);}
+    #oGunFire.ready{border-color:var(--ok);color:#dbffe6;background:rgba(10,62,35,.92);}
+    #ovlLeft{left:8px;bottom:8px;flex-direction:column;gap:10px;}
+    #ovlRight{right:8px;bottom:8px;flex-direction:column;align-items:flex-end;gap:10px;}
+    .rbtn{width:58px;height:58px;border-radius:50%;margin:0;padding:0;font-size:20px;
+      display:flex;align-items:center;justify-content:center;letter-spacing:0;
+      background:rgba(8,22,27,.86);border:1px solid var(--line);backdrop-filter:blur(3px);
+      box-shadow:0 2px 10px rgba(0,0,0,.5);}
+    .rbtn small{font-size:8px;letter-spacing:0;display:block;color:var(--muted);}
+    .rbtn.on{border-color:var(--alert);color:var(--alert);background:rgba(60,44,10,.9);}
+    .rbtn.hot{border-color:var(--danger);color:#ffd9d5;background:rgba(60,18,14,.9);}
+    #btnFire{width:74px;height:74px;font-size:12px;letter-spacing:1px;flex-direction:column;
+      border-color:#7d3b34;color:#ffd9d5;background:radial-gradient(circle at 50% 40%,#5c231d,#2a0d0a);}
+    #btnFire.ready{border-color:var(--ok);color:#dbffe6;
+      background:radial-gradient(circle at 50% 40%,#175232,#0a2216);animation:firePulse 1.6s ease-in-out infinite;}
+    #btnFire .sol{font-size:10px;color:var(--muted);}
+    #btnFire.ready .sol{color:var(--ok);}
+    @keyframes firePulse{50%{box-shadow:0 0 16px rgba(111,224,143,.45);}}
+
+    /* Attack HUD chip */
+    #tdcChip{position:absolute;left:8px;top:8px;z-index:5;display:none;
+      background:rgba(6,16,20,.85);border:1px solid var(--line);border-radius:8px;
+      padding:6px 9px;font-size:10.5px;line-height:1.5;color:var(--muted);backdrop-filter:blur(3px);
+      max-width:56%;}
+    #tdcChip.on{display:block;}
+    #tdcChip b{color:var(--ink);}
+    html[data-lay="touch"] #dayNightBar,
+    html[data-lay="touch"] #dayNightLabel{display:none;}
+
+    /* Quick status strip */
+    #tQS{flex:0 0 auto;display:flex;background:rgba(6,16,20,.96);border-top:1px solid var(--line);}
+    .qs-cell{flex:1;padding:4px 2px;text-align:center;border-right:1px solid rgba(38,86,79,.5);min-width:0;}
+    .qs-cell:last-child{border-right:none;}
+    .qs-l{color:var(--dim);font-size:8px;display:block;letter-spacing:.6px;}
+    .qs-v{font-size:13px;font-weight:bold;color:var(--ok);display:block;overflow:hidden;text-overflow:ellipsis;}
+    .qs-v.w{color:var(--alert);} .qs-v.d{color:var(--danger);animation:blink 1s step-end infinite;}
+    .qs-ord{display:block;font-size:8.5px;color:var(--alert);letter-spacing:.4px;height:10px;line-height:10px;}
+    .qs-cell.tapcell{cursor:pointer;-webkit-tap-highlight-color:transparent;
+      background:linear-gradient(180deg,rgba(245,198,92,.055),transparent);}
+    .qs-cell.tapcell .qs-l{color:var(--alert);opacity:.8;}
+    .qs-cell.tapcell.pressed{background:rgba(245,198,92,.22);}
+    .qs-cell.tapcell.open{background:rgba(245,198,92,.16);box-shadow:0 -2px 0 var(--alert) inset;}
+
+    /* ══ ORDER PAD ══════════════════════════════════════════════════════
+       The two orders a skipper gives constantly are depth and speed, and
+       they were buried behind a tab and a slider nobody dragged. Now the
+       DEPTH and SPEED read-outs in the permanent strip ARE the control:
+       tap the number, get a pad of big buttons over the picture, tap once
+       more, it closes. Presets for the orders that have names, steppers for
+       everything between. */
+    #orderPad{position:fixed;left:6px;right:6px;z-index:70;display:none;
+      bottom:calc(var(--mob-tab-h) + 46px + 6px + var(--sab));
+      border:1px solid var(--alert);border-radius:12px;padding:8px 10px 10px;
+      background:linear-gradient(180deg,rgba(12,32,38,.985),rgba(5,15,19,.985));
+      box-shadow:0 10px 34px rgba(0,0,0,.72);backdrop-filter:blur(5px);}
+    #orderPad.on{display:block;animation:opIn .13s ease-out;}
+    @keyframes opIn{from{transform:translateY(10px);opacity:0;}to{transform:none;opacity:1;}}
+    .op-head{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+    .op-head #opTitle{color:var(--alert);font-size:12px;letter-spacing:1.4px;text-transform:uppercase;flex:0 0 auto;}
+    .op-head .op-now{flex:1;color:var(--muted);font-size:11px;letter-spacing:.4px;}
+    .op-head button{width:34px;min-height:34px;margin:0;padding:0;flex:0 0 auto;
+      border-color:var(--line);color:var(--muted);font-size:13px;}
+    .op-body{display:none;} .op-body.on{display:block;}
+    .op-row{display:flex;gap:6px;margin-bottom:6px;}
+    .op-row button{flex:1;margin:0;min-height:46px;font-size:12px;padding:4px 2px;}
+    .op-row.op-step button{flex:0 0 auto;width:58px;font-size:13px;}
+    .op-val{flex:1;display:flex;align-items:center;justify-content:center;
+      font-size:19px;font-weight:bold;color:var(--ok);font-variant-numeric:tabular-nums;
+      border:1px solid var(--line);border-radius:8px;background:rgba(4,14,17,.7);}
+    .op-note{font-size:10.5px;color:var(--dim);line-height:1.45;margin-top:2px;}
+
+    /* ══ IN-APP DROP-DOWNS ══════════════════════════════════════════════
+       A native <select> on Android opens a full-screen system picker: white,
+       enormous, and nothing to do with a 1943 control room. The select stays
+       in the DOM as the source of truth — every existing change handler goes
+       on working — but it is hidden behind a button of our own, and the list
+       is a compact popover in the app's own colours. */
+    .pk{position:relative;display:inline-flex;}
+    .pk > select{position:absolute;inset:0;opacity:0;pointer-events:none;}
+    .pk-btn{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+      font:inherit;font-size:11px;color:var(--ink);padding:6px 9px;margin:0;
+      background:linear-gradient(180deg,#0d2229,#071216);
+      border:1px solid var(--line);border-radius:8px;min-height:36px;}
+    .pk-btn::after{content:'▾';color:var(--dim);font-size:10px;margin-left:1px;}
+    .pk-btn.open{border-color:var(--alert);color:var(--alert);}
+    #pkMenu{position:fixed;z-index:120;display:none;min-width:168px;max-width:min(84vw,300px);
+      max-height:min(60vh,420px);overflow-y:auto;-webkit-overflow-scrolling:touch;
+      border:1px solid var(--alert);border-radius:10px;padding:4px;
+      background:linear-gradient(180deg,rgba(12,32,38,.99),rgba(5,15,19,.99));
+      box-shadow:0 10px 34px rgba(0,0,0,.75);}
+    #pkMenu.on{display:block;}
+    #pkMenu button{display:block;width:100%;text-align:left;margin:0;
+      font:inherit;font-size:12px;color:var(--ink);background:transparent;
+      border:none;border-radius:7px;padding:9px 10px;min-height:40px;}
+    #pkMenu button.sel{background:rgba(245,198,92,.18);color:var(--alert);}
+    #pkMenu button.sel::before{content:'✓ ';}
+    #pkMenu button:not(.sel)::before{content:'\00a0\00a0';}
+    #pkMenu hr{border:none;border-top:1px solid var(--line2);margin:4px 6px;}
+    #pkVeil{position:fixed;inset:0;z-index:119;display:none;}
+    #pkVeil.on{display:block;}
+
+    /* ══ HELM INSTRUMENTS ═══════════════════════════════════════════════ */
+    #helmGauges{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;justify-content:center;
+      align-items:flex-start;}
+    /* the value being set, kept off the dial and away from the hand */
+    #hgChip{position:fixed;left:50%;transform:translateX(-50%) scale(.96);
+      top:calc(var(--sat) + 52px);z-index:95;display:none;pointer-events:none;
+      padding:7px 16px 8px;border:1px solid var(--alert);border-radius:12px;
+      background:rgba(6,18,22,.97);box-shadow:0 6px 22px rgba(0,0,0,.7);
+      text-align:center;transition:transform .1s ease;}
+    #hgChip.on{display:block;transform:translateX(-50%) scale(1);}
+    #hgChip.low{top:auto;bottom:calc(var(--mob-tab-h) + var(--sab) + 14px);}
+    #hgChip span{display:block;font-size:8.5px;letter-spacing:1.4px;color:var(--dim);}
+    #hgChip b{display:block;font-size:26px;line-height:1.1;color:var(--alert);
+      font-variant-numeric:tabular-nums;}
+    .hg{position:relative;flex:0 0 auto;min-width:0;max-width:100%;}
+    .hg.focus{flex-basis:100%;}
+    .hg canvas{display:block;width:100%;height:auto;touch-action:none;}
+    .hg-t{position:absolute;left:50%;top:2px;transform:translateX(-50%);
+      font-size:8.5px;letter-spacing:1.3px;text-transform:uppercase;color:var(--dim);
+      padding:2px 8px;border:1px solid var(--line2);border-radius:99px;
+      background:rgba(4,12,15,.8);cursor:pointer;}
+    .hg.focus .hg-t{color:var(--alert);border-color:var(--alert);}
+    @media (orientation:landscape){ .hg{flex:1 1 30%;} }
+
+    /* ══ INTEL BOARD ═══════════════════════════════════════════════════
+       A stack of signals is a filing cabinet, not intelligence. This is the
+       one thing the skipper wants: everything he knows about, nearest at
+       the top, each with a range, a bearing to steer, and how old the fix
+       is — because a two-hour-old position is a guess and it should look
+       like one. */
+    .intel-row{display:flex;align-items:center;gap:8px;padding:7px 8px;margin-bottom:5px;
+      border:1px solid var(--line);border-left-width:3px;border-radius:7px;
+      background:rgba(8,22,26,.75);}
+    .intel-row.ultra{border-left-color:#7fbcff;}
+    .intel-row.contact{border-left-color:var(--ok);}
+    .intel-row.escort{border-left-color:var(--danger);}
+    .intel-rng{flex:0 0 auto;text-align:center;min-width:56px;}
+    .intel-rng b{display:block;font-size:16px;color:var(--ink);line-height:1.05;font-variant-numeric:tabular-nums;}
+    .intel-rng span{font-size:8.5px;color:var(--dim);letter-spacing:.5px;}
+    .intel-main{flex:1;min-width:0;}
+    .intel-main b{font-size:11.5px;color:var(--ink);display:block;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .intel-main span{font-size:10px;color:var(--muted);}
+    .intel-age{flex:0 0 auto;font-size:9.5px;text-align:right;line-height:1.35;}
+    .intel-age .fresh{color:var(--ok);} .intel-age .stale{color:var(--alert);}
+    .intel-age .cold{color:var(--danger);}
+    .intel-empty{font-size:11px;color:var(--dim);padding:4px 2px;}
+    .intel-ic{display:block;margin-top:2px;font-size:10px;}
+    .intel-ic b{font-weight:bold;letter-spacing:.4px;}
+    .ic-go{color:var(--ok);} .ic-warn{color:var(--alert);} .ic-no{color:var(--danger);}
+    .sig-new{display:inline-block;background:var(--alert);color:#1a1405;font-size:8.5px;
+      border-radius:3px;padding:0 4px;margin-left:6px;letter-spacing:.6px;vertical-align:1px;}
+    .sig-age{color:var(--dim);font-size:9.5px;float:right;}
+    /* the sliders stay as a fine adjustment, but they are no longer the
+       only way to give the order — the steppers above them are */
+    .stepline button{font-size:13px;}
+    input[type=range].fine{opacity:.62;height:26px;}
+    html[data-lay="desk"] #orderPad{display:none !important;}
+    @media (orientation:landscape){
+      html[data-lay="touch"] #orderPad{left:auto;right:8px;width:min(62%,520px);}
+    }
+
+    /* Tab bar */
+    #tTabs{flex:0 0 auto;height:var(--mob-tab-h);display:flex;
+      border-top:1px solid var(--line2);
+      background:linear-gradient(0deg,rgba(3,9,11,.99),rgba(9,22,27,.98));}
+    .mob-tab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;
+      background:none;border:none;border-radius:0;border-right:1px solid rgba(38,86,79,.5);
+      color:var(--muted);font-size:9px;letter-spacing:.6px;text-transform:uppercase;
+      padding:4px 2px;width:auto;margin:0;position:relative;}
+    .mob-tab:last-child{border-right:none;}
+    .mob-tab .ti{font-size:20px;line-height:1.15;}
+    .mob-tab.active{color:var(--alert);background:rgba(245,198,92,.08);}
+    .mob-tab.active::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--alert);}
+    /* ── PRESS FEEDBACK ────────────────────────────────────────────────
+       Glass gives the finger nothing back. These two rules are the whole
+       difference between "the button does nothing" and "the boat heard me". */
+    .mob-tab.pressed{background:rgba(245,198,92,.20);color:var(--alert);
+      transform:scale(.94);transition:transform .06s ease;}
+    #touchShell button.pressed,#touchShell .rbtn.pressed{
+      transform:scale(.955);filter:brightness(1.55);
+      box-shadow:0 0 0 2px rgba(111,224,143,.55) inset;
+      transition:transform .05s ease,filter .05s ease;}
+    #touchShell button,#touchShell .rbtn{transition:transform .16s ease,filter .16s ease;}
+
+    .t-badge{display:none;position:absolute;top:3px;right:calc(50% - 26px);
+      background:var(--danger);color:#fff;border-radius:9px;font-size:9px;padding:1px 5px;min-width:16px;text-align:center;}
+    .t-badge.on{display:block;}
+    .t-badge.ok{background:var(--ok);color:#062;}
+
+    /* Sheets — slide over the stage, canvas stays visible */
+    #tSheet{position:absolute;left:0;right:0;bottom:var(--mob-tab-h);
+      height:58%;z-index:20;display:flex;flex-direction:column;
+      background:linear-gradient(180deg,rgba(12,32,38,.985),rgba(5,14,18,.99));
+      border-top:1px solid var(--line2);
+      box-shadow:0 -8px 26px rgba(0,0,0,.55);
+      transform:translateY(calc(100% + var(--mob-tab-h) + var(--sab) + 24px));
+      visibility:hidden;pointer-events:none;
+      transition:transform .24s cubic-bezier(.4,0,.2,1),visibility 0s linear .24s;
+      will-change:transform;}
+    #tSheet.open{transform:translateY(0);visibility:visible;pointer-events:auto;
+      transition:transform .24s cubic-bezier(.4,0,.2,1),visibility 0s;}
+    #tSheetHead{flex:0 0 auto;height:38px;display:flex;align-items:center;justify-content:space-between;
+      padding:0 12px;border-bottom:1px solid var(--line);}
+    #tSheetHead .st{color:var(--alert);font-size:11px;letter-spacing:1.6px;text-transform:uppercase;}
+    #tSheetHead button{width:auto;margin:0;padding:6px 12px;font-size:11px;}
+    #tSheetBody{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 12px 18px;}
+    .sheet-pane{display:none;}
+    .sheet-pane.active{display:block;}
+
+    /* Touch-friendly controls inside sheets */
+    #tSheetBody button{min-height:46px;font-size:11.5px;padding:10px 8px;}
+    #tSheetBody input[type=range]{height:36px;margin:2px 0 8px;}
+    #tSheetBody select{width:100%;background:#14343c;border:1px solid var(--line);border-radius:6px;
+      color:var(--ink);padding:12px;font-family:inherit;font-size:12px;margin-bottom:8px;}
+    .g2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0;}
+    .g3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:4px 0;}
+    .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:4px 0;}
+    .g2 button,.g3 button,.g4 button{margin:0;}
+    .stepper{display:flex;align-items:center;gap:6px;margin:2px 0 6px;}
+    .stepper button{width:46px;height:46px;flex:0 0 auto;margin:0;font-size:18px;padding:0;}
+    .stepper .sv{flex:1;text-align:center;font-size:20px;color:var(--ink);letter-spacing:1px;}
+    .stepper .sv small{display:block;font-size:9px;color:var(--muted);letter-spacing:1px;}
+
+    /* Tube tiles */
+    .tubes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:4px 0 8px;}
+    .tube{border:1px solid var(--line);border-radius:6px;background:#0c2229;padding:8px 4px;
+      text-align:center;font-size:10px;color:var(--muted);min-height:56px;
+      display:flex;flex-direction:column;justify-content:center;gap:2px;}
+    .tube b{font-size:13px;color:var(--ink);display:block;}
+    .tube.ready{border-color:var(--ok);color:var(--ok);background:#0c2a1c;}
+    .tube.ready b{color:var(--ok);}
+    .tube.flooded{border-color:var(--info);color:var(--info);}
+    .tube.empty{border-color:#5a2723;color:var(--danger);opacity:.75;}
+    .tube:active{transform:scale(.96);}
+
+    /* Landscape: sheet becomes a side drawer */
+    @media (orientation:landscape){
+      html[data-lay="touch"] #tSheet{
+        left:auto;right:0;top:0;bottom:0;width:min(44%,430px);height:auto;
+        border-top:none;border-left:1px solid var(--line2);
+        transform:translateX(calc(100% + 24px));
+        box-shadow:-8px 0 26px rgba(0,0,0,.55);
+      }
+      html[data-lay="touch"] #tSheet.open{transform:translateX(0);visibility:visible;pointer-events:auto;}
+      html[data-lay="touch"] #tTop{height:38px;}
+      html[data-lay="touch"] #tAlert{height:22px;font-size:10px;}
+      html[data-lay="touch"] #tTabs{height:52px;}
+      html[data-lay="touch"] .mob-tab .ti{font-size:17px;}
+      html[data-lay="touch"] .qs-v{font-size:12px;}
+    }
+
+    /* Very small phones */
+    @media (max-width:380px){
+      #tTop .brand{display:none;}
+      .rbtn{width:46px;height:46px;font-size:17px;}
+      #btnFire{width:64px;height:64px;}
+    }
+    /* Big tablets get slightly larger type */
+    @media (min-width:820px){
+      html[data-lay="touch"] .qs-v{font-size:15px;}
+      html[data-lay="touch"] .qs-l{font-size:9px;}
+      html[data-lay="touch"] #tTop{height:48px;}
+      html[data-lay="touch"] #tTop .brand{font-size:12.5px;}
+      html[data-lay="touch"] #tAlert{height:30px;font-size:12px;}
+      html[data-lay="touch"] #tSheetBody{padding:14px 16px 24px;}
+      html[data-lay="touch"] .rbtn{width:66px;height:66px;font-size:23px;}
+      html[data-lay="touch"] #btnFire{width:82px;height:82px;}
+    }
+    @media (prefers-reduced-motion:reduce){
+      *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
+    }

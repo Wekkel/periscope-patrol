@@ -1,0 +1,121 @@
+// ═══════════════════════════════════════════════════ DESKTOP DOM VIEW
+class DomView{
+  constructor(){
+    this.clock=document.getElementById('clock');
+    this.mode=document.getElementById('mode');
+    this.station=document.getElementById('station');
+    this.timescale=document.getElementById('timescale');
+    this.hArea=document.getElementById('hArea');
+    this.hScore=document.getElementById('hScore');
+    this.ordersGrid=document.getElementById('ordersGrid');
+    this.missionStatus=document.getElementById('missionStatus');
+    this.damageReport=document.getElementById('damageReport');
+    this.gaugeReadout=document.getElementById('gaugeReadout');
+    this.batteryBar=document.getElementById('batteryBar');
+    this.fuelBar=document.getElementById('fuelBar');
+    this.hullBar=document.getElementById('hullBar');
+    this.alertEl=document.getElementById('deskAlert');
+    this.logEl=document.getElementById('deskLog');
+  }
+  render(state){
+    const sub=state.playerSub; const p=sub.propulsion; const tdc=state.tdc;
+    if(this.clock) this.clock.textContent=Math.floor(state.time.elapsedSeconds).toString().padStart(5,'0');
+    if(this.mode)  this.mode.textContent=sub.mode;
+    if(this.station) this.station.textContent=state.tactical.activeStation;
+    if(this.timescale) this.timescale.textContent=state.time.timeScale===0?'PAUSED':`${state.time.timeScale}x`;
+    const tsel=document.getElementById('timeSelect');
+    if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale) tsel.value=String(state.time.timeScale);
+    if(this.hArea)  this.hArea.textContent=state.campaign.patrolArea;
+    if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
+    document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
+    const dg=state.weapons.deckGun,db=document.getElementById('deckGunManningButton'),ds=document.getElementById('deckGunStatus');
+    if(db&&dg)db.textContent=dg.manned?`Secure 3"/50 Deck Gun (${dg.ammo} rds)`:`🔫 Man 3"/50 Deck Gun (${dg.ammo} rds)`;
+    if(ds&&dg)ds.textContent=`${dg.manned?'CREW TOPSIDE':'secured'} · train ${dg.trainDeg.toFixed(1)}° · elev ${dg.elevationDeg.toFixed(1)}° · ammo ${dg.ammo} · drag 3D view to aim`;
+    this.renderAlerts(state);
+    this.renderOrders(sub,state);
+    this.renderDamage(sub);
+    this.renderGauges(sub,state);
+    if(this.batteryBar) this.batteryBar.style.width=`${p.battery}%`;
+    if(this.fuelBar)    this.fuelBar.style.width=`${p.fuel}%`;
+    if(this.hullBar)    this.hullBar.style.width=`${sub.damage.hullIntegrity}%`;
+    if(this.logEl) this.logEl.innerHTML=state.log.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join('');
+  }
+  renderAlerts(state){
+    const W=state.playerSub.damage.warnings||[{level:'normal',text:'SYSTEMS NOMINAL'}];
+    if(this.alertEl) this.alertEl.innerHTML=W.map(w=>`<span class="${w.level}">${w.text}</span>`).join('<span style="color:#2f5f56"> ▪ </span>');
+  }
+  renderOrders(sub,state){
+    if(!this.ordersGrid) return;
+    const p=sub.propulsion; const tdc=state.tdc;
+    const ch=(a,b)=>Math.abs(a-b)>0.5;
+    const row=(l,c,o,f)=>`<span class="lbl">${l}</span><span class="val ${ch(c,o)?'changed':''}">${f(c)} → ${f(o)}</span>`;
+    this.ordersGrid.innerHTML=
+      row('Heading',sub.heading,sub.orderedHeading,fmtDeg)+
+      row('Depth',sub.depthFeet,sub.orderedDepthFeet,v=>`${v.toFixed(0)}ft`)+
+      row('RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
+      `<span class="lbl">Speed</span><span class="val">${p.speedKnots.toFixed(1)} kn</span>`+
+      `<span class="lbl">Engine</span><span class="val">${p.engineMode}</span>`+
+      `<span class="lbl">Ballast</span><span class="val">${sub.ballastState}</span>`+
+      `<span class="lbl">Silent</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
+      `<span class="lbl">TDC</span><span class="val">${tdc.status}</span>`+
+      `<span class="lbl">Solution</span><span class="val">${Math.round(tdc.solutionQuality*100)}%</span>`+
+      `<span class="lbl">Gyro</span><span class="val">${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'}</span>`+
+      `<span class="lbl">AoB</span><span class="val">${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'}</span>`+
+      `<span class="lbl">TtI</span><span class="val">${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'}</span>`+
+      `<span class="lbl">Torps</span><span class="val">${state.weapons.torpedoInventory} reserve</span>`+
+      `<span class="lbl">Hits/Duds</span><span class="val">${state.weapons.hits.length}/${(state.weapons.duds||[]).length}</span>`;
+
+    // Tube status
+    const te=document.getElementById('tubeStatusDisplay');
+    if(te) te.innerHTML=state.weapons.tubes.map(t=>{
+      const col=t.status==='READY'?'var(--ok)':t.status==='EMPTY'?'var(--danger)':'var(--muted)';
+      const pct=t.status==='EMPTY'?` ${Math.round(t.reloadProgress*100)}%`:'';
+      return `<span style="color:${col}">T${t.id}[${t.pos}]:${t.status.replace('LOADED_DRY','LOADED')}${pct}</span>`;
+    }).join('<br>');
+
+    // TDC note
+    const ne=document.getElementById('tdcSolutionNote');
+    if(ne){
+      const sq=Math.round(tdc.solutionQuality*100);
+      const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||{};
+      const dudPct=Math.round((spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)*100);
+      const ri=torpedoRangeInfo(state,tdc.targetId);
+      ne.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');
+      ne.textContent=tdc.targetId
+        ?`${tdc.status} — Sol:${sq}% · ${ri?`${ri.label} · R ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}Dud:${dudPct}% · ${tdc.torpedoType}`
+        :'No target.';
+    }
+
+    const camp=state.campaign;
+    if(this.missionStatus) this.missionStatus.innerHTML=
+      `<strong style="color:var(--alert)">${camp.missionStatus}</strong><br>`+
+      camp.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
+      `<br><span style="color:var(--muted);font-size:10px;">Tonnage: ${camp.tonnageSunk.toLocaleString()}t | #${camp.patrolNumber} | Career: ${camp.totalScore}</span>`;
+  }
+  renderDamage(sub){
+    if(!this.damageReport) return;
+    const d=sub.damage;
+    const bar=(l,v)=>{const col=v>0.65?'#e36b5d':v>0.3?'#f0c35a':'#7be08f';
+      return `<div class="dmg-row"><span class="dmg-lbl">${l}</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${(v*100).toFixed(0)}%;background:${col}"></div></div><span class="dmg-val">${(v*100).toFixed(0)}%</span></div>`;};
+    const hc=d.hullIntegrity<30?'#e36b5d':d.hullIntegrity<60?'#f0c35a':'#7be08f';
+    this.damageReport.innerHTML=
+      `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
+      bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
+      bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
+      `<div class="dmg-row"><span class="dmg-lbl">Oxygen</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#e36b5d':d.oxygen<50?'#f0c35a':'#7be08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`;
+  }
+  renderGauges(sub,state){
+    if(!this.gaugeReadout) return;
+    const p=sub.propulsion;
+    this.gaugeReadout.innerHTML=
+      `<span>Contacts</span><strong>${Object.keys(state.world.contactTracks).length}</strong>`+
+      `<span>Visibility</span><strong>${state.world.environment.visibilityNm.toFixed(1)} nm</strong>`+
+      `<span>Enemy alert</span><strong>${state.world.enemy.alertState}</strong>`+
+      `<span>DCs active</span><strong>${state.world.depthCharges.length}</strong>`+
+      `<span>Noise sig</span><strong>${sub.stealth.acousticSignature.toFixed(2)}</strong>`+
+      `<span>Shallow</span><strong style="color:${sub.inShallowWater?'var(--alert)':'var(--muted)'}">${sub.inShallowWater?'YES':'NO'}</strong>`+
+      `<span>Score</span><strong>${state.campaign.score.toLocaleString()}</strong>`+
+      `<span>Area</span><strong>${state.campaign.patrolArea}</strong>`;
+  }
+}
+
