@@ -78,7 +78,9 @@ const SHELL = [
   'js/simulation/career-history.js',
   'js/simulation/ai/asw-brain.js',
   'js/simulation/surface-watch.js',
-  'js/rendering/bridge-3d.js'
+  'js/rendering/bridge-3d.js',
+  'js/simulation/sound-radar.js',
+  'js/rendering/sound-room.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
