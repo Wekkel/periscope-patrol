@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.4'; // full refactoring of the game with split of code into file structure.
+const VERSION = '0.8.5'; // fase 1 changes
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
@@ -72,6 +72,8 @@ const SHELL = [
   './js/pwa/version.js',
   './js/persistence/autosave.js',
   './js/bootstrap/start.js',
+  'js/simulation/collision/hull-geometry.js',
+  'js/simulation/collision/vessel-collision.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
