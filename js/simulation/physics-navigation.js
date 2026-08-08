@@ -1,4 +1,4 @@
-class SimEngine extends SimEngineASW {
+class SimEngine extends SimEngineCollision {
   snapshotWatch(){
     const s=this.state;
     s.time._watch={
@@ -55,6 +55,8 @@ class SimEngine extends SimEngineASW {
     const s=this.state, w=s.time._watch;
     if(!w) return 'ok';
     if(s.playerSub.mode==='SUNK') return 'the boat is lost';
+    const collisionRisk=this.collisionRiskAhead(90);
+    if(collisionRisk) return this.collisionRiskText(collisionRisk);
     if(s.playerSub.damage.hullIntegrity<w.hull-0.5) return 'the boat has taken damage';
     if(s.world.enemy.alertState!==w.alert&&s.world.enemy.alertState!=='UNAWARE') return 'the escorts are stirring';
     if(Object.keys(s.world.contactTracks).length>w.tracks) return 'a new contact';
@@ -144,10 +146,11 @@ class SimEngine extends SimEngineASW {
   // ── CORE PHYSICS ──
   updateSub(dt){
     const sub=this.state.playerSub;
+    this.captureCollisionFrame();
     this.updateHeading(sub,dt); this.updateDepth(sub,dt); this.updatePropulsion(sub,dt);
     this.updatePosition(sub,dt);
     this.applyTerrainEffects(sub,dt);
-    this.updateWorld(dt); this.updateSigs(sub); this.updateHarbor(dt);
+    this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
     this.updateDetection(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
@@ -310,6 +313,7 @@ class SimEngine extends SimEngineASW {
   updateWorld(dt){
     const elapsed=this.state.time.elapsedSeconds;
     this.updateConvoyNavigation();
+    this.surfaceAvoidance();
     for(const c of this.state.world.contacts){
       if(c.sunk) continue;
       if(c.stationary){c.speedKnots=0;c.desiredSpeed=0;continue;}

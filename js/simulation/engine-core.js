@@ -6,6 +6,9 @@ class SimEngineCore{
     this.ensureWorldExtensions();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
+    // Manual 8x/16x/32x hands the conn back before a predicted vessel collision.
+    // Transit/skip uses transitInterrupt(), which reports the same hull-aware CPA.
+    if(!this.state.time.transitUntil&&(this.state.time.timeScale||1)>1&&this.compressedCollisionWatch?.()) return;
     if(total<=0) return;
     // Never integrate more than a second at a time, whatever the time scale:
     // a torpedo at 46 knots covers 24 m per second and the hit test would
@@ -660,6 +663,7 @@ class SimEngineCore{
     const prevPatrol=s.campaign.patrolNumber||1;
     // Reset world
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];
+    s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};
     s.weapons.activeTorpedoes=[]; s.weapons.explosions=[]; s.weapons.hits=[];
     s.world.enemy={alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
       searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0};

@@ -1,0 +1,14 @@
+PASS: JavaScript syntaxcheck — {"files":47}
+PASS: patrol start — {"area":"Truk Approaches","pos":{"xNm":10,"yNm":30},"contacts":10,"recenterSeq":1,"seqAdvanced":true}
+PASS: new patrol raises map recenter state signal — 1
+PASS: MAP consumes recenter signal and centers on ownship — {"follow":true,"x":10,"y":30,"matches":true}
+PASS: MAP renderer route — {"TACTICAL":1,"MAP":1,"PERISCOPE":1,"DECK_GUN":1}
+PASS: periscope command + renderer route — {"station":"PERISCOPE","bearing":90}
+PASS: time compression — 8
+PASS: save/load roundtrip — {"saved":true,"heading":137,"area":"Truk Approaches"}
+PASS: torpedo flood/fire — {"tubeStatus":"EMPTY","activeBefore":0,"activeAfter":1}
+PASS: deck gun auto-man + fire + renderer — {"station":"DECK_GUN","manned":true,"ammoBefore":120,"ammoAfter":119,"shells":1}
+PASS: baseline: Truk harbor visible to MAP before radio intel — {"radioInbox":0,"harborPresent":true,"harborDrawCalls":1}
+PASS: baseline: damage control remains one aggregate active state — {"active":true,"values":{"flooding":0.4738095238095238,"ballastDamage":0.4857142857142857,"motorDamage":0.48928571428571427,"rudderDamage":0.4869047619047619,"periscopeDamage":0.4916666666666667}}
+PASS: baseline: career persistence keys remain score/patrols/tonnage only — ["patrols","tonnage","totalScore"]
+PHASE 0 CONTRACT: PASS

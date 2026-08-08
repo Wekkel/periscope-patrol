@@ -62,18 +62,12 @@ class SimEngineDeckGun extends SimEngineAircraft {
   }
 
   segmentShipGunHit(a,b,c){
-    const lenNm=(c.lengthYards||400)*0.9144/NM_M;
-    const halfL=lenNm*0.5, halfB=lenNm/(c.type==='ESCORT'?10.5:7.2)*0.5;
-    const h=degToRad(c.heading||0),fx=Math.sin(h),fy=-Math.cos(h),px=-fy,py=fx;
-    const local=q=>{const dx=q.xNm-c.position.xNm,dy=q.yNm-c.position.yNm;return{x:dx*fx+dy*fy,y:dx*px+dy*py};};
-    const p0=local(a),p1=local(b),dx=p1.x-p0.x,dy=p1.y-p0.y;
-    let u0=0,u1=1;
-    const clip=(p,q)=>{if(Math.abs(p)<1e-12)return q>=0;const r=q/p;if(p<0){if(r>u1)return false;if(r>u0)u0=r;}else{if(r<u0)return false;if(r<u1)u1=r;}return true;};
-    if(!clip(-dx,p0.x+halfL)||!clip(dx,halfL-p0.x)||!clip(-dy,p0.y+halfB)||!clip(dy,halfB-p0.y))return null;
-    const z=a.zM+(b.zM-a.zM)*u0;
+    const hit=HullGeometry.segmentHullIntersection(a,b,shipHull(c));
+    if(!hit)return null;
+    const z=a.zM+(b.zM-a.zM)*hit.u;
     const tall=/CARRIER/i.test(c.displayType||'')?32:/CRUISER/i.test(c.displayType||'')?24:c.type==='ESCORT'?15:c.type==='TANKER'?22:19;
-    if(z<-1||z>tall) return null;
-    return{u:u0,z,along:p0.x+dx*u0,lateral:p0.y+dy*u0,lenNm,halfB};
+    if(z<-1||z>tall)return null;
+    return{...hit,z};
   }
 
   deckGunFallText(pos,bearing){

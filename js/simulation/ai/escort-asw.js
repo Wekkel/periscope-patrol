@@ -120,16 +120,10 @@ class SimEngineASW extends SimEngineSensors {
           audio.playDepthCharge(0.9);
         }
       }
-      // ramming: she will run the boat down if you let her get alongside
-      if(rng<0.12&&sub.depthFeet<20&&(esc.ramCooldown||0)<=0){
-        esc.ramCooldown=90;
-        const dmg=32+Math.random()*30;
-        this.applyShock(dmg);
-        this.log(`${esc.name} RAMMED THE BOAT — ${dmg.toFixed(0)}% damage!`,'bad');
-        audio.playHit();
-      }
+      // Ramming has no proximity trigger here. An escort may still drive at a
+      // surfaced boat, but damage is produced only by the shared swept hull
+      // collision model when the two physical hulls actually meet.
     } else esc.gunTimer=0;
-    esc.ramCooldown=Math.max(0,(esc.ramCooldown||0)-dt);
   }
 
   /* A pattern is rolled off the stern and thrown out by the K-guns, all fused

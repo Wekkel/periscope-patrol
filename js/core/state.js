@@ -42,7 +42,7 @@ function createState(areaKey){
       estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true,
       recenterSeq:0},
     world:{
-      contacts:[],contactTracks:{},aircraft:[],knuckles:[],
+      contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
       aaManned:false,aaAmmo:1200,aaKills:0,aaHurt:0,
       airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,sdOn:true,nextCheck:120},
       radio:{pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0},
