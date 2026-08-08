@@ -1,0 +1,200 @@
+/* ═══════════════════════════════════════════════════ ASW BRAIN
+   Escort doctrine lives here; sensors still decide what the enemy can know.
+   The brain consumes only enemy solutions / noisy datum estimates.  It never
+   asks for ownship's true position when choosing an escort course. */
+const ASW_SCREEN_STATIONS=Object.freeze({
+  FORWARD_SCREEN:{fwd:2.4,side:0},
+  PORT_FLANK:{fwd:-0.3,side:-2.35},
+  STARBOARD_FLANK:{fwd:-0.3,side:2.35},
+  REAR_GUARD:{fwd:-3.5,side:0},
+  ROAMING_SCOUT:{fwd:0.9,side:3.25}
+});
+
+function aswYear(dateLike){
+  const m=String(dateLike||'').match(/(19\d{2})/);return m?+m[1]:1943;
+}
+function aswAreaRisk(areaKey){
+  return areaKey==='Truk Approaches'||areaKey==='Luzon Strait'?1:areaKey==='Java Sea'?-1:0;
+}
+function aswEscortCount(areaKey,merchantCount,opts={}){
+  let n=merchantCount<=2?1:merchantCount<=4?2:3;
+  n+=aswAreaRisk(areaKey);
+  const y=aswYear(opts.startDate);if(y>=1944)n++;else if(y<=1942)n--;
+  const d=String(opts.difficulty||'').toUpperCase();if(d==='HARD')n++;else if(d==='EASY')n--;
+  return clamp(n,1,4);
+}
+function aswScreenRoles(count,areaKey,opts={}){
+  if(count<=1)return['FORWARD_SCREEN'];
+  if(count===2)return['FORWARD_SCREEN','REAR_GUARD'];
+  if(count===3)return['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK'];
+  const scout=aswAreaRisk(areaKey)>0||String(opts.difficulty||'').toUpperCase()==='HARD'||aswYear(opts.startDate)>=1944;
+  return['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK',scout?'ROAMING_SCOUT':'REAR_GUARD'];
+}
+
+class SimEngineASWBrain extends SimEngineSensors{
+  ensureASWState(){
+    const W=this.state.world,e=W.enemy||(W.enemy={}),now=this.state.time.elapsedSeconds||0;
+    const A=e.asw||(e.asw={});
+    if(!Number.isFinite(A.generation))A.generation=0;
+    if(!Number.isFinite(A.roleGeneration))A.roleGeneration=0;
+    if(!Number.isFinite(A.lastFixAt))A.lastFixAt=-999;
+    if(!Number.isFinite(A.lastRoleAssignAt))A.lastRoleAssignAt=-999;
+    if(!Number.isFinite(A.searchStartedAt))A.searchStartedAt=now;
+    if(!Number.isFinite(A.searchRadiusNm))A.searchRadiusNm=.55;
+    if(!Array.isArray(A.pingEvents))A.pingEvents=[];
+    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);
+    const fallback=aswScreenRoles(escorts.length,this.state.campaign.patrolArea,{startDate:this.state.campaign.startDate,difficulty:this.state.campaign.difficulty});
+    for(let i=0;i<escorts.length;i++){
+      const x=escorts[i];
+      if(!ASW_SCREEN_STATIONS[x.screenRole])x.screenRole=fallback[i]||'REAR_GUARD';
+      if(!x.aswRole)x.aswRole='SCREEN';
+      if(!Number.isFinite(x.sonarMisses))x.sonarMisses=0;
+      if(!Number.isFinite(x.sonarContactUntil))x.sonarContactUntil=-1;
+      if(x.sonarContact===undefined)x.sonarContact=false;
+    }
+    return A;
+  }
+
+  convoyFrame(){
+    const W=this.state.world,ships=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
+    if(!ships.length)return null;
+    const lead=ships.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0];
+    return{xNm:ships.reduce((v,c)=>v+c.position.xNm,0)/ships.length,
+      yNm:ships.reduce((v,c)=>v+c.position.yNm,0)/ships.length,
+      heading:lead.desiredHeading===undefined?lead.heading:lead.desiredHeading,
+      speedKn:lead.baseSpeed||lead.speedKnots||8};
+  }
+
+  screenTarget(esc){
+    const f=this.convoyFrame();if(!f)return null;
+    const st=ASW_SCREEN_STATIONS[esc.screenRole]||ASW_SCREEN_STATIONS.REAR_GUARD;
+    let fwd=st.fwd,side=st.side;
+    if(esc.screenRole==='ROAMING_SCOUT'){
+      const p=(this.state.time.elapsedSeconds||0)/5400*Math.PI*2+(esc.roamPhase??Math.PI/2);
+      side*=.85*Math.sin(p);fwd+=.55*Math.cos(p);
+    }else{
+      const p=(this.state.time.elapsedSeconds||0)/95+(esc.formationIndex||0)*1.1;
+      side+=Math.sin(p)*.22;fwd+=Math.cos(p*.7)*.16;
+    }
+    const r=degToRad(f.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
+    return{xNm:f.xNm+fx*fwd+sx*side,yNm:f.yNm+fy*fwd+sy*side};
+  }
+
+  cueEstimate(pos,conf=0.5,reason='NOISE'){
+    const base={SHIP_HIT:.07,TORPEDO_DUD:.16,TORPEDO_LAUNCH:.28,EMERGENCY_BLOW:.18,
+      DECK_GUN:.12,COLLISION:.05,AIR_ATTACK:.34,NOISE:.46}[reason]??.32;
+    const maxErr=base*clamp(1.35-conf*.55,.65,1.25),a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*maxErr;
+    return{xNm:pos.xNm+Math.cos(a)*r,yNm:pos.yNm+Math.sin(a)*r,errNm:maxErr};
+  }
+
+  noteASWCue(pos,conf,reason){
+    const e=this.state.world.enemy,A=this.ensureASWState(),q=this.cueEstimate(pos,conf,reason),now=this.state.time.elapsedSeconds;
+    e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.lastKnownConfidence=Math.max(e.lastKnownConfidence||0,conf||0);
+    e.searchCenter={xNm:q.xNm,yNm:q.yNm};
+    A.datum={xNm:q.xNm,yNm:q.yNm,errNm:q.errNm,source:reason};A.datumAt=now;A.searchStartedAt=now;
+    A.searchRadiusNm=clamp(.45+q.errNm*1.6,.45,1.4);A.lastCue=reason;
+    this.assignASWRoles(null,true);
+    return q;
+  }
+
+  aswDatum(leadSec=0){
+    const e=this.state.world.enemy,A=this.ensureASWState();
+    const s=e.solution&&!e.solution.decoy?e.solution:null;
+    const base=s?{xNm:s.xNm,yNm:s.yNm}:{...(A.datum||e.searchCenter||e.lastKnownSubPosition||{})};
+    if(!Number.isFinite(base.xNm)||!Number.isFinite(base.yNm))return null;
+    const crs=s?.courseDeg??A.estimatedCourseDeg,spd=s?.speedKn??A.estimatedSpeedKn;
+    if(leadSec>0&&Number.isFinite(crs)&&Number.isFinite(spd)){
+      const d=knotsNmSec(clamp(spd,0,14))*leadSec,r=degToRad(crs);
+      base.xNm+=Math.sin(r)*d;base.yNm-=Math.cos(r)*d;
+    }
+    return base;
+  }
+
+  noteASWFix(esc,source='ACTIVE',quality=.7){
+    const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds,s=e.solution;
+    if(!s)return;
+    const wasHeld=!!e.contactHeld;
+    A.datum={xNm:s.xNm,yNm:s.yNm,errNm:s.errNm||.05,source};A.datumAt=now;A.lastFixAt=now;A.lastFixOwnerId=esc?.id||null;A.lastFixSource=source;
+    A.estimatedCourseDeg=s.courseDeg;A.estimatedSpeedKn=s.speedKn;A.searchRadiusNm=clamp(.25+(s.errNm||.03)*2,.25,.8);
+    e.searchCenter={xNm:s.xNm,yNm:s.yNm};e.lastKnownSubPosition={xNm:s.xNm,yNm:s.yNm};
+    if(!wasHeld||now-A.lastRoleAssignAt>50)this.assignASWRoles(esc?.id,true);
+    if(!wasHeld){
+      this.log(`ESCORT HAS CONTACT — ${esc?.name||'escort'} has a firm ${source==='VISUAL'?'visual':'sonar'} solution.`,'bad');
+      A.generation++;
+    }
+    return quality;
+  }
+
+  loseASWContact(){
+    const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
+    A.searchStartedAt=now;A.searchRadiusNm=clamp(.45+(e.solution?.errNm||A.datum?.errNm||.08)*2,.45,1.2);
+    const d=this.aswDatum();if(d){e.searchCenter={xNm:d.xNm,yNm:d.yNm};A.datum={...A.datum,...d};}
+    this.assignASWRoles(null,true);
+    this.log('ASW plot: firm contact lost; escorts are widening the search box.');
+  }
+
+  assignASWRoles(preferredId=null,force=false){
+    const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
+    if(!force&&now-A.lastRoleAssignAt<8)return;
+    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);if(!escorts.length)return;
+    if(e.alertState==='UNAWARE'||!this.aswDatum()){
+      for(const x of escorts)x.aswRole='SCREEN';A.lastRoleAssignAt=now;return;
+    }
+    const datum=this.aswDatum(),withCharges=escorts.filter(x=>(x.dcRemaining===undefined?28:x.dcRemaining)>=SONAR.patternSize);
+    let prosecutor=withCharges.find(x=>x.id===preferredId)||withCharges.slice().sort((a,b)=>distNm(a.position,datum)-distNm(b.position,datum))[0]||null;
+    for(const x of escorts)x.aswRole='SWEEP';
+    if(prosecutor)prosecutor.aswRole='PROSECUTOR';
+    let rem=escorts.filter(x=>x!==prosecutor);
+    if(escorts.length>=4){
+      const frame=this.convoyFrame();let guard=rem.find(x=>x.screenRole==='REAR_GUARD');
+      if(!guard&&frame)guard=rem.slice().sort((a,b)=>distNm(a.position,frame)-distNm(b.position,frame))[0];
+      if(guard){guard.aswRole='CONVOY_GUARD';rem=rem.filter(x=>x!==guard);}
+    }
+    if(rem.length){
+      const c=rem.slice().sort((a,b)=>distNm(a.position,datum)-distNm(b.position,datum))[0];c.aswRole='CONTAINMENT';rem=rem.filter(x=>x!==c);
+    }
+    for(const x of rem)x.aswRole='SWEEP';
+    A.roleGeneration++;A.lastRoleAssignAt=now;
+    A.roles=Object.fromEntries(escorts.map(x=>[x.id,x.aswRole]));
+    this.log(`ASW roles: ${escorts.map(x=>`${x.id} ${x.aswRole.replace('_',' ')}`).join(' · ')}`);
+  }
+
+  updateASWBrain(dt){
+    const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
+    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);
+    for(const x of escorts)if(x.sonarContact&&now>(x.sonarContactUntil||-1))x.sonarContact=false;
+    if(e.alertState==='UNAWARE'){
+      if(escorts.some(x=>x.aswRole!=='SCREEN'))this.assignASWRoles(null,true);
+      return;
+    }
+    if(e.solution&&!e.solution.decoy){
+      A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;
+      A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:e.solution.errNm||.05,source:A.lastFixSource||'PLOT'};
+    }
+    if(e.alertState==='SEARCHING'){
+      const lost=Math.max(0,now-(A.lastFixAt>-900?A.lastFixAt:A.searchStartedAt));
+      A.searchRadiusNm=clamp((A.searchRadiusNm||.55)+dt*(.0085+Math.min(lost,360)/360*.006),.45,5.5);
+      const d=this.aswDatum();if(d)e.searchCenter={xNm:d.xNm,yNm:d.yNm};
+    }
+  }
+
+  searchTarget(esc){
+    const e=this.state.world.enemy,A=this.ensureASWState(),datum=this.aswDatum();if(!datum)return this.screenTarget(esc);
+    const role=esc.aswRole||'SWEEP',r=clamp(A.searchRadiusNm||.7,.4,5.5),t=(e.searchPhase||0),course=e.solution?.courseDeg??A.estimatedCourseDeg??0;
+    if(role==='CONVOY_GUARD'||role==='SCREEN')return this.screenTarget(esc)||datum;
+    if(role==='CONTAINMENT'){
+      const rr=1.15+Math.min(1.0,r*.35),a=degToRad(course),side=(esc.formationIndex||0)%2?1:-1;
+      return{xNm:datum.xNm+Math.sin(a)*rr+Math.cos(a)*side*.35,yNm:datum.yNm-Math.cos(a)*rr+Math.sin(a)*side*.35};
+    }
+    if(role==='SWEEP'){
+      // Parallel sweep: long legs across the likely escape axis, each pass moved
+      // outward as the search box grows.
+      const leg=Math.floor(t/55+(esc.formationIndex||0))%4,along=leg<2?-r:r;
+      const cross=((t%55)/55*2-1)*r*(leg%2===0?1:-1),a=degToRad(course),sx=Math.cos(a),sy=Math.sin(a),fx=Math.sin(a),fy=-Math.cos(a);
+      return{xNm:datum.xNm+fx*along+sx*cross,yNm:datum.yNm+fy*along+sy*cross};
+    }
+    // Prosecutor uses an expanding square centred on the dead-reckoned datum.
+    const leg=Math.floor(t/38)%4,dirs=[0,90,180,270],rings=1+Math.floor(t/152),rr=Math.min(r,.45+rings*.42),a=degToRad(normDeg(course+dirs[leg]));
+    return{xNm:datum.xNm+Math.sin(a)*rr,yNm:datum.yNm-Math.cos(a)*rr};
+  }
+}

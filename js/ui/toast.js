@@ -8,7 +8,7 @@
      AMBER  everything else worth a glance but not a reaction
    Order matters: red is tested first, so "she has lost you" reads green
    but "ATTACKING" stays red even in the same sentence.                */
-const TOAST_RED   = /depth charge|DEPTH CHARGE|ATTACKING|attack run|is turning in|AIR ALARM|bomb|strafing|coming back with her guns|Men down|torpedo in the water|STAR SHELL|GROUNDING|hull impact|CANNOT DIVE|DIVE IS HELD|WILL NOT ANSWER|SHE IS ON THE BOTTOM|BOAT IS LOST|ALL STOP|Keel contact|pinging|active sonar|has sighted the boat/i;
+const TOAST_RED   = /depth charge|DEPTH CHARGE|ATTACKING|attack run|is turning in|AIR ALARM|bomb|strafing|coming back with her guns|Men down|torpedo in the water|STAR SHELL|GROUNDING|hull impact|CANNOT DIVE|DIVE IS HELD|WILL NOT ANSWER|SHE IS ON THE BOTTOM|BOAT IS LOST|ALL STOP|Keel contact|has sighted the boat/i;
 const TOAST_GREEN = /ULTRA|AMPLIFYING|HIT \+|PATROL COMPLETE|OBJECTIVE COMPLETE|Alongside|SPLASH ONE|drove her away|sheering off|turns for home|turning away|lost you|lost the contact|lost contact|Off the bottom|clear to dive|Transit complete|Rearmed/i;
 
 const Toast = {

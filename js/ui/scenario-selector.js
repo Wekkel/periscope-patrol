@@ -151,7 +151,7 @@ class ScenarioSelector{
       const h=HISTORICAL_SCENARIOS.find(s=>s.id===this.selHist);
       if(h){
         const aKey=Object.keys(PATROL_AREAS).find(k=>h.area.includes(k.split(' ')[0]))||'Solomon Sea';
-        this.game.dispatch({type:'NEW_PATROL',areaKey:aKey});
+        this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty});
         const s=this.game.getSnapshot();
         Object.assign(s.world.environment,h.environment);
         s.campaign.patrolBonus=h.patrolBonus;

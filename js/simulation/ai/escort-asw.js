@@ -1,173 +1,116 @@
-class SimEngineASW extends SimEngineSensors {
+class SimEngineASW extends SimEngineASWBrain {
   updateEscortBeh(esc,e,sub,W,idx,total,dt){
+    this.ensureASWState();
+    const role=esc.aswRole||'SCREEN';
     if(e.alertState==='UNAWARE'){
-      // Zigzag convoy screen patrol
-      esc.zigzagTimer=(esc.zigzagTimer||0)+dt;
-      esc.zigzagPhase=esc.zigzagPhase||0;
-      const zigzagPeriod=40+idx*12;
-      if(esc.zigzagTimer>zigzagPeriod){esc.zigzagTimer=0;esc.zigzagPhase+=Math.PI;}
-      const merchants=W.contacts.filter(c=>c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
-      if(merchants.length){
-        const cx=merchants.reduce((s,m)=>s+m.position.xNm,0)/merchants.length;
-        const cy=merchants.reduce((s,m)=>s+m.position.yNm,0)/merchants.length;
-        const convoyBear=merchants[0].heading||0;
-        const perpRad=degToRad(convoyBear+90);
-        const sideOff=Math.sin(esc.zigzagPhase)*(1.2+idx*0.6);
-        const fwdOff=1.0+idx*0.3;
-        const tgt={xNm:cx+Math.sin(degToRad(convoyBear))*fwdOff+Math.cos(perpRad)*sideOff,
-                   yNm:cy-Math.cos(degToRad(convoyBear))*fwdOff+Math.sin(perpRad)*sideOff};
-        esc.desiredHeading=bearingBetween(esc.position,tgt);
+      const tgt=this.screenTarget(esc);
+      if(tgt){
+        const err=distNm(esc.position,tgt);esc.desiredHeading=bearingBetween(esc.position,tgt);
+        const frame=this.convoyFrame();esc.desiredSpeed=clamp((frame?.speedKn||9)+2.2+err*.55,7,17);
       }
-      esc.desiredSpeed=10+Math.sin(esc.zigzagPhase)*2.5;
       return;
     }
-    const sc=e.searchCenter||e.lastKnownSubPosition||sub.position;
-    if(e.alertState==='SEARCHING'){
-      if(e.searchPattern==='EXPANDING_SQUARE'){
-        const legLen=0.8+Math.floor(e.searchPhase/60)*0.45;
-        const leg=Math.floor(e.searchPhase/40)%4;
-        const dirs=[0,90,180,270];
-        const tgt={xNm:sc.xNm+Math.sin(degToRad(dirs[leg]))*legLen,
-                   yNm:sc.yNm-Math.cos(degToRad(dirs[leg]))*legLen};
-        esc.desiredHeading=bearingBetween(esc.position,tgt);
-      } else if(e.searchPattern==='CREEPING'){
-        // creeping attack: slow so her own screws do not blind the sonar
-        const spread=(idx-(total-1)/2)*1.2;
-        const aim=e.solution?{xNm:e.solution.xNm,yNm:e.solution.yNm}:sc;
-        esc.desiredHeading=normDeg(bearingBetween(esc.position,aim)+spread*10);
-      } else {
-        esc.desiredHeading=bearingBetween(esc.position,sc);
-      }
-      esc.desiredSpeed=e.searchPattern==='CREEPING'?8:14;
-    } else { // ATTACKING — run in on the plotted solution, not on the truth
-      if(esc.dcRemaining!==undefined&&esc.dcRemaining<SONAR.patternSize){
-        // out of charges: fall back on the convoy and stop pressing home
-        esc.desiredHeading=bearingBetween(esc.position,e.searchCenter||sub.position);
-        esc.desiredSpeed=12;
-        return;
-      }
-      // if she can see the boat on the surface she simply drives at her,
-      // opens fire, and tries to run her down
-      if(sub.depthFeet<25&&(e.visualOnSub||distNm(esc.position,sub.position)<1.6)){
-        esc.desiredHeading=bearingBetween(esc.position,sub.position);
-        esc.desiredSpeed=24;
-        esc.lastAimRange=undefined;
-        this.surfaceAction(esc,e,sub,W,dt);
-        return;
-      }
-      const sol=e.solution;
-      const raw=sol?{xNm:sol.xNm,yNm:sol.yNm}:(e.lastKnownSubPosition||sub.position);
-      // Aim where the boat will be when the charges get down to her: run-in time
-      // plus sinking time. Two passes are enough to settle the lead.
-      const lr=degToRad(sol?(sol.courseDeg||0):0);
-      const spd=sol?(sol.speedKn||0):0;
-      const sinkT=(sol&&sol.depthFt?sol.depthFt:130)/SONAR.sinkFps;
-      let drop={...raw};
-      for(let it=0;it<2;it++){
-        const toGo=distNm(esc.position,drop)/Math.max(esc.speedKnots,8)*3600;
-        const lead=spd*((toGo+sinkT)/3600);
-        drop={xNm:raw.xNm+Math.sin(lr)*lead,yNm:raw.yNm-Math.cos(lr)*lead};
-      }
-      esc.attackPoint=drop;
-      const bearToAim=bearingBetween(esc.position,drop);
-      const rngToAim=distNm(esc.position,drop);
-      esc.zigzagPhase=(esc.zigzagPhase||0)+(dt*0.18);
-      // weave only on the long approach; the last stretch is a straight run
-      const zigAmp=rngToAim>2.2?9:rngToAim>1.2?4:0;
-      const offsetDeg=(idx-(total-1)/2)*6+Math.sin(esc.zigzagPhase)*zigAmp;
-      esc.desiredHeading=normDeg(bearToAim+offsetDeg);
-      esc.desiredSpeed=rngToAim<0.9?18:22;
-      // Release as she passes over the plotted position — at the closest point
-      // of approach, not on some arbitrary radius she may never reach.
-      const prevR=esc.lastAimRange===undefined?Infinity:esc.lastAimRange;
-      esc.lastAimRange=rngToAim;
-      const passingOver=rngToAim>prevR-1e-7&&rngToAim<0.20;
-      const recent=W.depthCharges.some(dc=>dc.ownerId===esc.id&&dc.ageSec<12);
-      if((rngToAim<0.05||passingOver)&&!recent&&e.alertState==='ATTACKING'){
-        this.dropDC(esc,sub,{xNm:esc.position.xNm,yNm:esc.position.yNm});
-      }
+
+    // A guard remains with the merchant body even during an attack.  Everyone
+    // else works from the common ASW datum/solution; no course order below uses
+    // ownship's true coordinates.
+    if(role==='CONVOY_GUARD'){
+      const tgt=this.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.convoyFrame()?.speedKn||9)+2,7,16);}return;
     }
-    const rng=distNm(esc.position,sub.position);
+
+    if(e.alertState==='SEARCHING'){
+      const tgt=this.searchTarget(esc)||this.screenTarget(esc);
+      if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
+      esc.desiredSpeed=role==='PROSECUTOR'?10:role==='CONTAINMENT'?13:12;
+      this.surfaceAction(esc,e,sub,W,dt);
+      return;
+    }
+
+    // ATTACKING. Only the prosecutor presses the datum for a depth-charge run;
+    // containment and sweep ships keep their assigned geometry and can take
+    // over if they obtain the next firm echo.
+    if(role!=='PROSECUTOR'){
+      const tgt=this.searchTarget(esc)||this.aswDatum(35)||this.screenTarget(esc);
+      if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
+      esc.desiredSpeed=role==='CONTAINMENT'?16:13;
+      this.surfaceAction(esc,e,sub,W,dt);
+      return;
+    }
+
+    if(esc.dcRemaining!==undefined&&esc.dcRemaining<SONAR.patternSize){
+      this.assignASWRoles(null,true);
+      const tgt=this.screenTarget(esc)||this.aswDatum();if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;
+    }
+
+    const sol=e.solution&&!e.solution.decoy?e.solution:null,raw=this.aswDatum();
+    if(!raw){const tgt=this.searchTarget(esc)||this.screenTarget(esc);if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;}
+
+    // A visual solution can lead a surfaced run, but even then the helm follows
+    // the plotted solution rather than a hidden direct reference to ownship.
+    if(e.visualOnSub&&(sol?.depthFt??999)<30){
+      const aim=this.aswDatum(18)||raw;esc.desiredHeading=bearingBetween(esc.position,aim);esc.desiredSpeed=24;esc.lastAimRange=undefined;
+      this.surfaceAction(esc,e,sub,W,dt);return;
+    }
+
+    const lr=degToRad(sol?.courseDeg??this.ensureASWState().estimatedCourseDeg??0),spd=sol?.speedKn??this.ensureASWState().estimatedSpeedKn??0;
+    const sinkT=clamp((sol?.depthFt??130)/SONAR.sinkFps,4,34);let drop={...raw};
+    for(let it=0;it<2;it++){
+      const toGo=Math.min(300,distNm(esc.position,drop)/Math.max(esc.speedKnots,8)*3600),lead=spd*((toGo+sinkT)/3600);
+      drop={xNm:raw.xNm+Math.sin(lr)*lead,yNm:raw.yNm-Math.cos(lr)*lead};
+    }
+    esc.attackPoint=drop;
+    const bearToAim=bearingBetween(esc.position,drop),rngToAim=distNm(esc.position,drop);
+    esc.zigzagPhase=(esc.zigzagPhase||0)+(dt*.18);
+    const zigAmp=rngToAim>2.2?7:rngToAim>1.2?3:0;
+    esc.desiredHeading=normDeg(bearToAim+Math.sin(esc.zigzagPhase)*zigAmp);esc.desiredSpeed=rngToAim<.9?18:22;
+    const prevR=esc.lastAimRange===undefined?Infinity:esc.lastAimRange;esc.lastAimRange=rngToAim;
+    const passingOver=rngToAim>prevR-1e-7&&rngToAim<.20,recent=W.depthCharges.some(dc=>dc.ownerId===esc.id&&dc.ageSec<12);
+    if((rngToAim<.05||passingOver)&&!recent&&e.alertState==='ATTACKING')this.dropDC(esc,sub,{xNm:esc.position.xNm,yNm:esc.position.yNm});
     this.surfaceAction(esc,e,sub,W,dt);
   }
 
-  /* Depth charges are useless against a boat on the surface: they sink for
-     seconds and burst far below her. The answer is the main battery, and if
-     she can get close enough, the bow. */
+  /* Gunfire is allowed only from an actual visual hold. The fire-control range
+     comes from the noisy enemy solution; true range is used only by the hidden
+     hit/impact model after a shot has legitimately been taken. */
   surfaceAction(esc,e,sub,W,dt){
-    const rng=distNm(esc.position,sub.position);
-    const env=W.environment;
-    const day=clamp(env.daylight,0,1);
-    const lit=this.state.time.elapsedSeconds<(e.starShellUntil||0);
-    const shallow=sub.depthFeet<25;
-    if(e.alertState==='ATTACKING'&&shallow&&sub.mode!=='SUNK'&&(e.visualOnSub||rng<1.6)){
-      // 127 mm guns reach far, but hitting a low black hull with optical fire
-      // control is another matter: by day about 4 nm, at night barely 1.5
-      // unless she puts up a star shell.
-      const gunRange=day>0.3?4.0:(lit?3.0:1.5);
+    const env=W.environment,day=clamp(env.daylight,0,1),lit=this.state.time.elapsedSeconds<(e.starShellUntil||0),sol=e.solution;
+    const shallowEstimate=(sol?.depthFt??999)<30;
+    if(e.alertState==='ATTACKING'&&e.visualOnSub&&shallowEstimate&&sub.mode!=='SUNK'&&sol){
+      const estRng=distNm(esc.position,sol),trueRng=distNm(esc.position,sub.position),gunRange=day>.3?4.0:(lit?3.0:1.5);
       esc.gunTimer=(esc.gunTimer||0)+dt;
-      if(rng<gunRange&&esc.gunTimer>8){
+      if(estRng<gunRange&&esc.gunTimer>8){
         esc.gunTimer=0;
-        const pHit=clamp(1-rng/gunRange,0,1)**1.6*(day>0.3?0.62:lit?0.5:0.34)*(1-clamp(env.seaState,0,1)*0.3);
+        const pHit=clamp(1-trueRng/gunRange,0,1)**1.6*(day>.3?.62:lit?.5:.34)*(1-clamp(env.seaState,0,1)*.3);
         if(Math.random()<pHit){
-          const dmg=4+Math.random()*11;
-          this.applyShock(dmg);
-          this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
-          this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');
-          audio.playDepthCharge(0.5);
-        }else{
-          this.log(`${esc.name} is firing — splashes ${rng>gunRange*0.6?'short':'close aboard'}.`,'warn');
-          audio.playDepthCharge(0.9);
-        }
+          const dmg=4+Math.random()*11;this.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
+          this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');audio.playDepthCharge(.5);
+        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);audio.playDepthCharge(.9);}
       }
-      // Ramming has no proximity trigger here. An escort may still drive at a
-      // surfaced boat, but damage is produced only by the shared swept hull
-      // collision model when the two physical hulls actually meet.
-    } else esc.gunTimer=0;
+    }else esc.gunTimer=0;
   }
 
-  /* A pattern is rolled off the stern and thrown out by the K-guns, all fused
-     for ONE guessed depth. Guessing that depth is the escort's hardest problem
-     — and the player's best defence. */
+  /* A depth-charge setting is made from the enemy solution. Actual ownship
+     depth is consulted only later by updateDCs(), when the physical explosion
+     is resolved. */
   dropDC(esc,sub,aim){
-    const W=this.state.world, e=W.enemy, env=W.environment;
-    // A pattern rolled on a surfaced boat would burst a hundred feet beneath
-    // her. She uses her guns for that.
-    if(sub.depthFeet<25) return;
-    const layer=env.layerDepthFt||200;
-    const belowLayer=sub.depthFeet>layer+15;
-    const sol=e.solution;
-    // depth is estimated, never known: error grows with depth and doubles below the layer
-    const base=20+sub.depthFeet*0.10+(belowLayer?58:0);
-    let skill=clamp(1-(esc.attacksMade||0)*0.11,0.45,1);        // she brackets as she keeps at it
-    if(e.contactHeld) skill*=0.55;                              // a firm echo at the moment of release
-    const err=base*skill*(0.35+Math.random()*1.15);
-    let guess=(sol&&sol.depthFt!==undefined?sol.depthFt:sub.depthFeet)+err*(Math.random()<0.5?-1:1);
-    // "She's going down — roll them shallow!" — the quick attack on a diving boat
-    const diving=sub.depthFeet<70&&sub.verticalSpeedFps>0.4;
-    guess=diving?clamp(guess,30,110):clamp(guess,45,400);
-    esc.attacksMade=(esc.attacksMade||0)+1;
-    esc.dcRemaining=(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize;
+    const W=this.state.world,e=W.enemy,env=W.environment,sol=e.solution&&!e.solution.decoy?e.solution:null;
+    const estDepth=clamp(sol?.depthFt??130,15,420);if(estDepth<25)return;
+    const layer=env.layerDepthFt||200,belowLayer=estDepth>layer+15,base=20+estDepth*.10+(belowLayer?58:0);
+    let skill=clamp(1-(esc.attacksMade||0)*.11,.45,1);if(e.contactHeld)skill*=.55;
+    const err=base*skill*(.35+Math.random()*1.15);let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
+    esc.attacksMade=(esc.attacksMade||0)+1;esc.dcRemaining=(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize;
     const hdg=degToRad(esc.heading);
     for(let i=0;i<SONAR.patternSize;i++){
-      // three rolled astern, four thrown out to either beam
-      const along=(i<3?-(i*0.012):-(0.008)), across=(i<3?0:((i%2?1:-1)*0.028*(i<5?1:1.7)));
-      const px=(aim?aim.xNm:esc.position.xNm)+Math.sin(hdg)*along+Math.cos(hdg)*across;
-      const py=(aim?aim.yNm:esc.position.yNm)-Math.cos(hdg)*along+Math.sin(hdg)*across;
-      W.depthCharges.push({
-        id:`DC-${W.nextDcId=(W.nextDcId||0)+1}`,ownerId:esc.id,
-        position:{xNm:px,yNm:py},ageSec:-i*0.9,
-        fuseSec:clamp(guess/SONAR.sinkFps,4,34),
-        targetDepthFeet:guess,status:'SINKING'
-      });
+      const along=(i<3?-(i*.012):-.008),across=(i<3?0:((i%2?1:-1)*.028*(i<5?1:1.7)));
+      const px=(aim?aim.xNm:esc.position.xNm)+Math.sin(hdg)*along+Math.cos(hdg)*across,py=(aim?aim.yNm:esc.position.yNm)-Math.cos(hdg)*along+Math.sin(hdg)*across;
+      W.depthCharges.push({id:`DC-${W.nextDcId=(W.nextDcId||0)+1}`,ownerId:esc.id,position:{xNm:px,yNm:py},ageSec:-i*.9,
+        fuseSec:clamp(guess/SONAR.sinkFps,4,34),targetDepthFeet:guess,status:'SINKING'});
     }
-    // her own explosions blind her sonar for a while — the sub's chance to slip away
-    e.sonarBlindUntil=this.state.time.elapsedSeconds+38+Math.random()*22;
-    e.contactHeld=false;
-    this.log(`${esc.name} attacking — pattern of ${SONAR.patternSize} away, set for ${guess.toFixed(0)} ft.`,'bad');
-    if(esc.dcRemaining<SONAR.patternSize){
-      this.log(`${esc.name} has expended her depth charges and is falling back.`,'warn');
-    }
+    e.sonarBlindUntil=this.state.time.elapsedSeconds+38+Math.random()*22;e.contactHeld=false;
+    for(const x of W.contacts.filter(c=>c.type==='ESCORT'))x.sonarContact=false;
+    this.log(`DEPTH CHARGES — ${esc.name} rolling ${SONAR.patternSize}, set for ${guess.toFixed(0)} ft.`,'bad');
+    this.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
+    if(esc.dcRemaining<SONAR.patternSize){this.log(`${esc.name} has expended her depth charges and is falling back.`);this.assignASWRoles(null,true);}
   }
 
   updateDCs(dt){

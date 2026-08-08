@@ -261,7 +261,7 @@ class SimEngineCore{
         this.log('Map plot cleared — manual helm.');break;
       case'MAP_STEER_TO_NEXT_WAYPOINT': this.state.map.autoFollowPlot=true; this.steerWaypoint(true); break;
       case'HEAD_TO_PORT': this.headToPort(); break;
-      case'NEW_PATROL': this.startNewPatrol(cmd.areaKey); break;
+      case'NEW_PATROL': this.startNewPatrol(cmd.areaKey,cmd); break;
     }
   }
 
@@ -663,13 +663,14 @@ class SimEngineCore{
     setTimeout(()=>this.log(`Rearmed and refueled. Ready for patrol #${camp.patrolNumber}.`)  ,3000);
   }
 
-  startNewPatrol(areaKey){
+  startNewPatrol(areaKey,options={}){
     const keys=Object.keys(PATROL_AREAS);
     const key=areaKey||keys[Math.floor(Math.random()*keys.length)];
     const area=PATROL_AREAS[key];
     const s=this.state;
     const prevTotal=s.campaign.totalScore+(s.campaign.score||0);
     const prevPatrol=s.campaign.patrolNumber||1;
+    const patrolStartDate=options.startDate||s.campaign.startDate||s.time.campaignDate||'1943-08-17';
     const careerStart=this.ensureCareerPatrolState?_careerStampFrom(s.campaign._careerStartDate||`${s.campaign.startDate||s.time.campaignDate||'1943-08-17'} 06:00`,s.campaign.patrolDuration||0):`${s.time.campaignDate||'1943-08-17'} 06:00`;
     // Reset world
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];
@@ -689,7 +690,7 @@ class SimEngineCore{
     s.tactical.selectedTrackId=null; s.tdc.targetId=null; s.tdc.solutionQuality=0;
     s.campaign={
       patrolArea:key,score:0,scenarioSeed:Math.floor(Math.random()*9999),
-      missionStatus:'PATROL',patrolNumber:prevPatrol+1,totalScore:prevTotal,
+      missionStatus:'PATROL',patrolNumber:prevPatrol+1,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
       historyId:`p${prevPatrol+1}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
       _careerStartDate:careerStart,_historyRecorded:false,_historyRecordId:null,importantEvents:[],_captainEventSeq:0,
       objectives:[
@@ -724,7 +725,7 @@ class SimEngineCore{
     s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,
       alarmedAt:-999,sdOn:true,nextCheck:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
-    s.world.contacts=this.makeConvoy(area);
+    s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
     this.setupHarbor(key);
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
@@ -794,7 +795,7 @@ class SimEngineCore{
     route.waterPath=simple;return route.waterPath;
   }
 
-  makeConvoy(area){
+  makeConvoy(area,options={}){
     const cr=area.convoyRoutes[0];
     const path=this.ensureWaterRoute(cr);
     const spawn=path[0]||cr.from, next=path[1]||cr.to;
@@ -815,6 +816,8 @@ class SimEngineCore{
     const escortTemplates=[
       {id:'E-01',name:'Escort Destroyer',type:'ESCORT',lengthYards:350,visualProfile:0.75,acousticBase:0.65,tonsFactor:0},
       {id:'E-02',name:'Patrol Vessel',type:'ESCORT',lengthYards:280,visualProfile:0.65,acousticBase:0.55,tonsFactor:0},
+      {id:'E-03',name:'Destroyer Escort',type:'ESCORT',lengthYards:306,visualProfile:0.70,acousticBase:0.60,tonsFactor:0},
+      {id:'E-04',name:'Subchaser',type:'ESCORT',lengthYards:185,visualProfile:0.55,acousticBase:0.50,tonsFactor:0},
     ];
 
     // Formation offsets: col ahead, then staggered behind, alternating sides
@@ -840,26 +843,22 @@ class SimEngineCore{
       });
     }
 
-    // Escorts: one ahead, one behind, one on each flank
-    const escortPositions=[
-      {fwd:1.5,side:0},      // vanguard
-      {fwd:-0.5,side:-2.5},  // port flank
-      {fwd:-0.5,side:2.5},   // starboard flank
-      {fwd:-4.0,side:0},     // rear guard
-    ];
-    const numEscorts=Math.min(2,escortTemplates.length);
+    // Escort strength is deliberately small and readable, but no longer fixed
+    // at two ships. Area risk, convoy size, year and scenario difficulty can
+    // move it between one and four. Their normal stations rotate with the
+    // convoy frame; the ASW brain temporarily reassigns tactical roles later.
+    const areaKey=options.areaKey||Object.keys(PATROL_AREAS).find(k=>PATROL_AREAS[k]===area)||this.state.campaign.patrolArea;
+    const numEscorts=Math.min(escortTemplates.length,aswEscortCount(areaKey,numMerchants,options));
+    const screenRoles=aswScreenRoles(numEscorts,areaKey,options);
     for(let i=0;i<numEscorts;i++){
-      const off=escortPositions[i]||{fwd:0,side:0};
-      const t=escortTemplates[i];
+      const role=screenRoles[i]||'REAR_GUARD',off=ASW_SCREEN_STATIONS[role]||{fwd:0,side:0},t=escortTemplates[i];
       contacts.push({...t,
-        position:{
-          xNm:spawn.xNm+Math.sin(crsRad)*off.fwd+Math.cos(crsRad)*off.side,
-          yNm:spawn.yNm-Math.cos(crsRad)*off.fwd+Math.sin(crsRad)*off.side
-        },
-        heading:crs+(Math.random()-0.5)*5,
-        speedKnots:spd+4+(Math.random()-0.5)*1,
-        convoyRole:'ESCORT_FWD', convoyId:'MAIN', formationIndex:i,
-        zigzagPhase:Math.random()*Math.PI*2, zigzagTimer:0
+        position:{xNm:spawn.xNm+Math.sin(crsRad)*off.fwd+Math.cos(crsRad)*off.side,
+          yNm:spawn.yNm-Math.cos(crsRad)*off.fwd+Math.sin(crsRad)*off.side},
+        heading:crs+(Math.random()-0.5)*5,speedKnots:spd+4+(Math.random()-0.5),baseSpeed:spd+3.5,
+        convoyRole:'ESCORT',convoyId:'MAIN',formationIndex:i,screenRole:role,aswRole:'SCREEN',
+        zigzagPhase:Math.random()*Math.PI*2,zigzagTimer:0,roamPhase:role==='ROAMING_SCOUT'?Math.PI/2:0,pingTimer:Math.random()*7,
+        sonarContact:false,sonarContactUntil:-1,sonarMisses:0,dcRemaining:28+Math.floor(Math.random()*20)
       });
     }
     return contacts;

@@ -110,7 +110,6 @@ class GameLoop{
             else if(entry.level==='bad'||TOAST_RED.test(m)){
               Toast.auto(m.slice(0,64)); buzz([20,60,20]);
             }
-            else if(entry.level==='warn'&&m.includes('SONAR')){Toast.bad('⚠ Active sonar ping');buzz(25);}
           }
         }
       }
