@@ -665,6 +665,11 @@
       border-radius:16px;background:none;color:var(--muted);letter-spacing:1px;}
     #ovlStations button.active{background:linear-gradient(180deg,#3d3116,#241a09);color:var(--alert);
       box-shadow:0 0 0 1px rgba(245,198,92,.5) inset;}
+    @media(max-width:430px){
+      #ovlStations button{padding:7px 9px;font-size:9.5px;letter-spacing:.7px;}
+    }
+    #oGunFire{border-color:#7d3b34;color:#ffd9d5;background:rgba(60,18,14,.92);}
+    #oGunFire.ready{border-color:var(--ok);color:#dbffe6;background:rgba(10,62,35,.92);}
     #ovlLeft{left:8px;bottom:8px;flex-direction:column;gap:10px;}
     #ovlRight{right:8px;bottom:8px;flex-direction:column;align-items:flex-end;gap:10px;}
     .rbtn{width:58px;height:58px;border-radius:50%;margin:0;padding:0;font-size:20px;
@@ -1233,6 +1238,19 @@
       <button id="fireAftButton" class="danger">Fire Aft Spread</button>
       <div id="tubeStatusDisplay" class="note" style="margin-top:4px;line-height:1.8;"></div>
     </div>
+    <div class="ptitle">Deck Gun</div>
+    <div class="cgroup">
+      <button id="deckGunManningButton">🔫 Man 3"/50 Deck Gun</button>
+      <button id="deckGunLayButton">🎯 Lay On Selected Target</button>
+      <div class="g2">
+        <button id="deckGunLeftButton">◀ Train</button><button id="deckGunRightButton">Train ▶</button>
+      </div>
+      <div class="g2">
+        <button id="deckGunUpButton">Elev +</button><button id="deckGunDownButton">Elev −</button>
+      </div>
+      <button id="deckGunFireButton" class="danger">💥 Fire Deck Gun</button>
+      <div id="deckGunStatus" class="note">Surface, man the gun, then drag the 3D view to train/elevate.</div>
+    </div>
     <div class="ptitle">Navigation</div>
     <div class="cgroup">
       <button id="clearPlotButton">Clear Map Plot</button>
@@ -1240,7 +1258,7 @@
       <button id="portButton">Head To Port (H)</button>
       <button id="newScenarioButton">⚓ Mission Select (M)</button>
       <button id="saveGameButton">💾 Save Game</button>
-      <div class="note">Hotkeys: 1=Tactical 2=Scope 3=Map Space=Pause S=Silent E=Blow D=DmgCtrl P=Pumps ←/→=Scope H=Port M=Mission</div>
+      <div class="note">Hotkeys: 1=Tactical 2=Scope 3=Map 4=Deck Gun Space=Pause S=Silent E=Blow D=DmgCtrl P=Pumps ←/→=Scope H=Port M=Mission</div>
     </div>
   </aside>
 
@@ -1250,6 +1268,7 @@
       <button id="stationTactical" class="active">Tactical</button>
       <button id="stationPeriscope">Periscope</button>
       <button id="stationMap">Map</button>
+      <button id="stationDeckGun">Deck Gun</button>
     </div>
     <div id="dayNightBar"><div id="dayNightFill"></div></div>
     <div id="dayNightLabel"></div>
@@ -1320,6 +1339,7 @@
       <button data-sta="TACTICAL" class="active">TAC</button>
       <button data-sta="PERISCOPE">SCOPE</button>
       <button data-sta="MAP">MAP</button>
+      <button data-sta="DECK_GUN">GUN</button>
     </div>
 
     <div class="ovl" id="ovlLeft">
@@ -1336,6 +1356,9 @@
       <button class="rbtn" data-sta="TACTICAL" id="oSurface">▲<small>SURF</small></button>
       <button class="rbtn" data-sta="TACTICAL" id="oScopeDepth">◎<small>55FT</small></button>
       <button class="rbtn" data-sta="TACTICAL" id="oDive">▼<small>100</small></button>
+      <!-- DECK GUN -->
+      <button class="rbtn" data-sta="DECK_GUN" id="oGunLay">🎯<small>LAY</small></button>
+      <button class="rbtn" data-sta="DECK_GUN" id="oGunFire">💥<small>FIRE</small></button>
     </div>
 
     <div class="ovl" id="ovlRight">
@@ -1424,6 +1447,7 @@
           <button id="mPumps">💧 Pumps</button>
           <button id="mSdRadar">📡 SD Air Radar</button>
           <button id="mAaGun">🔫 Man AA Gun</button>
+          <button id="mDeckGun">💥 Man Deck Gun</button>
           <button id="mDmgCtrl">🔧 Damage Control</button>
           <select id="mTimeSel" title="Time scale" style="margin:0;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
         </div>
@@ -1799,7 +1823,8 @@ function createState(areaKey){
         {id:5,pos:'AFT',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:180,reloadProgress:1,spreadOffsetDeg:-2},
         {id:6,pos:'AFT',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:180,reloadProgress:1,spreadOffsetDeg:2}
       ],
-      torpedoInventory:16,activeTorpedoes:[],nextTorpedoId:1,hits:[],duds:[],explosions:[]
+      torpedoInventory:16,activeTorpedoes:[],nextTorpedoId:1,hits:[],duds:[],explosions:[],
+      deckGun:{manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1}
     },
     campaign:{
       patrolArea:areaKey,score:0,scenarioSeed:1,missionStatus:'PATROL',
@@ -1915,6 +1940,12 @@ class SimEngine{
       case'DIVE': sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); audio.playDive(); break;
       case'PERISCOPE_DEPTH': sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); audio.playDive(); break;
       case'CRASH_DIVE':
+        if(this.state.weapons.deckGun?.manned){
+          this.state.weapons.deckGun.manned=false;
+          this.notify('Deck gun crew racing for the hatch — THE DIVE IS HELD until the deck is clear.','bad');
+          sub.diveDelay=Math.max(sub.diveDelay||0,18);
+          if(this.state.tactical.activeStation==='DECK_GUN') this.state.tactical.activeStation='TACTICAL';
+        }
         if(this.state.world.aaManned){
           this.state.world.aaManned=false;
           // Four men, a gun, and one hatch. Nobody dives until the last of
@@ -1922,7 +1953,7 @@ class SimEngine{
           // in the boat, and the reason doctrine said dive FIRST and argue
           // about the gun afterwards.
           this.notify('Gun crew tumbling down the hatch — THE DIVE IS HELD until she is shut.','bad');
-          sub.diveDelay=14;
+          sub.diveDelay=Math.max(sub.diveDelay||0,14);
         } 
         sub.orderedDepthFeet=150; sub.mode='CRASH_DIVING'; sub.ballastState='FLOODING';
         // Fix H: auto-set RPM for faster dive if nearly stopped
@@ -1942,13 +1973,32 @@ class SimEngine{
         break;}
       case'TOGGLE_AA_GUN':{
         const W=this.state.world; const env=W.environment;
-        if(W.aaManned){W.aaManned=false;this.notify('Gun crew below, hatch shut — clear to dive.','ok');break;}
+        if(W.aaManned){W.aaManned=false;this.notify('AA gun crew below, hatch shut — clear to dive.','ok');break;}
+        if(this.state.weapons.deckGun?.manned){this.notify('Main deck gun crew already topside — stand them down before manning the 20 mm.','warn');break;}
         if(sub.depthFeet>10){this.notify(`Cannot man the gun at ${sub.depthFeet.toFixed(0)} ft — the platform is under water. Surface first.`,'warn');break;}
         if(env.seaState>0.82){this.notify('Green water breaking over the gun platform — no man could stand there.','warn');break;}
         if((W.aaAmmo??1200)<=0){this.notify('Ready-use lockers are empty. Nothing to man the gun with.','warn');break;}
         W.aaManned=true;
         this.notify('Gun crew to the 20 mm — SHE CANNOT DIVE until they are below.','bad');
         break;}
+      case'TOGGLE_DECK_GUN':{
+        const G=this.state.weapons.deckGun, env=this.state.world.environment;
+        if(G.manned){G.manned=false;if(this.state.tactical.activeStation==='DECK_GUN')this.state.tactical.activeStation='TACTICAL';this.notify('Deck gun crew below — gun secured.','ok');break;}
+        if(this.state.world.aaManned){this.notify('20 mm crew are already topside — stand them down before manning the deck gun.','warn');break;}
+        if(sub.depthFeet>8){this.notify(`Cannot man the deck gun at ${sub.depthFeet.toFixed(0)} ft — surface first.`,'warn');break;}
+        if(env.seaState>0.82){this.notify('Green water sweeping the foredeck — deck gun cannot be manned in this sea.','warn');break;}
+        if(G.ammo<=0){this.notify('Deck gun magazine is empty.','warn');break;}
+        G.manned=true;G.trainDeg=clamp(G.trainDeg||0,-140,140);G.elevationDeg=clamp(G.elevationDeg||1,0,22);
+        this.state.tactical.activeStation='DECK_GUN';
+        this.notify(`3-inch deck gun manned — ${G.ammo} rounds ready. Drag the sight to train and elevate.`,'warn');
+        break;}
+      case'ADJUST_DECK_GUN':{
+        const G=this.state.weapons.deckGun;
+        G.trainDeg=clamp((G.trainDeg||0)+(cmd.deltaTrainDeg||0),-140,140);
+        G.elevationDeg=clamp((G.elevationDeg||0)+(cmd.deltaElevDeg||0),0,22);
+        break;}
+      case'LAY_DECK_GUN': this.layDeckGun(); break;
+      case'FIRE_DECK_GUN': this.fireDeckGun(); break;
       case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); break;
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
@@ -2499,6 +2549,7 @@ class SimEngine{
     sub.inShallowWater=false;sub.groundingRisk=false;sub.inShallowWarned=false;
     sub.bottomed=false;sub.suction=0;sub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
     s.weapons.torpedoInventory=16;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
+    s.weapons.deckGun={manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
     for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;t.specKey=s.tdc.torpedoSpecKey;}
     s.tactical.periscopeBearing=90;s.tactical.periscopeZoom=1;
     s.world.aircraft=[];s.world.knuckles=[];
@@ -2653,8 +2704,10 @@ class SimEngine{
      and coastal batteries, plus moored high-value targets that are generated
      once per patrol and then stay where they are. */
   ensureWorldExtensions(){
-    const W=this.state.world;
+    const W=this.state.world, G=this.state.weapons;
     if(W.harborInitialized===undefined) W.harborInitialized=false; // migrate old saves
+    if(!G.deckGun) G.deckGun={manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
+    G.deckGun.shells=G.deckGun.shells||[];G.deckGun.splashes=G.deckGun.splashes||[];
     if(!W.harborInitialized) this.setupHarbor(this.state.campaign.patrolArea);
   }
 
@@ -3352,6 +3405,156 @@ class SimEngine{
       if(gone&&a.seenBySub&&!a.shotDown) this.log(`${a.name} has left the area.`);
       return !gone;
     });
+  }
+
+  /* ══════════ 3\"/50 DECK GUN ════════════════════════════════════════
+     A surface weapon, not a button that spends hit points. The sight is laid
+     in bearing and elevation; each round then flies a real ballistic arc. */
+  deckGunTarget(){
+    const id=this.state.tactical.selectedTrackId||this.state.tdc.targetId;
+    return id?this.state.world.contacts.find(c=>c.id===id&&!c.sunk):null;
+  }
+
+  deckGunElevationFor(rangeM,v=820,y=2){
+    if(rangeM<20) return 0;
+    const g=9.80665,v2=v*v;
+    const disc=v2*v2-g*(g*rangeM*rangeM+2*y*v2);
+    if(disc<=0) return null;
+    return radToDeg(Math.atan((v2-Math.sqrt(disc))/(g*rangeM)));
+  }
+
+  layDeckGun(){
+    const G=this.state.weapons.deckGun, sub=this.state.playerSub, c=this.deckGunTarget();
+    if(!G.manned){this.notify('Deck gun is not manned.','warn');return;}
+    if(!c){this.notify('No selected surface target for the gun. Tap a visible ship first.','warn');return;}
+    const r0=distNm(sub.position,c.position);
+    if(r0>Math.max(5,this.state.world.environment.visibilityNm*1.05)){this.notify('Target is beyond useful visual gun range.','warn');return;}
+    // Iterate flight time and target motion. This is a crew estimate, not magic
+    // aim assist: sea state and dispersion still have to be bracketed by eye.
+    let pred={...c.position}, tof=r0*NM_M/820;
+    for(let i=0;i<3;i++){
+      const d=knotsNmSec(c.speedKnots||0)*tof, rr=degToRad(c.heading||0);
+      pred={xNm:c.position.xNm+Math.sin(rr)*d,yNm:c.position.yNm-Math.cos(rr)*d};
+      tof=distNm(sub.position,pred)*NM_M/820;
+    }
+    const br=bearingBetween(sub.position,pred), rel=shortDelta(sub.heading,br);
+    if(Math.abs(rel)>140){this.notify(`Target bears ${fmtDeg(br)} — outside the deck gun's training arc. Turn the boat.`,'warn');return;}
+    const rangeM=distNm(sub.position,pred)*NM_M;
+    const el=this.deckGunElevationFor(rangeM,820,3);
+    if(el==null||el>22){this.notify('No practical deck-gun elevation solution at this range.','warn');return;}
+    G.trainDeg=clamp(rel,-140,140);G.elevationDeg=clamp(el,0,22);
+    this.notify(`Gun laid on ${c.id}: bearing ${fmtDeg(br)}, range ${r0.toFixed(1)} nm. Fire and watch the fall of shot.`,'ok');
+  }
+
+  fireDeckGun(){
+    const G=this.state.weapons.deckGun, sub=this.state.playerSub, now=this.state.time.elapsedSeconds;
+    if(!G.manned){this.notify('Deck gun is not manned.','warn');return;}
+    if(this.state.time.timeScale===0){this.notify('Simulation is paused — resume time before firing.','warn');return;}
+    if(sub.depthFeet>8){G.manned=false;this.notify('Deck awash — gun crew driven below.','warn');return;}
+    if(G.ammo<=0){this.notify('Deck gun magazine empty.','warn');return;}
+    if(now-(G.lastFireAt??-999)<1.35){this.notify('Gun crew still loading.','warn');return;}
+    const sea=clamp(this.state.world.environment.seaState||0,0,1);
+    const fatigue=clamp(sub.damage.crewFatigue||0,0,1);
+    const sig=(0.055+sea*0.12+fatigue*0.05);       // degrees, 1-sigma-ish gameplay dispersion
+    const bearing=normDeg(sub.heading+(G.trainDeg||0)+(Math.random()-0.5)*sig*2);
+    const elev=clamp((G.elevationDeg||0)+(Math.random()-0.5)*sig*1.5,0,22);
+    const v=820, er=degToRad(elev), br=degToRad(bearing);
+    const vh=v*Math.cos(er);
+    G.shells.push({
+      id:`DG-${++G.shots}`,xNm:sub.position.xNm,yNm:sub.position.yNm,zM:5.6,
+      vxM:Math.sin(br)*vh,vyM:-Math.cos(br)*vh,vzM:v*Math.sin(er),
+      age:0,bearing,elevation:elev,prev:null
+    });
+    G.ammo--;G.lastFireAt=now;G.flashUntil=now+0.16;G.lastFall=null;
+    sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.16,0,1.5);
+    this.alertEscorts('DECK_GUN',{...sub.position},0.88);
+    audio.playDeckGun?.(1);
+    this.shake(0.45);
+  }
+
+  segmentShipGunHit(a,b,c){
+    const lenNm=(c.lengthYards||400)*0.9144/NM_M;
+    const halfL=lenNm*0.5, halfB=lenNm/(c.type==='ESCORT'?10.5:7.2)*0.5;
+    const h=degToRad(c.heading||0),fx=Math.sin(h),fy=-Math.cos(h),px=-fy,py=fx;
+    const local=q=>{const dx=q.xNm-c.position.xNm,dy=q.yNm-c.position.yNm;return{x:dx*fx+dy*fy,y:dx*px+dy*py};};
+    const p0=local(a),p1=local(b),dx=p1.x-p0.x,dy=p1.y-p0.y;
+    let u0=0,u1=1;
+    const clip=(p,q)=>{if(Math.abs(p)<1e-12)return q>=0;const r=q/p;if(p<0){if(r>u1)return false;if(r>u0)u0=r;}else{if(r<u0)return false;if(r<u1)u1=r;}return true;};
+    if(!clip(-dx,p0.x+halfL)||!clip(dx,halfL-p0.x)||!clip(-dy,p0.y+halfB)||!clip(dy,halfB-p0.y))return null;
+    const z=a.zM+(b.zM-a.zM)*u0;
+    const tall=/CARRIER/i.test(c.displayType||'')?32:/CRUISER/i.test(c.displayType||'')?24:c.type==='ESCORT'?15:c.type==='TANKER'?22:19;
+    if(z<-1||z>tall) return null;
+    return{u:u0,z,along:p0.x+dx*u0,lateral:p0.y+dy*u0,lenNm,halfB};
+  }
+
+  deckGunFallText(pos,bearing){
+    const c=this.deckGunTarget();if(!c)return 'SPLASH';
+    const sub=this.state.playerSub, rr=degToRad(bearing);
+    const along=q=>{const dx=q.xNm-sub.position.xNm,dy=q.yNm-sub.position.yNm;return dx*Math.sin(rr)-dy*Math.cos(rr);};
+    const diff=(along(pos)-along(c.position))*2025;
+    if(Math.abs(diff)<35)return `SPLASH — close aboard ${c.id}`;
+    return `SPLASH — ${Math.round(Math.abs(diff))} yd ${diff<0?'SHORT':'OVER'}`;
+  }
+
+  damageShipByDeckGun(c,hit){
+    const G=this.state.weapons.deckGun, W=this.state.weapons;
+    const heavy=/CARRIER|CRUISER/i.test(c.displayType||'');
+    const mult=heavy?0.34:c.type==='ESCORT'?0.58:c.type==='TANKER'?0.78:1;
+    const d=(0.20+Math.random()*0.13)*mult;
+    c.gunDamage=clamp((c.gunDamage||0)+d,0,4);
+    c.baseSpeed=c.baseSpeed??c.speedKnots;
+    c.speedKnots=Math.min(c.speedKnots,c.baseSpeed*clamp(1-c.gunDamage*0.48,0.18,1));
+    c.desiredSpeed=Math.min(c.desiredSpeed??c.speedKnots,c.speedKnots);
+    G.hits++;G.lastFall={text:`HIT — ${c.id} · ${Math.round(c.gunDamage*100)}% gun damage`,until:this.state.time.elapsedSeconds+4};
+    this.state.weapons.explosions.push({position:{...c.position},ageSec:0,maxAgeSec:5,label:'GUN HIT'});
+    particles.spawnExplosion(c.position.xNm,c.position.yNm,0.38,false);audio.playHit?.();
+    const threshold=heavy?2.7:c.type==='ESCORT'?1.55:c.type==='TANKER'?1.25:1.0;
+    if(c.gunDamage<threshold){
+      this.log(`Deck gun hit ${c.name} — visible damage, speed falling.`,'warn');
+      return;
+    }
+    c.sunk=true;c.sinkingProgress=0;c.speedKnots=0;c.hitFrac=clamp(hit.along/(hit.lenNm||1),-0.5,0.5);c.hitSide=hit.lateral>=0?1:-1;
+    c.sinkStyle=Math.abs(c.hitFrac)>0.22?(c.hitFrac>0?0:1):(Math.random()<0.35?2:3);
+    c.sinkDurationSec=c.sinkStyle===2?35+Math.random()*18:55+Math.random()*35;c.sunkAt=this.state.time.elapsedSeconds;
+    const tr=this.state.world.contactTracks[c.id];if(tr){tr.sunk=true;tr.lastFixPosition={...c.position};tr.plotPosition={...c.position};delete tr.truePosition;}
+    const camp=this.state.campaign,pts=Math.round((c.harborValue||(c.type==='ESCORT'?1800:1000))*0.85);
+    camp.score+=pts;camp.tonnageSunk+=(c.tonsFactor||3000);if(c.type==='ESCORT')camp.escortsSunk++;
+    W.hits.push({weapon:'DECK_GUN',contactId:c.id,t:this.state.time.elapsedSeconds});
+    G.lastFall={text:`SUNK — ${c.id} +${pts}`,until:this.state.time.elapsedSeconds+6};
+    this.notify(`DECK GUN — ${c.name} is going down. +${pts} pts.`,'ok');
+    this.alertEscorts('SHIP_HIT',{...c.position},1);this.checkMissionObjectives();
+  }
+
+  updateDeckGun(dt){
+    const G=this.state.weapons.deckGun, sub=this.state.playerSub;
+    if(!G)return;
+    if(G.manned&&(sub.mode==='SUNK'||sub.depthFeet>10||this.state.world.environment.seaState>0.88)){
+      G.manned=false;if(this.state.tactical.activeStation==='DECK_GUN')this.state.tactical.activeStation='TACTICAL';
+      this.notify(sub.depthFeet>10?'Deck going under — deck gun crew below.':'Deck gun secured — conditions no longer permit firing.','warn');
+    }
+    for(const sp of G.splashes||[])sp.age+=dt;
+    G.splashes=(G.splashes||[]).filter(sp=>sp.age<4);
+    const alive=[];
+    for(const sh of G.shells||[]){
+      if(sh.age>12)continue;
+      const prev={xNm:sh.xNm,yNm:sh.yNm,zM:sh.zM};
+      // light drag: enough to make long shots require a little more elevation,
+      // without turning this into an artillery computer.
+      const drag=Math.exp(-dt*0.012);sh.vxM*=drag;sh.vyM*=drag;sh.vzM=sh.vzM*drag-9.80665*dt;
+      sh.xNm+=sh.vxM*dt/NM_M;sh.yNm+=sh.vyM*dt/NM_M;sh.zM+=sh.vzM*dt;sh.age+=dt;sh.prev=prev;
+      let struck=null;
+      for(const c of this.state.world.contacts){
+        if(c.sunk)continue;const hit=this.segmentShipGunHit(prev,sh,c);if(hit){struck={c,hit};break;}
+      }
+      if(struck){this.damageShipByDeckGun(struck.c,struck.hit);continue;}
+      if(sh.zM<=0){
+        const f=clamp(prev.zM/(prev.zM-sh.zM||1),0,1),pos={xNm:prev.xNm+(sh.xNm-prev.xNm)*f,yNm:prev.yNm+(sh.yNm-prev.yNm)*f};
+        G.splashes.push({position:pos,age:0});G.lastFall={text:this.deckGunFallText(pos,sh.bearing),until:this.state.time.elapsedSeconds+3.5};
+        continue;
+      }
+      alive.push(sh);
+    }
+    G.shells=alive;
   }
 
   /* ══════════ THE 20 MM ══════════
@@ -4188,7 +4391,7 @@ class SimEngine{
     this.updatePosition(sub,dt);
     this.applyTerrainEffects(sub,dt);
     this.updateWorld(dt); this.updateSigs(sub); this.updateHarbor(dt);
-    this.updateDetection(dt); this.updateTdc(); this.updateTorpedoes(dt);
+    this.updateDetection(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
     this.updateDmg(sub,dt); this.updateDmgCtrl(sub,dt); this.updateWarnings(sub);
@@ -4573,7 +4776,8 @@ class SimEngine{
     if(d.motorDamage>0.5) W.push({level:'warn',text:'MOTOR DAMAGE'});
     if(d.ballastDamage>0.5) W.push({level:'warn',text:'BALLAST DAMAGE'});
     if(sub.cannotHoldDepth) W.push({level:'critical',text:'WILL NOT HOLD DEPTH'});
-    if(this.state.world.aaManned) W.push({level:'critical',text:'GUN CREW TOPSIDE — CANNOT DIVE'});
+    if(this.state.world.aaManned) W.push({level:'critical',text:'AA GUN CREW TOPSIDE — CANNOT DIVE'});
+    if(this.state.weapons.deckGun?.manned) W.push({level:'critical',text:'DECK GUN CREW TOPSIDE — CANNOT DIVE'});
     const camp=this.state.campaign;
     if(camp.missionStatus==='RETURN TO BASE'){
       const r=this.friendlyPortNav();
@@ -4970,6 +5174,7 @@ class CanvasView{
     ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.globalAlpha=1;ctx.setLineDash([]);
     if(state.tactical.activeStation==='MAP') this.drawMap(ctx,w,h,state);
     else if(state.tactical.activeStation==='PERISCOPE') this.drawPeriscope(ctx,w,h,state);
+    else if(state.tactical.activeStation==='DECK_GUN') this.drawDeckGun(ctx,w,h,state);
     else this.drawTactical(ctx,w,h,state);
     ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
     this.drawHitFlash(ctx,w,h,state);
@@ -5398,6 +5603,80 @@ class CanvasView{
   }
   // screen y of the sea surface at distance d (straight ahead)
   seaY(cam,d){return cam.cy+(cam.h/d+d/(2*EARTH_R))*cam.f;}
+
+  drawDeckGun(ctx,w,h,state){
+    const sub=state.playerSub,G=state.weapons.deckGun,env=state.world.environment,t=state.time.elapsedSeconds;
+    const bearing=normDeg(sub.heading+(G?.trainDeg||0));
+    const fov=this.portrait?62:56,cx=w/2,cy=this.portrait?h*0.46:h*0.49,r=Math.max(w,h)*0.72;
+    const cam=this.setupCam(state,fov,cx,cy,r);
+    cam.h=5.6;cam.bearingDeg=bearing;const br=degToRad(bearing);cam.sin=Math.sin(br);cam.cos=Math.cos(br);
+    cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);cam.kind='GUN';
+    this.cam=cam;this.gunCam=cam;
+    ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
+    this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);
+    this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
+    this.drawTerrain3D(ctx,cam,state,env.daylight);
+    this.drawWakes3D(ctx,cam,state,t,env.daylight);
+    this.drawFleet3D(ctx,cam,state,env.daylight,env,t);
+    this.drawExplosions3D(ctx,cam,state,env.daylight);
+    this.drawGunProjectiles3D(ctx,cam,state);
+    if((env.weather==='RAIN'||env.weather==='STORM'))this.drawRain(ctx,w,h,env.seaState,t,env.weather);
+    if(env.daylight<0.32)this.drawNightOverlay(ctx,w,h,env.daylight);
+
+    // Gun and pedestal in the foreground. The camera follows train only;
+    // elevation moves the actual sight above the horizon, so fall of shot is visible.
+    const k=this.k,baseY=h+14*k,gunY=h-18*k;
+    ctx.fillStyle='rgba(8,12,12,.96)';ctx.beginPath();ctx.ellipse(cx,baseY,86*k,35*k,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(126,142,134,.8)';ctx.lineWidth=Math.max(2,3*k);ctx.stroke();
+    ctx.fillStyle='rgba(55,65,60,.98)';ctx.fillRect(cx-22*k,gunY-18*k,44*k,36*k);
+    ctx.strokeStyle='rgba(22,27,25,.9)';ctx.strokeRect(cx-22*k,gunY-18*k,44*k,36*k);
+    const aimY=cam.horizonY-Math.tan(degToRad(G?.elevationDeg||0))*cam.f;
+    ctx.strokeStyle='rgba(72,82,77,.98)';ctx.lineWidth=Math.max(7,9*k);ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(cx,gunY-8*k);ctx.lineTo(cx,Math.max(aimY+28*k,gunY-92*k));ctx.stroke();ctx.lineCap='butt';
+    if(G&&G.flashUntil>t){
+      const a=clamp((G.flashUntil-t)/0.16,0,1),fy=Math.max(aimY+26*k,gunY-92*k);
+      const gg=ctx.createRadialGradient(cx,fy,0,cx,fy,30*k);gg.addColorStop(0,`rgba(255,246,188,${a})`);gg.addColorStop(1,'rgba(255,128,30,0)');
+      ctx.fillStyle=gg;ctx.fillRect(cx-34*k,fy-34*k,68*k,68*k);
+    }
+
+    // Optical ring / crosshair.
+    const crossY=clamp(aimY,38*k,h-78*k);
+    ctx.strokeStyle=G?.manned?'rgba(240,236,198,.92)':'rgba(130,140,130,.55)';ctx.lineWidth=Math.max(1,1.3*k);
+    ctx.beginPath();ctx.arc(cx,crossY,22*k,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-50*k,crossY);ctx.lineTo(cx-8*k,crossY);ctx.moveTo(cx+8*k,crossY);ctx.lineTo(cx+50*k,crossY);ctx.moveTo(cx,crossY-42*k);ctx.lineTo(cx,crossY-8*k);ctx.moveTo(cx,crossY+8*k);ctx.lineTo(cx,crossY+42*k);ctx.stroke();
+
+    ctx.fillStyle='rgba(3,13,16,.76)';this.rr(ctx,8*k,8*k,Math.min(270*k,w-16*k),72*k,6*k);ctx.fill();
+    ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText('3\"/50 DECK GUN',16*k,25*k);
+    ctx.font=this.fnt(8.5);ctx.fillStyle='rgba(210,235,224,.88)';
+    ctx.fillText(`BRG ${fmtDeg(bearing)} · TRAIN ${(G?.trainDeg||0).toFixed(1)}° · ELEV ${(G?.elevationDeg||0).toFixed(1)}°`,16*k,41*k);
+    ctx.fillText(`AMMO ${G?.ammo??0} · ${G?.manned?'CREW TOPSIDE':'GUN NOT MANNED'} · drag to aim`,16*k,56*k);
+    const tgt=state.tactical.selectedTrackId&&state.world.contacts.find(c=>c.id===state.tactical.selectedTrackId&&!c.sunk);
+    if(tgt){ctx.fillStyle='rgba(245,198,92,.95)';ctx.fillText(`TARGET ${tgt.id} · ${distNm(sub.position,tgt.position).toFixed(2)} nm · LAY available`,16*k,71*k);}
+    if(G?.lastFall&&G.lastFall.until>t){
+      ctx.font=this.fnt(11,true);ctx.textAlign='center';ctx.fillStyle=/HIT|SUNK/.test(G.lastFall.text)?'#6fe08f':'#f5c65c';
+      ctx.fillText(G.lastFall.text,cx,Math.min(h-86*k,crossY+70*k));ctx.textAlign='left';
+    }
+    if(!G?.manned){
+      ctx.fillStyle='rgba(3,8,10,.78)';this.rr(ctx,cx-145*k,h*0.36,290*k,74*k,8*k);ctx.fill();
+      ctx.fillStyle='#f5c65c';ctx.font=this.fnt(12,true);ctx.textAlign='center';ctx.fillText('DECK GUN NOT MANNED',cx,h*0.36+28*k);
+      ctx.font=this.fnt(9);ctx.fillStyle='#d7f5e7';ctx.fillText('Surface → Helm → Boat Systems → Man Deck Gun',cx,h*0.36+49*k);ctx.textAlign='left';
+    }
+  }
+
+  drawGunProjectiles3D(ctx,cam,state){
+    const G=state.weapons.deckGun,k=this.k;
+    for(const sh of G?.shells||[]){
+      const p=this.proj(cam,sh.xNm*NM_M,-sh.yNm*NM_M,sh.zM);if(!p)continue;
+      const a=clamp(1-sh.age/10,0.25,1);ctx.fillStyle=`rgba(255,235,155,${a})`;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(1.2,2.2*k),0,Math.PI*2);ctx.fill();
+      if(sh.prev){const q=this.proj(cam,sh.prev.xNm*NM_M,-sh.prev.yNm*NM_M,sh.prev.zM);if(q){ctx.strokeStyle=`rgba(255,210,120,${a*.42})`;ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(p.x,p.y);ctx.stroke();}}
+    }
+    for(const sp of G?.splashes||[]){
+      const p=this.proj(cam,sp.position.xNm*NM_M,-sp.position.yNm*NM_M,0);if(!p)continue;
+      const a=clamp(1-sp.age/4,0,1),rise=Math.sin(clamp(sp.age/1.4,0,1)*Math.PI)*22*k;
+      ctx.fillStyle=`rgba(225,242,248,${a*.86})`;ctx.beginPath();ctx.ellipse(p.x,p.y-rise*0.45,4*k+sp.age*2*k,Math.max(3*k,rise),0,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(230,245,250,${a*.65})`;ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.ellipse(p.x,p.y,8*k+sp.age*5*k,2.5*k+sp.age*k,0,0,Math.PI*2);ctx.stroke();
+    }
+  }
 
   drawPeriscope(ctx,w,h,state){
     const sub=state.playerSub, tact=state.tactical, env=state.world.environment;
@@ -6189,7 +6468,8 @@ class CanvasView{
       const d=Math.hypot(E-cam.E,N-cam.N);
       if(d>visNm*NM_M*1.15) continue;
       const bear=bearingBetween(sub.position,c.position);
-      const bd=shortDelta(state.tactical.periscopeBearing,bear);
+      const viewBearing=cam.bearingDeg??normDeg(radToDeg(Math.atan2(cam.sin,cam.cos)));
+      const bd=shortDelta(viewBearing,bear);
       if(Math.abs(bd)>cam.fovDeg*0.85) continue;
       // hidden behind land?
       const sx=cam.cx+Math.tan(degToRad(bd))*cam.f;
@@ -6203,7 +6483,8 @@ class CanvasView{
     list.sort((a,b)=>b.d-a.d);                           // painter's algorithm
     for(const it of list) this.drawShip3D(ctx,cam,it,state,dl,light,visNm,t);
 
-    // hydrophone-only tracks: a bearing marker on the horizon, nothing more
+    // hydrophone-only tracks belong in the periscope plot, not in an optical gun sight.
+    if(cam.kind==='GUN') return;
     for(const tr of Object.values(state.world.contactTracks)){
       if(tr.sunk||tr.source!=='HYDROPHONE'||tr.confidence<0.15) continue;
       if(state.world.contacts.some(c=>c.id===tr.id&&distNm(sub.position,c.position)<visNm)) continue;
@@ -7793,6 +8074,17 @@ class CanvasView{
     return bd<Math.max(30,36*this.k)?best:-1;
   }
 
+  // nearest visible ship to a tap in the gun view (returns track id or null)
+  pickGunContact(state,clientX,clientY){
+    const p=this.toLocal(clientX,clientY),cam=this.gunCam;if(!cam)return null;
+    let best=null,bd=Infinity;
+    for(const c of state.world.contacts){
+      if(c.sunk)continue;const scr=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
+      const d=Math.hypot(scr.x-p.x,(scr.y-p.y)*0.7);if(d<bd){bd=d;best=c.id;}
+    }
+    return bd<Math.max(50,65*this.k)?best:null;
+  }
+
   // nearest visible ship to a tap in the periscope view (returns track id or null)
   pickScopeContact(state,clientX,clientY){
     const p=this.toLocal(clientX,clientY);
@@ -7965,6 +8257,11 @@ class AudioEngine{
   }
 
   playDud(){this.ensure();this._noise(0.3,120,'sine',0.25);setTimeout(()=>this._noise(0.2,80,'sine',0.15),150);}
+
+  playDeckGun(power=1){
+    this.ensure();const v=clamp(power,0.2,1);this._noise(0.055,72,'sawtooth',0.55*v);
+    setTimeout(()=>this._white(0.18,0.42*v),18);setTimeout(()=>this._noise(0.42,36,'sine',0.30*v),45);
+  }
 
   playSonarPing(){
     this.ensure();if(Date.now()-this.lastPing<1000)return;this.lastPing=Date.now();
@@ -8667,6 +8964,8 @@ class TouchCtrl{
     btn('oSurface',()=>{D({type:'SURFACE'});this.setDepthSlider(0);});
     btn('oScopeDepth',()=>{D({type:'PERISCOPE_DEPTH'});this.setDepthSlider(55);});
     btn('oDive',   ()=>{D({type:'DIVE'});this.setDepthSlider(100);});
+    btn('oGunLay', ()=>{D({type:'LAY_DECK_GUN'});buzz(10);});
+    btn('oGunFire',()=>{D({type:'FIRE_DECK_GUN'});buzz([18,22,18]);});
     btn('oSilent', ()=>{D({type:'TOGGLE_SILENT_RUNNING'});buzz(12);});
     btn('oLock',   ()=>{D({type:'PERISCOPE_SELECT_CENTER_CONTACT'});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(12);});
     btn('btnFire', ()=>this.quickFire());
@@ -8760,6 +9059,7 @@ class TouchCtrl{
     btn('mPumps',    ()=>D({type:'TOGGLE_PUMPS'}));
     btn('mSdRadar',  ()=>D({type:'TOGGLE_SD_RADAR'}));
     btn('mAaGun',    ()=>D({type:'TOGGLE_AA_GUN'}));
+    btn('mDeckGun',  ()=>{D({type:'TOGGLE_DECK_GUN'});this.setPane('view');});
     btn('mDmgCtrl',  ()=>D({type:'TOGGLE_DAMAGE_CONTROL'}));
     btn('mSteerWp',  ()=>D({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('mAutoPilot',()=>{D({type:'TOGGLE_AUTOPILOT'});buzz(10);});
@@ -8906,6 +9206,10 @@ class TouchCtrl{
         const perPx=cam?cam.f:Math.max(60,cv.scopeGeom.r*1.7);
         D({type:'ROTATE_PERISCOPE',deltaDeg:-radToDeg(Math.atan(dx/perPx))});
       }
+      else if(mode==='gun'){
+        const f=cv.gunCam?.f||Math.max(180,cv.w*0.9);
+        D({type:'ADJUST_DECK_GUN',deltaTrainDeg:radToDeg(Math.atan(dx/f)),deltaElevDeg:-radToDeg(Math.atan(dy/f))});
+      }
       else if(mode==='compass'){this.compassDrag(e);}
       else if(mode==='depth'){this.depthDrag(e);}
     });
@@ -8951,6 +9255,7 @@ class TouchCtrl{
     const s=this.game.getSnapshot(), sta=s.tactical.activeStation;
     if(sta==='MAP') return 'pan';
     if(sta==='PERISCOPE') return 'scope';
+    if(sta==='DECK_GUN') return 'gun';
     const gm=this.cv.tactGeom;
     if(gm){
       const p=this.cv.toLocal(e.clientX,e.clientY);
@@ -9003,6 +9308,10 @@ class TouchCtrl{
       if(dbl){D({type:'TOGGLE_PERISCOPE_ZOOM'});return;}
       const id=this.cv.pickScopeContact(s,e.clientX,e.clientY);
       if(id){this.cv.revealScopeLabel(id);D({type:'SELECT_TRACK',trackId:id});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(14);}
+    }else if(sta==='DECK_GUN'){
+      const id=this.cv.pickGunContact(s,e.clientX,e.clientY);
+      if(id){D({type:'SELECT_TRACK',trackId:id});if(dbl)D({type:'LAY_DECK_GUN'});buzz(14);}
+      else if(dbl)D({type:'LAY_DECK_GUN'});
     }else{
       if(dbl){D({type:'CYCLE_TIME_SCALE'});}
     }
@@ -9068,8 +9377,8 @@ class TouchCtrl{
         ? `Lying on the bottom in ${sea.toFixed(0)} ft of ${(sub.bottomType||'').toLowerCase()}. Order revs or a shallower depth to come off her.`
         : sub.cannotHoldDepth
         ? 'SHE WILL NOT ANSWER THE PLANES — blow main ballast, pumps on, get way on her.'
-        : state.world.aaManned
-        ? 'Gun crew are topside — she cannot dive until they are below.'
+        : (state.world.aaManned||state.weapons.deckGun?.manned)
+        ? `${state.weapons.deckGun?.manned?'Deck gun':'AA gun'} crew are topside — she cannot dive until they are below.`
         : sea<3000
         ? `Fathometer ${sea.toFixed(0)} ft, ${(sub.bottomType||'').toLowerCase()} — safe to ${Math.max(0,sea-25).toFixed(0)} ft. Crush depth ${sub.damage.crushDepthFeet.toFixed(0)} ft.`
         : `Deep water. Periscope depth 55 ft. Crush depth ${sub.damage.crushDepthFeet.toFixed(0)} ft.`);
@@ -9091,8 +9400,11 @@ class TouchCtrl{
       C.sta=sta;
       document.querySelectorAll('#ovlLeft .rbtn').forEach(b=>{b.style.display=b.dataset.sta===sta?'flex':'none';});
       const gy=g('gyroIndicator');if(gy)gy.classList.toggle('off',sta!=='PERISCOPE');
+      const gun=sta==='DECK_GUN';
+      const lock=g('oLock'),fire=g('btnFire');if(lock)lock.style.display=gun?'none':'';if(fire)fire.style.display=gun?'none':'';
     }
     cls('oSilent','on',sub.stealth.silentRunning);
+    cls('oGunFire','ready',!!state.weapons.deckGun?.manned&&state.weapons.deckGun.ammo>0);
 
     // fire button + TDC chip
     const sq=Math.round(tdc.solutionQuality*100);
@@ -9138,8 +9450,10 @@ class TouchCtrl{
     cls('mAaGun','on',state.world.aaManned);
     {const b=document.getElementById('mAaGun');
      if(b){const am=state.world.aaAmmo??1200;
-       b.textContent=state.world.aaManned?`🔫 Gun Crew Below (${Math.round(am)} rds)`
+       b.textContent=state.world.aaManned?`🔫 AA Crew Below (${Math.round(am)} rds)`
                                          :`🔫 Man AA Gun (${Math.round(am)} rds)`;}}
+    cls('mDeckGun','on',!!state.weapons.deckGun?.manned);
+    {const b=document.getElementById('mDeckGun'),G=state.weapons.deckGun;if(b&&G)b.textContent=G.manned?`💥 Secure Deck Gun (${G.ammo} rds)`:`💥 Man Deck Gun (${G.ammo} rds)`;}
     cls('mDmgCtrl','on',sub.damage.damageControlActive);
     set('rpmNote',`${p.engineMode} · ${p.speedKnots.toFixed(1)} kn · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);
 
@@ -9271,6 +9585,10 @@ class DomView{
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale) tsel.value=String(state.time.timeScale);
     if(this.hArea)  this.hArea.textContent=state.campaign.patrolArea;
     if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
+    document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
+    const dg=state.weapons.deckGun,db=document.getElementById('deckGunManningButton'),ds=document.getElementById('deckGunStatus');
+    if(db&&dg)db.textContent=dg.manned?`Secure 3"/50 Deck Gun (${dg.ammo} rds)`:`🔫 Man 3"/50 Deck Gun (${dg.ammo} rds)`;
+    if(ds&&dg)ds.textContent=`${dg.manned?'CREW TOPSIDE':'secured'} · train ${dg.trainDeg.toFixed(1)}° · elev ${dg.elevationDeg.toFixed(1)}° · ammo ${dg.ammo} · drag 3D view to aim`;
     this.renderAlerts(state);
     this.renderOrders(sub,state);
     this.renderDamage(sub);
@@ -9372,7 +9690,8 @@ class BridgeController{
     const stT=document.getElementById('stationTactical');
     const stP=document.getElementById('stationPeriscope');
     const stM=document.getElementById('stationMap');
-    const setSta=(s,a,o)=>{a.classList.add('active');o.forEach(b=>b.classList.remove('active'));this.game.dispatch({type:'SET_ACTIVE_STATION',station:s});};
+    const stG=document.getElementById('stationDeckGun');
+    const setSta=(s,a,o)=>{a?.classList.add('active');o.filter(Boolean).forEach(b=>b.classList.remove('active'));this.game.dispatch({type:'SET_ACTIVE_STATION',station:s});};
     hi?.addEventListener('input',()=>{if(hv)hv.textContent=fmtDeg(+hi.value);this.game.dispatch({type:'SET_ORDERED_HEADING',heading:+hi.value});});
     ri?.addEventListener('input',()=>{if(rv)rv.textContent=ri.value;this.game.dispatch({type:'SET_ENGINE_RPM',rpm:+ri.value});});
     di?.addEventListener('input',()=>{if(dv)dv.textContent=`${di.value} ft`;this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:+di.value});});
@@ -9407,9 +9726,17 @@ class BridgeController{
     btn('followPlotButton', ()=>this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('portButton',       ()=>this.game.dispatch({type:'HEAD_TO_PORT'}));
     btn('newScenarioButton',()=>this.game.dispatch({type:'NEW_PATROL'}));
-    btn('stationTactical',  ()=>setSta('TACTICAL',stT,[stP,stM]));
-    btn('stationPeriscope', ()=>setSta('PERISCOPE',stP,[stT,stM]));
-    btn('stationMap',       ()=>setSta('MAP',stM,[stT,stP]));
+    btn('stationTactical',  ()=>setSta('TACTICAL',stT,[stP,stM,stG]));
+    btn('stationPeriscope', ()=>setSta('PERISCOPE',stP,[stT,stM,stG]));
+    btn('stationMap',       ()=>setSta('MAP',stM,[stT,stP,stG]));
+    btn('stationDeckGun',   ()=>setSta('DECK_GUN',stG,[stT,stP,stM]));
+    btn('deckGunManningButton',()=>this.game.dispatch({type:'TOGGLE_DECK_GUN'}));
+    btn('deckGunLayButton', ()=>this.game.dispatch({type:'LAY_DECK_GUN'}));
+    btn('deckGunFireButton',()=>this.game.dispatch({type:'FIRE_DECK_GUN'}));
+    btn('deckGunLeftButton',()=>this.game.dispatch({type:'ADJUST_DECK_GUN',deltaTrainDeg:-1}));
+    btn('deckGunRightButton',()=>this.game.dispatch({type:'ADJUST_DECK_GUN',deltaTrainDeg:1}));
+    btn('deckGunUpButton',()=>this.game.dispatch({type:'ADJUST_DECK_GUN',deltaElevDeg:.2}));
+    btn('deckGunDownButton',()=>this.game.dispatch({type:'ADJUST_DECK_GUN',deltaElevDeg:-.2}));
     btn('tdcSetManualButton',()=>this.game.dispatch({type:'APPLY_TDC_MANUAL'}));
     btn('briefingDismiss',  ()=>{document.getElementById('briefingOverlay').style.display='none';});
 
@@ -9429,7 +9756,7 @@ class BridgeController{
     window.addEventListener('keydown',e=>{
       if(e.target&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
       const k=e.key.toLowerCase();
-      if(k==='1'&&stT) stT.click(); if(k==='2'&&stP) stP.click(); if(k==='3'&&stM) stM.click();
+      if(k==='1'&&stT) stT.click(); if(k==='2'&&stP) stP.click(); if(k==='3'&&stM) stM.click(); if(k==='4'&&stG) stG.click();
       if(k==='s') this.game.dispatch({type:'TOGGLE_SILENT_RUNNING'});
       if(k==='e') this.game.dispatch({type:'EMERGENCY_BLOW'});
       if(k==='d') this.game.dispatch({type:'TOGGLE_DAMAGE_CONTROL'});
@@ -9466,8 +9793,8 @@ const TUT_STEPS=[
    body:'You are the skipper of USS Silversides on a <b>training patrol</b> off Java. Calm sea, clear sky, one unescorted merchant somewhere ahead — and torpedoes that always explode.<br><br>Four tabs at the bottom: <b>View</b> (the big picture), <b>Helm</b> (steering, depth, systems), <b>Attack</b> (torpedoes) and <b>Status</b> (damage &amp; log). The strip just above them is your permanent read-out.',
    goal:'Tap NEXT when you have had a look around'},
 
-  {id:'stations',title:'Three stations',
-   body:'Top right of the picture you can switch between three stations:<br>• <b>TAC</b> — compass, depth column, stealth meters<br>• <b>SCOPE</b> — what the periscope sees<br>• <b>MAP</b> — the navigation plot<br><br>Open the map now.',
+  {id:'stations',title:'Four stations',
+   body:'Top right of the picture you can switch between four stations:<br>• <b>TAC</b> — compass, depth column, stealth meters<br>• <b>SCOPE</b> — what the periscope sees<br>• <b>MAP</b> — the navigation plot<br>• <b>GUN</b> — the 3-inch deck-gun sight when surfaced and manned<br><br>Open the map now.',
    goal:'Switch to the MAP station', hl:'ovlStations',
    check:s=>s.tactical.activeStation==='MAP'},
 
