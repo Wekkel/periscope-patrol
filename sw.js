@@ -80,7 +80,9 @@ const SHELL = [
   'js/simulation/surface-watch.js',
   'js/rendering/bridge-3d.js',
   'js/simulation/sound-radar.js',
-  'js/rendering/sound-room.js'
+  'js/rendering/sound-room.js',
+  'js/simulation/weather-system.js',
+  'js/simulation/ship-damage.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
