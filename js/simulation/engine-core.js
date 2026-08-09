@@ -120,7 +120,8 @@ class SimEngineCore{
     const tr=old||{id:c.id,typeEstimate:'UNKNOWN',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards};
     Object.assign(tr,{bearing:obs.bearing,rangeEstimateNm:obs.rangeNm,confidence:conf,source:'VISUAL',observer:'BRIDGE',
       lastUpdated:now,staleSeconds:0,courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards,
-      lastFixPosition:{...obs.position},plotPosition:{...obs.position},lastFixTime:now});
+      lastFixPosition:{...obs.position},plotPosition:{...obs.position},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,
+      positionSource:'VISUAL',positionConfidence:clamp(.80+z*.14,.80,.94),positionUncertaintyNm:lerp(.08,.025,z)});
     tr.typeEstimate=hullVisible&&conf>=.65?knownType:conf>=.35?'SURFACE SHIP':'UNKNOWN';
     delete tr.truePosition;W.contactTracks[c.id]=tr;
     T.bridgeMarkedId=c.id;

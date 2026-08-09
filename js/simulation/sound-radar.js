@@ -168,11 +168,11 @@ class SimEngineSoundRadar extends SimEngineSensors{
     const mark={t:now,own:{...s.playerSub.position},bearing,quality:q};
     const arr=S.bearingMarks[c.id]||(S.bearingMarks[c.id]=[]);arr.push(mark);if(arr.length>8)arr.splice(0,arr.length-8);
     let tr=W.contactTracks[c.id];
-    if(!tr){const o=passiveSoundObservation(s,c,q);tr={id:c.id,typeEstimate:'UNKNOWN',bearing:o.bearing,rangeEstimateNm:o.rangeNm,courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:.18,source:'HYDROPHONE',lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards,plotPosition:{...o.position},lastFixPosition:{...o.position},lastFixTime:now};W.contactTracks[c.id]=tr;}
-    tr.soundBearingMarks=arr.slice(-4);tr.bearing=bearing;tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.18)+.07,0,.92);tr.source='SOUND BEARING';
+    if(!tr){const o=passiveSoundObservation(s,c,q);tr={id:c.id,typeEstimate:'UNKNOWN',bearing:o.bearing,rangeEstimateNm:o.rangeNm,courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:.18,source:'HYDROPHONE',lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards,plotPosition:{...o.position},lastFixPosition:{...o.position},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,positionSource:'HYDROPHONE',positionConfidence:.28,positionUncertaintyNm:.8};W.contactTracks[c.id]=tr;}
+    tr.soundBearingMarks=arr.slice(-4);tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.18)+.07,0,.92);tr.lastSensorSource='SOUND BEARING';
     const tri=triangulateSoundMarks(arr.filter(m=>now-m.t<420));
     if(tri&&arr.length>=2){
-      tr.plotPosition={...tri.position};tr.lastFixPosition={...tri.position};tr.lastFixTime=now;tr.rangeEstimateNm=distNm(s.playerSub.position,tri.position);tr.bearing=bearingBetween(s.playerSub.position,tri.position);tr.soundUncertaintyNm=clamp(.12+tri.spreadNm,.12,3);tr.source='SOUND TRIANGULATION';tr.confidence=clamp(tr.confidence+.08*Math.min(3,arr.length-1),0,.94);
+      tr.plotPosition={...tri.position};tr.lastFixPosition={...tri.position};tr.lastFixTime=now;tr.plotUpdatedAt=now;tr.positionFixAt=now;tr.rangeEstimateNm=distNm(s.playerSub.position,tri.position);tr.bearing=bearingBetween(s.playerSub.position,tri.position);tr.soundUncertaintyNm=clamp(.12+tri.spreadNm,.12,3);tr.positionUncertaintyNm=tr.soundUncertaintyNm;tr.positionConfidence=clamp(.72-tr.soundUncertaintyNm*.08,.48,.72);tr.positionSource='SOUND TRIANGULATION';tr.source='SOUND TRIANGULATION';tr.confidence=clamp(tr.confidence+.08*Math.min(3,arr.length-1),0,.94);
     }
     this.log(`SOUND mark ${arr.length} — ${fmtDeg(bearing)}${tri?` · plot cross ${tr.rangeEstimateNm.toFixed(1)} nm`:''}.`);
     return tr;
@@ -191,7 +191,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     const bearing=normDeg(s.tactical.soundBearing+clamp(shortDelta(s.tactical.soundBearing,bearingBetween(s.playerSub.position,c.position)),-4,4));
     const br=degToRad(bearing),pos={xNm:s.playerSub.position.xNm+Math.sin(br)*rangeNm,yNm:s.playerSub.position.yNm-Math.cos(br)*rangeNm};
     let tr=W.contactTracks[c.id]||{id:c.id,typeEstimate:'UNKNOWN',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards};
-    Object.assign(tr,{bearing,rangeEstimateNm:rangeNm,plotPosition:pos,lastFixPosition:{...pos},lastFixTime:now,lastUpdated:now,staleSeconds:0,confidence:clamp(Math.max(tr.confidence||0,.72),0,1),source:'QC ECHO'});
+    Object.assign(tr,{bearing,rangeEstimateNm:rangeNm,plotPosition:pos,lastFixPosition:{...pos},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,positionSource:'QC ECHO',positionConfidence:.92,positionUncertaintyNm:.03,lastUpdated:now,staleSeconds:0,confidence:clamp(Math.max(tr.confidence||0,.72),0,1),source:'QC ECHO'});
     W.contactTracks[c.id]=tr;this.notify(`QC — ECHO RANGE ${rangeNm.toFixed(2)} nm on ${fmtDeg(bearing)}. Transmission heard by the enemy.`,'bad');return tr;
   }
 
@@ -205,9 +205,10 @@ class SimEngineSoundRadar extends SimEngineSensors{
       if(c.sunk)continue;const rng=distNm(sub.position,c.position),size=c.lengthYards||400;
       const max=clamp(4.5+size/500*1.8+(c.type==='ESCORT'?.5:0),4.7,7.2);if(rng>max)continue;
       const o=radarObservation(s,c);seen[c.id]={id:c.id,bearing:o.bearing,rangeNm:o.rangeNm,position:o.position,t:now,strength:clamp(1-rng/max,.15,1)};
-      const old=W.contactTracks[c.id],known=old?.source==='VISUAL'&&old.confidence>.6;
+      const old=W.contactTracks[c.id],known=(old?.positionSource||old?.source)==='VISUAL'&&old.confidence>.6;
       const tr=old||{id:c.id,typeEstimate:'SURFACE SHIP',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,contactType:'UNKNOWN',lengthYards:c.lengthYards};
-      Object.assign(tr,{bearing:o.bearing,rangeEstimateNm:o.rangeNm,plotPosition:{...o.position},lastFixPosition:{...o.position},lastFixTime:now,lastUpdated:now,staleSeconds:0,confidence:clamp(Math.max(tr.confidence||0,.70)+.035,0,.92),source:'SJ RADAR'});
+      tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.70)+.035,0,.92);tr.lastSensorSource='SJ RADAR';
+      updateStableContactPlot(s,tr,o.position,'SJ RADAR',seen[c.id].strength,SOUND_ROOM.sjSweepSec);
       if(!known){tr.typeEstimate=tr.typeEstimate==='UNKNOWN'?'SURFACE SHIP':tr.typeEstimate;tr.contactType=tr.contactType||'UNKNOWN';}
       W.contactTracks[c.id]=tr;
     }

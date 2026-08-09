@@ -581,6 +581,7 @@ class CanvasView extends CanvasViewSound {
         continue;
       }
       const conf=tr.confidence;
+      const posConf=clamp(Number.isFinite(tr.positionConfidence)?tr.positionConfidence:conf,0,1);
       const a=clamp(0.25+conf*0.75,0.2,1);
       const isSelected=tr.id===selId;
 
@@ -593,11 +594,12 @@ class CanvasView extends CanvasViewSound {
 
       // A fresh high-confidence plot gets the solid symbol treatment, but this
       // is still the player's best estimate — not the simulation's hidden truth.
-      const hasTruePos=conf>0.5&&(tr.staleSeconds||0)<45;
+      const hasTruePos=posConf>0.5&&(tr.staleSeconds||0)<45;
       const pt=hasTruePos?pe:null;
 
       // Uncertainty circle around estimated position
-      const uncertaintyR=clamp(10+(1-conf)*30+Math.min(36,(tr.staleSeconds||0)*0.06),8,64)*K;
+      const sensorUncPx=Number.isFinite(tr.positionUncertaintyNm)?tr.positionUncertaintyNm*this.zoom:0;
+      const uncertaintyR=clamp(Math.max(10+(1-posConf)*30,sensorUncPx)+Math.min(36,(tr.staleSeconds||0)*0.06),8,72)*K;
       ctx.strokeStyle=isSelected?'#f0c35a':`rgba(240,195,90,${a*0.6})`;
       ctx.lineWidth=isSelected?2:1;
       ctx.setLineDash([4,4]);
@@ -648,7 +650,7 @@ class CanvasView extends CanvasViewSound {
       }
       ctx.fillStyle=isSelected?'rgba(226,255,240,.98)':`rgba(245,198,92,${a})`;
       ctx.font=this.fnt(isSelected?10.5:8.5,true);
-      const stale=Math.floor(now-tr.lastUpdated);
+      const stale=Math.floor(now-(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated));
       ctx.fillText(`${tr.id} ${tr.typeEstimate}`,lx,ly);
       ctx.font=this.fnt(isSelected?9:7.5);
       ctx.fillStyle=isSelected?'rgba(205,235,224,.94)':`rgba(245,198,92,${a})`;

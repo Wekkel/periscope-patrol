@@ -374,10 +374,8 @@ class SimEngine extends SimEngineCareer {
 
       if(held){
         ex.confidence=clamp(ex.confidence+clamp((sc-0.10)*dt*0.34,0.006,0.12),0,1);
-        ex.lastUpdated=now; ex.staleSeconds=0; ex.source=src;
+        ex.lastUpdated=now; ex.staleSeconds=0; ex.lastSensorSource=src;
         ex.lengthYards=c.lengthYards;
-        ex.bearing=lerpAngle(ex.bearing,obsBear,clamp((src==='HYDROPHONE'?.12:.25)+sc*(src==='HYDROPHONE'?.22:.35),0,src==='HYDROPHONE'?.42:.85));
-        ex.rangeEstimateNm=lerp(ex.rangeEstimateNm,obsRng,clamp((src==='HYDROPHONE'?.025:.18)+sc*(src==='HYDROPHONE'?.07:.28),0,src==='HYDROPHONE'?.12:.7));
         const prevCourseEstimate=ex.courseEstimate;
         ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
         const observedTurn=shortDelta(prevCourseEstimate,ex.courseEstimate)/Math.max(dt,.1);
@@ -393,15 +391,14 @@ class SimEngine extends SimEngineCareer {
           ex.typeEstimate=ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         else ex.typeEstimate=ex.confidence>0.65?knownType:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         ex.contactType=c.type;
-        // Store the fix in WORLD coordinates. This is the important bit: an old
-        // bearing/range pair is relative to where ownship USED to be, so it may
-        // never be re-projected from ownship's new position.
-        const br=degToRad(ex.bearing);
-        ex.lastFixPosition={xNm:sub.position.xNm+Math.sin(br)*ex.rangeEstimateNm,
-                            yNm:sub.position.yNm-Math.cos(br)*ex.rangeEstimateNm};
-        ex.lastFixTime=now;
-        ex.plotPosition={...ex.lastFixPosition};
-        delete ex.truePosition;                    // legacy saves must not leak omniscient truth
+        // The raw sensor observation is NOT the map position.  Predict the
+        // existing paper plot with estimated course/speed and let this sensor
+        // pull it toward the new observation at a bounded rate.  Hydrophone
+        // noise can therefore change by hundreds of metres without the ship
+        // icon teleporting by hundreds of metres.
+        const rawPos=aobs.position||{xNm:sub.position.xNm+Math.sin(degToRad(obsBear))*obsRng,
+                                     yNm:sub.position.yNm-Math.cos(degToRad(obsBear))*obsRng};
+        updateStableContactPlot(this.state,ex,rawPos,src,sc,dt);
         W.contactTracks[key]=ex;
       } else {
         // Paper plots persist and grow stale instead of vanishing in a minute.
@@ -418,6 +415,9 @@ class SimEngine extends SimEngineCareer {
         const rr=degToRad(ex.courseEstimate||0);
         ex.plotPosition={xNm:ex.lastFixPosition.xNm+Math.sin(rr)*run,
                          yNm:ex.lastFixPosition.yNm-Math.cos(rr)*run};
+        ex.plotUpdatedAt=now;
+        ex.positionConfidence=clamp((Number.isFinite(ex.positionConfidence)?ex.positionConfidence:ex.confidence)-dt*.0007,0,1);
+        ex.positionUncertaintyNm=Math.min(4,(Number.isFinite(ex.positionUncertaintyNm)?ex.positionUncertaintyNm:.25)+dt*.0008);
         ex.bearing=bearingBetween(sub.position,ex.plotPosition);
         ex.rangeEstimateNm=distNm(sub.position,ex.plotPosition);
         delete ex.truePosition;
