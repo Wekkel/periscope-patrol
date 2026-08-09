@@ -51,14 +51,17 @@ class SimEngineCareer extends SimEngineDamage {
     const s=this.state,c=this.ensureCareerPatrolState(),W=s.weapons,G=W.deckGun||{},contacts=s.world.contacts||[];
     const sunk=contacts.filter(x=>x&&x.sunk).map(x=>({
       id:x.id,name:x.name||x.id,type:x.displayType||x.type||'SHIP',tons:x.tonsFactor||0,
-      weapon:(W.hits||[]).some(h=>h.contactId===x.id&&h.weapon==='DECK_GUN')?'DECK_GUN':
-             (W.hits||[]).some(h=>h.contactId===x.id)?'TORPEDO':'OTHER'
+      weapon:x.shipDamage?.lastWeapon||((W.hits||[]).some(h=>h.contactId===x.id&&h.weapon==='DECK_GUN')?'DECK_GUN':
+             (W.hits||[]).some(h=>h.contactId===x.id)?'TORPEDO':'OTHER')
     }));
     // "shipsDamaged" means damaged but not sunk; sunk ships are reported once
     // in the sunk total instead of being counted in both columns.
-    const damaged=contacts.filter(x=>x&&!x.sunk&&(x.gunDamage||0)>0.001).map(x=>({
-      id:x.id,name:x.name||x.id,type:x.displayType||x.type||'SHIP',damage:clamp(x.gunDamage||0,0,4),weapon:'DECK_GUN'
-    }));
+    const damaged=contacts.filter(x=>x&&!x.sunk&&(shipDamageSeverity(x)>.05||(x.gunDamage||0)>0.001)).map(x=>{
+      const D=ensureShipDamage(x),severity=shipDamageSeverity(x);
+      return{id:x.id,name:x.name||x.id,type:x.displayType||x.type||'SHIP',damage:severity,
+        condition:shipDamageCondition(x),subsystems:{flotation:D.flotation,propulsion:D.propulsion,steering:D.steering,fire:D.fire},
+        weapon:D.lastWeapon||((x.gunDamage||0)>0?'DECK_GUN':'OTHER')};
+    });
     const torpHits=(W.hits||[]).filter(h=>h.weapon!=='DECK_GUN').length;
     const I=s.world.harborIntel;
     const opts=(c.optionalObjectives||[]).map(o=>({text:o.text,done:!!o.done,failed:!!o.failed,result:o.result||null}));

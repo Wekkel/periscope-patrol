@@ -56,13 +56,28 @@ class SimEngineASWBrain extends SimEngineWeather{
   }
 
   convoyFrame(){
-    const W=this.state.world,ships=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
-    if(!ships.length)return null;
+    const W=this.state.world,all=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
+    if(!all.length)return null;
+    const core=all.filter(c=>!shipIsStraggler(c)),ships=core.length?core:all;
     const lead=ships.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0];
     return{xNm:ships.reduce((v,c)=>v+c.position.xNm,0)/ships.length,
       yNm:ships.reduce((v,c)=>v+c.position.yNm,0)/ships.length,
       heading:lead.desiredHeading===undefined?lead.heading:lead.desiredHeading,
       speedKn:lead.baseSpeed||lead.speedKnots||8};
+  }
+
+  damagedGuardShip(){
+    const candidates=this.state.world.contacts.filter(c=>shipIsStraggler(c));
+    if(!candidates.length)return null;
+    return candidates.slice().sort((a,b)=>shipDamageSeverity(b)-shipDamageSeverity(a)||
+      distNm(a.position,this.convoyFrame()||a.position)-distNm(b.position,this.convoyFrame()||b.position))[0];
+  }
+
+  damagedGuardTarget(esc,ship){
+    if(!ship)return null;
+    const r=degToRad(ship.heading||0),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
+    const side=_shipHash01(`${esc.id}:guard-side`)<.5?-1:1;
+    return{xNm:ship.position.xNm-fx*.45+sx*side*.60,yNm:ship.position.yNm-fy*.45+sy*side*.60};
   }
 
   screenTarget(esc){
@@ -137,18 +152,27 @@ class SimEngineASWBrain extends SimEngineWeather{
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     if(!force&&now-A.lastRoleAssignAt<8)return;
     const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);if(!escorts.length)return;
-    if(e.alertState==='UNAWARE'||!this.aswDatum()){
-      for(const x of escorts)x.aswRole='SCREEN';A.lastRoleAssignAt=now;return;
+    const straggler=this.damagedGuardShip();
+    let guard=null;
+    if(straggler&&escorts.length>=2){
+      guard=escorts.find(x=>x.guardShipId===straggler.id)||escorts.find(x=>x.screenRole==='REAR_GUARD')||
+        escorts.slice().sort((a,b)=>distNm(a.position,straggler.position)-distNm(b.position,straggler.position))[0];
     }
-    const datum=this.aswDatum(),withCharges=escorts.filter(x=>(x.dcRemaining===undefined?28:x.dcRemaining)>=SONAR.patternSize);
+    for(const x of escorts){delete x.guardShipId;if(x===guard){x.guardShipId=straggler.id;x.aswRole='DAMAGED_GUARD';}}
+    const active=escorts.filter(x=>x!==guard);
+    if(e.alertState==='UNAWARE'||!this.aswDatum()){
+      for(const x of active)x.aswRole='SCREEN';A.lastRoleAssignAt=now;
+      A.roles=Object.fromEntries(escorts.map(x=>[x.id,x.aswRole]));return;
+    }
+    const datum=this.aswDatum(),withCharges=active.filter(x=>(x.dcRemaining===undefined?28:x.dcRemaining)>=SONAR.patternSize);
     let prosecutor=withCharges.find(x=>x.id===preferredId)||withCharges.slice().sort((a,b)=>distNm(a.position,datum)-distNm(b.position,datum))[0]||null;
-    for(const x of escorts)x.aswRole='SWEEP';
+    for(const x of active)x.aswRole='SWEEP';
     if(prosecutor)prosecutor.aswRole='PROSECUTOR';
-    let rem=escorts.filter(x=>x!==prosecutor);
-    if(escorts.length>=4){
-      const frame=this.convoyFrame();let guard=rem.find(x=>x.screenRole==='REAR_GUARD');
-      if(!guard&&frame)guard=rem.slice().sort((a,b)=>distNm(a.position,frame)-distNm(b.position,frame))[0];
-      if(guard){guard.aswRole='CONVOY_GUARD';rem=rem.filter(x=>x!==guard);}
+    let rem=active.filter(x=>x!==prosecutor);
+    if(active.length>=4){
+      const frame=this.convoyFrame();let convoyGuard=rem.find(x=>x.screenRole==='REAR_GUARD');
+      if(!convoyGuard&&frame)convoyGuard=rem.slice().sort((a,b)=>distNm(a.position,frame)-distNm(b.position,frame))[0];
+      if(convoyGuard){convoyGuard.aswRole='CONVOY_GUARD';rem=rem.filter(x=>x!==convoyGuard);}
     }
     if(rem.length){
       const c=rem.slice().sort((a,b)=>distNm(a.position,datum)-distNm(b.position,datum))[0];c.aswRole='CONTAINMENT';rem=rem.filter(x=>x!==c);
@@ -163,8 +187,10 @@ class SimEngineASWBrain extends SimEngineWeather{
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);
     for(const x of escorts)if(x.sonarContact&&now>(x.sonarContactUntil||-1))x.sonarContact=false;
+    const straggler=this.damagedGuardShip(),guard=escorts.find(x=>x.aswRole==='DAMAGED_GUARD');
+    if((straggler&&escorts.length>=2&&(!guard||guard.guardShipId!==straggler.id))||(!straggler&&guard))this.assignASWRoles(null,true);
     if(e.alertState==='UNAWARE'){
-      if(escorts.some(x=>x.aswRole!=='SCREEN'))this.assignASWRoles(null,true);
+      if(escorts.some(x=>x.aswRole!=='SCREEN'&&x.aswRole!=='DAMAGED_GUARD'))this.assignASWRoles(null,true);
       return;
     }
     if(e.solution&&!e.solution.decoy){

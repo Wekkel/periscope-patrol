@@ -959,3 +959,8 @@
     @media (prefers-reduced-motion:reduce){
       *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
     }
+
+/* Patch 5 refinement — time scale pickers keep a stable footprint. */
+#timeSelect + .pk-btn{width:214px;min-width:214px;justify-content:space-between;}
+#tBtnTime + .pk-btn{width:96px;min-width:96px;max-width:96px;justify-content:space-between;overflow:hidden;text-overflow:ellipsis;}
+#mTimeSel + .pk-btn{width:100%;min-width:180px;justify-content:space-between;}

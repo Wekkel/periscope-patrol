@@ -123,6 +123,7 @@ class SimEngineCore{
       lastFixPosition:{...obs.position},plotPosition:{...obs.position},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,
       positionSource:'VISUAL',positionConfidence:clamp(.80+z*.14,.80,.94),positionUncertaintyNm:lerp(.08,.025,z)});
     tr.typeEstimate=hullVisible&&conf>=.65?knownType:conf>=.35?'SURFACE SHIP':'UNKNOWN';
+    if(shipDamageSeverity(c)>.10){tr.damageEstimate=shipDamageCondition(c);tr.damageSeverity=shipDamageSeverity(c);tr.damageObservedAt=now;}
     delete tr.truePosition;W.contactTracks[c.id]=tr;
     T.bridgeMarkedId=c.id;
     this.log(`Bridge mark — ${c.id}, bearing ${fmtDeg(obs.bearing)}, range ${obs.rangeNm.toFixed(2)} nm${bin?' (binocular observation)':''}.`);

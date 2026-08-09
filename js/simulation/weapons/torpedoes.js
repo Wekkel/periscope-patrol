@@ -204,42 +204,27 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             this.alertEscorts('TORPEDO_DUD',{...t.position},0.5);
             audio.playDud();
           } else {
-            t.status='HIT'; c.sunk=true; c.sinkingProgress=0; c.speedKnots=0;
-            c.hitFrac=hitFrac; c.hitSide=lateral>=0?1:-1;
-            /* How she goes down follows from where she was hit:
-               bow hit → down by the head; stern hit → down by the stern;
-               a hit amidships either breaks her back or leaves her settling
-               on a nearly even keel, listing towards the wound.           */
-            if(hitFrac>0.22) c.sinkStyle=0;
-            else if(hitFrac<-0.22) c.sinkStyle=1;
-            else{
-              const pBreak=c.type==='ESCORT'?0.75:0.6;      // magazines, keel stress
-              c.sinkStyle=Math.random()<pBreak?2:3;
-            }
-            c.sinkDurationSec=c.sinkStyle===2?26+Math.random()*14
-                             :c.type==='ESCORT'?30+Math.random()*18
-                             :48+Math.random()*35;
-            c.sunkAt=this.state.time.elapsedSeconds;
-            const trk=this.state.world.contactTracks[c.id];
-            if(trk){trk.sunk=true;trk.lastFixPosition={...c.position};trk.plotPosition={...c.position};delete trk.truePosition;}
-            const camp=this.state.campaign;
-            const pts=c.harborValue||(c.type==='ESCORT'?2200:1400);
-            camp.score+=pts; camp.tonnageSunk+=(c.tonsFactor||3000);
-            if(c.harborTarget&&this.state.world.harbor){
-              this.state.world.harbor.alert=2;this.state.world.harbor.suspicion=100;
-              this.noteHarborAttack?.(c);
-            }
-            if(c.type==='ESCORT') camp.escortsSunk++;
-            if(camp.objectives[1]) camp.objectives[1].done=true;
-            W.hits.push({torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds});
-            W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT +${pts}`,big:c.sinkStyle===2});
-            const styleTxt=['down by the head','down by the stern','her back is broken','settling amidships'][c.sinkStyle];
-            this.log(`${t.id} HIT ${c.name} ${where} (track ${incidence.toFixed(0)}°)! She is ${styleTxt}. +${pts}pts. ${camp.tonnageSunk.toLocaleString()} tons sunk.`,'bad');
-            this.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:'TORPEDO'},`sunk:${c.id}`);
+            t.status='HIT';
+            c.hitFrac=hitFrac;c.hitSide=lateral>=0?1:-1;
+            const dmg=applyTorpedoShipDamage(this,c,{hitFrac,hitSide:c.hitSide,incidence,
+              warheadKg:spec.warheadKg||292,torpedoId:t.id,specKey:t.specKey});
+            W.hits.push({weapon:'TORPEDO',torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds,
+              location:dmg.location});
+            W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:dmg.location==='MIDSHIPS'});
+            particles.spawnExplosion(t.position.xNm,t.position.yNm,1.8,true);audio.playHit();
+            if(c.harborTarget)this.noteHarborAttack?.(c);
             this.alertEscorts('SHIP_HIT',{...t.position},1);
+
+            // Resolve a catastrophic structural opening immediately; otherwise
+            // the four subsystem states continue evolving in updateWorld().
+            updateShipDamage(this,c,0);
+            if(!c.sunk){
+              const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));
+              const condition=shipDamageCondition(c),sum=shipDamageSummary(c);
+              this.log(`${t.id} HIT ${c.name} ${dmg.location.toLowerCase()} (track ${incidence.toFixed(0)}°) — ${condition}. ${sum}.`,'bad');
+              this.notify(`TORPEDO HIT — ${c.name}: ${condition}${speedCap>0?` · estimated max ${speedCap.toFixed(1)} kn`:''}.`,'bad');
+            }
             this.checkMissionObjectives();
-            audio.playHit();
-            particles.spawnExplosion(t.position.xNm,t.position.yNm,1.8,true);
           }
           break;
         }

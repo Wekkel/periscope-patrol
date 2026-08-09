@@ -81,35 +81,27 @@ class SimEngineDeckGun extends SimEngineAircraft {
   }
 
   damageShipByDeckGun(c,hit){
-    const G=this.state.weapons.deckGun, W=this.state.weapons;
+    const G=this.state.weapons.deckGun,W=this.state.weapons;
+    // gunDamage survives only as backwards-compatible evidence that shells have
+    // hit this ship. It is no longer a health pool or a sinking threshold.
     const heavy=/CARRIER|CRUISER/i.test(c.displayType||'');
-    const mult=heavy?0.34:c.type==='ESCORT'?0.58:c.type==='TANKER'?0.78:1;
-    const d=(0.20+Math.random()*0.13)*mult;
-    c.gunDamage=clamp((c.gunDamage||0)+d,0,4);
-    if(c.harborTarget) this.noteHarborAttack?.(c);
-    c.baseSpeed=c.baseSpeed??c.speedKnots;
-    c.speedKnots=Math.min(c.speedKnots,c.baseSpeed*clamp(1-c.gunDamage*0.48,0.18,1));
-    c.desiredSpeed=Math.min(c.desiredSpeed??c.speedKnots,c.speedKnots);
-    G.hits++;G.lastFall={text:`HIT — ${c.id} · ${Math.round(c.gunDamage*100)}% gun damage`,until:this.state.time.elapsedSeconds+4};
+    const legacyStep=(heavy ? .34 : c.type==='ESCORT' ? .58 : c.type==='TANKER' ? .78 : 1)*.20;
+    c.gunDamage=clamp((c.gunDamage||0)+legacyStep,0,4);
+    const dmg=applyDeckGunShipDamage(this,c,hit);
+    if(c.harborTarget)this.noteHarborAttack?.(c);
+    G.hits++;
+    W.hits.push({weapon:'DECK_GUN',contactId:c.id,t:this.state.time.elapsedSeconds,location:dmg.location});
+    G.lastFall={text:`HIT — ${c.id} · ${dmg.location} · ${shipDamageCondition(c)}`,until:this.state.time.elapsedSeconds+4};
     this.state.weapons.explosions.push({position:{...c.position},ageSec:0,maxAgeSec:5,label:'GUN HIT'});
     particles.spawnExplosion(c.position.xNm,c.position.yNm,0.38,false);audio.playHit?.();
-    const threshold=heavy?2.7:c.type==='ESCORT'?1.55:c.type==='TANKER'?1.25:1.0;
-    if(c.gunDamage<threshold){
-      this.log(`Deck gun hit ${c.name} — visible damage, speed falling.`,'warn');
+    this.alertEscorts('SHIP_HIT',{...c.position},1);
+    updateShipDamage(this,c,0);
+    if(c.sunk){
+      G.lastFall={text:`SUNK — ${c.id} +${ensureShipDamage(c).killPoints||0}`,until:this.state.time.elapsedSeconds+6};
       return;
     }
-    c.sunk=true;c.sinkingProgress=0;c.speedKnots=0;c.hitFrac=clamp(hit.along/(hit.lenNm||1),-0.5,0.5);
-    if(c.harborTarget) this.noteHarborAttack?.(c);c.hitSide=hit.lateral>=0?1:-1;
-    c.sinkStyle=Math.abs(c.hitFrac)>0.22?(c.hitFrac>0?0:1):(Math.random()<0.35?2:3);
-    c.sinkDurationSec=c.sinkStyle===2?35+Math.random()*18:55+Math.random()*35;c.sunkAt=this.state.time.elapsedSeconds;
-    const tr=this.state.world.contactTracks[c.id];if(tr){tr.sunk=true;tr.lastFixPosition={...c.position};tr.plotPosition={...c.position};delete tr.truePosition;}
-    const camp=this.state.campaign,pts=Math.round((c.harborValue||(c.type==='ESCORT'?1800:1000))*0.85);
-    camp.score+=pts;camp.tonnageSunk+=(c.tonsFactor||3000);if(c.type==='ESCORT')camp.escortsSunk++;
-    W.hits.push({weapon:'DECK_GUN',contactId:c.id,t:this.state.time.elapsedSeconds});
-    G.lastFall={text:`SUNK — ${c.id} +${pts}`,until:this.state.time.elapsedSeconds+6};
-    this.notify(`DECK GUN — ${c.name} is going down. +${pts} pts.`,'ok');
-    this.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:'DECK_GUN'},`sunk:${c.id}`);
-    this.alertEscorts('SHIP_HIT',{...c.position},1);this.checkMissionObjectives();
+    const cap=(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c);
+    this.log(`Deck gun hit ${c.name} ${dmg.location.toLowerCase()} — ${shipDamageCondition(c)}; ${shipDamageSummary(c)}${cap>0?`; max about ${cap.toFixed(1)} kn`:''}.`,'warn');
   }
 
   updateDeckGun(dt){

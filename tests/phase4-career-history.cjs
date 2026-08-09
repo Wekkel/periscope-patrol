@@ -18,7 +18,7 @@ assert('career-history runtime module is wired between damage and final physics'
 assert('Career and Captain\'s Log UI are present',html.includes('data-stab="career"')&&html.includes('id="careerHistory"')&&html.includes('id="mCaptainLog"'),{careerTab:html.includes('data-stab="career"'),captainLog:html.includes('id="mCaptainLog"')});
 
 const runtimeLoad=['js/core/utilities.js','js/data/torpedo-data.js','js/data/campaign-data.js','js/navigation/route-geometry.js','js/simulation/collision/hull-geometry.js',
- 'js/simulation/weapons/tdc-math.js','js/simulation/surface-watch.js','js/core/state.js','js/core/command-bus.js','js/persistence/save-system.js','js/simulation/engine-core.js','js/simulation/harbor.js',
+ 'js/simulation/weapons/tdc-math.js','js/simulation/surface-watch.js','js/core/state.js','js/simulation/ship-damage.js','js/core/command-bus.js','js/persistence/save-system.js','js/simulation/engine-core.js','js/simulation/harbor.js',
  'js/simulation/weapons/torpedoes.js','js/simulation/ai/enemy-ai.js','js/simulation/ai/aircraft.js','js/simulation/weapons/deck-gun.js','js/simulation/weapons/aa-gun.js',
  'js/simulation/radio-intel.js','js/simulation/sensors.js','js/simulation/sound-radar.js','js/simulation/weather-system.js','js/simulation/ai/asw-brain.js','js/simulation/ai/escort-asw.js','js/simulation/collision/vessel-collision.js','js/simulation/damage-control.js','js/simulation/career-history.js',
  'js/simulation/physics-navigation.js','js/rendering/world-geometry.js','js/core/game.js','js/data/historical-scenarios.js','js/ui/scenario-selector.js'];

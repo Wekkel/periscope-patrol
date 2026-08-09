@@ -27,7 +27,10 @@ const Picker={
     wrap.appendChild(btn);
     const label=()=>{
       const o=sel.options[sel.selectedIndex];
-      btn.textContent=o?o.textContent:'';
+      if(sel.id==='tBtnTime'&&o){
+        const compact={'0':'⏸ PAUSE','1':'1×','8':'8×','16':'16×','32':'32×',skip1800:'30 MIN',skip7200:'2 H',skip28800:'8 H',skip0:'UNTIL EVENT'};
+        btn.textContent=compact[o.value]||o.textContent;
+      }else btn.textContent=o?o.textContent:'';
     };
     label();
     sel.addEventListener('change',label);

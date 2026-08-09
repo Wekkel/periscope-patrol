@@ -646,7 +646,7 @@ class CanvasView extends CanvasViewSound {
         ctx.font=this.fnt(10.5,true);
         const w=Math.max(94*K,ctx.measureText(`${tr.id} ${tr.typeEstimate}`).width+14*K);
         ctx.fillStyle='rgba(3,13,16,.82)';
-        ctx.fillRect(lx-5*K,ly-12*K,w,39*K);
+        ctx.fillRect(lx-5*K,ly-12*K,w,(tr.damageEstimate?51:39)*K);
       }
       ctx.fillStyle=isSelected?'rgba(226,255,240,.98)':`rgba(245,198,92,${a})`;
       ctx.font=this.fnt(isSelected?10.5:8.5,true);
@@ -658,6 +658,10 @@ class CanvasView extends CanvasViewSound {
       if(hasTruePos||isSelected){
         ctx.fillStyle=isSelected?'rgba(111,224,143,.98)':`rgba(111,224,143,${a*0.7})`;
         ctx.fillText(`${tr.rangeEstimateNm.toFixed(1)}nm`,lx,labelPos.y+13*K);
+      }
+      if(tr.damageEstimate){
+        ctx.fillStyle=tr.damageEstimate==='BURNING'||tr.damageEstimate==='FOUNDERING'?'rgba(239,106,88,.96)':'rgba(245,198,92,.9)';
+        ctx.font=this.fnt(isSelected?8.5:7.2,true);ctx.fillText(tr.damageEstimate,lx,labelPos.y+24*K);
       }
     }
   }

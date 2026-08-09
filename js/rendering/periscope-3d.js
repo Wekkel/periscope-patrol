@@ -937,6 +937,14 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const V=(lx,ly,lz)=>{
         let x=lx*S,y=ly*S,z=lz*S;
         if(!sink&&!c.stationary){
+          // Patch 5: a flooded bow/stern and list are visible in the same hull
+          // geometry the player is looking at. These are visual transforms only;
+          // the collision waterplane remains deterministic and cheap.
+          const SD=c.shipDamage;
+          if(SD){
+            const pitch=-clamp(SD.trim||0,-1,1)*.16,cp=Math.cos(pitch),sp=Math.sin(pitch),nz=z*cp-y*sp,ny=z*sp+y*cp;z=nz;y=ny;
+            const roll=clamp(SD.list||0,-1,1)*.10,cr0=Math.cos(roll),sr0=Math.sin(roll),nx0=x*cr0-y*sr0;y=x*sr0+y*cr0;x=nx0;
+          }
           // A ship under helm develops a small, stable heel instead of
           // remaining perfectly upright while its bow swings on the chart.
           // This is visual only; collision hulls remain on the simulated
@@ -1133,6 +1141,32 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         rg.addColorStop(1,'rgba(10,16,22,0)');
         ctx.fillStyle=rg;
         ctx.fillRect(base.x-rw/2,base.y,rw,rh);
+      }
+    }
+
+    // ── battle damage: black smoke / open fire ──
+    // This is intentionally a handful of vector puffs, not a particle system.
+    // It therefore appears in PERISCOPE, BRIDGE and GUN without a second render
+    // stack and stays inexpensive on low-end phones.
+    const SD=c.shipDamage;
+    if(!c.sunk&&SD&&lod>0&&(SD.fire>.12||SD.propulsion>.58)){
+      const hz=(Number.isFinite(SD.lastHitFrac)?SD.lastHitFrac:0)*model.len;
+      const base=V0(this,cam,it,cosH,sinH,S,0,model.fb+2.5,hz);
+      if(base){
+        const scale=cam.f/it.d,sev=clamp(Math.max(SD.fire,SD.propulsion*.65),.15,1);
+        const puffs=this.lowSpec?3:Math.round(4+sev*3);
+        if(SD.fire>.25){
+          const fr=Math.max(2,realLen*.025*scale)*(0.7+SD.fire*.7),flick=.8+.2*Math.sin(t*13+seed);
+          ctx.fillStyle=`rgba(255,105,24,${clamp(SD.fire*.72,0,.72)})`;
+          ctx.beginPath();ctx.ellipse(base.x,base.y-fr*.55,fr*.60*flick,fr*1.1*flick,0,0,Math.PI*2);ctx.fill();
+        }
+        for(let i=0;i<puffs;i++){
+          const ff=(i+1)/puffs,drift=((t*5+i*13)%50)*scale;
+          const rr=Math.max(1.5,(4+ff*19)*scale*(.65+sev*.6));
+          ctx.fillStyle=`rgba(12,13,14,${(.20+.35*sev)*(1-ff*.70)*haze})`;
+          ctx.beginPath();ctx.arc(base.x+drift*ff*2.2+Math.sin(t*.9+i+seed)*rr*.25,
+            base.y-ff*(18+28*sev)*scale-drift*.35,rr,0,Math.PI*2);ctx.fill();
+        }
       }
     }
 

@@ -170,7 +170,7 @@ class SimEngineHarbor extends SimEngineCore {
     I.raid.attempted=true;I.raid.enteredAt=I.raid.enteredAt??this.state.time.elapsedSeconds;
     if(contact.id==='H-04'){
       if(contact.sunk) I.raid.result='sunk';
-      else if((contact.gunDamage||0)>0) I.raid.result='damaged';
+      else if(shipDamageSeverity(contact)>.05||(contact.gunDamage||0)>0) I.raid.result='damaged';
     }
     this.refreshHarborOptionalObjective();
   }
@@ -209,7 +209,7 @@ class SimEngineHarbor extends SimEngineCore {
 
     const heavy=W.contacts.find(c=>c.id==='H-04'&&c.harborTarget);
     if(heavy?.sunk) I.raid.result='sunk';
-    else if((heavy?.gunDamage||0)>0) I.raid.result='damaged';
+    else if((heavy&&shipDamageSeverity(heavy)>.05)||(heavy?.gunDamage||0)>0) I.raid.result='damaged';
     if(rng<H.innerRadiusNm&&!I.raid.attempted){I.raid.attempted=true;I.raid.enteredAt=now;}
     if(I.raid.attempted&&I.raid.result==='not_attempted'&&rng>H.outerRadiusNm+.5){I.raid.result='abandoned';I.raid.leftAt=now;}
     this.refreshHarborOptionalObjective();

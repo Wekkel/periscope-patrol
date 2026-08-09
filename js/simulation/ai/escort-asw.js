@@ -2,6 +2,16 @@ class SimEngineASW extends SimEngineASWBrain {
   updateEscortBeh(esc,e,sub,W,idx,total,dt){
     this.ensureASWState();
     const role=esc.aswRole||'SCREEN';
+    if(role==='DAMAGED_GUARD'){
+      const casualty=W.contacts.find(c=>c.id===esc.guardShipId&&!c.sunk);
+      if(casualty){
+        const tgt=this.damagedGuardTarget(esc,casualty),err=tgt?distNm(esc.position,tgt):0;
+        if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
+        esc.desiredSpeed=clamp((casualty.speedKnots||0)+1.5+err*.7,4,13);
+        return;
+      }
+      this.assignASWRoles(null,true);
+    }
     if(e.alertState==='UNAWARE'){
       const tgt=this.screenTarget(esc);
       if(tgt){

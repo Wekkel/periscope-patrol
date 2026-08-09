@@ -245,19 +245,26 @@ class SimEngine extends SimEngineCareer {
   // A warship cannot flick its bow around. Rudder and engine orders are
   // rate-limited: an escort works up to about 4°/s, a loaded merchant 1.3°/s.
   steerShip(c,dt){
+    const D=ensureShipDamage(c);
     const base=SHIP_TURN_RATE[c.type]||1.2;
-    const rate=base*clamp(c.speedKnots/10,0.22,1.0);      // little steerage way when slow
-    const d=shortDelta(c.heading,c.desiredHeading===undefined?c.heading:c.desiredHeading);
-    const targetRate=clamp(d*.55,-rate,rate);             // ease out near the ordered course
-    const angAcc=(SHIP_TURN_ACCEL[c.type]||.7)*clamp(c.speedKnots/6,.35,1);
+    const rate=base*clamp(c.speedKnots/10,0.22,1.0)*shipDamageTurnFactor(c); // damaged rudder loses authority
+    const ordered=c.desiredHeading===undefined?c.heading:c.desiredHeading;
+    const biased=normDeg(ordered+(D?.rudderBiasDeg||0));
+    const d=shortDelta(c.heading,biased);
+    let targetRate=clamp(d*.55,-rate,rate);             // ease out near the ordered course
+    // A badly jammed rudder is a persistent casualty, not random steering
+    // noise. The ship circles one way until the damage state changes.
+    if(D&&Math.abs(D.rudderJam)>.15&&D.steering>.80)targetRate=D.rudderJam*rate;
+    const angAcc=(SHIP_TURN_ACCEL[c.type]||.7)*clamp(c.speedKnots/6,.35,1)*clamp(.35+shipDamageTurnFactor(c),.25,1);
     c.turnRateDegSec=Number.isFinite(c.turnRateDegSec)?c.turnRateDegSec:0;
     c.turnRateDegSec+=clamp(targetRate-c.turnRateDegSec,-angAcc*dt,angAcc*dt);
     let turn=c.turnRateDegSec*dt;
-    if(Math.abs(turn)>Math.abs(d)){turn=d;c.turnRateDegSec=0;}
+    if(!(D&&Math.abs(D.rudderJam)>.15&&D.steering>.80)&&Math.abs(turn)>Math.abs(d)){turn=d;c.turnRateDegSec=0;}
     c.heading=normDeg(c.heading+turn);
-    if(Math.abs(d)<.08&&Math.abs(c.turnRateDegSec)<.08)c.turnRateDegSec=0;
+    if(!(D&&Math.abs(D.rudderJam)>.15)&&Math.abs(d)<.08&&Math.abs(c.turnRateDegSec)<.08)c.turnRateDegSec=0;
     const acc=SHIP_ACCEL[c.type]||0.10;
-    const want=c.desiredSpeed===undefined?c.speedKnots:c.desiredSpeed;
+    let want=c.desiredSpeed===undefined?c.speedKnots:c.desiredSpeed;
+    if(D){const cap=(c.baseSpeed??Math.max(c.speedKnots,want))*shipDamageSpeedFactor(c);want=Math.min(want,cap);}
     const ds=want-c.speedKnots;
     c.speedKnots=clamp(c.speedKnots+clamp(ds,-acc*1.7*dt,acc*dt),0,42);
   }
@@ -269,7 +276,11 @@ class SimEngine extends SimEngineCareer {
     const merchants=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.convoyRole==='MERCHANT'&&!c.sunk);
     if(!merchants.length) return;
     merchants.sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0));
-    const lead=merchants[0],pr=routeProject(path,lead.position);
+    // A cripple is no longer allowed to drag the entire convoy down to three
+    // knots merely because it used to be the lead ship. The healthy body keeps
+    // its lane and the casualty becomes a genuine straggler.
+    const core=merchants.filter(c=>!shipIsStraggler(c));
+    const lead=(core.length?core:merchants)[0],pr=routeProject(path,lead.position);
     W.convoyLeg=W.convoyLeg===-1?-1:1;
     const C=routeCum(path),L=C[C.length-1];
     if((W.convoyLeg>0&&L-pr.s<1.6)||(W.convoyLeg<0&&pr.s<1.6)) W.convoyLeg*=-1;
@@ -278,12 +289,17 @@ class SimEngine extends SimEngineCareer {
       lead.desiredHeading=bearingBetween(lead.position,aim.pos);
       lead.desiredSpeed=lead.baseSpeed||lead.speedKnots;
     }
-    // Followers keep stations relative to the tangent of the shared water lane.
     const hdg=lead.desiredHeading===undefined?lead.heading:lead.desiredHeading;
     const r=degToRad(hdg),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
-    for(const c of merchants.slice(1)){
-      if(c.scattering) continue;
-      const f=c.formationFwd??(-(c.formationIndex||1)*1.2),side=c.formationSide||0;
+    const lf=lead.formationFwd||0,ls=lead.formationSide||0;
+    for(const c of merchants){
+      if(c===lead||c.scattering)continue;
+      if(shipIsStraggler(c)){
+        const cp=routeProject(path,c.position),ca=routeAdvance(path,cp.s,W.convoyLeg,1.0);
+        c.desiredHeading=bearingBetween(c.position,ca.pos);c.desiredSpeed=c.baseSpeed||c.speedKnots;
+        continue;
+      }
+      const f=(c.formationFwd??(-(c.formationIndex||1)*1.2))-lf,side=(c.formationSide||0)-ls;
       const tgt={xNm:lead.position.xNm+fx*f+sx*side,yNm:lead.position.yNm+fy*f+sy*side};
       const err=distNm(c.position,tgt);c.desiredHeading=bearingBetween(c.position,tgt);
       c.desiredSpeed=clamp((lead.baseSpeed||lead.speedKnots)+err*0.55,3,16);
@@ -295,6 +311,8 @@ class SimEngine extends SimEngineCareer {
     this.updateConvoyNavigation();
     this.surfaceAvoidance();
     for(const c of this.state.world.contacts){
+      if(c.sunk) continue;
+      updateShipDamage(this,c,dt);
       if(c.sunk) continue;
       if(c.stationary){c.speedKnots=0;c.desiredSpeed=0;continue;}
       // Apply scatter behaviour if a convoy merchant was alerted. Harbour
@@ -391,6 +409,9 @@ class SimEngine extends SimEngineCareer {
           ex.typeEstimate=ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         else ex.typeEstimate=ex.confidence>0.65?knownType:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         ex.contactType=c.type;
+        if(src==='VISUAL'&&shipDamageSeverity(c)>.10){
+          ex.damageEstimate=shipDamageCondition(c);ex.damageSeverity=shipDamageSeverity(c);ex.damageObservedAt=now;
+        }
         // The raw sensor observation is NOT the map position.  Predict the
         // existing paper plot with estimated course/speed and let this sensor
         // pull it toward the new observation at a bounded rate.  Hydrophone
@@ -462,7 +483,8 @@ class SimEngine extends SimEngineCareer {
     const rf=clamp(1-rng/Math.max(.35,wx.visibilityNm),0,1);
     const df=clamp(env.daylight+.18*wx.moonFactor,.10,1.0);
     const sm=clamp(1-wx.seaState*.35,.40,1);
-    return{score:rf*df*sm*c.visualProfile*lookout*wx.visualFactor};
+    const D=c.shipDamage?ensureShipDamage(c):null,damageSmoke=D?1+clamp(D.fire*.40+D.propulsion*.10,0,.48):1;
+    return{score:rf*df*sm*c.visualProfile*lookout*wx.visualFactor*damageSmoke};
   }
 
   calcAco(sub,c,rng,env){
