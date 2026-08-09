@@ -48,6 +48,18 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       {f:22,w:3.72,z:1.47},{f:35,w:3.05,z:1.18},{f:48,w:1.58,z:.90},{f:55,w:.16,z:.67}
     ];
   }
+  ownshipNearPlane(cam,state,opts={}){
+    /* The bridge/gun cameras live on the submarine. Looking along the hull, a
+       generous near plane prevents the deck directly under the observer from
+       exploding into a screen-sized trapezoid. Looking abeam, however, the
+       boat is only a few metres wide, so the near plane must shrink or the
+       entire ownship would disappear. Scale by look angle: stable fore/aft,
+       still continuous through a full 360-degree bridge sweep. */
+    if(!opts.bridge&&!opts.gun)return .55;
+    const sub=state.playerSub,rel=degToRad(shortDelta(cam.bearingDeg??sub.heading,sub.heading));
+    const axial=Math.pow(Math.abs(Math.cos(rel)),1.35);
+    return opts.gun?2.35+17.65*axial:1.9+12.1*axial;
+  }
   ownshipCamVertex(cam,sub,forwardM,sideM,zM){
     const d=degToRad(sub.heading-(cam.bearingDeg??sub.heading)),c=Math.cos(d),q=Math.sin(d);
     return{f:forwardM*c-sideM*q,r:forwardM*q+sideM*c,z:zM};
@@ -61,8 +73,8 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     }
     return out;
   }
-  projectOwnshipLocal(cam,v){
-    if(v.f<.54)return null;
+  projectOwnshipLocal(cam,v,near=.55){
+    if(v.f<near-.01)return null;
     return{x:cam.cx+v.r/v.f*cam.f,y:cam.cy+((cam.h-v.z)/v.f+v.f/(2*EARTH_R))*cam.f,d:v.f};
   }
   clipOwnshipSegment(a,b,near=.55){
@@ -70,102 +82,117 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     if(ai&&bi)return[a,b];const t=(near-a.f)/(b.f-a.f),m={f:near,r:lerp(a.r,b.r,t),z:lerp(a.z,b.z,t)};
     return ai?[a,m]:[m,b];
   }
-  ownshipSurfaceMesh(cam,state){
-    const sub=state.playerSub,secs=this.ownshipSurfaceSections(),faces=[],near=.55;
+  ownshipSurfaceMesh(cam,state,opts={}){
+    const sub=state.playerSub,secs=this.ownshipSurfaceSections(),faces=[],near=this.ownshipNearPlane(cam,state,opts);
     const V=(r,side,z)=>this.ownshipCamVertex(cam,sub,r.f,side*r.w,z===undefined?r.z:z);
     const add=(kind,poly)=>{
       const clipped=this.clipOwnshipPolygon(poly,near);if(clipped.length<3)return;
-      const pts=clipped.map(v=>this.projectOwnshipLocal(cam,v));if(pts.some(x=>!x))return;
+      const pts=clipped.map(v=>this.projectOwnshipLocal(cam,v,near));if(pts.some(x=>!x))return;
       faces.push({kind,pts,depth:clipped.reduce((n,v)=>n+v.f,0)/clipped.length});
     };
     for(let i=0;i<secs.length-1;i++){
-      const a=secs[i],b=secs[i+1];
-      /* Split the top at the centreline. One large quad can straddle the
-         bridge camera's near plane when looking abeam; painter sorting then
-         made one half appear open and the missing half swapped sides as the
-         view rotated. Two independently clipped deck halves are stable through
-         the full 360° look. */
-      add('DECK_PORT',[V(a,-1),V(b,-1),V(b,0),V(a,0)]);
-      add('DECK_STARBOARD',[V(a,0),V(b,0),V(b,1),V(a,1)]);
-      add('PORT',[V(a,-1,.12),V(b,-1,.12),V(b,-1),V(a,-1)]);
-      add('STARBOARD',[V(a,1),V(b,1),V(b,1,.12),V(a,1,.12)]);
+      const a=secs[i],b=secs[i+1],ac=a.z+.075,bc=b.z+.075;
+      // Hull/casing sides. These are intentionally separate from the deck and
+      // are painted FIRST; they can never cover the top surface and create the
+      // black "open cargo hold" illusion seen on some Android GPUs.
+      add('HULL_PORT',[V(a,-1,.16),V(b,-1,.16),V(b,-1),V(a,-1)]);
+      add('HULL_STARBOARD',[V(a,1),V(b,1),V(b,1,.16),V(a,1,.16)]);
+
+      // A subtly crowned, fully CLOSED deck. Darker shoulders make the casing
+      // read as a submarine hull without using black voids. Split port/starboard
+      // around the centreline so clipping remains stable through a 360° look.
+      add('DECK_PORT_SHOULDER',[V(a,-1,a.z),V(b,-1,b.z),V(b,-.72,bc),V(a,-.72,ac)]);
+      add('DECK_PORT',[V(a,-.72,ac),V(b,-.72,bc),V(b,0,bc+.025),V(a,0,ac+.025)]);
+      add('DECK_STARBOARD',[V(a,0,ac+.025),V(b,0,bc+.025),V(b,.72,bc),V(a,.72,ac)]);
+      add('DECK_STARBOARD_SHOULDER',[V(a,.72,ac),V(b,.72,bc),V(b,1,b.z),V(a,1,a.z)]);
     }
-    // Fairwater/conning-tower body bridges the visual gap around the camera.
-    const box=[
-      [-4,-1.55,1.75],[-4,1.55,1.75],[4,1.55,1.75],[4,-1.55,1.75],
-      [-3,-1.28,5.25],[-3,1.28,5.25],[3,1.28,5.25],[3,-1.28,5.25]
-    ].map(v=>this.ownshipCamVertex(cam,sub,v[0],v[1],v[2]));
-    add('FAIRWATER',[box[0],box[1],box[5],box[4]]);add('FAIRWATER',[box[1],box[2],box[6],box[5]]);
-    add('FAIRWATER',[box[2],box[3],box[7],box[6]]);add('FAIRWATER',[box[3],box[0],box[4],box[7]]);
-    add('FAIRWATER_TOP',[box[4],box[5],box[6],box[7]]);
     faces.sort((a,b)=>b.depth-a.depth);
     return faces;
   }
 
   drawOwnshipSurfaceDeck3D(ctx,cam,state,opts={}){
-    const sub=state.playerSub,k=this.k,faces=this.ownshipSurfaceMesh(cam,state);
-    for(const face of faces){
-      if(face.kind.startsWith('DECK'))ctx.fillStyle='rgba(43,51,48,.985)';
-      else if(face.kind==='FAIRWATER_TOP')ctx.fillStyle='rgba(52,60,56,.99)';
-      else if(face.kind.startsWith('FAIRWATER'))ctx.fillStyle='rgba(29,36,34,.99)';
-      else ctx.fillStyle='rgba(10,16,17,.98)';
-      ctx.beginPath();face.pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fill();
-      ctx.strokeStyle=face.kind.startsWith('DECK')?'rgba(126,141,133,.55)':'rgba(94,108,102,.48)';ctx.lineWidth=Math.max(.7,.9*k);ctx.stroke();
-    }
-
-    // Centre seam and rails are near-plane clipped segments rather than a list
-    // of independently projected points, so they remain continuous at 90°.
-    const secs=this.ownshipSurfaceSections(),line=(side,height,col)=>{
-      ctx.strokeStyle=col;ctx.lineWidth=Math.max(.7,.85*k);ctx.beginPath();let started=false;
-      for(let i=0;i<secs.length-1;i++){
-        const a=secs[i],b=secs[i+1];
-        const av=this.ownshipCamVertex(cam,sub,a.f,side*a.w,a.z+height),bv=this.ownshipCamVertex(cam,sub,b.f,side*b.w,b.z+height);
-        const seg=this.clipOwnshipSegment(av,bv);if(!seg){started=false;continue;}
-        const p0=this.projectOwnshipLocal(cam,seg[0]),p1=this.projectOwnshipLocal(cam,seg[1]);if(!p0||!p1)continue;
-        if(!started){ctx.moveTo(p0.x,p0.y);started=true;}else ctx.lineTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);
-      }ctx.stroke();
+    const sub=state.playerSub,k=this.k,near=this.ownshipNearPlane(cam,state,opts),faces=this.ownshipSurfaceMesh(cam,state,opts);
+    const paintFace=(face,fill,stroke)=>{
+      ctx.fillStyle=fill;ctx.beginPath();face.pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fill();
+      ctx.strokeStyle=stroke;ctx.lineWidth=Math.max(.65,.8*k);ctx.stroke();
     };
-    line(0,.035,'rgba(128,141,134,.30)');line(-.92,.30,'rgba(148,160,153,.44)');line(.92,.30,'rgba(148,160,153,.44)');
 
+    // Deliberate layer order, not one global painter sort: side/casing cannot
+    // overpaint the closed deck top even when projected polygons share a depth.
+    for(const face of faces)if(face.kind.startsWith('HULL_'))
+      paintFace(face,'rgba(22,30,30,.985)','rgba(78,95,91,.48)');
+    for(const face of faces)if(face.kind.includes('SHOULDER'))
+      paintFace(face,'rgba(34,43,41,.995)','rgba(91,108,102,.42)');
+    for(const face of faces)if(face.kind==='DECK_PORT'||face.kind==='DECK_STARBOARD')
+      paintFace(face,'rgba(49,58,54,.995)','rgba(122,139,131,.48)');
+
+    const secs=this.ownshipSurfaceSections();
     const shapeAt=fwd=>{
       if(fwd<=secs[0].f)return{w:secs[0].w,z:secs[0].z};if(fwd>=secs.at(-1).f)return{w:secs.at(-1).w,z:secs.at(-1).z};
       for(let i=0;i<secs.length-1;i++){const a=secs[i],b=secs[i+1];if(fwd>=a.f&&fwd<=b.f){const u=(fwd-a.f)/(b.f-a.f);return{w:lerp(a.w,b.w,u),z:lerp(a.z,b.z,u)};}}return{w:3,z:1};
     };
     const seg=(a,b,col='rgba(139,153,146,.48)',lw=.8)=>{
-      const av=this.ownshipCamVertex(cam,sub,...a),bv=this.ownshipCamVertex(cam,sub,...b),q=this.clipOwnshipSegment(av,bv);if(!q)return false;
-      const p0=this.projectOwnshipLocal(cam,q[0]),p1=this.projectOwnshipLocal(cam,q[1]);if(!p0||!p1)return false;ctx.strokeStyle=col;ctx.lineWidth=Math.max(.65,lw*k);ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);ctx.stroke();return true;
+      const av=this.ownshipCamVertex(cam,sub,...a),bv=this.ownshipCamVertex(cam,sub,...b),q=this.clipOwnshipSegment(av,bv,near);if(!q)return false;
+      const p0=this.projectOwnshipLocal(cam,q[0],near),p1=this.projectOwnshipLocal(cam,q[1],near);if(!p0||!p1)return false;
+      ctx.strokeStyle=col;ctx.lineWidth=Math.max(.65,lw*k);ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);ctx.stroke();return true;
+    };
+    const poly=(pts,fill,stroke='rgba(138,153,146,.52)',lw=.8)=>{
+      const q=this.clipOwnshipPolygon(pts.map(v=>this.ownshipCamVertex(cam,sub,...v)),near);if(q.length<3)return false;
+      const P=q.map(v=>this.projectOwnshipLocal(cam,v,near));if(P.some(v=>!v))return false;
+      ctx.fillStyle=fill;ctx.beginPath();P.forEach((v,i)=>i?ctx.lineTo(v.x,v.y):ctx.moveTo(v.x,v.y));ctx.closePath();ctx.fill();
+      if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=Math.max(.65,lw*k);ctx.stroke();}return true;
+    };
+    const deckRect=(fwd,side,len,width,zOff,fill,stroke)=>{
+      const s=shapeAt(fwd),z=s.z+.11+zOff;return poly([[fwd-len/2,side-width/2,z],[fwd+len/2,side-width/2,z],[fwd+len/2,side+width/2,z],[fwd-len/2,side+width/2,z]],fill,stroke,.75);
     };
 
-    // Pressure-hull/deck plating seams and ventilator grilles: sub-pixel at long
-    // range, but they make the bridge foredeck read as steel rather than a slab.
-    for(const fwd of [-37,-26,-16,16,26,36,46]){const sh=shapeAt(fwd);seg([fwd,-sh.w*.72,sh.z+.035],[fwd,sh.w*.72,sh.z+.035],'rgba(131,145,138,.29)',.65);}
-    for(const fwd of [31,34.5]){const sh=shapeAt(fwd);for(let n=-2;n<=2;n++){const side=n*.22;seg([fwd-1.6,side,sh.z+.05],[fwd+1.6,side,sh.z+.05],'rgba(9,15,15,.72)',.7);}}
+    // Closed deck outline and crown. Rails sit at the OUTER casing edge so a
+    // dark strip can never masquerade as an open compartment between rail/deck.
+    const lineAlong=(sideFactor,height,col,lw=.9)=>{
+      ctx.strokeStyle=col;ctx.lineWidth=Math.max(.7,lw*k);ctx.beginPath();let active=false;
+      for(let i=0;i<secs.length-1;i++){
+        const a=secs[i],b=secs[i+1],av=this.ownshipCamVertex(cam,sub,a.f,sideFactor*a.w,a.z+height),bv=this.ownshipCamVertex(cam,sub,b.f,sideFactor*b.w,b.z+height);
+        const q=this.clipOwnshipSegment(av,bv,near);if(!q){active=false;continue;}const p0=this.projectOwnshipLocal(cam,q[0],near),p1=this.projectOwnshipLocal(cam,q[1],near);if(!p0||!p1)continue;
+        if(!active){ctx.moveTo(p0.x,p0.y);active=true;}else ctx.lineTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);
+      }ctx.stroke();
+    };
+    lineAlong(0,.115,'rgba(150,164,156,.34)',.8);
+    lineAlong(-1,.025,'rgba(158,173,165,.74)',1.0);lineAlong(1,.025,'rgba(158,173,165,.74)',1.0);
+    lineAlong(-.99,.39,'rgba(177,190,183,.64)',.9);lineAlong(.99,.39,'rgba(177,190,183,.64)',.9);
 
-    // Proper rail stanchions on both shoulders. The continuous top rails above
-    // remain cheap splines; these posts supply the US fleet-boat silhouette.
-    if(!this.lowSpec||this.quality>.48){
-      for(const fwd of [-39,-32,-25,-18,18,25,32,39,46]){const sh=shapeAt(fwd);for(const side of [-.92,.92]){const y=side*sh.w;seg([fwd,y,sh.z+.04],[fwd,y,sh.z+.32],'rgba(154,167,160,.48)',.72);}}
+    // Transverse plate seams. Do not run all the way to the edge; this keeps
+    // the deck from looking like a stack of rectangular plates.
+    const seamF=opts.gun?[27,35,43,49]:[18,25,32,39,46,51];
+    for(const fwd of seamF){const sh=shapeAt(fwd);seg([fwd,-sh.w*.66,sh.z+.105],[fwd,sh.w*.66,sh.z+.105],'rgba(166,179,171,.28)',.65);}
+
+    // Rail stanchions + lower rail. Keep them even on 4 GB devices, just use
+    // fewer posts; these few vectors cost almost nothing and sell the silhouette.
+    const posts=opts.gun?[27,35,43,49]:[18,25,32,39,46,51];
+    for(const fwd of posts){const sh=shapeAt(fwd);for(const side of [-1,1]){const y=side*sh.w;seg([fwd,y,sh.z+.03],[fwd,y,sh.z+.40],'rgba(177,190,183,.64)',.82);}}
+    lineAlong(-.99,.23,'rgba(156,171,163,.44)',.7);lineAlong(.99,.23,'rgba(156,171,163,.44)',.7);
+
+    // Recognisable fittings: two oval hatches, a rectangular loading hatch and
+    // forward ventilation gratings. All are genuine projected deck geometry.
+    for(const fwd of opts.gun?[27,40]:[19,31,43]){
+      const sh=shapeAt(fwd),q=this.ownshipCamVertex(cam,sub,fwd,0,sh.z+.13);if(q.f<near)continue;const p=this.projectOwnshipLocal(cam,q,near);if(!p)continue;
+      const rr=clamp(cam.f/Math.max(q.f,25)*.10,2.2*k,7*k);ctx.fillStyle='rgba(10,16,16,.86)';ctx.beginPath();ctx.ellipse(p.x,p.y,rr*1.55,rr*.72,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(176,188,181,.65)';ctx.lineWidth=Math.max(.7,.85*k);ctx.stroke();
+      ctx.strokeStyle='rgba(176,188,181,.38)';ctx.beginPath();ctx.moveTo(p.x-rr,p.y);ctx.lineTo(p.x+rr,p.y);ctx.stroke();
     }
+    deckRect(opts.gun?33:27,0,3.2,1.35,.015,'rgba(21,28,27,.88)','rgba(157,171,163,.48)');
+    const grateF=opts.gun?[45,48]:[36,38.3];
+    for(const fwd of grateF){const sh=shapeAt(fwd);for(let n=-2;n<=2;n++){const side=n*.22;seg([fwd-1.35,side,sh.z+.12],[fwd+1.35,side,sh.z+.12],'rgba(8,14,14,.72)',.75);}}
 
-    // Fixed deck fittings/hatches.
-    const detail=opts.gun?[-28,-13,14,30,43]:[-28,-13,13,29,42];
-    for(const fwd of detail){
-      const sh=shapeAt(fwd),q=this.ownshipCamVertex(cam,sub,fwd,0,sh.z+.08);if(q.f<.75)continue;const p=this.projectOwnshipLocal(cam,q);if(!p)continue;
-      const rr=clamp(cam.f/Math.max(q.f,90)*.62,1.1*k,4.2*k);ctx.fillStyle='rgba(7,12,12,.78)';ctx.beginPath();ctx.ellipse(p.x,p.y,rr*1.25,rr*.62,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(128,142,135,.48)';ctx.stroke();
-      if(rr>2.2*k){ctx.strokeStyle='rgba(159,172,164,.35)';ctx.beginPath();ctx.moveTo(p.x-rr*.75,p.y);ctx.lineTo(p.x+rr*.75,p.y);ctx.stroke();}
-    }
-
-    // Silversides carried a 3-inch deck gun. In bridge view it is a fixed ship
-    // fitting (the interactive/manned weapon still lives in GUN station). Place
-    // a compact forward mount far enough from the fairwater to remain readable.
+    // 3-inch/50 deck gun in BRIDGE: shield, pedestal, braces and barrel. It is
+    // deliberately high-contrast enough to remain readable on the G88 without
+    // adding sprites, textures or a second 3-D renderer.
     if(opts.bridge){
-      const fwd=20,sh=shapeAt(fwd),z=sh.z;
-      seg([fwd,0,z+.08],[fwd,0,z+1.12],'rgba(112,124,118,.86)',2.5);
-      seg([fwd-.7,-.58,z+.88],[fwd-.7,.58,z+.88],'rgba(132,145,138,.82)',2.0);
-      seg([fwd-.7,-.58,z+.88],[fwd+.35,-.46,z+1.32],'rgba(116,129,123,.72)',1.4);
-      seg([fwd-.7,.58,z+.88],[fwd+.35,.46,z+1.32],'rgba(116,129,123,.72)',1.4);
-      seg([fwd+.05,0,z+1.12],[fwd+4.7,0,z+1.28],'rgba(151,163,156,.90)',2.1);
-      seg([fwd+4.7,0,z+1.28],[fwd+5.15,0,z+1.30],'rgba(69,78,74,.96)',3.0);
+      const fwd=22,sh=shapeAt(fwd),z=sh.z;
+      seg([fwd,0,z+.10],[fwd,0,z+.95],'rgba(135,149,142,.96)',3.2);
+      poly([[fwd-.35,-.72,z+.73],[fwd-.35,.72,z+.73],[fwd-.35,.62,z+1.42],[fwd-.35,-.62,z+1.42]],'rgba(55,65,61,.98)','rgba(185,197,190,.78)',1.1);
+      seg([fwd-.5,-.62,z+.18],[fwd-.25,-.48,z+.90],'rgba(145,159,151,.72)',1.6);
+      seg([fwd-.5,.62,z+.18],[fwd-.25,.48,z+.90],'rgba(145,159,151,.72)',1.6);
+      seg([fwd-.1,0,z+1.08],[fwd+6.2,0,z+1.48],'rgba(190,201,194,.96)',2.9);
+      seg([fwd+6.2,0,z+1.48],[fwd+6.65,0,z+1.51],'rgba(62,72,68,.98)',4.0);
     }
     return faces.length;
   }

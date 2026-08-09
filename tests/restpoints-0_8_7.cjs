@@ -52,8 +52,9 @@ const mapResult=vm.runInContext(`(()=>{
 })()`,ctx);
 assert('low-spec wide bathymetry reuses one cached chart layer instead of per-frame cells',mapResult.images===2&&mapResult.mainFills===0&&mapResult.reused,mapResult);
 
+const bridgeMesh=vm.runInContext(`(()=>{const s=createState('Java Sea');s.playerSub.depthFeet=0;s.playerSub.mode='SURFACED';s.playerSub.heading=300;const v=Object.create(CanvasView.prototype);v.k=1;let min=999;for(let b=0;b<360;b+=5){s.tactical.bridgeBearing=b;const cam=v.setupBridgeCam(s,82,1280,800);min=Math.min(min,v.ownshipSurfaceMesh(cam,s,{bridge:true}).length);}return min;})()`,ctx);
 const deck=fs.readFileSync(path.join(root,'js/rendering/deck-gun-3d.js'),'utf8'),wake=fs.readFileSync(path.join(root,'js/rendering/periscope-3d.js'),'utf8'),sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-assert('ownship top deck is independently clipped on port and starboard halves',deck.includes("add('DECK_PORT'")&&deck.includes("add('DECK_STARBOARD'")&&deck.includes('3-inch deck gun'),{});
+assert('ownship renderer uses a closed layered deck and keeps geometry through a full bridge sweep',bridgeMesh>=20&&deck.includes("add('DECK_PORT'")&&deck.includes("add('DECK_STARBOARD'")&&deck.includes("add('HULL_PORT'")&&deck.includes('3-inch/50 deck gun'),{minFaces:bridgeMesh});
 assert('wake is speed-scaled and includes subtle Kelvin divergent-wave geometry',wake.includes('speedN=clamp')&&wake.includes('19.47')&&wake.includes('Broken shoulder crests'),{});
 assert('service worker version was bumped for GitHub/PWA deployment',sw.includes("const VERSION = '0.8.7'")&&sw.includes("'./js/simulation/historical-campaign.js'"),{});
 
