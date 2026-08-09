@@ -236,6 +236,8 @@ class SimEngineCore{
       case'START_TRANSIT':{
         const t=this.state.time;
         if(sub.mode==='SUNK') break;
+        const activeAir=(this.state.world.aircraft||[]).some(a=>!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'));
+        if(activeAir){t.timeScale=1;t.transitUntil=0;t.transitOpen=false;this.notify('Transit unavailable — aircraft attack in progress.','bad');break;}
         /* seconds:0 means "no clock" — she runs on until something actually
            happens. The old eight-hour ceiling was arbitrary; a patrol can
            spend a day and a half getting to its billet and there is nothing
@@ -272,7 +274,14 @@ class SimEngineCore{
         }
         if(this.state.tactical.activeStation==='DECK_GUN') this.secureDeckGunAuto();
         this.state.tactical.activeStation=cmd.station;
-        if(cmd.station==='PERISCOPE') this.state.tactical.periscopeBearing=sub.heading;
+        if(cmd.station==='PERISCOPE'){
+          // Arcade usability: if the skipper has already selected a plot, put
+          // the glass on its estimated bearing. An uncertain plot may still
+          // reveal empty water; it is not promoted to visual truth by this.
+          const sid=this.state.tactical.selectedTrackId||this.state.tdc.targetId;
+          const tr=sid?this.state.world.contactTracks[sid]:null;
+          this.state.tactical.periscopeBearing=tr&&Number.isFinite(tr.bearing)?tr.bearing:sub.heading;
+        }
         if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.ensureSoundRadarState?.();}
         break;}
       case'ROTATE_SOUND': this.state.tactical.soundBearing=normDeg((this.state.tactical.soundBearing||sub.heading)+(cmd.deltaDeg||0)); break;
@@ -294,6 +303,10 @@ class SimEngineCore{
       case'ROTATE_PERISCOPE': this.state.tactical.periscopeBearing=normDeg(this.state.tactical.periscopeBearing+cmd.deltaDeg); break;
       case'TOGGLE_PERISCOPE_ZOOM': this.state.tactical.periscopeZoom=this.state.tactical.periscopeZoom===1?2.5:1; break;
       case'PERISCOPE_SELECT_CENTER_CONTACT': this.selectScopeContact(); break;
+      case'DESELECT_TRACK':
+        this.state.tactical.selectedTrackId=null;this.state.tdc.targetId=null;
+        this.state.tdc.autoTrack=false;this.state.tdc.trackSource='MANUAL';
+        this.log('Contact selection cleared.');break;
       case'SELECT_TRACK':{
         const tr=this.state.world.contactTracks[cmd.trackId];
         if(tr&&tr.sunk){this.log(`${tr.id} is already on the bottom.`,'warn');break;}

@@ -1,3 +1,10 @@
+function phaseSmooth01(x){x=clamp(x,0,1);return x*x*(3-2*x);}
+function dayPhaseRgb(dl,night,twilight,day){
+  if(dl<=.36){const q=phaseSmooth01((dl-.04)/.32);return night.map((v,i)=>Math.round(lerp(v,twilight[i],q)));}
+  const q=phaseSmooth01((dl-.36)/.30);return twilight.map((v,i)=>Math.round(lerp(v,day[i],q)));
+}
+function rgbCss(a){return `rgb(${a[0]},${a[1]},${a[2]})`;}
+
 class CanvasViewPeriscope extends CanvasViewDeckGun {
   drawPeriscope(ctx,w,h,state){
     const sub=state.playerSub, tact=state.tactical, env=state.world.environment;
@@ -57,19 +64,11 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const hy=cam.horizonY;
     const g=ctx.createLinearGradient(0,Math.max(0,hy-cam.r*2),0,hy);
     const storm=weatherIsWet(wx)||wx==='BUILDING CLOUD'||wx==='CLEARING';
-    if(dl>0.55){
-      g.addColorStop(0,storm?'#4a5560':'#2f6f9e');
-      g.addColorStop(0.62,storm?'#6a747c':'#7fb3d4');
-      g.addColorStop(1,storm?'#8d949a':'#cfe6f2');
-    }else if(dl>0.22){                                   // dawn / dusk
-      g.addColorStop(0,'#1b2740');
-      g.addColorStop(0.55,'#7a4f5c');
-      g.addColorStop(1,'#e0925c');
-    }else{
-      g.addColorStop(0,'#03060f');
-      g.addColorStop(0.7,'#071322');
-      g.addColorStop(1,'#12243a');
-    }
+    // Continuous night → twilight → day blend. Hard palette thresholds made
+    // the last red dusk frame snap visibly into a blue-black night frame.
+    const dayTop=storm?[74,85,96]:[47,111,158],dayMid=storm?[106,116,124]:[127,179,212],dayHor=storm?[141,148,154]:[207,230,242];
+    const skyTop=dayPhaseRgb(dl,[3,6,15],[27,39,64],dayTop),skyMid=dayPhaseRgb(dl,[7,19,34],[122,79,92],dayMid),skyHor=dayPhaseRgb(dl,[18,36,58],[224,146,92],dayHor);
+    g.addColorStop(0,rgbCss(skyTop));g.addColorStop(.62,rgbCss(skyMid));g.addColorStop(1,rgbCss(skyHor));
     ctx.fillStyle=g;ctx.fillRect(0,hy-cam.r*2.2,w,cam.r*2.2+2);
 
     // stars — low cloud/rain can erase the celestial references entirely.
@@ -91,27 +90,14 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const sunAz=normDeg(90+tod*360);
     const sunEl=degToRad(-8+62*Math.sin(Math.PI*clamp(dl,0,1)));
     const body=this.projAzEl(cam,sunAz,sunEl);
-    if(body&&dl>0.12){
-      const rr=cam.r*0.055*(cam.fovDeg<15?2.6:1);
-      const gg=ctx.createRadialGradient(body.x,body.y,0,body.x,body.y,rr*7);
-      gg.addColorStop(0,`rgba(255,247,214,${0.95*dl})`);
-      gg.addColorStop(0.12,`rgba(255,226,150,${0.55*dl})`);
-      gg.addColorStop(1,'rgba(255,190,90,0)');
-      ctx.fillStyle=gg;ctx.beginPath();ctx.arc(body.x,body.y,rr*7,0,Math.PI*2);ctx.fill();
-      ctx.fillStyle=`rgba(255,252,236,${0.9*dl})`;
-      ctx.beginPath();ctx.arc(body.x,body.y,rr,0,Math.PI*2);ctx.fill();
-      this.sunScreen=body;this.celestialIsMoon=false;this.celestialPathStrength=dl;
-    }else if(body&&dl<=0.12){
-      const rr=cam.r*0.045*(cam.fovDeg<15?2.6:1);
-      const moon=this.projAzEl(cam,normDeg(sunAz+180),degToRad(28));
-      if(moon){
-        const ma=clamp((state.world.environment.moonIllumination??.55)*(1-cloudCover*.78),.06,.92);
-        ctx.fillStyle=`rgba(232,240,255,${ma})`;
-        ctx.beginPath();ctx.arc(moon.x,moon.y,rr,0,Math.PI*2);ctx.fill();
-        ctx.fillStyle='rgba(3,8,16,.9)';
-        ctx.beginPath();ctx.arc(moon.x-rr*0.42,moon.y-rr*0.2,rr*0.92,0,Math.PI*2);ctx.fill();
-        this.sunScreen=moon;this.celestialIsMoon=true;this.celestialPathStrength=ma;
-      }
+    const sunA=phaseSmooth01((dl-.07)/.16),moonA=1-phaseSmooth01((dl-.04)/.18);
+    if(body&&sunA>.01){
+      const rr=cam.r*0.055*(cam.fovDeg<15?2.6:1),sa=sunA*clamp(.35+dl,.25,1),gg=ctx.createRadialGradient(body.x,body.y,0,body.x,body.y,rr*7);
+      gg.addColorStop(0,`rgba(255,247,214,${0.95*sa})`);gg.addColorStop(.12,`rgba(255,226,150,${0.55*sa})`);gg.addColorStop(1,'rgba(255,190,90,0)');ctx.fillStyle=gg;ctx.beginPath();ctx.arc(body.x,body.y,rr*7,0,Math.PI*2);ctx.fill();ctx.fillStyle=`rgba(255,252,236,${.9*sa})`;ctx.beginPath();ctx.arc(body.x,body.y,rr,0,Math.PI*2);ctx.fill();this.sunScreen=body;this.celestialIsMoon=false;this.celestialPathStrength=sa;
+    }
+    if(body&&moonA>.01){
+      const rr=cam.r*0.045*(cam.fovDeg<15?2.6:1),moon=this.projAzEl(cam,normDeg(sunAz+180),degToRad(28));
+      if(moon){const ma=clamp((state.world.environment.moonIllumination??.55)*(1-cloudCover*.78),.06,.92)*moonA;ctx.fillStyle=`rgba(232,240,255,${ma})`;ctx.beginPath();ctx.arc(moon.x,moon.y,rr,0,Math.PI*2);ctx.fill();ctx.fillStyle=`rgba(3,8,16,${.9*moonA})`;ctx.beginPath();ctx.arc(moon.x-rr*.42,moon.y-rr*.2,rr*.92,0,Math.PI*2);ctx.fill();if(moonA>sunA){this.sunScreen=moon;this.celestialIsMoon=true;this.celestialPathStrength=ma;}}
     }
     // clouds — fixed in the world, so they pan as the scope trains around.
     // Cumulus built from seeded puff clusters with a shaded flat base and a
@@ -207,9 +193,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
        fails (Fresnel), and you get the sea's own colour: dark, saturated,
        green-blue. Painters knew this centuries before Fresnel wrote it down.
        So the gradient runs light-far to dark-near, not the other way. */
-    const far =dl>0.5?(wx==='STORM'||wx==='RAIN'?[74,84,92]:[52,88,110])
-              :dl>0.2?[66,52,64]:[12,20,34];
-    const near=dl>0.5?[8,37,50]:dl>0.2?[10,16,30]:[2,7,14];
+    const far=dayPhaseRgb(dl,[12,20,34],[66,52,64],wx==='STORM'||wx==='RAIN'?[74,84,92]:[52,88,110]);
+    const near=dayPhaseRgb(dl,[2,7,14],[10,16,30],[8,37,50]);
     const g=ctx.createLinearGradient(0,hy,0,cam.cy+cam.r);
     g.addColorStop(0,`rgb(${far[0]},${far[1]},${far[2]})`);
     g.addColorStop(0.30,`rgb(${Math.round(far[0]*0.45+near[0]*0.55)},${Math.round(far[1]*0.45+near[1]*0.55)},${Math.round(far[2]*0.45+near[2]*0.55)})`);
@@ -870,14 +855,14 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
 
   drawShip3D(ctx,cam,it,state,dl,light,visNm,t){
     const c=it.c;
-    const model=SHIP_MODELS[c.type]||SHIP_MODELS.MERCHANT;
+    const model=SHIP_MODELS[typeof shipVisualModelKey==='function'?shipVisualModelKey(c):c.type]||SHIP_MODELS.MERCHANT;
     const realLen=(c.lengthYards||400)*0.9144;
     const S=realLen/model.len;                            // uniform scale
     const hb=degToRad(c.heading), cosH=Math.cos(hb), sinH=Math.sin(hb);
     const sinkP=c.sinkingProgress??0, style=c.sinkStyle||0;
     const seed=(c.id||'X').split('').reduce((a,ch)=>a+ch.charCodeAt(0),0);
     const haze=clamp(1-it.d/(visNm*NM_M),0.05,1);
-    const hazeCol=dl>0.5?[188,212,228]:dl>0.2?[110,100,112]:[16,26,44];
+    const hazeCol=dayPhaseRgb(dl,[16,26,44],[110,100,112],[188,212,228]);
 
     // angular size guard — skip anything smaller than a couple of pixels
     const pxLen=realLen/it.d*cam.f;
@@ -911,29 +896,27 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const lead=seed%2===0;
       const pF=clamp(sinkP*(lead?1.22:1.0)+(lead?0:-0.10),0,1);   // forward half
       const pA=clamp(sinkP*(lead?1.0:1.22)+(lead?-0.10:0),0,1);   // after half
-      const brk=1.05;                                             // break angle, rad at full
-      const sep=model.len*0.05;                                   // halves drift apart
+      const brk=.82;                                              // dramatic only once she is truly going
+      const sep=model.len*.035,sepF=phaseSmooth01(clamp((sinkP-.66)/.34,0,1));
       // the drop starts slow so the halves first REAR UP at bow and stern
       // while the broken ends flood and go under — then both slide down
       const dropF=realLen*0.60*Math.pow(pF,2.4);
       const dropA=realLen*0.60*Math.pow(pA,2.4);
       // Forward half: pivot near the BOW so the broken end (z≈0) rotates down.
-      passes.push({zMin:0,zMax:1,sink:{p:pF,pitch:brk,pitchP:pF,
-        pivot:model.len*0.38,roll:rollSide*0.22,drop:dropF,shift:sep*pF}});
+      passes.push({zMin:0,zMax:1,sink:{p:pF,pitch:brk,pitchP:Math.pow(pF,1.45),
+        pivot:model.len*.34,roll:rollSide*.22,drop:dropF,shift:sep*sepF}});
       // After half: pivot near the STERN, opposite rotation — break end down.
-      passes.push({zMin:-1,zMax:0,sink:{p:pA,pitch:-brk,pitchP:pA,
-        pivot:-model.len*0.38,roll:-rollSide*0.28,drop:dropA,shift:-sep*pA}});
+      passes.push({zMin:-1,zMax:0,sink:{p:pA,pitch:-brk,pitchP:Math.pow(pA,1.45),
+        pivot:-model.len*.34,roll:-rollSide*.28,drop:dropA,shift:-sep*sepF}});
     }else if(sinkP>0&&style===3){
       // even keel, listing over, slight trim towards the wound
       const trim=(c.hitFrac??0)*0.5;
-      passes.push({zMin:-1,zMax:1,sink:{p:sinkP,pitch:-trim,pitchP:sinkP,
+      passes.push({zMin:-1,zMax:1,sink:{p:sinkP,pitch:-trim,pitchP:Math.pow(sinkP,1.35),
         pivot:0,roll:rollSide*0.95,drop:realLen*0.5*Math.pow(sinkP,1.5),shift:0}});
     }else{
-      const bowFirst=style===0;
-      passes.push({zMin:-1,zMax:1,sink:sinkP>0?{p:sinkP,
-        pitch:bowFirst?-1.0:1.0, pitchP:sinkP,
-        pivot:bowFirst?-model.len*0.28:model.len*0.28,
-        roll:rollSide*0.42, drop:realLen*0.62*Math.pow(sinkP,1.6), shift:0}:null});
+      const bowFirst=style===0,sinkPitchP=Math.pow(sinkP,1.72);
+      const sinkDrop=realLen*(.018*phaseSmooth01(clamp(sinkP/.30,0,1))+.50*Math.pow(sinkP,2.05));
+      passes.push({zMin:-1,zMax:1,sink:sinkP>0?{p:sinkP,pitch:bowFirst?-.92:.92,pitchP:sinkPitchP,pivot:0,roll:rollSide*.34,drop:sinkDrop,shift:0}:null});
     }
     const seaLine=this.seaY(cam,it.d);
     ctx.save();
@@ -949,8 +932,10 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
           // the collision waterplane remains deterministic and cheap.
           const SD=c.shipDamage;
           if(SD){
-            const pitch=-clamp(SD.trim||0,-1,1)*.16,cp=Math.cos(pitch),sp=Math.sin(pitch),nz=z*cp-y*sp,ny=z*sp+y*cp;z=nz;y=ny;
-            const roll=clamp(SD.list||0,-1,1)*.10,cr0=Math.cos(roll),sr0=Math.sin(roll),nx0=x*cr0-y*sr0;y=x*sr0+y*cr0;x=nx0;
+            const flotation=clamp(SD.flotation||0,0,1);
+            const pitch=-clamp(SD.trim||0,-1,1)*.075,cp=Math.cos(pitch),sp=Math.sin(pitch),nz=z*cp-y*sp,ny=z*sp+y*cp;z=nz;y=ny;
+            const roll=clamp(SD.list||0,-1,1)*.12,cr0=Math.cos(roll),sr0=Math.sin(roll),nx0=x*cr0-y*sr0;y=x*sr0+y*cr0;x=nx0;
+            y-=model.fb*S*clamp(flotation*.46,0,.50);
           }
           // A ship under helm develops a small, stable heel instead of
           // remaining perfectly upright while its bow swings on the chart.
@@ -990,7 +975,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       };
 
       // ── hull ──
-      const hullSec=lod===0?model.hull.filter((_,i)=>i%2===0||i===model.hull.length-1):model.hull;
+      const baseHull=(()=>{const H=model.hull;if(H.some(q=>Math.abs(q[0])<1e-7))return H;const out=[];for(let j=0;j<H.length-1;j++){const a=H[j],b=H[j+1];out.push(a);if(a[0]<0&&b[0]>0){const f=(-a[0])/(b[0]-a[0]);out.push([0,lerp(a[1],b[1],f)]);}}out.push(H[H.length-1]);return out;})();
+      const hullSec=lod===0?baseHull.filter((_,i)=>i%2===0||i===baseHull.length-1||Math.abs(baseHull[i][0])<1e-7):baseHull;
       const deckY=(zf)=>model.fb*(1+0.14*Math.pow(Math.abs(zf)*2,2.4));
       for(let i=0;i<hullSec.length-1;i++){
         const [z0,b0]=hullSec[i], [z1,b1]=hullSec[i+1];

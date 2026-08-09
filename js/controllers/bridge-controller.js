@@ -108,8 +108,12 @@ class BridgeController{
       const wi=this.cv.pickWaypoint(s,e.clientX,e.clientY);
       if(wi>=0){this.game.dispatch({type:'MAP_REMOVE_WAYPOINT',index:wi});return;}
       const id=this.cv.pickTrack(s,e.clientX,e.clientY);
-      if(id){this.game.dispatch({type:'SELECT_TRACK',trackId:id});
-             this.game.dispatch({type:'TDC_SEND_SCOPE_OBSERVATION'});return;}
+      if(id){
+        if(id===s.tactical.selectedTrackId)this.game.dispatch({type:'DESELECT_TRACK'});
+        else {this.game.dispatch({type:'SELECT_TRACK',trackId:id});
+              this.game.dispatch({type:'TDC_SEND_SCOPE_OBSERVATION'});}
+        return;
+      }
       const w=this.cv.screenToWorldMap(e.clientX,e.clientY);
       const snap=0.25;
       this.game.dispatch({type:'MAP_ADD_WAYPOINT',xNm:Math.round(w.xNm/snap)*snap,yNm:Math.round(w.yNm/snap)*snap});

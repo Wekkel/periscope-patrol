@@ -101,7 +101,8 @@ class CanvasView extends CanvasViewSound {
     const nice=[0.5,1,2,5,10,20,50,100];
     let nm=nice[0];
     for(const n of nice){if(n*pxPerNm<=targetPx) nm=n;}
-    const sbw=nm*pxPerNm, sbx=w-pad-sbw, sby=h-Math.round(16*k);
+    const touchInset=(typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch')?92*k:0;
+    const sbw=nm*pxPerNm, sbx=w-pad-touchInset-sbw, sby=h-Math.round(16*k);
     ctx.strokeStyle='rgba(215,245,231,.65)';ctx.lineWidth=Math.max(1,1.5*k);
     ctx.beginPath();ctx.moveTo(sbx,sby);ctx.lineTo(sbx+sbw,sby);
     ctx.moveTo(sbx,sby-4*k);ctx.lineTo(sbx,sby+4*k);
@@ -603,24 +604,24 @@ class CanvasView extends CanvasViewSound {
     const major=uncertaintyR*(hydro?1.85:triang?1.35:1.05);
     const minor=uncertaintyR*(hydro?.34:triang?.54:.72);
     if(hydro&&ownScreen){
-      ctx.save();ctx.strokeStyle=isSelected?'rgba(245,198,92,.52)':`rgba(245,198,92,${a*.20})`;
-      ctx.lineWidth=Math.max(3,7*K);ctx.setLineDash([10*K,8*K]);
+      ctx.save();ctx.strokeStyle=isSelected?'rgba(245,198,92,.28)':`rgba(245,198,92,${a*.09})`;
+      ctx.lineWidth=isSelected?Math.max(1.2,1.7*K):Math.max(.75,.95*K);ctx.setLineDash([9*K,9*K]);
       ctx.beginPath();ctx.moveTo(ownScreen.x,ownScreen.y);ctx.lineTo(pe.x,pe.y);ctx.stroke();ctx.restore();
     }
     ctx.save();ctx.translate(pe.x,pe.y);ctx.rotate(ang);
-    ctx.fillStyle=isSelected?'rgba(245,198,92,.085)':`rgba(245,198,92,${a*.045})`;
-    ctx.strokeStyle=isSelected?'rgba(245,198,92,.86)':`rgba(245,198,92,${a*.58})`;
-    ctx.lineWidth=isSelected?Math.max(1.5,2*K):Math.max(1,1.1*K);ctx.setLineDash(hydro?[7*K,6*K]:[4*K,4*K]);
+    ctx.fillStyle=isSelected?'rgba(245,198,92,.035)':`rgba(245,198,92,${a*.016})`;
+    ctx.strokeStyle=isSelected?'rgba(245,198,92,.52)':`rgba(245,198,92,${a*.25})`;
+    ctx.lineWidth=isSelected?Math.max(1,1.3*K):Math.max(.7,.85*K);ctx.setLineDash(hydro?[6*K,7*K]:[4*K,5*K]);
     ctx.beginPath();ctx.ellipse(0,0,major,minor,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
     if(radar&&clamp(tr.positionConfidence||0,0,1)>.68){
       const iconType=tr.contactType==='ESCORT'?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
       this.shipIcon(ctx,pe.x,pe.y,tr.courseEstimate||0,clamp(13*K,11,24),iconType,
-        'rgba(245,198,92,.08)','rgba(245,198,92,.34)',.34);
+        'rgba(245,198,92,.035)','rgba(245,198,92,.20)',.22);
     }
   }
 
   drawMapContacts(ctx,tracks,w2s,now,ownPos,selId){
-    const K=this.k;
+    const K=this.k;this._mapLabelRects=[];const dense=Object.values(tracks).filter(q=>!q.sunk).length>=4;
     for(const tr of Object.values(tracks)){
       if(tr.sunk){                                   // a wreck: fixed, silent, no solution
         const wp=tr.plotPosition||tr.lastFixPosition;
@@ -672,46 +673,49 @@ class CanvasView extends CanvasViewSound {
         const isEsc=tr.contactType==='ESCORT'||tr.contactType==='WARSHIP'||tr.contactType==='PATROL_CRAFT';
         const shipCol=tr.affiliation==='FRIENDLY'?'#6fe08f':tr.affiliation==='NEUTRAL'?'#9ec9d3':isEsc?'#ef6a58':'#f5c65c';
         const iconType=(isEsc||tr.contactType==='WARSHIP'||tr.contactType==='PATROL_CRAFT')?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
-        this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
-          isSelected?'#6fe08f':`rgba(245,198,92,${clamp(a,0.4,1)})`,K,
-          `${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
+        if(isSelected)this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
+          '#6fe08f',K,`${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
         const lenNm=(tr.lengthYards||(isEsc?300:450))*0.0004937;
         const iconLen=clamp(lenNm*this.zoom,15*K,52*K);
         if(isSelected){ctx.strokeStyle='rgba(111,224,143,.8)';ctx.lineWidth=Math.max(1.5,2*K);ctx.beginPath();ctx.arc(pt.x,pt.y,iconLen*.8,0,Math.PI*2);ctx.stroke();}
         this.shipIcon(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,iconType,shipCol,
           isSelected?'#eafff0':'rgba(12,20,18,.9)',clamp(a,0.45,1));
-        if(Math.abs(tr.turnRateEstimateDegSec||0)>.12)this.turnCue(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,tr.turnRateEstimateDegSec,isSelected?'#6fe08f':shipCol);
+        if(isSelected&&Math.abs(tr.turnRateEstimateDegSec||0)>.12)this.turnCue(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,tr.turnRateEstimateDegSec,'#6fe08f');
       }else{
         this.drawContactUncertaintyGlyph(ctx,pe,tr,uncertaintyR,K,isSelected,a,ownScreen);
         // Course is advisory for a plot, not a drawn hull trajectory.
-        if(Number.isFinite(tr.courseEstimate)&&!(tr.positionSource==='HYDROPHONE'||tr.positionSource==='SOUND BEARING')){
+        if(isSelected&&Number.isFinite(tr.courseEstimate)&&!(tr.positionSource==='HYDROPHONE'||tr.positionSource==='SOUND BEARING')){
           const cRad=degToRad(tr.courseEstimate);ctx.strokeStyle=isSelected?'rgba(245,198,92,.75)':`rgba(245,198,92,${a*.48})`;ctx.lineWidth=Math.max(1,K);
           ctx.beginPath();ctx.moveTo(pe.x,pe.y);ctx.lineTo(pe.x+Math.sin(cRad)*18*K,pe.y-Math.cos(cRad)*18*K);ctx.stroke();
         }
       }
 
-      // Selected-contact text is deliberately promoted above the ambient plot.
-      // The previous 7.5 px / confidence-opacity treatment made the one contact
-      // the player was actively working almost unreadable on a phone.
+      // Keep a busy convoy readable. Unselected contacts use one compact
+      // line in dense plots; the selected contact alone gets the full working
+      // data. Labels are moved to the first free nearby slot and joined by a
+      // hairline instead of painting opaque cards over one another.
       const labelPos=pt||pe;
-      const lx=labelPos.x+14*K, ly=labelPos.y-10*K;
-      // Selection is already obvious from the green ring/course vector. Keep
-      // the label itself chart-like: no opaque black card obscuring nearby
-      // contacts, and use the same high-contrast yellow ink as the normal plot.
-      ctx.fillStyle=`rgba(245,198,92,${isSelected?1:a})`;
-      ctx.font=this.fnt(isSelected?10.5:8.5,true);
+      this._mapLabelRects=this._mapLabelRects||[];
       const stale=Math.floor(now-(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated));
-      ctx.fillText(`${tr.id} ${tr.affiliation&&tr.affiliation!=='ENEMY'?tr.affiliation+' ':''}${tr.typeEstimate}`,lx,ly);
-      ctx.font=this.fnt(isSelected?9:7.5);
-      ctx.fillStyle=`rgba(245,198,92,${isSelected?1:a})`;
-      ctx.fillText(`${tr.source} C${Math.round(conf*100)}% ${stale}s`,lx,labelPos.y+2*K);
-      if(hasTruePos||isSelected){
-        ctx.fillStyle=isSelected?'rgba(245,198,92,1)':`rgba(111,224,143,${a*0.7})`;
-        ctx.fillText(`${tr.rangeEstimateNm.toFixed(1)}nm`,lx,labelPos.y+13*K);
-      }
-      if(tr.damageEstimate){
-        ctx.fillStyle=tr.damageEstimate==='BURNING'||tr.damageEstimate==='FOUNDERING'?'rgba(239,106,88,.96)':'rgba(245,198,92,.9)';
-        ctx.font=this.fnt(isSelected?8.5:7.2,true);ctx.fillText(tr.damageEstimate,lx,labelPos.y+24*K);
+      const affiliation=tr.affiliation&&tr.affiliation!=='ENEMY'?tr.affiliation+' ':'';
+      const lines=[`${tr.id} ${affiliation}${tr.typeEstimate}`];
+      if(isSelected)lines.push(`${tr.source} C${Math.round(conf*100)}% ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
+      else if(!dense&&!hasTruePos)lines.push(`${tr.source} C${Math.round(conf*100)}%`);
+      if(isSelected&&tr.damageEstimate)lines.push(tr.damageEstimate);
+      const fs=isSelected?10.2:8.2, lh=(isSelected?12:10)*K;
+      ctx.font=this.fnt(fs,true);
+      const tw=Math.max(...lines.map(x=>ctx.measureText?ctx.measureText(x).width:x.length*fs*6*K));
+      const th=lines.length*lh;
+      const candidates=[[14,-10],[14,16],[-14-tw,-10],[-14-tw,16],[8,-28],[-tw/2,-34]];
+      let lx=labelPos.x+candidates[0][0]*K,ly=labelPos.y+candidates[0][1]*K;
+      const overlaps=r=>this._mapLabelRects.some(o=>!(r.x+r.w+3<o.x||o.x+o.w+3<r.x||r.y+r.h+3<o.y||o.y+o.h+3<r.y));
+      for(const q of candidates){const x=labelPos.x+q[0]*K,y=labelPos.y+q[1]*K,r={x,y:y-lh,w:tw,h:th+2*K};if(!overlaps(r)){lx=x;ly=y;break;}}
+      const rect={x:lx,y:ly-lh,w:tw,h:th+2*K};this._mapLabelRects.push(rect);
+      if(Math.hypot(lx-labelPos.x,ly-labelPos.y)>22*K){ctx.strokeStyle=`rgba(245,198,92,${isSelected?.42:.16})`;ctx.lineWidth=Math.max(.6,.8*K);ctx.beginPath();ctx.moveTo(labelPos.x,labelPos.y);ctx.lineTo(lx-3*K,ly-3*K);ctx.stroke();}
+      for(let li=0;li<lines.length;li++){
+        const damage=isSelected&&li===lines.length-1&&tr.damageEstimate;
+        ctx.fillStyle=damage&&(tr.damageEstimate==='BURNING'||tr.damageEstimate==='FOUNDERING')?'rgba(239,106,88,.96)':`rgba(245,198,92,${isSelected?1:Math.max(.62,a*.82)})`;
+        ctx.font=this.fnt(li===0?fs:(fs-1),li===0||!!damage);ctx.fillText(lines[li],lx,ly+li*lh);
       }
     }
   }

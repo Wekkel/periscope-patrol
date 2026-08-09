@@ -79,7 +79,23 @@ const SHIP_MODELS={
     smoke:{x:0,y:14,z:-2}
   }
 };
-SHIP_MODELS.TROOP=SHIP_MODELS.MERCHANT;
+SHIP_MODELS.MERCHANT_FORECASTLE={
+  len:126,beam:17,fb:6.8,hull:SHIP_MODELS.MERCHANT.hull,
+  parts:[{t:'b',x:0,y:6.8,z:47,w:13,h:5,d:18,c:'house',big:1},{t:'b',x:0,y:6.8,z:-34,w:14,h:8,d:25,c:'house',big:1},{t:'b',x:0,y:14.8,z:-31,w:10,h:4,d:11,c:'top'},{t:'f',x:0,y:14,z:-48,r:2.7,h:11,c:'funnel',rake:.08,big:1},{t:'b',x:0,y:6.8,z:10,w:9,h:1.7,d:14,c:'dark'},{t:'b',x:0,y:6.8,z:-8,w:9,h:1.7,d:14,c:'dark'}],
+  masts:[{x:0,y:7,z:28,h:25,yard:8},{x:0,y:14,z:-38,h:20,yard:6}],smoke:{x:0,y:26,z:-48}
+};
+SHIP_MODELS.MERCHANT_ISLAND={
+  len:108,beam:15.5,fb:6.5,hull:SHIP_MODELS.MERCHANT.hull,
+  parts:[{t:'b',x:0,y:6.5,z:4,w:14,h:9,d:28,c:'house',big:1},{t:'b',x:0,y:15.5,z:7,w:10,h:4,d:13,c:'top',big:1},{t:'f',x:0,y:14,z:-13,r:2.5,h:10,c:'funnel',rake:.12,big:1},{t:'b',x:0,y:6.5,z:40,w:10,h:3.2,d:15,c:'house'},{t:'b',x:0,y:6.5,z:-42,w:10,h:3.2,d:15,c:'house'}],
+  masts:[{x:0,y:7,z:34,h:22,yard:7},{x:0,y:7,z:-33,h:22,yard:7}],smoke:{x:0,y:24,z:-13}
+};
+SHIP_MODELS.MERCHANT_COASTAL={
+  len:82,beam:13,fb:5.5,hull:SHIP_MODELS.MERCHANT.hull,
+  parts:[{t:'b',x:0,y:5.5,z:-15,w:11,h:7,d:21,c:'house',big:1},{t:'b',x:0,y:12.5,z:-13,w:8,h:3,d:9,c:'top'},{t:'f',x:0,y:11,z:-29,r:2,h:8,c:'funnel',rake:.05,big:1},{t:'b',x:0,y:5.5,z:26,w:9,h:2.7,d:12,c:'house'}],
+  masts:[{x:0,y:6,z:20,h:18,yard:5},{x:0,y:6,z:-24,h:16,yard:4}],smoke:{x:0,y:19,z:-29}
+};
+function shipVisualModelKey(c){if(!c)return'MERCHANT';if(!['MERCHANT','TROOP'].includes(c.type))return c.type;const d=String(c.displayType||'').toUpperCase();if(d.includes('COASTAL'))return'MERCHANT_COASTAL';if(d.includes('TRANSPORT')||d.includes('TROOP'))return'MERCHANT_ISLAND';let h=0;for(const ch of String(c.id||c.name||''))h=(h*33+ch.charCodeAt(0))>>>0;return['MERCHANT','MERCHANT_FORECASTLE','MERCHANT_ISLAND'][h%3];}
+SHIP_MODELS.TROOP=SHIP_MODELS.MERCHANT_ISLAND;
 SHIP_MODELS.WARSHIP=SHIP_MODELS.ESCORT;
 SHIP_MODELS.PATROL_CRAFT=SHIP_MODELS.ESCORT;
 SHIP_MODELS.JUNK={

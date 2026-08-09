@@ -52,7 +52,7 @@ const result=vm.runInContext(`(()=>{
  out.netReveal={known:I.net.known,source:I.net.source,labels:ops2};
 
  // Use the real contact tracker repeatedly, not a hand-written identity flag.
- s.playerSub.position={xNm:heavy.position.xNm-.35,yNm:heavy.position.yNm};s.playerSub.depthFeet=55;s.world.environment.visibilityNm=16;
+ s.playerSub.position={xNm:heavy.position.xNm-.35,yNm:heavy.position.yNm};s.playerSub.depthFeet=55;s.world.environment.visibilityNm=16;s.tactical.activeStation='PERISCOPE';s.tactical.periscopeBearing=bearingBetween(s.playerSub.position,heavy.position);
  for(let n=0;n<7;n++){e.updateDetection(5);e.updateHarborKnowledge(5)}
  const tr=s.world.contactTracks['H-04'];out.identify={track:{source:tr?.source,confidence:tr?.confidence,type:tr?.typeEstimate},known:I.heavyUnit,objective:O()?.text};
 

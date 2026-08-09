@@ -6,6 +6,10 @@ class SimEngine extends SimEngineCareer {
       alert:s.world.enemy.alertState,
       hull:s.playerSub.damage.hullIntegrity,
       air:(s.world.aircraft||[]).filter(a=>a.seenBySub).length,
+      // Attack state is safety-critical even when the aeroplane was already
+      // known before transit began (or the lookout/radar has not yet promoted
+      // it to a fresh contact count). This is a deliberate arcade safety net.
+      airDanger:(s.world.aircraft||[]).filter(a=>!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length,
       ultra:!!s.world.ultra,
       wp:s.map.plottedCourse.length,
       status:s.campaign.missionStatus,
@@ -61,6 +65,7 @@ class SimEngine extends SimEngineCareer {
     if(s.world.enemy.alertState!==w.alert&&s.world.enemy.alertState!=='UNAWARE') return 'the escorts are stirring';
     if(Object.keys(s.world.contactTracks).length>w.tracks) return 'a new contact';
     if((s.world.aircraft||[]).filter(a=>a.seenBySub).length>w.air) return 'aircraft';
+    if((s.world.aircraft||[]).filter(a=>!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length>(w.airDanger||0)) return 'aircraft attack';
     if(s.world.ultra&&!w.ultra) return 'an ULTRA intercept';
     if(s.map.plottedCourse.length<w.wp) return 'a waypoint reached';
     if(s.campaign.missionStatus!==w.status) return 'new orders';
@@ -142,6 +147,7 @@ class SimEngine extends SimEngineCareer {
     const d=shortDelta(sub.heading,sub.orderedHeading);
     sub.heading=normDeg(sub.heading+clamp(d,-mx*dt,mx*dt));
     sub.rudder=clamp(d/45,-1,1);
+    sub.maneuveringThrust=sub.propulsion.speedKnots<.45&&Math.abs(d)>1?clamp(Math.abs(d)/45,0,1)*.055:0;
   }
 
   updateDepth(sub,dt){
@@ -384,7 +390,13 @@ class SimEngine extends SimEngineCareer {
          because the generic confidence score is a little below 0.12. The 3-D
          renderer can show ships near the visibility limit; give those weak but
          real visual observations a floor instead of letting the plot decay. */
-      const visualHeld=sub.depthFeet<=65&&rng<=bridgeVisualLimitNm(this.state,c);
+      const T=this.state.tactical;
+      const surfacedVisual=sub.depthFeet<8&&rng<=bridgeVisualLimitNm(this.state,c);
+      const scopeFov=typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[T.periscopeZoom===1?0:1].fov:(T.periscopeZoom===1?32:8);
+      const scopeVisual=sub.depthFeet>=8&&sub.depthFeet<=65&&T.activeStation==='PERISCOPE'
+        &&rng<=bridgeVisualLimitNm(this.state,c)
+        &&Math.abs(shortDelta(T.periscopeBearing,bear))<=scopeFov*.52;
+      const visualHeld=surfacedVisual||scopeVisual;
       const acousticHeld=aco.score>0.12;
       const held=visualHeld||acousticHeld;
       const sc=visualHeld?Math.max(vis.score,aco.score,0.18):aco.score;
@@ -532,8 +544,8 @@ class SimEngine extends SimEngineCareer {
     sub.stealth.visualProfile=(sf+pf)*wx.subVisualFactor;
     const rn=sub.propulsion.actualRpm/450; const sn=Math.pow(sub.propulsion.speedKnots/18,2);
     const sm=sub.stealth.silentRunning?0.38:1; const dm=sub.depthFeet>65?0.85:1;
-    const pn=sub.damage.pumpActive?0.12:0; const fn=sub.damage.flooding*0.15;
-    sub.stealth.acousticSignature=clamp((rn*0.6+sn*0.8)*sm*dm+pn+fn,0,1.5);
+    const pn=sub.damage.pumpActive?0.12:0; const fn=sub.damage.flooding*0.15;const mn=sub.maneuveringThrust||0;
+    sub.stealth.acousticSignature=clamp((rn*0.6+sn*0.8)*sm*dm+pn+fn+mn,0,1.5);
     /* On the bottom nothing turns and nothing moves, and an echo-ranging set
        cannot pull her out of the bottom return. Only the pumps and any water
        she is taking give her away. */

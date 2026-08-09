@@ -29,7 +29,7 @@ const result=vm.runInContext(`(()=>{
 })()`,ctx);
 
 const mapSrc=fs.readFileSync(path.join(root,'js/rendering/map.js'),'utf8');
-const labelBlock=mapSrc.slice(mapSrc.indexOf('// Selected-contact text'),mapSrc.indexOf('  /* ── Top-down ship icons'));
+const labelBlock=mapSrc.slice(mapSrc.indexOf('// Keep a busy convoy'),mapSrc.indexOf('  /* ── Top-down ship icons'));
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
 assert('selected MAP label has no opaque black text card',!labelBlock.includes('fillRect(')&&!labelBlock.includes("rgba(3,13,16"),{});
 assert('selected MAP label uses normal yellow chart ink',labelBlock.includes('rgba(245,198,92'),{});

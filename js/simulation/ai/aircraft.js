@@ -95,7 +95,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         }
         if(seen){
           a.seenBySub=true; air.alarmedAt=now;
-          this.log(`⚠ AIR ALARM — ${how}. CLEAR THE BRIDGE!`,'bad');
+          const airAction=sub.depthFeet<12?'CLEAR THE BRIDGE!':'REMAIN SUBMERGED.';
+          this.log(`⚠ AIR ALARM — ${how}. ${airAction}`,'bad');
           audio.playAlarm();
         }
       }

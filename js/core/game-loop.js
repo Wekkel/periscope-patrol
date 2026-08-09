@@ -55,7 +55,10 @@ class GameLoop{
         this.game.update(2.0/Math.max(T.timeScale,1));
         const why=eng.transitInterrupt&&eng.transitInterrupt();
         if(why){
-          T.transitUntil=0;T.transitReason=why;
+          // An event has handed the conn back to the player. Do not leave her
+          // racing along at the pre-transit 8/16/32x setting: the whole point
+          // of an event stop is to give the skipper time to react.
+          T.transitUntil=0;T.transitOpen=false;T.timeScale=1;T.transitReason=why;
           if(why!=='ok'){
             eng.log(`Transit broken off — ${why}.`,'warn');
             // Give the stop reason the toast lane to itself. The queued context

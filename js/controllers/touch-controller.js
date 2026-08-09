@@ -510,7 +510,11 @@ class TouchCtrl{
       const wi=this.cv.pickWaypoint(s,e.clientX,e.clientY);
       if(wi>=0){D({type:'MAP_REMOVE_WAYPOINT',index:wi});Toast.ok(`Waypoint ${wi+1} removed`);buzz(12);return;}
       const id=this.cv.pickTrack(s,e.clientX,e.clientY);
-      if(id){D({type:'SELECT_TRACK',trackId:id});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(14);return;}
+      if(id){
+        if(id===s.tactical.selectedTrackId){D({type:'DESELECT_TRACK'});Toast.ok('Contact selection cleared');}
+        else {D({type:'SELECT_TRACK',trackId:id});D({type:'TDC_SEND_SCOPE_OBSERVATION'});}
+        buzz(14);return;
+      }
       const w=this.cv.screenToWorldMap(e.clientX,e.clientY);
       // snap to a grid you can actually see: finer as you zoom in
       const snap=this.cv.zoom>120?0.05:this.cv.zoom>40?0.1:0.25;
@@ -555,6 +559,7 @@ class TouchCtrl{
     const sub=state.playerSub, p=sub.propulsion, tdc=state.tdc, W=state.weapons;
     const warn=sub.damage.warnings||[], enemy=state.world.enemy.alertState;
     const sta=state.tactical.activeStation;
+    document.documentElement.dataset.station=sta;
 
     // transit banner
     const T=state.time;
