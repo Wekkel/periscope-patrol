@@ -58,7 +58,6 @@
   <div class="op-body" id="opSpeed">
     <div class="op-row op-presets">
       <button data-rpm="0">■ Stop</button>
-      <button data-rpm="25">Harbor</button>
       <button data-rpm="120">Slow</button>
       <button data-rpm="250">Standard</button>
       <button data-rpm="450">Flank</button>
@@ -226,7 +225,10 @@
           <span id="aarTime">T+00:00</span>
           <button id="aarIntel">SHOW INTELLIGENCE PICTURE</button>
         </div>
-        <div class="aar-legend"><span>— OWN ROUTE</span><span>◇ CONTACT PLOT</span><span>△ ATTACK</span><span>✕ SINKING</span><span id="aarIntelLegend" style="display:none">— TRUE ENEMY TRACKS</span></div>
+        <div class="aar-legend">
+          <span>— own route</span><span>◇ contact plot / uncertain track</span><span>↗ torpedo or gun attack</span><span>✕ sinking / kill</span><span>✺ damage / depth-charge event</span><span>△ aircraft event</span><span id="aarIntelLegend" style="display:none">— true enemy tracks</span>
+        </div>
+        <div id="aarNow" class="aar-now">Move the timeline or press PLAY to review the patrol. Event summaries appear here.</div>
       </div>
       <div class="aar-log"><h3>CAPTAIN'S LOG</h3><div id="aarCaptainLog"></div></div>
     </div>
@@ -495,6 +497,15 @@
       <button class="rbtn" id="oLock">🎯<small>LOCK</small></button>
       <button class="rbtn" id="btnFire">FIRE<span class="sol" id="fireSol">--%</span></button>
     </div>
+
+    <div class="ovl" id="gunElevPanel" aria-label="Deck gun elevation controls">
+      <button class="rbtn gunstep" id="oGunElevUp">▲<small>ELEV+</small></button>
+      <div class="gun-elev-wrap">
+        <div class="gun-elev-readout" id="gunElevReadout">1.0°</div>
+        <input id="oGunElev" type="range" min="0" max="22" step="0.1" value="1" aria-label="Deck gun elevation"/>
+      </div>
+      <button class="rbtn gunstep" id="oGunElevDown">▼<small>ELEV−</small></button>
+    </div>
   </div>
 
   <!-- QUICK STATUS -->
@@ -546,7 +557,7 @@
 
         <div class="ptitle" style="margin-top:14px;">Engine <span id="rpmOrdered" style="color:var(--ink)">250</span></div>
         <div class="g5">
-          <button data-rpm="0">Stop</button><button data-rpm="25">Harbor</button><button data-rpm="120">Slow</button>
+          <button data-rpm="0">Stop</button><button data-rpm="120">Slow</button>
           <button data-rpm="250">Std</button><button data-rpm="450">Flank</button>
         </div>
         <div class="g4 stepline">

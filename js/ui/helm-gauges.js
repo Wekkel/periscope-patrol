@@ -87,7 +87,7 @@ class HelmGauges{
     return {
       key,start:135,sweep:270,wrap:false,gain:1,max:450,unit:'RPM',
       ordered:p.orderedRpm, actual:p.actualRpm,
-      limit:[0,450], detents:[0,25,120,200,250,350,450], step:[25,100],
+      limit:[0,450], detents:[0,120,200,250,350,450], step:[25,100],
       bells:[[0,'STOP'],[120,'SLOW'],[200,'2/3'],[250,'STD'],[350,'FULL'],[450,'FLANK']],
       send:v=>this.game.dispatch({type:'SET_ENGINE_RPM',rpm:Math.round(v)}),
       big:p.speedKnots.toFixed(1), danger:false,

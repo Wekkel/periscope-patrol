@@ -1,7 +1,7 @@
 class CanvasView extends CanvasViewSound {
   drawMap(ctx,w,h,state){
     const sub=state.playerSub, map=state.map, k=this.k;
-    const pxPerNm=this.zoom;
+    const pxPerNm=this.zoom; this._mapViewport={w,h};
     // NEW_PATROL raises a state-side recenter sequence. Consume it here rather
     // than reaching from simulation into the CanvasView instance. This keeps
     // the dependency direction one-way and also works if MAP is opened later.
@@ -637,9 +637,60 @@ class CanvasView extends CanvasViewSound {
     }
   }
 
+  _mapCompactTypeLabel(type='UNKNOWN'){
+    const t=String(type||'UNKNOWN').toUpperCase();
+    if(t==='MERCHANT') return 'MERCHANT';
+    if(t==='CARGO SHIP') return 'CARGO';
+    if(t==='TANKER') return 'TANKER';
+    if(t==='ESCORT') return 'ESCORT';
+    if(t==='PATROL CRAFT') return 'PATROL';
+    if(t==='WARSHIP') return 'WARSHIP';
+    if(t==='UNKNOWN') return 'CONTACT';
+    return t.replace(/\s+/g,' ').slice(0,18);
+  }
+
+  _mapLabelOverlapArea(a,b){
+    const x=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x));
+    const y=Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y));
+    return x*y;
+  }
+
+  _mapLabelRectFor(anchor,w,h,dx,dy,dist,K){
+    let x=anchor.x+dx*dist*K,y=anchor.y+dy*dist*K;
+    x+=dx>0.42?3*K:dx<-0.42?-(w+3*K):-(w*0.5);
+    y+=dy>0.42?(h*0.15):dy<-0.42?-(h+2*K):-(h*0.45);
+    return {x,y,w,h};
+  }
+
+  _placeMapLabel(anchor,w,h,K,occupied,selected=false){
+    const vp=this._mapViewport||{w:1024,h:768};
+    const dirs=[[1,-1],[1,1],[-1,-1],[-1,1],[0,-1],[0,1],[1,0],[-1,0],[.55,-1],[-.55,-1],[.55,1],[-.55,1]];
+    const radii=selected?[12,20,30,42,56,72]:[12,20,30,42,56];
+    let best=null,bestScore=1e18;
+    for(const r of radii) for(const [dx,dy] of dirs){
+      const rect=this._mapLabelRectFor(anchor,w,h,dx,dy,r,K);
+      const right=rect.x+rect.w,bottom=rect.y+rect.h;
+      const overflow=Math.max(0,4-rect.x)+Math.max(0,4-rect.y)+Math.max(0,right-(vp.w-4))+Math.max(0,bottom-(vp.h-4));
+      let overlap=0;for(const o of occupied) overlap+=this._mapLabelOverlapArea(rect,o);
+      const midX=rect.x+rect.w*0.5,midY=rect.y+rect.h*0.5;
+      const dist=Math.hypot(midX-anchor.x,midY-anchor.y);
+      const score=overlap*15+overflow*280+dist+(dy>0?10:0)+(dx<0?3:0);
+      if(score<bestScore){bestScore=score;best=rect;if(!overlap&&!overflow&&dist<40*K) break;}
+    }
+    if(best){
+      best.x=clamp(best.x,4,vp.w-best.w-4);
+      best.y=clamp(best.y,4,vp.h-best.h-4);
+      occupied.push(best);
+      return best;
+    }
+    const fallback={x:clamp(anchor.x+12*K,4,vp.w-w-4),y:clamp(anchor.y-h-8*K,4,vp.h-h-4),w,h};
+    occupied.push(fallback);return fallback;
+  }
+
   drawMapContacts(ctx,tracks,w2s,now,ownPos,selId){
-    const K=this.k;this._mapLabelRects=[];const dense=Object.values(tracks).filter(q=>!q.sunk).length>=4;
-    for(const tr of Object.values(tracks)){
+    const K=this.k;this._mapLabelRects=[];const visible=Object.values(tracks).filter(q=>!q.sunk),dense=visible.length>=4;
+    const ordered=[...Object.values(tracks)].sort((a,b)=>((b.id===selId)-(a.id===selId))||((b.visualHullConfirmed?1:0)-(a.visualHullConfirmed?1:0))||((b.confidence||0)-(a.confidence||0))||String(a.id).localeCompare(String(b.id)));
+    for(const tr of ordered){
       if(tr.sunk){                                   // a wreck: fixed, silent, no solution
         const wp=tr.plotPosition||tr.lastFixPosition;
         if(!wp) continue;
@@ -715,7 +766,9 @@ class CanvasView extends CanvasViewSound {
       this._mapLabelRects=this._mapLabelRects||[];
       const stale=Math.floor(now-(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated));
       const affiliation=tr.affiliation&&tr.affiliation!=='ENEMY'?tr.affiliation+' ':'';
-      const lines=[`${tr.id} ${affiliation}${tr.typeEstimate}`];
+      const compactType=this._mapCompactTypeLabel(tr.typeEstimate);
+      const title=isSelected?`${tr.id} ${affiliation}${tr.typeEstimate}`:`${tr.id} ${dense?compactType:(affiliation+compactType)}`;
+      const lines=[title.trim()];
       if(isSelected)lines.push(`${tr.source} C${Math.round(conf*100)}% ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
       else if(!dense&&!hasTruePos)lines.push(`${tr.source} C${Math.round(conf*100)}%`);
       if(isSelected&&tr.damageEstimate)lines.push(tr.damageEstimate);
@@ -723,12 +776,10 @@ class CanvasView extends CanvasViewSound {
       ctx.font=this.fnt(fs,true);
       const tw=Math.max(...lines.map(x=>ctx.measureText?ctx.measureText(x).width:x.length*fs*6*K));
       const th=lines.length*lh;
-      const candidates=[[14,-10],[14,16],[-14-tw,-10],[-14-tw,16],[8,-28],[-tw/2,-34]];
-      let lx=labelPos.x+candidates[0][0]*K,ly=labelPos.y+candidates[0][1]*K;
-      const overlaps=r=>this._mapLabelRects.some(o=>!(r.x+r.w+3<o.x||o.x+o.w+3<r.x||r.y+r.h+3<o.y||o.y+o.h+3<r.y));
-      for(const q of candidates){const x=labelPos.x+q[0]*K,y=labelPos.y+q[1]*K,r={x,y:y-lh,w:tw,h:th+2*K};if(!overlaps(r)){lx=x;ly=y;break;}}
-      const rect={x:lx,y:ly-lh,w:tw,h:th+2*K};this._mapLabelRects.push(rect);
-      if(Math.hypot(lx-labelPos.x,ly-labelPos.y)>22*K){ctx.strokeStyle=`rgba(245,198,92,${isSelected?.42:.16})`;ctx.lineWidth=Math.max(.6,.8*K);ctx.beginPath();ctx.moveTo(labelPos.x,labelPos.y);ctx.lineTo(lx-3*K,ly-3*K);ctx.stroke();}
+      const rect=this._placeMapLabel(labelPos,tw,th+2*K,K,this._mapLabelRects,isSelected);
+      const lx=rect.x,ly=rect.y+lh;
+      const leadX=rect.x+Math.min(rect.w-4,Math.max(4,labelPos.x-rect.x)),leadY=rect.y+Math.min(rect.h-4,Math.max(4,labelPos.y-rect.y));
+      if(Math.hypot(leadX-labelPos.x,leadY-labelPos.y)>16*K){ctx.strokeStyle=`rgba(245,198,92,${isSelected?'.44':'.18'})`;ctx.lineWidth=Math.max(.6,.8*K);ctx.beginPath();ctx.moveTo(labelPos.x,labelPos.y);ctx.lineTo(leadX,leadY);ctx.stroke();}
       for(let li=0;li<lines.length;li++){
         const damage=isSelected&&li===lines.length-1&&tr.damageEstimate;
         ctx.fillStyle=damage&&(tr.damageEstimate==='BURNING'||tr.damageEstimate==='FOUNDERING')?'rgba(239,106,88,.96)':`rgba(245,198,92,${isSelected?1:Math.max(.62,a*.82)})`;

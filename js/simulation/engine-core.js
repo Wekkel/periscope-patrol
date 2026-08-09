@@ -250,6 +250,10 @@ class SimEngineCore{
         G.trainDeg=clamp((G.trainDeg||0)+(cmd.deltaTrainDeg||0),-140,140);
         G.elevationDeg=clamp((G.elevationDeg||0)+(cmd.deltaElevDeg||0),0,22);
         break;}
+      case'SET_DECK_GUN_ELEVATION':{
+        const G=this.state.weapons.deckGun;
+        G.elevationDeg=clamp(cmd.elevationDeg??G.elevationDeg??0,0,22);
+        break;}
       case'LAY_DECK_GUN': this.layDeckGun(); break;
       case'FIRE_DECK_GUN': this.fireDeckGun(); break;
       case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); break;
@@ -813,14 +817,13 @@ class SimEngineCore{
     if(camp.missionStatus==='PATROL'&&camp.primaryMission?.result==='SUCCESS')camp.missionStatus='RETURN TO BASE';
     const returning=camp.missionStatus==='RETURN TO BASE';
     const r=this.friendlyPortNav();
-    const ALONGSIDE_SEC=FRIENDLY_PORT_RETURN_SEC,SERVICE_SEC=FRIENDLY_PORT_SERVICE_SEC,APPROACH_NM=1.5,CLOSE_NM=0.30,SLOW_KN=FRIENDLY_PORT_SLOW_KN;
+    const APPROACH_NM=1.5,CLOSE_NM=0.30;
     if(!r){camp.alongside=0;camp.portService=0;return;}
     camp.portRangeNm=r.rngNm;
 
-    // Friendly rendezvous points are usable logistics stops throughout a
-    // patrol, not only the final RETURN TO BASE objective. This is deliberately
-    // arcade-friendly: the player may spend time reaching a safe RV to restore
-    // stores and damage rather than being forced to abandon the patrol.
+    // Friendly rendezvous points remain usable service stops throughout the
+    // patrol, but the interaction is now simpler: enter the close ring,
+    // surface, and stop the boat. No countdown and no special harbor bell.
     if(r.rngNm<4&&r.rngNm>APPROACH_NM&&!camp._rvSeen){
       camp._rvSeen=true;
       this.notify(`${r.port.name.toUpperCase()} FRIENDLY RV — ${r.rngNm.toFixed(1)} nm. Rearm, refuel, charge batteries and repair are available inside the green ring.`,'ok');
@@ -832,49 +835,31 @@ class SimEngineCore{
         this.state.time.stopReason='friendly port approach';this.state.time.stopReasonAt=this.state.time.elapsedSeconds;
       }
       this.notify(returning
-        ? `${r.port.name.toUpperCase()} — FINAL RETURN. Enter the 0.3 nm green ring surfaced at ≤${SLOW_KN.toFixed(0)} kn; HARBOR preset is ${FRIENDLY_PORT_HARBOR_RPM} rpm. Hold there for ${ALONGSIDE_SEC} seconds to complete the patrol.`
-        : `${r.port.name.toUpperCase()} — FRIENDLY RENDEZVOUS. Enter the 0.3 nm green ring surfaced at ≤${SLOW_KN.toFixed(0)} kn; HARBOR preset is ${FRIENDLY_PORT_HARBOR_RPM} rpm. Hold ${SERVICE_SEC} seconds for service.`,'ok');
+        ? `${r.port.name.toUpperCase()} — FINAL RETURN. Enter the 0.3 nm green ring surfaced and stop the boat to complete the patrol.`
+        : `${r.port.name.toUpperCase()} — FRIENDLY RENDEZVOUS. Enter the 0.3 nm green ring surfaced and stop the boat for service.`,'ok');
     }
     if(r.rngNm>APPROACH_NM*1.25) camp._approachReached=false;
     if(r.rngNm>4.5) camp._rvSeen=false;
-    if(r.rngNm>CLOSE_NM*1.55){camp._portServiceLock=false;camp.portService=0;}
+    if(r.rngNm>CLOSE_NM*1.55){camp._portServiceLock=false;camp.portService=0;camp.alongside=0;camp._portTouchActive=false;}
 
-    const surfaced=sub.depthFeet<8,slow=sub.propulsion.speedKnots<=SLOW_KN,close=r.rngNm<=CLOSE_NM;
-    if(!close||!surfaced||!slow){
-      const active=(returning?(camp.alongside||0):(camp.portService||0));
-      if(active>0.5){
-        const why=!close?'she has drawn off':!surfaced?'she has gone under':'she is making too much way';
-        this.notify(`Lost the ${r.port.name} rendezvous — ${why}. ${returning?'Transfer':'Service'} stopped.`,'warn');
-      }
-      if(returning)camp.alongside=0;else camp.portService=0;
+    const surfaced=sub.depthFeet<8,close=r.rngNm<=CLOSE_NM;
+    const stopped=(sub.propulsion.speedKnots||0)<=0.45||(sub.propulsion.orderedRpm||0)<=0;
+    if(!close||!surfaced||!stopped){
+      camp.alongside=0;camp.portService=0;camp._portTouchActive=false;
       return;
     }
 
-    if(returning){
-      const was=camp.alongside||0;
-      camp.alongside=was+dt;
-      if(was<=0){
-        this.notify(`${r.port.name.toUpperCase()} — FINAL RETURN STARTED. Hold surfaced at ≤${SLOW_KN.toFixed(0)} kn for 0:${String(ALONGSIDE_SEC).padStart(2,'0')}; leaving the ring, diving or speeding up resets the hold.`,'ok');
-        audio.playWaypoint();
-      }else for(const mark of [10,20]) if(mark<ALONGSIDE_SEC&&was<mark&&camp.alongside>=mark)
-        this.notify(`${r.port.name} final return — ${Math.max(0,Math.ceil(ALONGSIDE_SEC-camp.alongside))} seconds remaining.`,'ok');
-      if(camp.alongside>=ALONGSIDE_SEC){camp.alongside=0;this.completeMission(r.port.name);}
-      return;
+    if(!camp._portTouchActive){
+      camp._portTouchActive=true;audio.playWaypoint();
+      this.notify(returning
+        ? `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Patrol complete.`
+        : `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Taking on fuel, stores and repair parties.`,'ok');
     }
-
-    // Mid-patrol service is quick but not instantaneous: the 15-second hold
-    // makes the green RV feel like a place without turning logistics into grind.
+    sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;
+    if(returning){camp.alongside=0;this.completeMission(r.port.name);return;}
     if(camp._portServiceLock)return;
-    const was=camp.portService||0;camp.portService=was+dt;
-    if(was<=0){
-      this.notify(`${r.port.name.toUpperCase()} — FRIENDLY SERVICE PARTY ALONGSIDE. Hold position 15 seconds.`,'ok');
-      audio.playWaypoint();
-    }
-    if(was<8&&camp.portService>=8)this.notify(`${r.port.name} service — stores coming aboard, damage parties working.`,'ok');
-    if(camp.portService>=SERVICE_SEC){
-      camp.portService=0;camp._portServiceLock=true;camp.lastPortServiceAt=this.state.time.elapsedSeconds;
-      this.performFriendlyPortService(r.port.name);
-    }
+    camp.portService=0;camp._portServiceLock=true;camp.lastPortServiceAt=this.state.time.elapsedSeconds;
+    this.performFriendlyPortService(r.port.name);
   }
 
   completeMission(portName){
