@@ -131,6 +131,29 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       if(fwd<=secs[0].f)return{w:secs[0].w,z:secs[0].z};if(fwd>=secs.at(-1).f)return{w:secs.at(-1).w,z:secs.at(-1).z};
       for(let i=0;i<secs.length-1;i++){const a=secs[i],b=secs[i+1];if(fwd>=a.f&&fwd<=b.f){const u=(fwd-a.f)/(b.f-a.f);return{w:lerp(a.w,b.w,u),z:lerp(a.z,b.z,u)};}}return{w:3,z:1};
     };
+
+    /* The camera is standing ON this deck. Near-plane clipping is necessary
+       to stop the closest polygon exploding into a giant plate, but clipping
+       also used to leave a physically impossible patch of sea at the bottom
+       of BRG/GUN — as if the centre of the submarine had been sawn away.
+       Close that camera-space gap with one bounded foreground apron. It starts
+       exactly at the clipped deck edge and only fills toward the bottom of the
+       viewport, so it cannot protrude above/beyond the projected hull. */
+    if(opts.bridge||opts.gun){
+      const rel=degToRad(shortDelta(cam.bearingDeg??sub.heading,sub.heading)),along=Math.cos(rel);
+      if(Math.abs(along)>.48){
+        const dir=along>=0?1:-1,fwd=dir*Math.min(48,near+0.35),sh=shapeAt(fwd),z=sh.z+.105;
+        const q0=this.ownshipCamVertex(cam,sub,fwd,-sh.w*.72,z),q1=this.ownshipCamVertex(cam,sub,fwd,sh.w*.72,z);
+        const p0=this.projectOwnshipLocal(cam,q0,near),p1=this.projectOwnshipLocal(cam,q1,near);
+        const W=this.w||cam.cx*2,H=this.h||cam.cy*2;
+        if(p0&&p1){
+          const L=p0.x<p1.x?p0:p1,R=p0.x<p1.x?p1:p0,ey=clamp(Math.max(L.y,R.y),H*.48,H*.88);
+          ctx.fillStyle='rgba(49,58,54,.995)';ctx.beginPath();ctx.moveTo(clamp(L.x,0,W),ey);ctx.lineTo(clamp(R.x,0,W),ey);
+          ctx.lineTo(W*.985,H+2);ctx.lineTo(W*.015,H+2);ctx.closePath();ctx.fill();
+          ctx.strokeStyle='rgba(122,139,131,.42)';ctx.lineWidth=Math.max(.65,.8*k);ctx.beginPath();ctx.moveTo(clamp(L.x,0,W),ey);ctx.lineTo(clamp(R.x,0,W),ey);ctx.stroke();
+        }
+      }
+    }
     const seg=(a,b,col='rgba(139,153,146,.48)',lw=.8)=>{
       const av=this.ownshipCamVertex(cam,sub,...a),bv=this.ownshipCamVertex(cam,sub,...b),q=this.clipOwnshipSegment(av,bv,near);if(!q)return false;
       const p0=this.projectOwnshipLocal(cam,q[0],near),p1=this.projectOwnshipLocal(cam,q[1],near);if(!p0||!p1)return false;
@@ -157,8 +180,15 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       }ctx.stroke();
     };
     lineAlong(0,.115,'rgba(150,164,156,.34)',.8);
+    // Long deck strips suggest the slatted fleet-submarine decking seen around
+    // Silversides without the cost of a texture map.
+    for(const sf of [-.56,-.28,.28,.56])lineAlong(sf,.108,'rgba(24,31,29,.36)',.58);
     lineAlong(-1,.025,'rgba(158,173,165,.74)',1.0);lineAlong(1,.025,'rgba(158,173,165,.74)',1.0);
-    lineAlong(-.99,.39,'rgba(177,190,183,.64)',.9);lineAlong(.99,.39,'rgba(177,190,183,.64)',.9);
+    // Three taut lifelines on short stanchions: much closer to the real deck
+    // railing than the old single floating line.
+    lineAlong(-.99,.22,'rgba(156,171,163,.48)',.72);lineAlong(.99,.22,'rgba(156,171,163,.48)',.72);
+    lineAlong(-.99,.38,'rgba(177,190,183,.62)',.82);lineAlong(.99,.38,'rgba(177,190,183,.62)',.82);
+    lineAlong(-.99,.52,'rgba(184,197,190,.68)',.88);lineAlong(.99,.52,'rgba(184,197,190,.68)',.88);
 
     // Transverse plate seams. Do not run all the way to the edge; this keeps
     // the deck from looking like a stack of rectangular plates.
@@ -167,9 +197,8 @@ class CanvasViewDeckGun extends CanvasViewTactical {
 
     // Rail stanchions + lower rail. Keep them even on 4 GB devices, just use
     // fewer posts; these few vectors cost almost nothing and sell the silhouette.
-    const posts=opts.gun?[27,35,43,49]:[18,25,32,39,46,51];
-    for(const fwd of posts){const sh=shapeAt(fwd);for(const side of [-1,1]){const y=side*sh.w;seg([fwd,y,sh.z+.03],[fwd,y,sh.z+.40],'rgba(177,190,183,.64)',.82);}}
-    lineAlong(-.99,.23,'rgba(156,171,163,.44)',.7);lineAlong(.99,.23,'rgba(156,171,163,.44)',.7);
+    const posts=opts.gun?[20,26,32,38,44,49]:[16,22,28,34,40,46,51];
+    for(const fwd of posts){const sh=shapeAt(fwd);for(const side of [-1,1]){const y=side*sh.w;seg([fwd,y,sh.z+.03],[fwd,y,sh.z+.54],'rgba(177,190,183,.68)',.82);}}
 
     // Recognisable fittings: two oval hatches, a rectangular loading hatch and
     // forward ventilation gratings. All are genuine projected deck geometry.
@@ -186,7 +215,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     // deliberately high-contrast enough to remain readable on the G88 without
     // adding sprites, textures or a second 3-D renderer.
     if(opts.bridge){
-      const fwd=22,sh=shapeAt(fwd),z=sh.z;
+      const fwd=15.5,sh=shapeAt(fwd),z=sh.z;
       seg([fwd,0,z+.10],[fwd,0,z+.95],'rgba(135,149,142,.96)',3.2);
       poly([[fwd-.35,-.72,z+.73],[fwd-.35,.72,z+.73],[fwd-.35,.62,z+1.42],[fwd-.35,-.62,z+1.42]],'rgba(55,65,61,.98)','rgba(185,197,190,.78)',1.1);
       seg([fwd-.5,-.62,z+.18],[fwd-.25,-.48,z+.90],'rgba(145,159,151,.72)',1.6);

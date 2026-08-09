@@ -149,6 +149,7 @@ class TouchCtrl{
     btn('oZoomOut',()=>this.cv.zoomAt(1/1.35,innerWidth/2,innerHeight/2));
     btn('oCenter', ()=>{this.cv.recenter(this.game.getSnapshot().playerSub);Toast.ok('Map centred on ownship');});
     btn('oClear',  ()=>D({type:'MAP_CLEAR_PLOT'}));
+    btn('oWeather',()=>{D({type:'TOGGLE_MAP_WEATHER'});buzz(8);});
     btn('oScopeL', ()=>D({type:'ROTATE_PERISCOPE',deltaDeg:-5}));
     btn('oScopeR', ()=>D({type:'ROTATE_PERISCOPE',deltaDeg:5}));
     btn('oScopeZ', ()=>D({type:'TOGGLE_PERISCOPE_ZOOM'}));
@@ -157,6 +158,24 @@ class TouchCtrl{
     btn('oDive',   ()=>{D({type:'DIVE'});this.setDepthSlider(100);});
     btn('oGunLay', ()=>{D({type:'LAY_DECK_GUN'});buzz(10);});
     btn('oGunFire',()=>{D({type:'FIRE_DECK_GUN'});buzz([18,22,18]);});
+    const setGunElev=v=>{
+      v=clamp(Number(v)||0,0,22);const el=g('oGunElev'),r=g('gunElevReadout');
+      if(el)el.value=v.toFixed(1);if(r)r.textContent=`${v.toFixed(1)}°`;
+      D({type:'SET_DECK_GUN_ELEVATION',elevationDeg:v});return v;
+    };
+    const gunElevNow=()=>{const el=g('oGunElev');return Number.isFinite(+el?.value)?+el.value:clamp(this.game.getSnapshot().weapons.deckGun?.elevationDeg??0,0,22);};
+    btn('oGunElevUp',()=>{setGunElev(gunElevNow()+.1);buzz(6);});
+    btn('oGunElevDown',()=>{setGunElev(gunElevNow()-.1);buzz(6);});
+    {const el=g('oGunElev');
+      if(el){
+        el.addEventListener('input',()=>setGunElev(+el.value),{passive:true});
+        el.addEventListener('pointerdown',()=>{this.dragging='oGunElev';},{passive:true});
+        const drop=()=>{if(this.dragging==='oGunElev')this.dragging=null;};
+        for(const ev of ['pointerup','pointercancel','lostpointercapture','change'])el.addEventListener(ev,drop,{passive:true});
+        window.addEventListener('pointerup',drop,{passive:true});
+        window.addEventListener('blur',drop,{passive:true});
+      }
+    }
     btn('bridgeBino',()=>{D({type:'TOGGLE_BRIDGE_BINOCULARS'});buzz(10);});
     btn('bridgeMark',()=>{D({type:'BRIDGE_MARK_CONTACT'});buzz(10);});
     btn('bridgeTarget',()=>{D({type:'BRIDGE_TARGET_CENTER'});buzz(14);});
@@ -423,7 +442,11 @@ class TouchCtrl{
       else if(mode==='sound'){D({type:'ROTATE_SOUND',deltaDeg:-dx*.55});}
       else if(mode==='gun'){
         const f=cv.gunCam?.f||Math.max(180,cv.w*0.9);
-        D({type:'ADJUST_DECK_GUN',deltaTrainDeg:radToDeg(Math.atan(dx/f)),deltaElevDeg:-radToDeg(Math.atan(dy/f))});
+        /* Horizontal drag should remain brisk for bearing, but vertical drag is
+           intentionally damped because tiny finger motion produced very large
+           elevation jumps on phones and tablets. The dedicated slider/wheel is
+           for fine work; drag is now the coarse lay-on-target control. */
+        D({type:'ADJUST_DECK_GUN',deltaTrainDeg:radToDeg(Math.atan(dx/f)),deltaElevDeg:-radToDeg(Math.atan((dy*0.35)/f))});
       }
       else if(mode==='compass'){this.compassDrag(e);}
       else if(mode==='depth'){this.depthDrag(e);}
@@ -649,6 +672,7 @@ class TouchCtrl{
     }
     const bz=bridgeZoomAmount(state);cls('bridgeBino','on',bz>.05);
     const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
+    cls('oWeather','on',!!state.map.weatherOverlay);
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
     const sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
     cls('oSilent','on',sub.stealth.silentRunning);
@@ -683,6 +707,11 @@ class TouchCtrl{
       if(el&&+el.value!==v){el.value=v;}set('mHdgV',fmtDeg(sub.orderedHeading));}
     if(this.dragging!=='mRpm'){const el=g('mRpm');if(el&&+el.value!==Math.round(p.orderedRpm))el.value=Math.round(p.orderedRpm);}
     if(this.dragging!=='mDpt'){const el=g('mDpt');if(el&&+el.value!==Math.round(sub.orderedDepthFeet))el.value=Math.round(sub.orderedDepthFeet);}
+    if(this.dragging!=='oGunElev'){
+      const el=g('oGunElev'),v=clamp(state.weapons.deckGun?.elevationDeg??0,0,22);
+      if(el&&Math.abs(+el.value-v)>.049)el.value=v.toFixed(1);
+    }
+    set('gunElevReadout',`${clamp(state.weapons.deckGun?.elevationDeg??0,0,22).toFixed(1)}°`);
     set('hdgOrdered',fmtDeg(sub.orderedHeading));
     set('rpmOrdered',`${p.orderedRpm.toFixed(0)} rpm`);
     set('dptOrdered',`${sub.orderedDepthFeet.toFixed(0)} ft`);

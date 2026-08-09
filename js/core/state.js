@@ -45,7 +45,7 @@ function createState(areaKey){
     },
     map:{cellSizeNm:5,exploredCells:{},ownshipTrail:[],plottedCourse:[],
       estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true,
-      recenterSeq:0},
+      recenterSeq:0,weatherOverlay:false},
     world:{
       contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
       aaManned:false,aaAmmo:1200,aaKills:0,aaHurt:0,

@@ -49,6 +49,29 @@ function bridgeVisualLimitNm(state,contact){
   return 0;
 }
 
+
+function scopeOpticalFovDeg(state){
+  const T=state?.tactical||{};
+  if(typeof SCOPE_OPTICS!=='undefined'){
+    const o=SCOPE_OPTICS[T.periscopeZoom===1?0:1];if(o&&Number.isFinite(o.fov))return o.fov;
+  }
+  return T.periscopeZoom===1?32:8;
+}
+
+/* One definition of a visually resolvable periscope hull, shared by sensor
+   acquisition, MAP presentation and the optical renderer. Keeping these three
+   paths on the same cone prevents the old state where a ship was plainly in
+   the glass while the chart alternated between a hull and a hydrophone blob. */
+function scopeCanResolveHull(state,contact,requireStation=true){
+  const sub=state?.playerSub,T=state?.tactical;if(!sub||!T||!contact||contact.sunk)return false;
+  if(requireStation&&T.activeStation!=='PERISCOPE')return false;
+  if((sub.depthFeet||0)<8||(sub.depthFeet||0)>65)return false;
+  const rng=distNm(sub.position,contact.position);
+  if(rng>bridgeVisualLimitNm(state,contact)*1.02)return false;
+  const bear=bearingBetween(sub.position,contact.position);
+  return Math.abs(shortDelta(T.periscopeBearing,bear))<=scopeOpticalFovDeg(state)*.52;
+}
+
 function _bridgeHashUnit(seed,text,tag=0){
   let h=(Number(seed)||1)*2654435761+tag*2246822519;
   const s=String(text||'');

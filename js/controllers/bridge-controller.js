@@ -49,6 +49,7 @@ class BridgeController{
     btn('floodAftButton',   ()=>this.game.dispatch({type:'FLOOD_AFT_TUBES'}));
     btn('fireAftButton',    ()=>this.game.dispatch({type:'FIRE_AFT_SPREAD'}));
     btn('clearPlotButton',  ()=>this.game.dispatch({type:'MAP_CLEAR_PLOT'}));
+    btn('mapWeatherButton',()=>this.game.dispatch({type:'TOGGLE_MAP_WEATHER'}));
     btn('followPlotButton', ()=>this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('portButton',       ()=>this.game.dispatch({type:'HEAD_TO_PORT'}));
     btn('newScenarioButton',()=>this.game.dispatch({type:'NEW_PATROL'}));

@@ -79,7 +79,7 @@ class ScenarioSelector{
         <span class="area-diff ${d.cls}">${d.s} ${d.l}</span>
       </div>`;
     }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">One primary mission per patrol. Truk harbor raids remain intelligence-driven optional opportunities.</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
-    const ms=c.querySelector('#missionTypeSelect');if(ms)ms.addEventListener('change',()=>{this.selMission=ms.value;});
+    const ms=c.querySelector('#missionTypeSelect');if(ms){ms.addEventListener('change',()=>{this.selMission=ms.value;});if(typeof Picker!=='undefined')Picker.enhance(ms);}
     c.querySelectorAll('.area-card').forEach(card=>{
       card.addEventListener('click',()=>{
         this.selArea=card.dataset.area;

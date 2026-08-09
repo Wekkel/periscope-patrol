@@ -57,8 +57,10 @@ assert('weather alone does not interrupt compressed transit',!result.transit.why
 assert('weather state is visible in existing status UI',result.ui.html.includes('Weather')&&result.ui.html.includes('HEAVY RAIN')&&result.ui.html.includes('Sea state'),result.ui);
 assert('rain/droplets render with bounded primitive counts on low-spec path',result.render.lines>10&&result.render.lines<=70&&result.render.drops>0&&result.render.drops<=7,result.render);
 assert('rough sea changes deck-gun shell splash geometry and rain fades it',result.splash.rough.ell[0][2]>result.splash.clear.ell[0][2]&&result.splash.rough.ell[0][3]>result.splash.clear.ell[0][3]&&result.splash.rough.alpha[0]!==result.splash.clear.alpha[0],result.splash);
-const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),wxSrc=fs.readFileSync(path.join(root,'js/simulation/weather-system.js'),'utf8');
+const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),wxSrc=fs.readFileSync(path.join(root,'js/simulation/weather-system.js'),'utf8'),mapSrc=fs.readFileSync(path.join(root,'js/rendering/map.js'),'utf8'),engineSrc=fs.readFileSync(path.join(root,'js/simulation/engine-core.js'),'utf8');
 assert('weather adds no station or heavy render engine',!html.includes('data-sta="WEATHER"')&&!/WebGL|OffscreenCanvas|createElement\(['"]canvas|new Image\s*\(/.test(wxSrc),{});
 assert('weather simulation is throttled and cell count capped',/S\.tickAcc<5/.test(wxSrc)&&/S\.cells\.length>3/.test(wxSrc),{});
+assert('MAP offers an explicit low-cost weather overlay toggle in touch and desktop UI',html.includes('id="oWeather"')&&html.includes('id="mapWeatherButton"')&&engineSrc.includes("case'TOGGLE_MAP_WEATHER'")&&mapSrc.includes('drawMapWeatherOverlay'),{});
+assert('weather MAP overlay draws only the bounded weather-cell list rather than sampling a heat map',mapSrc.includes('const K=this.k,sys=state.world.weatherSystem,cells=sys?.cells||[]')&&!/getImageData|putImageData/.test(mapSrc),{});
 if(failed){console.error(`PATCH 4 WEATHER CONTRACT: FAIL (${failed})`);process.exit(1)}
 console.log('PATCH 4 WEATHER CONTRACT: PASS');

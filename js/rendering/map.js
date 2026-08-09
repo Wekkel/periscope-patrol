@@ -47,6 +47,7 @@ class CanvasView extends CanvasViewSound {
     }
 
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
+    if(state.map.weatherOverlay)this.drawMapWeatherOverlay(ctx,state,w2s,w,h);
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
     this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds);
@@ -57,7 +58,7 @@ class CanvasView extends CanvasViewSound {
     this.drawMapDCs(ctx,state.world.depthCharges,w2s);
     this.drawMapTorps(ctx,state.weapons.activeTorpedoes,w2s);
     this.drawMapExplosions(ctx,state.weapons.explosions,w2s);
-    this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId);
+    this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId,state);
     this.drawUltra(ctx,state,w2s);
     this.drawMapAircraft(ctx,state.world.aircraft||[],w2s,sub);
     particles.draw(ctx,w2s);
@@ -107,6 +108,28 @@ class CanvasView extends CanvasViewSound {
     ctx.fillText(`${nm} nm`,sbx+sbw/2,sby-6*k);ctx.textAlign='left';
 
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
+  }
+
+  drawMapWeatherOverlay(ctx,state,w2s,w,h){
+    const K=this.k,sys=state.world.weatherSystem,cells=sys?.cells||[];ctx.save();
+    // At most three slowly moving circles exist in the simulation. Rendering
+    // them as two translucent rings each is effectively free even on the G88
+    // and avoids a sampled heat-map or per-pixel weather texture.
+    for(const cell of cells){
+      if(!cell?.center)continue;const p=w2s(cell.center.xNm,cell.center.yNm),r=Math.max(8,(cell.radiusNm||5)*this.zoom);
+      if(p.x+r<0||p.x-r>w||p.y+r<0||p.y-r>h)continue;
+      ctx.fillStyle='rgba(118,155,164,.055)';ctx.strokeStyle='rgba(146,185,191,.34)';ctx.lineWidth=Math.max(.7,1*K);ctx.setLineDash([5*K,6*K]);
+      ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.fillStyle='rgba(118,155,164,.075)';ctx.strokeStyle='rgba(146,185,191,.22)';ctx.setLineDash([3*K,7*K]);
+      ctx.beginPath();ctx.arc(p.x,p.y,r*.58,0,Math.PI*2);ctx.fill();ctx.stroke();
+      const hd=degToRad(cell.heading||0),L=Math.min(r*.62,42*K);ctx.setLineDash([]);ctx.strokeStyle='rgba(174,204,207,.38)';
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+Math.sin(hd)*L,p.y-Math.cos(hd)*L);ctx.stroke();
+      if(this.zoom>18){ctx.fillStyle='rgba(174,204,207,.68)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';ctx.fillText('SQUALL CELL',p.x,p.y-r-4*K);}
+    }
+    const q=weatherAtPosition(state,state.playerSub.position),label=`WX ${q.stage} · LOCAL VIS ${q.visibilityNm.toFixed(1)} NM`;
+    ctx.setLineDash([]);ctx.font=this.fnt(8.2,true);const tw=(ctx.measureText?.(label).width||label.length*6*K)+16*K,bh=22*K,bx=clamp(w/2-tw/2,6,w-tw-6),by=h-48*K;
+    ctx.fillStyle='rgba(5,17,21,.82)';this.rr(ctx,bx,by,tw,bh,6*K);ctx.fill();ctx.strokeStyle='rgba(146,185,191,.38)';ctx.stroke();
+    ctx.fillStyle='rgba(196,222,220,.9)';ctx.textAlign='center';ctx.fillText(label,bx+tw/2,by+14.5*K);ctx.textAlign='left';ctx.restore();
   }
 
   drawMissionOverlay(ctx,state,w2s){
@@ -687,7 +710,7 @@ class CanvasView extends CanvasViewSound {
     occupied.push(fallback);return fallback;
   }
 
-  drawMapContacts(ctx,tracks,w2s,now,ownPos,selId){
+  drawMapContacts(ctx,tracks,w2s,now,ownPos,selId,state=null){
     const K=this.k;this._mapLabelRects=[];const visible=Object.values(tracks).filter(q=>!q.sunk),dense=visible.length>=4;
     const ordered=[...Object.values(tracks)].sort((a,b)=>((b.id===selId)-(a.id===selId))||((b.visualHullConfirmed?1:0)-(a.visualHullConfirmed?1:0))||((b.confidence||0)-(a.confidence||0))||String(a.id).localeCompare(String(b.id)));
     for(const tr of ordered){
@@ -728,7 +751,18 @@ class CanvasView extends CanvasViewSound {
          chart-memory window; the kinematic plot continues to age underneath
          and reverts to an uncertainty glyph once that visual fix is genuinely
          stale. */
-      const hasTruePos=visualFlag&&fixAge<18&&(tr.staleSeconds||0)<24;
+      let visuallyResolvable=false;
+      if(visualFlag&&state){
+        const c=(state.world.contacts||[]).find(q=>q.id===tr.id&&!q.sunk);
+        if(c){
+          const sub=state.playerSub,r=distNm(sub.position,c.position);
+          visuallyResolvable=(sub.depthFeet||0)<8?r<=bridgeVisualLimitNm(state,c):scopeCanResolveHull(state,c,false);
+        }
+      }
+      /* Solid chart hull and optical hull now obey the same visibility test.
+         Confidence may be 96% because the track is excellent, but confidence
+         alone never decides whether the physical hull is currently visible. */
+      const hasTruePos=visualFlag&&(state?visuallyResolvable:(fixAge<18&&(tr.staleSeconds||0)<24));
       const pt=hasTruePos?pe:null;
 
       const sensorUncPx=Number.isFinite(tr.positionUncertaintyNm)?tr.positionUncertaintyNm*this.zoom:0;

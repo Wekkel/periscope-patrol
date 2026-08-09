@@ -829,7 +829,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const bear=bearingBetween(sub.position,c.position);
       const viewBearing=cam.bearingDeg??normDeg(radToDeg(Math.atan2(cam.sin,cam.cos)));
       const bd=shortDelta(viewBearing,bear);
-      if(Math.abs(bd)>cam.fovDeg*0.85) continue;
+      if(cam.kind==='PERISCOPE'&&!scopeCanResolveHull(state,c,false)) continue;
+      if(cam.kind!=='PERISCOPE'&&Math.abs(bd)>cam.fovDeg*0.85) continue;
       // hidden behind land?
       const sx=cam.cx+Math.tan(degToRad(bd))*cam.f;
       let occluded=false;

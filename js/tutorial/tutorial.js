@@ -10,7 +10,7 @@ const TUT_STEPS=[
    check:s=>s.tactical.activeStation==='MAP'},
 
   {id:'map',title:'The navigation plot',
-   body:'Drag to pan, pinch to zoom, <b>◎</b> re-centres on the boat, <b>✕</b> clears your plot. Dark squares are water you have not seen yet; the amber dashed lane is a known convoy route.<br><br>Tap open water to drop a waypoint — the autopilot then steers to it. Tap a waypoint again to delete it, and the moment you touch the helm yourself the autopilot lets go.',
+   body:'Drag to pan, pinch to zoom, <b>◎</b> re-centres on the boat, <b>✕</b> clears your plot. The amber dashed lane is a known convoy route; contacts are what your crew has actually plotted, not omniscient truth.<br><br>Tap open water to drop a waypoint — the autopilot then steers to it. Tap a waypoint again to delete it, and the moment you touch the helm yourself the autopilot lets go.<br><br>The <b>☁ WX</b> button overlays only the moving squall cells and your local visual range; toggle it briefly when visibility does not match what you expected.',
    goal:'Plot a waypoint on the map', hl:'ovlLeft',
    check:s=>s.map.plottedCourse.length>0},
 
@@ -30,9 +30,15 @@ const TUT_STEPS=[
    check:s=>s.playerSub.orderedDepthFeet<=60&&s.playerSub.depthFeet>25},
 
   {id:'sensors',title:'Finding the enemy',
-   body:'This boat has <b>no radar</b> — you hunt with two senses:<br>• <b>Visual</b> — bridge lookouts when surfaced, periscope down to ~65 ft. Range depends on daylight, weather and sea state.<br>• <b>Hydrophone</b> — passive sonar, works at any depth. Loud, fast ships are heard from further away, and your <i>own</i> noise deafens you.<br><br>The enemy has active sonar too. If you hear a ping, they are searching for <i>you</i>.<br><br>Be patient and watch the map — a contact will build up.',
+   body:'You hunt first with two dependable senses:<br>• <b>Visual</b> — bridge lookouts when surfaced, periscope down to ~65 ft. Range depends on daylight, weather and sea state.<br>• <b>Hydrophone</b> — passive sonar, works at any depth. Loud, fast ships are heard from further away, and your <i>own</i> noise deafens you.<br><br><b>SJ surface-search radar</b> becomes available only on patrol dates when your boat has the fit. The enemy has active sonar too: if you hear a ping, they are searching for <i>you</i>.<br><br>Be patient and watch the map — a contact will build up.',
    goal:'Pick up your first contact',
    check:s=>Object.keys(s.world.contactTracks).length>0},
+
+  {id:'sound',title:'Work the hydrophones',
+   body:'Open <b>SND</b>. The passive hydrophones are directional: use <b>◀ Train / Train ▶</b> (or drag) until the screw noise is centred, then press <b>✚ Mark Bearing</b>. One mark is a line of bearing, not a magic range; after you move the boat, a second mark can triangulate a much better plot.<br><br><b>◉ Echo Range</b> sends an active QC ping and can give a short-range range fix — but every escort can hear the transmission. <b>SJ Radar</b> switches this station to surface-search radar only on patrol dates when the set is fitted. Slow or stop if your own screws are masking contacts.',
+   goal:'Centre the screws and make one SOUND bearing mark', sta:'SOUND', hl:'soundControls',
+   enter:T=>T.prepareSoundLesson(),
+   check:(s,T)=>T.soundMarkCount(s)>T._soundMarks0},
 
   {id:'track',title:'Reading a contact',
    body:'Each contact is a <b>track</b>, not a certainty:<br>• dashed circle = estimated position, the circle shrinks as you get surer<br>• solid arrow = confirmed position and course<br>• <b>C%</b> = confidence, <b>VISUAL</b> or <b>HYDROPHONE</b> = how you are seeing it, and the seconds since the last update<br><br>Keep watching it — confidence grows the longer you hold contact.',
@@ -40,7 +46,7 @@ const TUT_STEPS=[
    check:s=>Object.values(s.world.contactTracks).some(t=>t.confidence>=0.6)},
 
   {id:'scope',title:'The periscope',
-   body:'Switch to <b>SCOPE</b> and drag left/right to train it. The number tape across the top is the bearing you are looking at, double-tap zooms to 2.5×.<br><br>Put the ship near the crosshair. The horizontal ladder on the vertical wire is a stadimeter scale — bigger ship in the optic means closer.',
+   body:'Switch to <b>SCOPE</b> and drag left/right to train it. The number tape across the top is the bearing you are looking at, double-tap switches between the historically appropriate <b>1.5×</b> and <b>6×</b> powers.<br><br>Put the ship near the crosshair. The horizontal ladder on the vertical wire is a stadimeter scale — bigger ship in the optic means closer.',
    goal:'Train the scope onto the ship (within 10°)', sta:'PERISCOPE', hl:'ovlStations',
    check:(s,T)=>{
      const c=T.target(s); if(!c) return false;
@@ -71,9 +77,15 @@ const TUT_STEPS=[
    goal:'Score a hit',
    check:s=>s.weapons.hits.length>0},
 
+  {id:'deckgun',title:'The 3-inch deck gun',
+   body:'The deck gun is for a surfaced boat and is best used against a small or already-crippled target — not while an escort is bearing down on you. Training has put a harmless hulk ahead.<br><br>Enter <b>GUN</b>; the crew mans it automatically. Drag left/right for quick training. Vertical drag is deliberately coarse. Press <b>🎯 LAY</b> for the crew&apos;s range lay, then use the right-hand <b>ELEV slider</b> or ELEV+/− for tenths of a degree before firing. The sight ring moves vertically with the actual gun elevation.',
+   goal:'Lay the deck gun and fire one practice round', sta:'DECK_GUN', hl:'gunElevPanel',
+   enter:T=>T.prepareGunLesson(),
+   check:(s,T)=>(s.weapons.deckGun?.shots||0)>T._gunShots0},
+
   {id:'evade',title:'Now they know',
    body:'An escort has been vectored onto your launch point and is pinging. Four things save you, and they all work:<br>• <b>🔇 Silent running</b> and <b>slow</b> — she hunts noise<br>• <b>Get under the thermal layer</b> — the dashed blue line on the depth column. Below it her echoes go weak<br>• <b>Alter course</b> — her plot is built from successive echoes; every turn breaks it, and a hard turn leaves a knuckle of churned water that takes the echo instead of you<br>• <b>Wait her out</b> — she carries a finite number of charges, and her own explosions leave her deaf for half a minute<br><br>Watch the header: <b>SONAR: THEY HOLD YOU</b> means she has a firm echo. When it says <b>CONTACT LOST</b>, change depth and course before she finds you again.',
-   goal:'Silent running on and below 150 ft', hl:'oSilent',
+   goal:'Silent running on and below 150 ft', sta:'TACTICAL', pane:'paneHelm', hl:'oSilent',
    enter:T=>T.spawnEscort(),
    check:s=>s.playerSub.stealth.silentRunning&&s.playerSub.depthFeet>140},
 
@@ -81,8 +93,12 @@ const TUT_STEPS=[
    body:'Aeroplanes are the thing that kills submarines. A boat on the surface is visible from the air for miles, and the only real answer is <b>dive</b> — depth is what saves you. The crew now handles SD air-search radar automatically while it can be used.<br><br>The <b>20 mm</b> is an automatic last-ditch fallback, not another switch for the skipper. If an attack gets close while you are still surfaced, the crew mans it and tries to spoil the pilot\'s aim. Order a dive at any time: the crew clears the deck automatically, but the boat may be held for a few tense seconds until the hatch is shut.<br><br>Your decision is simply the important one: <b>stay and fight, or dive</b>.',
    goal:'Tap NEXT — you will not want to practise this one'},
 
+  {id:'systems',title:'Status, damage and radio',
+   body:'The <b>Status</b> tab is where you check hull, flooding, battery, fuel, stores, mission objectives, radio traffic and the Captain&apos;s Log. Damage-control parties work automatically, but you can choose their repair priority; pumps help flooding at the cost of extra noise.<br><br>Not every patrol uses every system. Historical refits decide whether SJ radar is fitted, mission orders can be convoy attack, reconnaissance, lifeguard, transport or minelaying, and the green friendly rendezvous is your place to service the boat or end a successful patrol.',
+   goal:'Tap NEXT when you know where to check the boat and your orders'},
+
   {id:'done',title:'Qualified',
-   body:'That is the whole loop: <b>find</b> with sonar and periscope, <b>build</b> a track, <b>feed</b> the TDC, <b>flood</b>, <b>shoot</b>, then <b>disappear</b>.<br><br>When the patrol changes to <b>RETURN TO BASE</b>, head for the green friendly rendezvous. Enter its 0.30 nm ring surfaced at 3 kn or less — the <b>HARBOR</b> engine preset is made for this — and hold for 30 seconds to close the patrol.<br><br>Good hunting, skipper.',
+   body:'That is the whole loop: <b>find</b> with sonar and periscope, <b>build</b> a track, <b>feed</b> the TDC, <b>flood</b>, <b>shoot</b>, then <b>disappear</b>.<br><br>When the patrol changes to <b>RETURN TO BASE</b>, head for the green friendly rendezvous. Enter its 0.30 nm ring <b>surfaced</b> and order <b>Stop</b>; service or final return happens immediately once the boat is stopped in the harbor ring.<br><br>Good hunting, skipper.',
    goal:'Tap FINISH to pick a real patrol'}
 ];
 
@@ -209,8 +225,38 @@ class Tutorial{
     const sel=document.getElementById('mDudSel');if(sel)sel.value='none';
   }
 
+  soundMarkCount(s){
+    const marks=s?.world?.sound?.bearingMarks||{};return Object.values(marks).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);
+  }
+
+  prepareSoundLesson(){
+    const s=this.game.getSnapshot(),sub=s.playerSub;
+    // A quiet boat makes the first hydrophone lesson deterministic rather than
+    // teaching the player through an own-screw masking warning.
+    sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;
+    this._soundMarks0=this.soundMarkCount(s);
+  }
+
+  prepareGunLesson(){
+    const s=this.game.getSnapshot(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;
+    sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.mode='SURFACED';
+    sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;
+    let c=W.contacts.find(q=>q.id==='GUN-T');
+    if(!c){
+      const b=degToRad(sub.heading),d=.82;c={id:'GUN-T',name:'Training Hulk',type:'PATROL_CRAFT',displayType:'PATROL CRAFT',lengthYards:145,visualProfile:.9,acousticBase:.1,tonsFactor:0,
+        position:{xNm:sub.position.xNm+Math.sin(b)*d,yNm:sub.position.yNm-Math.cos(b)*d},heading:normDeg(sub.heading+90),speedKnots:0,desiredSpeed:0,stationary:true,side:'ENEMY'};
+      W.contacts.push(c);
+    }
+    W.contactTracks[c.id]={id:c.id,typeEstimate:'PATROL CRAFT',affiliation:'ENEMY',bearing:bearingBetween(sub.position,c.position),rangeEstimateNm:distNm(sub.position,c.position),
+      courseEstimate:c.heading,speedEstimateKnots:0,confidence:1,source:'VISUAL',lastSensorSource:'VISUAL',lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards,
+      plotPosition:{...c.position},lastFixPosition:{...c.position},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,positionSource:'VISUAL',positionConfidence:1,positionUncertaintyNm:.01,visualHullConfirmed:true,hullConfirmedAt:now,visualLastSeenAt:now};
+    s.tactical.selectedTrackId=c.id;s.tdc.targetId=c.id;s.tdc.autoTrack=true;s.tdc.trackSource='VISUAL';
+    this._gunShots0=s.weapons.deckGun?.shots||0;
+  }
+
   spawnEscort(){
     const s=this.game.getSnapshot(), sub=s.playerSub;
+    s.world.contacts=s.world.contacts.filter(c=>c.id!=='GUN-T');delete s.world.contactTracks?.['GUN-T'];
     if(s.world.contacts.some(c=>c.id==='ESC-T')) return;
     const b=degToRad(normDeg(sub.heading+150));
     s.world.contacts.push({

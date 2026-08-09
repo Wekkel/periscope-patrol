@@ -32,6 +32,7 @@ class DomView{
     if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
     document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationBridge:'BRIDGE',stationSound:'SOUND',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
     const bc=document.getElementById('bridgeControls');if(bc)bc.classList.toggle('on',state.tactical.activeStation==='BRIDGE');
+    document.getElementById('mapWeatherButton')?.classList.toggle('on',!!state.map.weatherOverlay);
     const sc=document.getElementById('soundControls');if(sc)sc.classList.toggle('on',state.tactical.activeStation==='SOUND');
     const rb=document.getElementById('soundRadar');if(rb){rb.classList.toggle('on',state.tactical.soundDisplay==='RADAR');const sp=rb.querySelector?.('span');if(sp)sp.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
     const bz=bridgeZoomAmount(state),bb=document.getElementById('bridgeBino');if(bb){bb.classList.toggle('on',bz>.05);const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}

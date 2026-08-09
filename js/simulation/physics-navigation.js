@@ -417,12 +417,14 @@ class SimEngine extends SimEngineCareer {
          because the generic confidence score is a little below 0.12. The 3-D
          renderer can show ships near the visibility limit; give those weak but
          real visual observations a floor instead of letting the plot decay. */
-      const T=this.state.tactical;
+      const T=this.state.tactical,key=c.id,prior=W.contactTracks[key];
       const surfacedVisual=sub.depthFeet<8&&rng<=bridgeVisualLimitNm(this.state,c);
-      const scopeFov=typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[T.periscopeZoom===1?0:1].fov:(T.periscopeZoom===1?32:8);
-      const scopeVisual=sub.depthFeet>=8&&sub.depthFeet<=65&&T.activeStation==='PERISCOPE'
-        &&rng<=bridgeVisualLimitNm(this.state,c)
-        &&Math.abs(shortDelta(T.periscopeBearing,bear))<=scopeFov*.52;
+      const scopeNow=scopeCanResolveHull(this.state,c,true);
+      /* Once the skipper has actually resolved a hull through the scope, the
+         optical party keeps that same bearing while he glances at MAP. This
+         only preserves an already-acquired ship inside the same optical cone;
+         it cannot discover new contacts from the chart. */
+      const scopeVisual=scopeNow||!!(prior?.visualHullConfirmed&&scopeCanResolveHull(this.state,c,false));
       const visualHeld=surfacedVisual||scopeVisual;
       const acousticHeld=aco.score>0.12;
       const held=visualHeld||acousticHeld;
@@ -430,8 +432,7 @@ class SimEngine extends SimEngineCareer {
       const src=visualHeld?'VISUAL':'HYDROPHONE';
       const aobs=src==='HYDROPHONE'?passiveSoundObservation(this.state,c,sc):{bearing:bear,rangeNm:rng};
       const obsBear=aobs.bearing,obsRng=aobs.rangeNm;
-      const key=c.id;
-      let ex=W.contactTracks[key];
+      let ex=prior;
       if(!ex&&!held) continue;
       ex=ex||{id:key,typeEstimate:'UNKNOWN',bearing:obsBear,rangeEstimateNm:obsRng,
         courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,source:src,
@@ -716,8 +717,7 @@ class SimEngine extends SimEngineCareer {
     if(T.activeStation!=='PERISCOPE'||sub.depthFeet<8||sub.depthFeet>65)return null;
     const c=(W.contacts||[]).find(q=>q.id===trackId&&!q.sunk);if(!c)return null;
     const rng=distNm(sub.position,c.position),bear=bearingBetween(sub.position,c.position);
-    const fov=typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[T.periscopeZoom===1?0:1].fov:(T.periscopeZoom===1?32:8);
-    if(rng>bridgeVisualLimitNm(s,c)||Math.abs(shortDelta(T.periscopeBearing,bear))>fov*.52)return null;
+    if(!scopeCanResolveHull(s,c,true))return null;
     const tr=W.contactTracks[trackId];if(!tr)return null;
     const q=T.periscopeZoom===1?.82:.96,knownType=c.displayType||c.type;
     tr.confidence=Math.max(tr.confidence||0,T.periscopeZoom===1?.78:.90);

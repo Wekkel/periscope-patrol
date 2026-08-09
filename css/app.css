@@ -555,6 +555,15 @@
       html[data-lay="touch"] #coach.up{top:calc(var(--sat) + 64px);bottom:auto;}
       html[data-lay="touch"] #tutBody{max-height:22vh;}
       html[data-lay="touch"] #coach{box-shadow:0 8px 30px rgba(0,0,0,.72);}
+      /* Once an action step has been read, collapse the coach into a true
+         corner chip. A full-width "minimised" card still covered the very
+         controls a phone player was asked to operate. Tap the chip to reopen. */
+      html[data-lay="touch"] #coach.min{left:6px;right:auto;top:calc(var(--sat) + 58px);bottom:auto;
+        width:min(72vw,270px);padding:7px 9px 8px;border-radius:9px;}
+      html[data-lay="touch"] #coach.min.up{top:calc(var(--sat) + 58px);bottom:auto;}
+      html[data-lay="touch"] #coach.min h4{font-size:10.5px;gap:6px;white-space:nowrap;overflow:hidden;}
+      html[data-lay="touch"] #coach.min h4 #tutTitle{overflow:hidden;text-overflow:ellipsis;}
+      html[data-lay="touch"] #coach.min #tutGoal{max-width:250px;font-size:9.5px;margin-top:4px;padding-top:4px;}
     }
     /* a highlighted control must never sit under the card */
     .tut-hl{position:relative;z-index:61;}
@@ -806,7 +815,7 @@
       border:1px solid var(--line);border-radius:8px;min-height:36px;}
     .pk-btn::after{content:'▾';color:var(--dim);font-size:10px;margin-left:1px;}
     .pk-btn.open{border-color:var(--alert);color:var(--alert);}
-    #pkMenu{position:fixed;z-index:120;display:none;min-width:168px;max-width:min(84vw,300px);
+    #pkMenu{position:fixed;z-index:190;display:none;min-width:168px;max-width:min(84vw,300px);
       max-height:min(60vh,420px);overflow-y:auto;-webkit-overflow-scrolling:touch;
       border:1px solid var(--alert);border-radius:10px;padding:4px;
       background:linear-gradient(180deg,rgba(12,32,38,.99),rgba(5,15,19,.99));
@@ -819,7 +828,7 @@
     #pkMenu button.sel::before{content:'✓ ';}
     #pkMenu button:not(.sel)::before{content:'\00a0\00a0';}
     #pkMenu hr{border:none;border-top:1px solid var(--line2);margin:4px 6px;}
-    #pkVeil{position:fixed;inset:0;z-index:119;display:none;}
+    #pkVeil{position:fixed;inset:0;z-index:189;display:none;}
     #pkVeil.on{display:block;}
 
     /* ══ HELM INSTRUMENTS ═══════════════════════════════════════════════ */

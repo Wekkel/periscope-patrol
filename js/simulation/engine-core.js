@@ -412,6 +412,9 @@ class SimEngineCore{
       case'MAP_CLEAR_PLOT':
         this.state.map.plottedCourse=[];this.state.map.autoFollowPlot=false;
         this.log('Map plot cleared — manual helm.');break;
+      case'TOGGLE_MAP_WEATHER':
+        this.state.map.weatherOverlay=!this.state.map.weatherOverlay;
+        this.notify(this.state.map.weatherOverlay?'Weather overlay shown — shaded cells are moving squalls; local visibility is shown on the chart.':'Weather overlay hidden.','ok');break;
       case'MAP_STEER_TO_NEXT_WAYPOINT': this.state.map.autoFollowPlot=true; this.steerWaypoint(true); break;
       case'HEAD_TO_PORT': this.headToPort(); break;
       case'NEW_PATROL': this.startNewPatrol(cmd.areaKey,cmd); break;
@@ -934,7 +937,7 @@ class SimEngineCore{
     s.world.convoyRoutes=area.convoyRoutes;
     s.world.shallowZones=area.terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment={...area.environment};s.world.weatherSystem=null;s.world.traffic=null;
-    s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=true;
+    s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=true;s.map.weatherOverlay=false;
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
     // this sequence once, so a map that was panned/free on the previous patrol
     // cannot strand the new boat off-screen.  Undefined in old saves is fine.
