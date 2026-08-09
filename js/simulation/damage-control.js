@@ -86,6 +86,7 @@ class SimEngineDamage extends SimEngineCollision {
 
     // Preserve the pre-Phase-3 hull/basic-system damage law exactly.
     dm.hullIntegrity=clamp(dm.hullIntegrity-d,0,100);
+    if(d>=3)this.aarRecordEvent?.('DAMAGE',`Boat damaged — ${d.toFixed(0)}% shock.`,{damage:d,hullAfter:dm.hullIntegrity},sub.position);
     dm.flooding=clamp(dm.flooding+d/180,0,1);
     dm.ballastDamage=clamp(dm.ballastDamage+d/230,0,1);
     dm.motorDamage=clamp(dm.motorDamage+d/270,0,1);

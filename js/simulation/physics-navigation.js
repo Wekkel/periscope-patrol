@@ -127,6 +127,7 @@ class SimEngine extends SimEngineCareer {
     this.updateDmg(sub,dt); this.updateDmgCtrl(sub,dt); this.updateWarnings(sub);
     this.checkMissionObjectives(); this.checkPortArrival(dt);
     this.updateModeAfter(sub);
+    this.updateAfterActionRecorder?.(dt);
     if(this.state.tactical.activeStation==='BRIDGE'&&!bridgeCanUse(this.state)){
       this.state.tactical.activeStation='MAP';this.state.tactical.bridgeBinoculars=false;
     }

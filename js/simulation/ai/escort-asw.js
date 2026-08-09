@@ -119,6 +119,7 @@ class SimEngineASW extends SimEngineASWBrain {
     e.sonarBlindUntil=this.state.time.elapsedSeconds+38+Math.random()*22;e.contactHeld=false;
     for(const x of W.contacts.filter(c=>c.type==='ESCORT'))x.sonarContact=false;
     this.log(`DEPTH CHARGES — ${esc.name} rolling ${SONAR.patternSize}, set for ${guess.toFixed(0)} ft.`,'bad');
+    this.aarRecordEvent?.('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,count:SONAR.patternSize,depthFt:guess},esc.position,aim||sub.position);
     this.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
     if(esc.dcRemaining<SONAR.patternSize){this.log(`${esc.name} has expended her depth charges and is falling back.`);this.assignASWRoles(null,true);}
   }

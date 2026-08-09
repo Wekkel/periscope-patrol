@@ -101,11 +101,13 @@ class ScenarioSelector{
       return `<div class="hist-card"><h3>Patrol #${r.patrolNumber} — ${r.area} · ${r.outcome}</h3><div style="font-size:10px;color:var(--alert);margin:2px 0 4px;">${r.missionName||String(r.missionType||'CONVOY_INTERDICTION').replaceAll('_',' ')}</div>
         <div class="hist-date">${r.startDate||''} → ${r.endDate||''}</div>
         <div class="hist-desc">${r.shipsSunk||0} sunk · ${(r.tonnage||0).toLocaleString()}t · ${r.shipsDamaged||0} damaged · hull ${Math.round(r.hullAtEnd??100)}%<br>
-        Torpedoes ${r.torpedoesFired||0} fired / ${r.torpedoHits||0} hits / ${r.torpedoDuds||0} duds · deck gun ${r.deckGunRounds||0} rounds / ${r.deckGunHits||0} hits · aircraft ${r.aircraftKills||0}${opt}</div>
+        Torpedoes ${r.torpedoesFired||0} fired / ${r.torpedoHits||0} hits / ${r.torpedoDuds||0} duds · deck gun ${r.deckGunRounds||0} rounds / ${r.deckGunHits||0} hits · aircraft kills ${r.aircraftKills||0} / evaded ${r.aircraftEvaded||0}${opt}</div>
+        ${r.replay?`<button class="career-aar-btn" data-aar-id="${r.id}" style="width:auto;margin:8px 0 0;padding:6px 9px;font-size:9.5px;border-color:var(--alert);color:var(--alert);">AFTER ACTION REPORT</button>`:''}
         ${ev?`<div style="margin-top:7px;font-size:10.5px;color:var(--muted);">${ev}</div>`:''}</div>`;
     }).join('');
     c.innerHTML=`<div class="hist-card"><h3>WAR RECORD</h3><div class="hist-desc">Score ${(car.totalScore||0).toLocaleString()} · ${(car.totalTonnage||0).toLocaleString()} tons · ${car.totalShips||0} ships</div><div style="margin-top:7px;">${badges||'<span style="color:var(--dim)">No commendations yet.</span>'}</div></div>`+
       (rows||'<div class="hist-card"><div class="hist-desc">No completed or lost patrols recorded yet.</div></div>');
+    c.querySelectorAll?.('.career-aar-btn').forEach(b=>b.addEventListener('click',()=>{const r=(car.patrolHistory||[]).find(x=>x.id===b.dataset.aarId);if(r&&globalThis.aarController?.open)globalThis.aarController.open(r,{completed:false});}));
   }
 
   renderSaveSlots(){

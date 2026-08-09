@@ -56,6 +56,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
       age:0,bearing,elevation:elev,prev:null
     });
     G.ammo--;G.lastFireAt=now;G.flashUntil=now+0.16;G.lastFall=null;
+    if(now-(G._aarLastAttackAt??-999)>45){G._aarLastAttackAt=now;this.aarRecordEvent?.('DECK_GUN_ATTACK','Deck-gun engagement opened.',{},sub.position); }
     sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.16,0,1.5);
     this.alertEscorts('DECK_GUN',{...sub.position},0.88);
     audio.playDeckGun?.(1);

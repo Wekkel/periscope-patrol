@@ -88,6 +88,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       acousticPenalty:spec.acousticPenalty,
       runDepthFt:tdc.torpedoRunDepthFt??10
     });
+    this.aarTorpedoLaunch?.(W.activeTorpedoes[W.activeTorpedoes.length-1]);
     t.status='EMPTY'; t.flooded=false; t.reloadProgress=0;
     // the reserve is only drawn down when the tube is reloaded
     // Electric torps make less noise
@@ -141,11 +142,11 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       const d=knotsNmSec(t.speedKnots)*dt; const r=degToRad(t.heading);
       t.position.xNm+=Math.sin(r)*d; t.position.yNm-=Math.cos(r)*d;
       t.rangeRunNm+=d; t.ageSec+=dt;
-      if(t.rangeRunNm>=t.maxRangeNm){t.status='EXPIRED';this.reportMiss(t,true);continue;}
+      if(t.rangeRunNm>=t.maxRangeNm){t.status='EXPIRED';this.aarTorpedoFinish?.(t,'EXPIRED');this.reportMiss(t,true);continue;}
       if(t.rangeRunNm<t.armedAfterNm) continue;
       if(this.harborTorpedoNetHit(t.position)){
         this.revealHarborNet?.('CONTACT');
-        t.status='NETTED';
+        t.status='NETTED';this.aarTorpedoFinish?.(t,'NETTED');
         W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'NET',kind:'dud'});
         this.notify(`${t.id} caught in the harbour torpedo net — warhead spent against the boom.`,'warn');
         audio.playDud();
@@ -199,7 +200,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
           if(incidence<22){
             const pGlance=clamp((22-incidence)/22,0,1)*0.85;
             if(t.glanceRoll<pGlance){
-              t.status='DEFLECTED';
+              t.status='DEFLECTED';this.aarTorpedoFinish?.(t,'DEFLECTED',c.id);
               W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'GLANCED OFF',kind:'dud'});
               this.log(`${t.id} struck ${c.name} at ${incidence.toFixed(0)}° and GLANCED OFF the hull — no detonation. Fire nearer the beam.`,'bad');
               this.alertEscorts('TORPEDO_DUD',{...t.position},0.5);
@@ -216,7 +217,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             : 0.9+0.2*Math.pow(incidence/90,2);
           const pDud=clamp((t.dudChance??0.2)*angleFactor,0,0.97);
           if(t.dudRoll<pDud){
-            t.status='DUD';
+            t.status='DUD';this.aarTorpedoFinish?.(t,'DUD',c.id);
             W.duds.push({torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds});
             W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:6,label:'DUD',kind:'dud'});
             const why=incidence>70&&spec.dudChanceBase>=0.2
@@ -226,7 +227,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             this.alertEscorts('TORPEDO_DUD',{...t.position},0.5);
             audio.playDud();
           } else {
-            t.status='HIT';
+            t.status='HIT';this.aarTorpedoFinish?.(t,'HIT',c.id);
             c.hitFrac=hitFrac;c.hitSide=lateral>=0?1:-1;
             const dmg=applyTorpedoShipDamage(this,c,{hitFrac,hitSide:c.hitSide,incidence,
               warheadKg:spec.warheadKg||292,torpedoId:t.id,specKey:t.specKey});

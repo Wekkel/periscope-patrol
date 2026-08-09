@@ -208,6 +208,31 @@
   </div>
 </div>
 
+<!-- ═══ AFTER ACTION REPORT ═══ -->
+<div id="aarOverlay">
+  <div id="aarBox">
+    <div class="aar-head">
+      <div><div class="aar-kicker">AFTER ACTION REPORT</div><h2 id="aarTitle">PATROL — AREA</h2><div id="aarDates" class="aar-dates"></div></div>
+      <button id="aarClose" class="aar-close">×</button>
+    </div>
+    <div id="aarStats" class="aar-stats"></div>
+    <div class="aar-main">
+      <div class="aar-map-wrap">
+        <canvas id="aarCanvas"></canvas>
+        <div class="aar-controls">
+          <button id="aarPlay">▶ PLAY</button>
+          <input id="aarTimeline" type="range" min="0" max="1" step="1" value="1">
+          <span id="aarTime">T+00:00</span>
+          <button id="aarIntel">SHOW INTELLIGENCE PICTURE</button>
+        </div>
+        <div class="aar-legend"><span>— OWN ROUTE</span><span>◇ CONTACT PLOT</span><span>△ ATTACK</span><span>✕ SINKING</span><span id="aarIntelLegend" style="display:none">— TRUE ENEMY TRACKS</span></div>
+      </div>
+      <div class="aar-log"><h3>CAPTAIN'S LOG</h3><div id="aarCaptainLog"></div></div>
+    </div>
+    <div class="aar-foot"><button id="aarContinue">CONTINUE TO WAR RECORD</button></div>
+  </div>
+</div>
+
 <!-- ═══ BRIEFING OVERLAY ═══ -->
 <div id="briefingOverlay">
   <div id="briefingBox">
@@ -699,6 +724,7 @@
 <script src="./js/simulation/physics-navigation.js"></script>
 <script src="./js/simulation/mission-framework.js"></script>
 <script src="./js/simulation/traffic-director.js"></script>
+<script src="./js/simulation/after-action-report.js"></script>
 <script src="./js/rendering/world-geometry.js"></script>
 <script src="./js/rendering/canvas-core.js"></script>
 <script src="./js/rendering/tactical.js"></script>
@@ -712,6 +738,7 @@
 <script src="./js/audio/audio-engine.js"></script>
 <script src="./js/persistence/save-system.js"></script>
 <script src="./js/ui/scenario-selector.js"></script>
+<script src="./js/ui/after-action-report.js"></script>
 <script src="./js/ui/toast.js"></script>
 <script src="./js/rendering/gyro-indicator.js"></script>
 <script src="./js/simulation/day-night.js"></script>

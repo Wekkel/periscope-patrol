@@ -1,0 +1,13 @@
+PASS: JavaScript syntaxcheck — {"files":60}
+PASS: recorder samples the own route at low frequency rather than per-frame — 5
+PASS: player-known plot and intelligence truth are recorded separately — {"observed":{"xNm":3.5,"yNm":-1.6},"truth":{"xNm":4,"yNm":-2}}
+PASS: replay records attack, depth-charge and damage events — ["MISSION_ASSIGNED","FIRST_SIGHTING","CONVOY_SIGHTED","TORPEDO_ATTACK","DEPTH_CHARGE_ATTACK","DAMAGE","AIRCRAFT_ATTACK","AIRCRAFT_EVADED"]
+PASS: torpedo replay stores launch and outcome without running a replay simulation — {"id":"T-1","launchT":65,"start":{"xNm":-19.93499999999992,"yNm":55},"launchHeading":90,"courseSet":90.08967106772775,"targetId":"M-01","endT":65,"end":{"xNm":3.9,"yNm":-1.9},"status":"HIT","contactId":"M-01"}
+PASS: aircraft that attacked and left alive is counted as evaded — 1
+PASS: completed patrol persists replay and aircraft-evaded statistic — {"aircraftEvaded":1,"replay":{"route":6,"obs":4,"truth":24,"events":9,"torps":1}}
+PASS: persisted replay is immutable after active patrol-state mutation — {"detached":false}
+PASS: PATROL COMPLETE opens the AAR controller before any menu flow — {"opened":1,"completed":true}
+PASS: AAR overlay exposes timeline, replay canvas and intelligence-picture toggle — {}
+PASS: AAR UI redraws on interaction and does not own a requestAnimationFrame loop — {}
+PASS: recorder is explicitly throttled and bounded — {}
+PATCH 8 AFTER ACTION REPORT CONTRACT: PASS

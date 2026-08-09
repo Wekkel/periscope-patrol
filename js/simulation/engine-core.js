@@ -751,7 +751,9 @@ class SimEngineCore{
     camp.totalScore+=patrolScore;
     const hullAtReturn=sub.damage.hullIntegrity;
     this.captainLog?.('RETURNED_TO_PORT',`Returned to ${portName}.`,{portName,hull:hullAtReturn},'returned-to-port');
-    this.finalizePatrol?.('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
+    this.updateAfterActionRecorder?.(999);
+    const patrolRecord=this.finalizePatrol?.('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
+    if(patrolRecord&&globalThis.aarController?.open)setTimeout(()=>globalThis.aarController.open(patrolRecord,{completed:true}),0);
     camp.score=0;                       // banked — startNewPatrol would count it twice
     this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
     Toast.show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
@@ -837,6 +839,7 @@ class SimEngineCore{
     // Patch 6: mission setup happens only after world truth (convoy/harbor) exists,
     // but before the briefing is rendered. Historical scenarios can pin a type;
     // ordinary patrols may use AUTO or the player's explicit selection.
+    this.ensureAfterActionReport?.(true);
     this.configureMission?.(options.missionType||'AUTO',options);
     this.ensureTrafficDirector?.(true);
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');

@@ -5,6 +5,8 @@ const domView=new DomView();
 const gyroIndicator=new GyroIndicator();
 const bridgeCtrl=new BridgeController(game,canvasView);
 const sceneSelector=new ScenarioSelector(game);
+const aarController=new AfterActionReport(game);
+globalThis.aarController=aarController;
 const touchCtrl=new TouchCtrl(game,canvasView);
 const tutorial=new Tutorial(game,canvasView,touchCtrl);
 showBriefing('Solomon Sea',game.getSnapshot());

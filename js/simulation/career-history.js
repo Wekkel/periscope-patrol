@@ -44,6 +44,8 @@ class SimEngineCareer extends SimEngineDamage {
     };
     if(key)ev.key=key;
     c.importantEvents.push(ev);
+    const aarTrack=ev.data?.contactId?this.state.world.contactTracks?.[ev.data.contactId]:null;
+    this.aarRecordEvent?.(ev.type,ev.text,{...ev.data,aarKey:key||null},this.state.playerSub?.position,aarTrack?.plotPosition||aarTrack?.lastFixPosition||null);
     return ev;
   }
 
@@ -82,7 +84,9 @@ class SimEngineCareer extends SimEngineDamage {
       optionalObjectives:_careerClone(opts),
       harborRaid:I?.raid?_careerClone(I.raid):null,
       hullAtEnd:Number(meta.hullAtEnd!==undefined?meta.hullAtEnd:s.playerSub.damage.hullIntegrity),
+      aircraftEvaded:Number(c.afterAction?.aircraftEvaded)||0,
       importantEvents:_careerClone(c.importantEvents),
+      replay:this.buildAfterActionReplay?.()||null,
       returnPort:meta.portName||null
     });
   }
