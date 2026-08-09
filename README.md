@@ -32,8 +32,8 @@ Historical scenarios can also pin their own date, area and mission setup.
 
 Friendly ports/RVs have two distinct uses:
 
-- During an active patrol, hold inside the green 0.30 nm service ring while surfaced and at 3 kn or less for 15 seconds to rearm, refuel and repair. The **HARBOR** preset orders 25 rpm (about 2.5 kn on the surface) for easy rendezvous handling.
-- Once the primary mission is complete and the campaign status is **RETURN TO BASE**, hold the same safe rendezvous for 30 seconds. A persistent countdown shows the remaining hold; completion checks the **Return to friendly port** objective and closes the patrol.
+- During an active patrol, hold inside the green 0.30 nm service ring to rearm, refuel and repair. stop your boat within that area for easy rendezvous handling.
+- Once the primary mission is complete and the campaign status is **RETURN TO BASE**, go to and stop in the same safe rendezvous. Completion checks the **Return to friendly port** objective and closes the patrol.
 
 For convoy interdiction, the visible **Neutralize a meaningful share of enemy shipping** objective now uses the same ship/tonnage threshold as primary mission success. The mission status panel shows progress against both thresholds, so a single hit can no longer make the objective appear complete while the campaign is still internally on PATROL.
 
