@@ -418,7 +418,16 @@ class SimEngineCore{
      expensive noise. */
   seabedFeet(pos){
     Bathy.ensure(this.state.world.terrain);
-    return Bathy.feet(pos.xNm,pos.yNm);
+    let feet=Bathy.feet(pos.xNm,pos.yNm);
+    /* A green FRIENDLY RV is a gameplay contract: if we put a service ring on
+       the chart, the whole ring is treated as surveyed/dredged safe water.
+       Older saves can contain a rendezvous generated before that guarantee;
+       friendlyPortApproach() revalidates those, while this floor prevents a
+       single coarse bathymetry cell from turning the marked safe berth into a
+       grounding trap. */
+    const ap=this.state?.campaign?.portApproach;
+    if(ap?.safeWater&&ap.pos&&distNm(pos,ap.pos)<=0.305) feet=Math.max(feet,ap.safeDepthFeet||90);
+    return feet;
   }
 
   /* ══ SHOAL WATCH ══════════════════════════════════════════════════════
@@ -574,7 +583,12 @@ class SimEngineCore{
   }
 
   applyTerrainEffects(sub,dt){
-    const {collision,inShallow}=this.checkTerrainCollision(sub);
+    let {collision,inShallow}=this.checkTerrainCollision(sub);
+    /* The marked green FRIENDLY RV is guaranteed safe manoeuvring water. This
+       intentionally overrides coarse synthetic coastline/reef polygons only
+       inside that tiny service circle; outside it the normal grounding model
+       remains fully active. */
+    if(this._insideFriendlyRv(sub.position)){collision=false;inShallow=false;}
     sub.inShallowWater=inShallow;
     sub.groundingRisk=collision;
     this.updateSeabed(sub,dt);
@@ -612,29 +626,64 @@ class SimEngineCore{
   }
 
   // ── CAMPAIGN ──
+  _friendlyRvDiskSafe(pos,minFeet=70,radiusNm=0.30){
+    /* Validate the whole service circle, not merely its centre. A centre point
+       in deep water is not enough if a synthetic coastline/reef clips one edge
+       of the green ring. This runs only when a rendezvous is created or an old
+       cached one is revalidated. */
+    const rings=[0,radiusNm*.5,radiusNm];
+    let minSeen=3000;
+    for(const rr of rings){
+      const steps=rr===0?1:12;
+      for(let i=0;i<steps;i++){
+        const a=rr===0?0:degToRad(i*360/steps);
+        const q={xNm:pos.xNm+Math.sin(a)*rr,yNm:pos.yNm-Math.cos(a)*rr};
+        const raw=Bathy.feet(q.xNm,q.yNm),terr=this.checkTerrainCollision({position:q});
+        minSeen=Math.min(minSeen,raw);
+        if(terr.collision||terr.inShallow||raw<minFeet) return {safe:false,minFeet:minSeen};
+      }
+    }
+    return {safe:true,minFeet:minSeen};
+  }
+
+  _insideFriendlyRv(pos){
+    const ap=this.state?.campaign?.portApproach;
+    return !!(ap?.safeWater&&ap.pos&&distNm(pos,ap.pos)<=0.305);
+  }
+
   friendlyPortApproach(port){
     if(!port) return null;
     const camp=this.state.campaign;
-    if(camp.portApproach&&camp.portApproach.portName===port.name) return camp.portApproach;
+    if(camp.portApproach&&camp.portApproach.portName===port.name&&typeof Bathy==='undefined') return camp.portApproach;
     Bathy.ensure(this.state.world.terrain);
+    if(camp.portApproach&&camp.portApproach.portName===port.name){
+      const cached=this._friendlyRvDiskSafe(camp.portApproach.pos,70,0.30);
+      if(cached.safe){
+        camp.portApproach.safeWater=true;camp.portApproach.safeDepthFeet=Math.max(90,cached.minFeet);
+        camp.portApproach.seabedFeet=Math.max(camp.portApproach.seabedFeet||0,cached.minFeet);
+        return camp.portApproach;
+      }
+      // Old saves may carry a centre-only RV in shoal water. Re-chart it now.
+      camp.portApproach=null;
+    }
 
     const candidates=[];
-    const sample=(requireDeep,allowShallow)=>{
-      for(let r=0.12;r<=2.4;r+=0.12){
+    const sample=(requireDeep)=>{
+      for(let r=0.18;r<=3.0;r+=0.12){
         for(let a=0;a<360;a+=12){
           const q={xNm:port.pos.xNm+Math.sin(degToRad(a))*r,
                    yNm:port.pos.yNm-Math.cos(degToRad(a))*r};
-          const sea=this.seabedFeet(q);
-          const terr=this.checkTerrainCollision({position:q});
-          if(terr.collision||(!allowShallow&&terr.inShallow)||sea<requireDeep) continue;
-          candidates.push({pos:q,seabedFeet:sea,r,score:r+Math.abs(Math.min(sea,220)-150)*0.0008});
+          const safe=this._friendlyRvDiskSafe(q,Math.max(70,requireDeep),0.30);
+          if(!safe.safe) continue;
+          const sea=Bathy.feet(q.xNm,q.yNm);
+          candidates.push({pos:q,seabedFeet:sea,safeDepthFeet:Math.max(90,safe.minFeet),r,
+            score:r+Math.abs(Math.min(sea,220)-150)*0.0008});
         }
         if(candidates.length) break;
       }
     };
-    sample(100,false);               // first choice: proper open-water rendezvous
-    if(!candidates.length) sample(70,true);
-    if(!candidates.length) sample(35,true);
+    sample(100);                       // first choice: proper open-water rendezvous
+    if(!candidates.length) sample(70);
 
     let best=candidates.sort((a,b)=>a.score-b.score)[0];
     if(!best){
@@ -642,15 +691,15 @@ class SimEngineCore{
          farther out and remember the deepest navigable water we can find.
          The geographic port symbol may sit on land; the autopilot never should. */
       let deepest=null;
-      for(let r=2.5;r<=5.0;r+=0.25){
+      for(let r=3.0;r<=6.0;r+=0.25){
         for(let a=0;a<360;a+=15){
           const q={xNm:port.pos.xNm+Math.sin(degToRad(a))*r,
                    yNm:port.pos.yNm-Math.cos(degToRad(a))*r};
-          const sea=this.seabedFeet(q),terr=this.checkTerrainCollision({position:q});
-          if(terr.collision||sea<8) continue;
-          const cand={pos:q,seabedFeet:sea,r,score:r};
+          const safe=this._friendlyRvDiskSafe(q,55,0.30);
+          if(!safe.safe) continue;
+          const sea=Bathy.feet(q.xNm,q.yNm),cand={pos:q,seabedFeet:sea,safeDepthFeet:Math.max(90,safe.minFeet),r,score:r};
           if(!deepest||sea>deepest.seabedFeet) deepest=cand;
-          if(sea>=35){best=cand;break;}
+          if(sea>=70){best=cand;break;}
         }
         if(best) break;
       }
@@ -663,7 +712,8 @@ class SimEngineCore{
       camp.portApproach={portName:port.name,pos:{...this.state.playerSub.position},seabedFeet:this.seabedFeet(this.state.playerSub.position),unavailable:true};
       return camp.portApproach;
     }
-    camp.portApproach={portName:port.name,pos:{...best.pos},seabedFeet:best.seabedFeet};
+    camp.portApproach={portName:port.name,pos:{...best.pos},seabedFeet:best.seabedFeet,
+      safeWater:true,safeDepthFeet:best.safeDepthFeet||Math.max(90,best.seabedFeet)};
     return camp.portApproach;
   }
 

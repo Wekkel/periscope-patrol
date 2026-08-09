@@ -218,14 +218,14 @@ class CanvasView extends CanvasViewSound {
   }
 
   drawMapLegend(ctx,w,h){
-    const k=this.k, lw=Math.round(196*k), lh=Math.round(126*k);
+    const k=this.k, lw=Math.round(196*k), lh=Math.round(140*k);
     const lx=Math.round(10*k), ly=h-lh-Math.round(28*k);
     ctx.fillStyle='rgba(6,16,18,0.86)';this.rr(ctx,lx,ly,lw,lh,5*k);ctx.fill();
     ctx.strokeStyle='rgba(47,95,86,0.6)';ctx.lineWidth=1;ctx.stroke();
     const rows=[['#6fe08f','▲','your submarine'],['#f5c65c','▲','enemy ship (confirmed)'],
       ['#f5c65c','◌','estimated position'],['#6fe08f','⚓','friendly port'],['#ef6a58','⚓','enemy port'],
       ['rgba(150,200,214,0.9)','┄','100-fathom curve'],['rgba(235,195,125,0.9)','┄','10-fathom danger line'],
-      ['rgba(245,198,92,0.7)','▭','patrol area boundary']];
+      ['rgba(239,106,88,0.9)','━','4-fathom grounding danger'],['rgba(245,198,92,0.7)','▭','patrol area boundary']];
     ctx.font=this.fnt(8.5);
     rows.forEach((r,i)=>{
       const y=ly+Math.round((14+i*14)*k);
@@ -320,7 +320,8 @@ class CanvasView extends CanvasViewSound {
       }
       ctx.stroke();ctx.setLineDash([]);
     };
-    curve(10,'rgba(235,195,125,0.26)',[3,3]);              // the danger line
+    curve(4,'rgba(239,106,88,0.48)',[]);                     // close-in grounding danger: 24 ft
+    curve(10,'rgba(235,195,125,0.26)',[3,3]);              // shallow-water danger line
     curve(100,'rgba(150,200,214,0.30)',[6,4]);             // THE line
     // spot soundings in fathoms, sparse, when zoomed close enough to read a chart
     const cellPx=cell*this.zoom;
@@ -375,7 +376,10 @@ class CanvasView extends CanvasViewSound {
       g.addColorStop(0,'rgba(92,104,62,0.92)');
       g.addColorStop(1,'rgba(66,80,50,0.92)');
       ctx.fillStyle=g;ctx.fill();
-      ctx.strokeStyle='rgba(214,228,150,0.55)';ctx.lineWidth=Math.max(1,1.3*K);ctx.stroke();
+      // At close chart scales the coastline itself is the hard no-go edge:
+      // crossing it is a terrain collision, not merely another depth tint.
+      ctx.strokeStyle=this.zoom>=70?'rgba(239,106,88,0.72)':'rgba(214,228,150,0.55)';
+      ctx.lineWidth=this.zoom>=70?Math.max(1.4,1.8*K):Math.max(1,1.3*K);ctx.stroke();
       // name the bigger islands once they are large enough on screen
       if(f.areaNm2>25){
         let cx=0,cy=0;
@@ -406,7 +410,7 @@ class CanvasView extends CanvasViewSound {
     ctx.fillStyle='rgba(205,245,226,.92)';ctx.font=this.fnt(8.5,true);ctx.textAlign='center';
     ctx.fillText(`${ap.portName} · FRIENDLY RV`,p.x,p.y-r-5*K);
     ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(150,205,180,.82)';
-    ctx.fillText(`REARM · FUEL · REPAIR · ${Math.round(ap.seabedFeet||0)} ft water`,p.x,p.y+r+11*K);
+    ctx.fillText(`SAFE SERVICE WATER · REARM · FUEL · REPAIR`,p.x,p.y+r+11*K);
     ctx.textAlign='left';ctx.restore();
   }
 

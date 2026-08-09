@@ -29,9 +29,14 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         W.aircraft.push({
           id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,
           ...(()=>{const r=Math.random();
-            return r<0.42?{name:'Type 97 flying boat',kind:'FLYING_BOAT'}
-                 :r<0.72?{name:'Nakajima B5N',kind:'BOMBER'}
-                        :{name:'Aichi E13A',kind:'FLOATPLANE'};})(),
+            /* Keep the game-readable split simple rather than inventing a
+               per-squadron loadout database: large maritime patrol flying boats
+               carry aerial depth charges; the bomber/floatplane contacts use
+               ordinary bombs. The ordnance changes warning/timing, not spawn
+               frequency. */
+            return r<0.42?{name:'Type 97 flying boat',kind:'FLYING_BOAT',ordnance:'DEPTH_CHARGE'}
+                 :r<0.72?{name:'Nakajima B5N',kind:'BOMBER',ordnance:'BOMB'}
+                        :{name:'Aichi E13A',kind:'FLOATPLANE',ordnance:'BOMB'};})(),
           position:{xNm:sub.position.xNm+Math.sin(r)*rng,yNm:sub.position.yNm-Math.cos(r)*rng},
           heading:normDeg(bear+180+(Math.random()-0.5)*40),
           speedKnots:115+Math.random()*70, state:'SEARCHING',

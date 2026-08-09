@@ -79,9 +79,34 @@ class SimEngineAAGun extends SimEngineDeckGun {
     }
   }
 
+  airDepthChargeAttack(a,sub){
+    const W=this.state.world,rat=clamp(a.rattled||0,0,1),wx=weatherBetween(this.state,a.position,sub.position);
+    /* Aerial ASW charges deliberately trade immediacy for warning. Their
+       horizontal placement and depth setting are substantially rougher than a
+       destroyer's sonar-led pattern, and their explosive weight is reduced in
+       the damage solver below. That preserves the current gameplay rule that
+       getting to ~100 ft is usually a very good answer to an aircraft attack. */
+    const err=(0.045+Math.random()*0.075+rat*0.055)/Math.max(.35,wx.aircraftAttackFactor);
+    const pos={xNm:sub.position.xNm+(Math.random()-0.5)*2*err,
+               yNm:sub.position.yNm+(Math.random()-0.5)*2*err};
+    let band=sub.depthFeet<45?70:sub.depthFeet<90?105:sub.depthFeet<150?145:185;
+    const depthErr=(Math.random()-0.5)*180+(rat*50*(Math.random()<.5?-1:1));
+    const guess=clamp(band+depthErr,45,280),sinkFps=8.5;
+    const dc={id:`ADC-${W.nextDcId=(W.nextDcId||0)+1}`,ownerId:a.id,source:'AIR',position:pos,ageSec:0,
+      fuseSec:clamp(guess/sinkFps,5,33),targetDepthFeet:guess,status:'SINKING',strength:28};
+    W.depthCharges.push(dc);
+    const b=bearingBetween(sub.position,pos);
+    audio.playShellSplash?.(.8);
+    this.log(`${sub.depthFeet<12?'LOOKOUTS':'SOUND'} — AERIAL DEPTH CHARGE IN THE WATER, bearing ${fmtDeg(b)}. It is still sinking.`,'bad');
+    this.aarRecordEvent?.('AIRCRAFT_DEPTH_CHARGE',`${a.name} dropped an aerial depth charge.`,{aircraftId:a.id,depthFt:guess},a.position,pos);
+    this.alertEscorts('AIR_ATTACK',{...sub.position},0.6);
+  }
+
   airAttack(a,sub){
     const W=this.state.world;
-    // bombs are aimed at where she sees the boat; depth is everything
+    const ordnance=a.ordnance||(a.kind==='FLYING_BOAT'?'DEPTH_CHARGE':'BOMB');
+    if(ordnance==='DEPTH_CHARGE') return this.airDepthChargeAttack(a,sub);
+    // ordinary bombs are aimed at where she sees the boat; depth is everything
     /* This is where the gun earns its keep. A pilot being hosed with 20 mm
        does not fly a copybook run: he comes in higher, releases early and
        jinks. The bombs go in the sea. Since damage falls off exponentially
@@ -101,7 +126,7 @@ class SimEngineAAGun extends SimEngineDeckGun {
     else                      depthFactor=0.02;
     const dmg=52*Math.exp(-hNm/0.020)*depthFactor;
     this.state.weapons.explosions.push({position:{...pos},ageSec:0,maxAgeSec:8,
-      label:dmg>4?`BOMB -${Math.round(dmg)}`:'BOMB'});
+      label:dmg>4?`AIR BOMB -${Math.round(dmg)}`:'AIR BOMB'});
     // Men standing at an open gun with bombs going off alongside.
     if(W.aaManned&&sub.depthFeet<10&&hNm<0.035&&Math.random()<0.34){
       this.aaCasualty('Bomb burst close aboard.');
@@ -110,10 +135,10 @@ class SimEngineAAGun extends SimEngineDeckGun {
       this.applyShock(dmg);
       audio.playDepthCharge(clamp(1-dmg/52,0,1));
       particles.spawnExplosion(pos.xNm,pos.yNm,0.9,false);
-      this.log(`Bombs! ${dmg.toFixed(0)}% damage.${sub.depthFeet<45?' Get her down!':''}`,'bad');
+      this.log(`AIR BOMB — ${dmg.toFixed(0)}% damage.${sub.depthFeet<45?' Get her down!':''}`,'bad');
     }else{
       audio.playDepthCharge(0.85);
-      this.log(`${a.name} dropped — near miss.`,'warn');
+      this.log(`${a.name} dropped ordinary bombs — near miss.`,'warn');
     }
     this.alertEscorts('AIR_ATTACK',{...sub.position},0.6);
   }

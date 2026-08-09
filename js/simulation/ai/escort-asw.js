@@ -134,18 +134,19 @@ class SimEngineASW extends SimEngineASWBrain {
         dc.status='DETONATED';
         const hNm=distNm(dc.position,sub.position);
         const dD=Math.abs(dc.targetDepthFeet-sub.depthFeet);
-        // A 300-lb charge ruptures a pressure hull within ~20 m and shakes her
-        // badly out to ~100 m. Sharp exponential falloff, and the fuse depth
-        // has to be close or the blast passes harmlessly above or below.
+        // Ship patterns and aerial charges share the same physical depth
+        // timing, but an aircraft's single ASW charge is intentionally less
+        // lethal and much less accurately set than a destroyer's close pattern.
         const hS=Math.exp(-hNm/0.017);
         const dS=clamp(1-dD/75,0,1);
-        const dmg=62*hS*dS;
+        const air=dc.source==='AIR',strength=air?(dc.strength||28):62;
+        const dmg=strength*hS*dS;
         this.state.campaign._depthChargeAttackSeen=true;
         this.state.weapons.explosions.push({position:{...dc.position},ageSec:0,maxAgeSec:10,label:dmg>4?`DC -${Math.round(dmg)}`:'DC'});
         if(dmg<=1&&hNm<0.5) this.shake(clamp(2.2-hNm*4,0.2,2.2));   // felt, not damaging
-        if(dmg<=1&&dD>80&&hNm<0.25) this.log(`Charges detonated ${dc.targetDepthFeet<sub.depthFeet?'well above':'below'} you.`,'warn');
-        if(dmg>1){this.applyShock(dmg);this.log(`Depth charge! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');audio.playDepthCharge(clamp(1-dmg/42,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
-        else{this.log('Depth charge detonated nearby.','warn');audio.playDepthCharge(0.9);particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
+        if(dmg<=1&&dD>80&&hNm<0.25) this.log(`${air?'Aerial charge':'Charges'} detonated ${dc.targetDepthFeet<sub.depthFeet?'well above':'below'} you.`,'warn');
+        if(dmg>1){this.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');audio.playDepthCharge(clamp(1-dmg/42,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
+        else{this.log(`${air?'Aerial depth charge':'Depth charge'} detonated nearby.`,'warn');audio.playDepthCharge(0.9);particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
       }
     }
     W.depthCharges=W.depthCharges.filter(dc=>dc.status==='SINKING'||dc.ageSec<dc.fuseSec+6);
