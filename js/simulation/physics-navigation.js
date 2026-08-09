@@ -467,13 +467,24 @@ class SimEngine extends SimEngineCareer {
     const tdc=this.state.tdc;
     if(!tdc.targetId){tdc.status='NO TARGET';tdc.solutionQuality=0;return;}
     const tr=this.state.world.contactTracks[tdc.targetId];
-    const manual=tdc.targetId==='MANUAL';
+    const manual=tdc.targetId==='MANUAL'||tdc.autoTrack===false;
     if(!manual&&(!tr||tr.confidence<=0.02)){tdc.status='TRACK LOST';tdc.solutionQuality=0;return;}
     const sub=this.state.playerSub,d=sub.damage,bias=d.instrumentBias||damageBiasesFor(this.state);
-    const bear=manual?tdc.bearing:(tdc.bearing??tr.bearing);
-    const rng=manual?tdc.rangeNm:(tdc.rangeNm??tr.rangeEstimateNm);
-    const crs=manual?tdc.targetCourse:(tdc.targetCourse??tr.courseEstimate);
-    const spd=manual?tdc.targetSpeedKnots:(tdc.targetSpeedKnots??tr.speedEstimateKnots);
+    const autoTrack=!manual&&tdc.autoTrack!==false;
+    // A selected contact is a continuously worked TDC track in arcade mode.
+    // Previously the first bearing/range/course/speed were frozen forever,
+    // although the UI said "tracking"; a steady merchant could therefore
+    // walk out of an apparently excellent solution before the player fired.
+    let bear=manual?tdc.bearing:(autoTrack?tr.bearing:(tdc.bearing??tr.bearing));
+    let rng=manual?tdc.rangeNm:(autoTrack?tr.rangeEstimateNm:(tdc.rangeNm??tr.rangeEstimateNm));
+    // A live scope-fed track still carries the optical instrument's fixed
+    // calibration error; continuous tracking must not magically bypass
+    // periscope damage introduced by Phase 3.
+    if(!manual&&autoTrack&&tdc.trackSource==='SCOPE'){
+      bear=scopeMeasuredBearing(this.state,bear);rng=scopeMeasuredRangeNm(this.state,rng);
+    }
+    const crs=manual?tdc.targetCourse:(autoTrack?tr.courseEstimate:(tdc.targetCourse??tr.courseEstimate));
+    const spd=manual?tdc.targetSpeedKnots:(autoTrack?tr.speedEstimateKnots:(tdc.targetSpeedKnots??tr.speedEstimateKnots));
     // A damaged TDC is wrong in a repeatable way, not a dice roll each tick.
     // The stored observations remain what the crew entered; only the machine's
     // internal calculation carries its calibration errors.
@@ -483,7 +494,8 @@ class SimEngine extends SimEngineCareer {
     const calcSpd=Math.max(0,spd+(bias.tdcSpeedKnots||0));
     const res=calcTdc({ownPosition:sub.position,ownHeading:sub.heading,bearing:calcBear,
       rangeNm:calcRng,targetCourse:calcCrs,targetSpeedKnots:calcSpd,
-      torpedoSpeedKnots:tdc.torpedoSpeedKnots,confidence:manual?0.55:tr.confidence});
+      torpedoSpeedKnots:tdc.torpedoSpeedKnots,confidence:manual?0.65:Math.min(tr.confidence,
+        Number.isFinite(tr.positionConfidence)?tr.positionConfidence:tr.confidence)});
     tdc.bearing=bear;tdc.rangeNm=rng;tdc.targetCourse=crs;tdc.targetSpeedKnots=spd;
     tdc.gyroAngle=res.gyroAngle===null?null:res.gyroAngle+(bias.gyroDeg||0);tdc.angleOnBow=res.angleOnBow;
     tdc.timeToImpactSec=res.timeToImpactSec;
@@ -626,7 +638,7 @@ class SimEngine extends SimEngineCareer {
     if(!tr){this.log('Track lost.','warn');return;}
     const tdc=this.state.tdc;
     const mb=scopeMeasuredBearing(this.state,tr.bearing),mr=scopeMeasuredRangeNm(this.state,tr.rangeEstimateNm);
-    tdc.targetId=sid;tdc.bearing=mb;tdc.rangeNm=mr;
+    tdc.targetId=sid;tdc.autoTrack=true;tdc.trackSource='SCOPE';tdc.bearing=mb;tdc.rangeNm=mr;
     tdc.targetCourse=tr.courseEstimate;tdc.targetSpeedKnots=tr.speedEstimateKnots;
     this.updateTdc();
     this.log(`TDC: ${sid} B${fmtDeg(mb)} R${mr.toFixed(1)}nm C${fmtDeg(tr.courseEstimate)} S${tr.speedEstimateKnots.toFixed(1)}kn${this.state.playerSub.damage.periscopeDamage>.12?' — optical measurement degraded':''}`);

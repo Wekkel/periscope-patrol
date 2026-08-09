@@ -6,11 +6,11 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     const isAft=t.pos==='AFT';
     // Aft tubes fire backward: gyro is opposite bearing delta
     if(isAft){
-      t.gyroAngle=normDeg(180+(this.state.tdc.gyroAngle??0))+t.spreadOffsetDeg;
+      t.gyroAngle=normDeg(180+(this.state.tdc.gyroAngle??0));
     } else {
-      t.gyroAngle=(this.state.tdc.gyroAngle??0)+t.spreadOffsetDeg;
+      t.gyroAngle=(this.state.tdc.gyroAngle??0);
     }
-    if(doLog)this.log(`Tube ${id} (${t.pos}) flooded. Gyro ${t.gyroAngle.toFixed(1)}°.`);
+    if(doLog)this.log(`Tube ${id} (${t.pos}) flooded and ready. TDC gyro currently ${t.gyroAngle.toFixed(1)}°.`);
   }
 
   /* How far the fish actually has to swim: the target keeps moving while it
@@ -18,7 +18,12 @@ class SimEngineTorpedoes extends SimEngineHarbor {
      she is opening. Solved by iteration — three passes is plenty. */
   interceptRunNm(tdc,spec){ return torpedoInterceptRunNm(tdc,spec); }
 
-  fireTorpedo(id){
+  fireTorpedo(id,spreadOffsetDeg=0){
+    // Refresh a live selected track at the instant of firing. Manual TDC entry
+    // remains frozen by design.
+    {const live=this.state.tdc?.targetId&&this.state.world?.contactTracks?.[this.state.tdc.targetId];
+    if(this.state.tdc?.targetId&&this.state.tdc.targetId!=='MANUAL'&&this.state.tdc.autoTrack!==false&&live&&
+      Number.isFinite(live.bearing)&&Number.isFinite(live.rangeEstimateNm)&&Number.isFinite(live.courseEstimate)&&Number.isFinite(live.speedEstimateKnots))this.updateTdc?.();}
     const t=this.state.weapons.tubes.find(t=>t.id===id);
     const tdc=this.state.tdc; const sub=this.state.playerSub;
     const W=this.state.weapons;
@@ -49,7 +54,11 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     // wherever it likes. Beyond 90° the gyro cannot be set at all and the boat
     // has to be swung round.
     const tubeAxis=t.pos==='AFT'?normDeg(sub.heading+180):sub.heading;
-    const courseSet=normDeg(sub.heading+(tdc.gyroAngle??0)+(t.spreadOffsetDeg||0));
+    // A single tube always aims at the centre of the TDC solution. Spread is
+    // a salvo command, not a permanent tube bias. The old -2/+2/+4 degree
+    // tube offsets made individually fired tubes miss a good solution by
+    // design at ordinary attack ranges.
+    const courseSet=normDeg(sub.heading+(tdc.gyroAngle??0)+(Number(spreadOffsetDeg)||0));
     const turn=shortDelta(tubeAxis,courseSet);
     if(Math.abs(turn)>90){
       this.log(`Tube ${id}: gyro angle ${turn.toFixed(0)}° is beyond the setting limits — swing the boat onto the target.`,'warn');
@@ -65,10 +74,12 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     W.activeTorpedoes.push({
       id:tid, specKey:tdc.torpedoSpecKey, specName:spec.name,
       position:{...sub.position}, heading:launchBear,
-      // the gyro mechanism is not perfect, and the wider the angle the worse it is
-      courseSet:normDeg(courseSet+(Math.random()-0.5)*2*(0.5+Math.abs(turn)*0.03)),
-      turnRateDeg:5.4, reachNm:0.09,                 // ~200 yd straight, then the gyro takes charge
-      gyroTurn:turn,
+      // Fire-control error now scales with the quality shown to the player.
+      // A green solution should usually put a fish through a steady merchant;
+      // a marginal plot still has enough angular error to make misses normal.
+      courseSet:normDeg(courseSet+(Math.random()*2-1)*(lerp(1.15,0.16,clamp(tdc.solutionQuality,0,1))+Math.max(0,Math.abs(turn)-45)*0.006)),
+      turnRateDeg:8.0, reachNm:0.04,                 // short settling run, then gyro turn
+      gyroTurn:turn, launchSolutionQuality:tdc.solutionQuality,
       speedKnots:spec.speedKnots, rangeRunNm:0, maxRangeNm:spec.maxRangeNm,
       armedAfterNm:0.08,                 // arms after ~150 m
       targetId:tdc.targetId, status:'RUNNING', ageSec:0,
@@ -93,7 +104,10 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     const ready=this.state.weapons.tubes.filter(t=>t.status==='READY'&&t.pos===pos);
     if(!ready.length){this.log(`No ready ${pos} tubes.`,'warn');return;}
     const before=this.state.weapons.activeTorpedoes.length;
-    for(const t of ready) this.fireTorpedo(t.id);
+    // A compact arcade spread brackets small errors without deliberately
+    // throwing the outer fish hundreds of metres away from a good solution.
+    const separationDeg=.80;
+    ready.forEach((t,i)=>this.fireTorpedo(t.id,(i-(ready.length-1)/2)*separationDeg));
     const fired=this.state.weapons.activeTorpedoes.length-before;
     if(fired>0) this.log(`${pos} spread fired: ${fired} torpedo(es).`,'warn');
   }
@@ -147,7 +161,15 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       for(const c of this.state.world.contacts){
         if(c.sunk) continue;
         const lenNm=(c.lengthYards||400)*0.9144/1852;
-        const halfL=lenNm*0.5, halfB=lenNm/(c.type==='ESCORT'?11:7.2)*0.5;
+        let halfL=lenNm*0.5, halfB=lenNm/(c.type==='ESCORT'?11:7.2)*0.5;
+        // A few metres of integration/fuze tolerance on the intended target
+        // prevents a mathematically excellent shot missing by one pixel-step
+        // or by the short post-launch gyro transient. It is intentionally far
+        // smaller than the ship's beam and applies only to a good TDC track.
+        if(c.id===t.targetId){
+          const aq=clamp(((t.launchSolutionQuality??0)-.55)/.40,0,1),pad=.0022*aq;
+          halfL+=pad;halfB+=pad;
+        }
         const hRad=degToRad(c.heading);
         const fx=Math.sin(hRad), fy=-Math.cos(hRad);          // ship forward unit
         const px=-fy, py=fx;                                   // ship starboard unit

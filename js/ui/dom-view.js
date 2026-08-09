@@ -25,6 +25,8 @@ class DomView{
     if(this.timescale) this.timescale.textContent=state.time.timeScale===0?'PAUSED':`${state.time.timeScale}x`;
     const tsel=document.getElementById('timeSelect');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale) tsel.value=String(state.time.timeScale);
+    const dudSel=document.getElementById('dudSelect');
+    if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
     if(this.hArea)  this.hArea.textContent=state.campaign.patrolArea;
     if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
     document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationBridge:'BRIDGE',stationSound:'SOUND',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});

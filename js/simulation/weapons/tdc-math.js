@@ -24,7 +24,7 @@ function calcTdc(inp){
   const rQ=clamp(1-inp.rangeNm/18,0.15,1);
   const gQ=clamp(1-Math.abs(gyro)/90,0.1,1);
   return{valid:true,gyroAngle:gyro,angleOnBow:aob,timeToImpactSec:t,
-    solutionQuality:clamp(inp.confidence*0.55+rQ*0.25+gQ*0.2,0,1)};
+    solutionQuality:clamp(inp.confidence*(0.55+rQ*0.25+gQ*0.2),0,1)};
 }
 
 /* One range calculation for weapons, map and scope. The important distance is

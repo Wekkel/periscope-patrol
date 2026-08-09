@@ -57,12 +57,12 @@ const TUT_STEPS=[
    check:s=>s.tdc.solutionQuality>=0.6},
 
   {id:'flood',title:'Flooding tubes',
-   body:'A torpedo cannot leave a dry tube. In the <b>Attack</b> tab, tap a tube tile to flood it (blue = flooded and ready). Tubes 1–4 fire forward, 5–6 fire aft.<br><br>Flooded tubes take their gyro setting from the TDC at the moment they are flooded, so lock first, then flood.',
+   body:'A torpedo cannot leave a dry tube. In the <b>Attack</b> tab, tap a tube tile to flood it (blue = flooded and ready). Tubes 1–4 fire forward, 5–6 fire aft.<br><br>Flooding makes the tube ready; a selected live TDC track continues to update the firing solution until the instant you shoot.',
    goal:'Flood a tube', pane:'paneAttack', hl:'mTubes',
    check:s=>s.weapons.tubes.some(t=>t.status==='READY')},
 
   {id:'fire',title:'Shoot',
-   body:'Tap a ready tube again to fire it, use <b>Fwd Spread</b> for everything at once, or hit the big <b>FIRE</b> button on the picture — it fires the first ready tube and shows the solution percentage.<br><br>A spread of two or three covers errors in the target\'s speed. Torpedoes reload in about two minutes.',
+   body:'Tap a ready tube again to fire it, use <b>Fwd Spread</b> for everything at once, or hit the big <b>FIRE</b> button on the picture — it fires the first ready tube and shows the solution percentage. FIRE never floods a tube for you: if none is ready, it tells you to return here and flood one first.<br><br>Flood several tubes if you want several quick shots. A spread of two or three covers errors in the target\'s speed. Torpedoes reload in about two minutes.',
    goal:'Fire a torpedo', hl:'btnFire',
    check:s=>s.weapons.activeTorpedoes.length>0||s.weapons.hits.length>0},
 

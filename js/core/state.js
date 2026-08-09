@@ -9,19 +9,20 @@ function createState(areaKey){
       torpedoSpecKey:'mk14fast',
       torpedoType:'Mark 14 Fast',torpedoSpeedKnots:46,torpedoMaxRangeNm:4.9,
       torpedoRunDepthFt:10,
-      dudMode:'historical',
+      dudMode:'reduced',
+      autoTrack:true,trackSource:'PLOT',
       gyroAngle:null,angleOnBow:null,timeToImpactSec:null,solutionQuality:0,status:'NO TARGET',
       manualBearing:90,manualRange:5,manualCourse:270,manualSpeed:8},
     weapons:{
       tubes:[
         // Forward tubes 1-4
         {id:1,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:0},
-        {id:2,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:-2},
-        {id:3,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:2},
-        {id:4,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:4},
+        {id:2,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:0},
+        {id:3,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:0},
+        {id:4,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:0},
         // Aft tubes 5-6 (fire 180° from heading)
-        {id:5,pos:'AFT',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:180,reloadProgress:1,spreadOffsetDeg:-2},
-        {id:6,pos:'AFT',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:180,reloadProgress:1,spreadOffsetDeg:2}
+        {id:5,pos:'AFT',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:180,reloadProgress:1,spreadOffsetDeg:0},
+        {id:6,pos:'AFT',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:180,reloadProgress:1,spreadOffsetDeg:0}
       ],
       torpedoInventory:16,activeTorpedoes:[],nextTorpedoId:1,hits:[],duds:[],explosions:[],
       deckGun:{manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1}

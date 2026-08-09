@@ -695,21 +695,18 @@ class CanvasView extends CanvasViewSound {
       // the player was actively working almost unreadable on a phone.
       const labelPos=pt||pe;
       const lx=labelPos.x+14*K, ly=labelPos.y-10*K;
-      if(isSelected){
-        ctx.font=this.fnt(10.5,true);
-        const w=Math.max(94*K,ctx.measureText(`${tr.id} ${tr.typeEstimate}`).width+14*K);
-        ctx.fillStyle='rgba(3,13,16,.82)';
-        ctx.fillRect(lx-5*K,ly-12*K,w,(tr.damageEstimate?51:39)*K);
-      }
-      ctx.fillStyle=isSelected?'rgba(226,255,240,.98)':`rgba(245,198,92,${a})`;
+      // Selection is already obvious from the green ring/course vector. Keep
+      // the label itself chart-like: no opaque black card obscuring nearby
+      // contacts, and use the same high-contrast yellow ink as the normal plot.
+      ctx.fillStyle=`rgba(245,198,92,${isSelected?1:a})`;
       ctx.font=this.fnt(isSelected?10.5:8.5,true);
       const stale=Math.floor(now-(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated));
       ctx.fillText(`${tr.id} ${tr.typeEstimate}`,lx,ly);
       ctx.font=this.fnt(isSelected?9:7.5);
-      ctx.fillStyle=isSelected?'rgba(205,235,224,.94)':`rgba(245,198,92,${a})`;
+      ctx.fillStyle=`rgba(245,198,92,${isSelected?1:a})`;
       ctx.fillText(`${tr.source} C${Math.round(conf*100)}% ${stale}s`,lx,labelPos.y+2*K);
       if(hasTruePos||isSelected){
-        ctx.fillStyle=isSelected?'rgba(111,224,143,.98)':`rgba(111,224,143,${a*0.7})`;
+        ctx.fillStyle=isSelected?'rgba(245,198,92,1)':`rgba(111,224,143,${a*0.7})`;
         ctx.fillText(`${tr.rangeEstimateNm.toFixed(1)}nm`,lx,labelPos.y+13*K);
       }
       if(tr.damageEstimate){

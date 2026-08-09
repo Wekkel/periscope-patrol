@@ -314,11 +314,14 @@ class TouchCtrl{
   }
   quickFire(){
     const s=this.game.getSnapshot(), W=s.weapons;
+    // The large FIRE button is deliberately only a firing control. Flooding is
+    // a separate readiness decision made in ATTACK, so an accidental MAP tap
+    // can never flood every tube for the player behind the scenes.
     const ready=W.tubes.find(t=>t.pos==='FWD'&&t.status==='READY')||W.tubes.find(t=>t.status==='READY');
     if(ready){this.game.dispatch({type:'FIRE_TORPEDO',tubeId:ready.id});buzz([28,30,28]);return;}
-    const dry=W.tubes.find(t=>t.status==='LOADED_DRY');
-    if(dry){this.game.dispatch({type:'FLOOD_ALL_TUBES'});Toast.warn('Tubes flooding — tap FIRE again');buzz(12);return;}
-    Toast.bad('No tube available');
+    const dry=W.tubes.some(t=>t.status==='LOADED_DRY');
+    if(dry){Toast.warn('No torpedo tube flooded — open ATTACK and flood at least one tube first.');buzz(12);return;}
+    Toast.bad('No torpedo tube ready — check ATTACK for reload status.');
   }
 
   setPane(pane){
@@ -688,6 +691,7 @@ class TouchCtrl{
     if(this.pane==='paneAttack'||force){
       const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||{};
       const dudPct=Math.round((spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)*100);
+      const dudSel=g('mDudSel');if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
       set('mTdcTgt',tdc.targetId||'no target');
       const note=g('mTdcNote');
       if(note){

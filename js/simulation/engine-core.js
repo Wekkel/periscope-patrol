@@ -148,7 +148,7 @@ class SimEngineCore{
     delete tr.truePosition;W.contactTracks[c.id]=tr;
     T.bridgeMarkedId=c.id;
     this.log(`Bridge mark — ${c.id}, bearing ${fmtDeg(obs.bearing)}, range ${obs.rangeNm.toFixed(2)} nm${bin?' (binocular observation)':''}.`);
-    if(select){T.selectedTrackId=c.id;s.tdc.targetId=c.id;this.updateTdc();this.log(`Target designated from bridge: ${c.id}.`);}
+    if(select){T.selectedTrackId=c.id;s.tdc.targetId=c.id;s.tdc.autoTrack=true;s.tdc.trackSource='BRIDGE';this.updateTdc();this.log(`Target designated from bridge: ${c.id}.`);}
     return tr;
   }
 
@@ -295,14 +295,14 @@ class SimEngineCore{
       case'SELECT_TRACK':{
         const tr=this.state.world.contactTracks[cmd.trackId];
         if(tr&&tr.sunk){this.log(`${tr.id} is already on the bottom.`,'warn');break;}
-        if(tr){this.state.tactical.selectedTrackId=tr.id;this.state.tdc.targetId=tr.id;
+        if(tr){this.state.tactical.selectedTrackId=tr.id;this.state.tdc.targetId=tr.id;this.state.tdc.autoTrack=true;this.state.tdc.trackSource='PLOT';
           this.updateTdc();this.log(`Selected ${tr.id} for TDC tracking.`);}
         else this.log('Track lost.','warn');
         break;}
       case'TDC_SEND_SCOPE_OBSERVATION': this.sendScopeToTdc(); break;
       case'FLOOD_TUBE': this.floodTube(cmd.tubeId); break;
       case'FIRE_TORPEDO': this.fireTorpedo(cmd.tubeId); break;
-      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes) this.floodTube(t.id,false); this.log('All tubes flooded and ready.'); break;
+      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.floodTube(t.id,false); this.log('Forward tubes flooded and ready.'); break;
       case'FIRE_READY_SPREAD': this.fireSpread(); break;
       case'SET_TORPEDO_TYPE':{
         const spec=TORPEDO_SPECS[cmd.specKey];
@@ -326,7 +326,7 @@ class SimEngineCore{
         this.state.tdc.manualSpeed=cmd.speed??this.state.tdc.manualSpeed; break;
       case'APPLY_TDC_MANUAL':{
         const tdc=this.state.tdc;
-        tdc.bearing=tdc.manualBearing; tdc.rangeNm=tdc.manualRange;
+        tdc.autoTrack=false;tdc.trackSource='MANUAL';tdc.bearing=tdc.manualBearing; tdc.rangeNm=tdc.manualRange;
         tdc.targetCourse=tdc.manualCourse; tdc.targetSpeedKnots=tdc.manualSpeed;
         if(!tdc.targetId) tdc.targetId='MANUAL';
         this.updateTdc();
