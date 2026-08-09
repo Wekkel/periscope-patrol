@@ -78,7 +78,7 @@ class DomView{
       `<span class="lbl">Gyro</span><span class="val">${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'}</span>`+
       `<span class="lbl">AoB</span><span class="val">${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'}</span>`+
       `<span class="lbl">TtI</span><span class="val">${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'}</span>`+
-      `<span class="lbl">Torps</span><span class="val">${state.weapons.torpedoInventory} reserve</span>`+
+      `<span class="lbl">Torps</span><span class="val">${(()=>{const ts=torpedoStoresStatus(state);return `${ts.total} aboard · ${ts.reserve} reserve · ${ts.loadShort}`;})()}</span>`+
       `<span class="lbl">Hits/Duds</span><span class="val">${state.weapons.hits.length}/${(state.weapons.duds||[]).length}</span>`;
 
     // Tube status
@@ -86,7 +86,8 @@ class DomView{
     if(te) te.innerHTML=state.weapons.tubes.map(t=>{
       const col=t.status==='READY'?'var(--ok)':t.status==='EMPTY'?'var(--danger)':'var(--muted)';
       const pct=t.status==='EMPTY'?` ${Math.round(t.reloadProgress*100)}%`:'';
-      return `<span style="color:${col}">T${t.id}[${t.pos}]:${t.status.replace('LOADED_DRY','LOADED')}${pct}</span>`;
+      const typ=t.status==='EMPTY'?'—':torpedoShortName(t.specKey||tdc.torpedoSpecKey);
+      return `<span style="color:${col}">T${t.id}[${t.pos}] ${typ}: ${t.status.replace('LOADED_DRY','LOADED')}${pct}</span>`;
     }).join('<br>');
 
     // TDC note

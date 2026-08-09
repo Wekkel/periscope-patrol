@@ -81,7 +81,7 @@ class CanvasView extends CanvasViewSound {
     ctx.fillStyle=map.autoFollowPlot&&wp?'#6fe08f':'rgba(140,175,160,.9)';
     ctx.fillText(navTxt,pad,Math.round(40*k));
     ctx.fillStyle='rgba(140,175,160,.9)';
-    ctx.fillText(`TRACKS ${Object.keys(state.world.contactTracks).length} · TORPS ${state.weapons.torpedoInventory} · MAP ${this.follow?'LOCKED':'FREE'}`,pad,Math.round(51*k));
+    {const ts=torpedoStoresStatus(state);ctx.fillText(`TRACKS ${Object.keys(state.world.contactTracks).length} · TORPS ${ts.total} (${ts.loadShort}) · READY ${ts.ready} · MAP ${this.follow?'LOCKED':'FREE'}`,pad,Math.round(51*k));}
     if(sub.inShallowWater||(sub.keelClearanceFeet??3000)<35){
       ctx.fillStyle=(sub.keelClearanceFeet??3000)<15?'#ef6a58':'#f5c65c';ctx.font=this.fnt(9,true);
       const clr=sub.keelClearanceFeet??3000;
@@ -337,9 +337,20 @@ class CanvasView extends CanvasViewSound {
   }
 
   drawMapTerrain(ctx,terrain,w2s){
-    const K=this.k;
+    const K=this.k,margin=42*K;
+    // High map zoom used to transform and stroke every Natural-Earth island in
+    // the patrol area, even when only a tiny berth-sized patch was visible.
+    // On a G88 this is needless Canvas2D work with very large off-screen
+    // coordinates. Cache one world-space bbox per feature and reject features
+    // wholly outside the viewport before building their path.
+    this._terrainBoundsCache=this._terrainBoundsCache||new WeakMap();
     for(const f of terrain){
       if(!f.points||f.points.length<3) continue;
+      let b=this._terrainBoundsCache.get(f);
+      if(!b){let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;for(const q of f.points){minX=Math.min(minX,q.xNm);maxX=Math.max(maxX,q.xNm);minY=Math.min(minY,q.yNm);maxY=Math.max(maxY,q.yNm);}b={minX,maxX,minY,maxY};this._terrainBoundsCache.set(f,b);}
+      const a=w2s(b.minX,b.minY),z=w2s(b.maxX,b.maxY);
+      const l=Math.min(a.x,z.x),r=Math.max(a.x,z.x),t=Math.min(a.y,z.y),bt=Math.max(a.y,z.y);
+      if(r<-margin||l>this.w+margin||bt<-margin||t>this.h+margin) continue;
       const path=()=>{
         ctx.beginPath();
         f.points.forEach((p,i)=>{const q=w2s(p.xNm,p.yNm);if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y);});
@@ -393,9 +404,9 @@ class CanvasView extends CanvasViewSound {
     ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle='rgba(111,224,143,.10)';ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();
     ctx.fillStyle='rgba(205,245,226,.92)';ctx.font=this.fnt(8.5,true);ctx.textAlign='center';
-    ctx.fillText(`${ap.portName} RV`,p.x,p.y-r-5*K);
+    ctx.fillText(`${ap.portName} · FRIENDLY RV`,p.x,p.y-r-5*K);
     ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(150,205,180,.82)';
-    ctx.fillText(`${Math.round(ap.seabedFeet||0)} ft water`,p.x,p.y+r+11*K);
+    ctx.fillText(`REARM · FUEL · REPAIR · ${Math.round(ap.seabedFeet||0)} ft water`,p.x,p.y+r+11*K);
     ctx.textAlign='left';ctx.restore();
   }
 

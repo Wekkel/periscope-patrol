@@ -610,8 +610,17 @@ class SimEngine extends SimEngineCareer {
     if(this.state.world.aaManned) W.push({level:'warn',text:'AA CREW TOPSIDE — DIVE WILL AUTO-CLEAR DECK'});
     if(this.state.weapons.deckGun?.manned) W.push({level:'warn',text:'DECK GUN CREW TOPSIDE — DIVE WILL AUTO-CLEAR DECK'});
     const camp=this.state.campaign;
+    const friendlyRv=this.friendlyPortNav();
+    if(camp.missionStatus!=='RETURN TO BASE'&&friendlyRv&&friendlyRv.rngNm<=1.5){
+      if(camp._portServiceLock) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — SERVICED`});
+      else if((camp.portService||0)>0) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} SERVICE — ${Math.round((camp.portService||0)/15*100)}%`});
+      else if(friendlyRv.rngNm<=0.30&&sub.depthFeet>=8) W.push({level:'warn',text:`${friendlyRv.port.name.toUpperCase()} RV — SURFACE TO SERVICE`});
+      else if(friendlyRv.rngNm<=0.30&&sub.propulsion.speedKnots>3) W.push({level:'warn',text:`${friendlyRv.port.name.toUpperCase()} RV — SLOW BELOW 3 KN`});
+      else if(friendlyRv.rngNm<=0.30) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — HOLD FOR SERVICE`});
+      else W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — ${friendlyRv.rngNm.toFixed(1)} NM`});
+    }
     if(camp.missionStatus==='RETURN TO BASE'){
-      const r=this.friendlyPortNav();
+      const r=friendlyRv;
       if(camp.alongside>0) W.push({level:'normal',text:`${r?.port.name||'RENDEZVOUS'} TRANSFER — ${Math.round(camp.alongside/180*100)}%`});
       else if(r&&r.rngNm<=0.30&&sub.depthFeet>=8) W.push({level:'warn',text:`${r.port.name.toUpperCase()} RV — SURFACE`});
       else if(r&&r.rngNm<=0.30&&sub.propulsion.speedKnots>3) W.push({level:'warn',text:`${r.port.name.toUpperCase()} RV — SLOW BELOW 3 KN`});

@@ -703,22 +703,40 @@ class SimEngineCore{
      We steer to the latter, in surveyed water. 1.5 nm is the approach station,
      not "alongside". The transfer only starts when the boat is genuinely
      close, surfaced and slow. */
+  performFriendlyPortService(portName){
+    const s=this.state,sub=s.playerSub,W=s.weapons,d=sub.damage;
+    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.chargeRate=0;
+    W.torpedoInventory=16;
+    for(const t of W.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;t.specKey=s.tdc.torpedoSpecKey;}
+    if(W.deckGun)W.deckGun.ammo=120;
+    s.world.aaAmmo=1200;
+    Object.assign(d,{hullIntegrity:100,flooding:0,ballastDamage:0,motorDamage:0,rudderDamage:0,
+      periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
+      pumpActive:false,pumpTripped:false,pumpLoadSec:0,damageControlActive:false,
+      driveBankOffline:false,crewFatigue:0,oxygen:100,repairFloor:{},instrumentBias:{}});
+    sub.cannotHoldDepth=false;sub._nhdWarned=false;
+    this.notify(`${String(portName||'FRIENDLY PORT').toUpperCase()} — SERVICE COMPLETE. Fuel and battery 100%; torpedoes, gun ammunition and AA replenished; battle damage repaired.`,'ok');
+    this.log(`${portName||'Friendly port'} service complete — rearmed, refuelled, batteries charged and battle damage repaired.`,'warn');
+  }
+
   checkPortArrival(dt){
     const sub=this.state.playerSub,camp=this.state.campaign;
-    if(camp.primaryMission&&camp.missionStatus!=='RETURN TO BASE'){
-      camp.alongside=0;return;
+    if(camp.missionStatus==='COMPLETED'||sub.mode==='SUNK'){
+      camp.alongside=0;camp.portService=0;return;
     }
-    if(!camp.primaryMission&&camp.missionStatus!=='RETURN TO BASE'&&camp.missionStatus!=='PATROL'){
-      camp.alongside=0;return;
-    }
+    const returning=camp.missionStatus==='RETURN TO BASE';
     const r=this.friendlyPortNav();
-    const ALONGSIDE_SEC=180,APPROACH_NM=1.5,CLOSE_NM=0.30,SLOW_KN=3.0;
-    if(!r){camp.alongside=0;return;}
+    const ALONGSIDE_SEC=180,SERVICE_SEC=15,APPROACH_NM=1.5,CLOSE_NM=0.30,SLOW_KN=3.0;
+    if(!r){camp.alongside=0;camp.portService=0;return;}
     camp.portRangeNm=r.rngNm;
 
+    // Friendly rendezvous points are usable logistics stops throughout a
+    // patrol, not only the final RETURN TO BASE objective. This is deliberately
+    // arcade-friendly: the player may spend time reaching a safe RV to restore
+    // stores and damage rather than being forced to abandon the patrol.
     if(r.rngNm<4&&r.rngNm>APPROACH_NM&&!camp._rvSeen){
       camp._rvSeen=true;
-      this.notify(`${r.port.name.toUpperCase()} IN SIGHT — ${r.rngNm.toFixed(1)} nm to the rendezvous. Continue to the green approach ring.`,'warn');
+      this.notify(`${r.port.name.toUpperCase()} FRIENDLY RV — ${r.rngNm.toFixed(1)} nm. Rearm, refuel, charge batteries and repair are available inside the green ring.`,'ok');
     }
     if(r.rngNm<=APPROACH_NM&&!camp._approachReached){
       camp._approachReached=true;
@@ -726,29 +744,48 @@ class SimEngineCore{
         this.state.time.timeScale=1;this.state.time.transitUntil=0;this.state.time.transitOpen=false;
         this.state.time.stopReason='friendly port approach';this.state.time.stopReasonAt=this.state.time.elapsedSeconds;
       }
-      this.notify(`${r.port.name.toUpperCase()} — APPROACH STATION. Surface, slow below ${SLOW_KN.toFixed(0)} kn and bring her inside 0.3 nm of the green rendezvous marker.`,'warn');
+      this.notify(`${r.port.name.toUpperCase()} — FRIENDLY RENDEZVOUS. Surface, slow below ${SLOW_KN.toFixed(0)} kn and enter the 0.3 nm green service ring.`,'ok');
     }
     if(r.rngNm>APPROACH_NM*1.25) camp._approachReached=false;
     if(r.rngNm>4.5) camp._rvSeen=false;
+    if(r.rngNm>CLOSE_NM*1.55){camp._portServiceLock=false;camp.portService=0;}
 
     const surfaced=sub.depthFeet<8,slow=sub.propulsion.speedKnots<=SLOW_KN,close=r.rngNm<=CLOSE_NM;
-    if(!close||!surfaced||!slow||sub.mode==='SUNK'){
-      if((camp.alongside||0)>0.5){
+    if(!close||!surfaced||!slow){
+      const active=(returning?(camp.alongside||0):(camp.portService||0));
+      if(active>0.5){
         const why=!close?'she has drawn off':!surfaced?'she has gone under':'she is making too much way';
-        this.notify(`Lost the ${r.port.name} rendezvous — ${why}. Transfer stopped.`,'warn');
+        this.notify(`Lost the ${r.port.name} rendezvous — ${why}. ${returning?'Transfer':'Service'} stopped.`,'warn');
       }
-      camp.alongside=0;
+      if(returning)camp.alongside=0;else camp.portService=0;
       return;
     }
 
-    const was=camp.alongside||0;
-    camp.alongside=was+dt;
+    if(returning){
+      const was=camp.alongside||0;
+      camp.alongside=was+dt;
+      if(was<=0){
+        this.notify(`${r.port.name.toUpperCase()} — ALONGSIDE. Hoses across; fuel and torpedoes coming aboard. Hold position.`,'ok');
+        audio.playWaypoint();
+      }else for(const mark of [60,120]) if(was<mark&&camp.alongside>=mark)
+        this.notify(`${r.port.name} transfer ${Math.round(camp.alongside/ALONGSIDE_SEC*100)}% — hold her here.`,'ok');
+      if(camp.alongside>=ALONGSIDE_SEC){camp.alongside=0;this.completeMission(r.port.name);}
+      return;
+    }
+
+    // Mid-patrol service is quick but not instantaneous: the 15-second hold
+    // makes the green RV feel like a place without turning logistics into grind.
+    if(camp._portServiceLock)return;
+    const was=camp.portService||0;camp.portService=was+dt;
     if(was<=0){
-      this.notify(`${r.port.name.toUpperCase()} — ALONGSIDE. Hoses across; fuel and torpedoes coming aboard. Hold position.`,'ok');
+      this.notify(`${r.port.name.toUpperCase()} — FRIENDLY SERVICE PARTY ALONGSIDE. Hold position 15 seconds.`,'ok');
       audio.playWaypoint();
-    }else for(const mark of [60,120]) if(was<mark&&camp.alongside>=mark)
-      this.notify(`${r.port.name} transfer ${Math.round(camp.alongside/ALONGSIDE_SEC*100)}% — hold her here.`,'ok');
-    if(camp.alongside>=ALONGSIDE_SEC){camp.alongside=0;this.completeMission(r.port.name);}
+    }
+    if(was<8&&camp.portService>=8)this.notify(`${r.port.name} service — stores coming aboard, damage parties working.`,'ok');
+    if(camp.portService>=SERVICE_SEC){
+      camp.portService=0;camp._portServiceLock=true;camp.lastPortServiceAt=this.state.time.elapsedSeconds;
+      this.performFriendlyPortService(r.port.name);
+    }
   }
 
   completeMission(portName){
@@ -842,7 +879,7 @@ class SimEngineCore{
       ],
       optionalObjectives:[],
       friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
-      tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
+      tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,portService:0,_portServiceLock:false,lastPortServiceAt:-999,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     };
     // fresh boat for a fresh patrol — otherwise you inherit a wrecked, empty
     // (or sunk) submarine from the previous one

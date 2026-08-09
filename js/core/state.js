@@ -41,7 +41,7 @@ function createState(areaKey){
       ],
       optionalObjectives:[],
       friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
-      tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
+      tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,portService:0,_portServiceLock:false,lastPortServiceAt:-999,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     },
     map:{cellSizeNm:5,exploredCells:{},ownshipTrail:[],plottedCourse:[],
       estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true,

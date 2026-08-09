@@ -621,7 +621,7 @@ class TouchCtrl{
     }
     qv('qHdg',fmtDeg(sub.heading));
     qv('qSpd',`${p.speedKnots.toFixed(1)}kn`);
-    qv('qTorp',`${W.torpedoInventory}`,W.torpedoInventory<4?'w':'');
+    {const ts=torpedoStoresStatus(state);qv('qTorp',`${ts.total}·${ts.loadShort}`,ts.total<4?'w':'');}
     const en=state.world.enemy;
     const thr=enemy==='UNAWARE'?'CLEAR':(en.contactHeld?'HELD':enemy==='ATTACKING'?'LOST':'SEARCH');
     qv('qThr',thr,en.contactHeld?'d':enemy!=='UNAWARE'?'w':'');
@@ -707,10 +707,12 @@ class TouchCtrl{
           :'No target. Lock a contact from the scope or the map, or enter a manual solution below.';
         if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');}
       }
+      {const ts=torpedoStoresStatus(state);set('mTorpStores',`${ts.total} aboard · ${ts.loaded} loaded (${ts.loadedText}) · ${ts.reserve} reserve · reload ${ts.loadShort} · ${ts.ready} READY`);}
       html('mTubes',W.tubes.map(t=>{
         const st=t.status==='READY'?'ready':t.status==='EMPTY'?'empty':'flooded';
         const sub2=t.status==='READY'?'FIRE':t.status==='EMPTY'?`${Math.round(t.reloadProgress*100)}%`:'FLOOD';
-        return `<div class="tube ${st}" data-tube="${t.id}"><b>T${t.id}</b><span>${t.pos}</span><span>${sub2}</span></div>`;
+        const typ=t.status==='EMPTY'?'—':torpedoShortName(t.specKey||tdc.torpedoSpecKey);
+        return `<div class="tube ${st}" data-tube="${t.id}"><b>T${t.id}</b><span>${t.pos} · ${typ}</span><span>${sub2}</span></div>`;
       }).join(''));
     }
 
@@ -728,7 +730,7 @@ class TouchCtrl{
         `<span class="lbl">Silent</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
         `<span class="lbl">TDC</span><span class="val">${tdc.status}</span>`+
         `<span class="lbl">Solution</span><span class="val">${sq}%</span>`+
-        `<span class="lbl">Torps</span><span class="val">${W.torpedoInventory} reserve</span>`+
+        `<span class="lbl">Torps</span><span class="val">${(()=>{const ts=torpedoStoresStatus(state);return `${ts.total} aboard · ${ts.reserve} reserve · ${ts.loadShort}`;})()}</span>`+
         `<span class="lbl">Hits / duds</span><span class="val">${W.hits.length} / ${(W.duds||[]).length}</span>`);
       const c2=state.campaign;
       const opt2=(c2.optionalObjectives||[]).map(o=>{
