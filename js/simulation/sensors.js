@@ -68,7 +68,7 @@ function updateStableContactPlot(state,tr,measurement,source,quality,dt){
 
 class SimEngineSensors extends SimEngineIntel {
   updateLookouts(dt){
-    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,env=W.environment;
+    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,env=W.environment,hist=this.state.campaign?.historicalProfile||null;
     const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk),day=clamp(env.daylight,0,1),sea=clamp(env.seaState,0,1);
     let anySeen=false,nearestSeen=null;
     for(const esc of escorts){
@@ -79,8 +79,13 @@ class SimEngineSensors extends SimEngineIntel {
       else{size=0;what='';}
       if(size<=0)continue;
       let reach=7*size*clamp(day*1.15+(e.starShellUntil>this.state.time.elapsedSeconds?.55:.12),.10,1.2);
-      reach*=clamp(env.visibilityNm/12,.35,1.35)*(1-sea*.40);if(rng>reach)continue;
-      const p=clamp(1-rng/reach,0,1)*dt*.55;if(Math.random()<p){anySeen=true;if(!nearestSeen||rng<nearestSeen.r)nearestSeen={esc,r:rng,what};}
+      /* Early-war doctrine/equipment leaves a little more room for bold surface
+         running; late-war lookouts and supporting sensors punish it more.  This
+         is deliberately a modest gameplay modifier, not a claim that eyesight
+         itself changed with the calendar. */
+      const surfaceWindow=hist?.surfaceOpportunity||1,enemyVisualFactor=1/Math.sqrt(surfaceWindow);
+      reach*=clamp(env.visibilityNm/12,.35,1.35)*(1-sea*.40)*enemyVisualFactor;if(rng>reach)continue;
+      const p=clamp(1-rng/reach,0,1)*dt*.55*enemyVisualFactor;if(Math.random()<p){anySeen=true;if(!nearestSeen||rng<nearestSeen.r)nearestSeen={esc,r:rng,what};}
     }
     const now=this.state.time.elapsedSeconds;if(anySeen)e.visualHoldUntil=now+25;
     e.visualOnSub=now<(e.visualHoldUntil||0)&&sub.depthFeet<30;e.periscopeSighted=now<(e.visualHoldUntil||0)&&sub.depthFeet>=30;
@@ -107,7 +112,7 @@ class SimEngineSensors extends SimEngineIntel {
      ping clock and short-lived local contact. The shared ASW plot is built from
      returned echoes and then consumed by the ASW brain. */
   updateSonar(dt){
-    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,env=W.environment,now=this.state.time.elapsedSeconds;
+    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,env=W.environment,now=this.state.time.elapsedSeconds,hist=this.state.campaign?.historicalProfile||null;
     if(e.alertState==='UNAWARE')return;
     const A=this.ensureASWState?.()||{},layer=env.layerDepthFt||200,belowLayer=sub.depthFeet>layer+15;e.belowLayer=belowLayer;
     if(e.solution){
@@ -121,13 +126,15 @@ class SimEngineSensors extends SimEngineIntel {
       const plotted=this.aswDatum?.()||e.solution||e.searchCenter,estRng=plotted?distNm(esc.position,plotted):SONAR.maxRangeNm;
       const q=e.solution?clamp(1-(e.solution.errNm||.2)/.45,0,1):0;
       const ranging=!!(esc.sonarContact||e.contactHeld);
-      const interval=ranging?clamp(3.2+estRng*.45+(1-q)*2.0,3.0,7.5):clamp(9.5+Math.random()*4.5+(esc.aswRole==='CONVOY_GUARD'?2:0),8.5,16);
+      const baseInterval=ranging?clamp(3.2+estRng*.45+(1-q)*2.0,3.0,7.5):clamp(9.5+Math.random()*4.5+(esc.aswRole==='CONVOY_GUARD'?2:0),8.5,16);
+      const interval=baseInterval*(hist?.sonarIntervalFactor||1);
       esc.pingTimer=interval;esc.lastPingAt=now;pinged++;audio.playSonarPing();
       A.pingEvents=A.pingEvents||[];A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN'});if(A.pingEvents.length>80)A.pingEvents.shift();
 
       const rng=distNm(esc.position,sub.position),dead=rng<SONAR.deadZoneNm;let p=0;
       if(!blind&&!dead&&rng<SONAR.maxRangeNm){p=.88*clamp(1-(rng-SONAR.deadZoneNm)/(SONAR.maxRangeNm-SONAR.deadZoneNm),0,1)*(belowLayer?.26:1)
         *(.5+.5*clamp(sub.propulsion.speedKnots/6,0,1))*(1-clamp(env.seaState,0,1)*.3)*(sub.stealth.silentRunning?.85:1);}
+      p=clamp(p*(hist?.aswSkill||1),0,.98);
       const kn=(W.knuckles||[]).find(k=>{const kr=distNm(esc.position,k.pos);return kr<rng&&kr<SONAR.maxRangeNm&&Math.abs(shortDelta(bearingBetween(esc.position,k.pos),bearingBetween(esc.position,sub.position)))<14;});
       if(kn&&Math.random()<.5&&p>0){
         e.solution={xNm:kn.pos.xNm,yNm:kn.pos.yNm,courseDeg:0,speedKn:0,depthFt:120+(Math.random()-.5)*100,errNm:.04,ageSec:0,decoy:true,sourceEscortId:esc.id};
@@ -135,7 +142,7 @@ class SimEngineSensors extends SimEngineIntel {
         this.log(`${esc.name} is echo-ranging on a knuckle.`);continue;
       }
       if(Math.random()<p){
-        const err=.006+rng*.030+Math.random()*.012+(belowLayer?.022:0),prev=e.solution&&!e.solution.decoy?e.solution:null;
+        const err=(.006+rng*.030+Math.random()*.012+(belowLayer?.022:0))*(hist?.sonarErrorFactor||1),prev=e.solution&&!e.solution.decoy?e.solution:null;
         const nx=sub.position.xNm+(Math.random()-.5)*2*err,ny=sub.position.yNm+(Math.random()-.5)*2*err;
         let crs=A.estimatedCourseDeg,spd=A.estimatedSpeedKn;
         if(prev&&prev.ageSec<70&&prev.ageSec>1){

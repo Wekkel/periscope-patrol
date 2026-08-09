@@ -107,7 +107,7 @@ class SimEngineASW extends SimEngineASWBrain {
     const estDepth=clamp(sol?.depthFt??130,15,420);if(estDepth<25)return;
     const layer=env.layerDepthFt||200,belowLayer=estDepth>layer+15,base=20+estDepth*.10+(belowLayer?58:0);
     let skill=clamp(1-(esc.attacksMade||0)*.11,.45,1);if(e.contactHeld)skill*=.55;
-    const err=base*skill*(.35+Math.random()*1.15);let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
+    const hist=this.state.campaign?.historicalProfile||null,err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1);let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
     esc.attacksMade=(esc.attacksMade||0)+1;esc.dcRemaining=(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize;
     const hdg=degToRad(esc.heading);
     for(let i=0;i<SONAR.patternSize;i++){

@@ -31,7 +31,7 @@ class CanvasViewSound extends CanvasViewBridge {
   }
 
   drawSJPlot(ctx,w,h,state){
-    const k=this.k,R=state.world.radar||{},T=state.tactical,cx=w/2,cy=this.portrait?h*.44:h*.50,r=Math.min(w*(this.portrait?.39:.32),h*(this.portrait?.30:.40),220*k),range=8;
+    const k=this.k,R=state.world.radar||{},T=state.tactical,cx=w/2,cy=this.portrait?h*.44:h*.50,r=Math.min(w*(this.portrait?.39:.32),h*(this.portrait?.30:.40),220*k),range=R.sjRangeNm||8;
     ctx.fillStyle='#001109';ctx.beginPath();ctx.arc(cx,cy,r*1.04,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(99,220,137,.68)';ctx.lineWidth=Math.max(1,1.3*k);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
     for(let n=1;n<=4;n++){ctx.strokeStyle='rgba(81,171,111,.25)';ctx.lineWidth=k;ctx.beginPath();ctx.arc(cx,cy,r*n/4,0,Math.PI*2);ctx.stroke();}
     for(let d=0;d<360;d+=45){const a=degToRad(d);ctx.strokeStyle='rgba(81,171,111,.18)';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(a)*r,cy-Math.cos(a)*r);ctx.stroke();}
@@ -43,9 +43,9 @@ class CanvasViewSound extends CanvasViewBridge {
         ctx.fillStyle=`rgba(132,255,166,${clamp(.42+(b.strength||0)*.58,.4,1)})`;ctx.beginPath();ctx.arc(x,y,Math.max(2.2*k,3),0,Math.PI*2);ctx.fill();
       }
     }
-    ctx.fillStyle='#a6f3b8';ctx.font=this.fnt(10,true);ctx.fillText('SJ SURFACE-SEARCH RADAR — 8 NM',12*k,22*k);ctx.font=this.fnt(8.2);ctx.fillStyle='rgba(158,220,174,.75)';ctx.fillText(`${fit} · heading-up plot · ${usable?'SCANNING':'STANDBY'}`,12*k,39*k);
+    ctx.fillStyle='#a6f3b8';ctx.font=this.fnt(10,true);ctx.fillText(`SJ SURFACE-SEARCH RADAR — ${range.toFixed(1)} NM`,12*k,22*k);ctx.font=this.fnt(8.2);ctx.fillStyle='rgba(158,220,174,.75)';ctx.fillText(`${fit} · heading-up plot · ${usable?'SCANNING':'STANDBY'}`,12*k,39*k);
     if(!R.sjAvailable){ctx.fillStyle='#f5c65c';ctx.font=this.fnt(12,true);ctx.textAlign='center';ctx.fillText('SJ NOT FITTED ON THIS PATROL DATE',cx,cy);ctx.textAlign='left';}
     else if(!usable){ctx.fillStyle='#f5c65c';ctx.font=this.fnt(11,true);ctx.textAlign='center';ctx.fillText(`SJ MAST BELOW WATER — usable to ${R.sjRadarDepthFt||12} ft`,cx,cy);ctx.textAlign='left';}
-    ctx.fillStyle='rgba(166,243,184,.74)';ctx.font=this.fnt(7.5);ctx.textAlign='center';for(let n=1;n<=4;n++)ctx.fillText(`${n*2}`,cx+3*k,cy-r*n/4+10*k);ctx.textAlign='left';
+    ctx.fillStyle='rgba(166,243,184,.74)';ctx.font=this.fnt(7.5);ctx.textAlign='center';for(let n=1;n<=4;n++)ctx.fillText(`${(range*n/4).toFixed(range<7?1:0)}`,cx+3*k,cy-r*n/4+10*k);ctx.textAlign='left';
   }
 }

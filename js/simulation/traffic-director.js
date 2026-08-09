@@ -91,8 +91,9 @@ function _trafficFormation(i){
       if(!T||!T.enabled||!route)return T;
       const path=this.ensureWaterRoute(route);if(!path||path.length<2)return T;
       const C=routeCum(path),L=C[C.length-1];if(L<10)return T;
-      const area=s.campaign.patrolArea||'Patrol Area',seed=s.campaign.scenarioSeed||1;
-      const density={'Java Sea':10,'Luzon Strait':11,'Truk Approaches':9,'Solomon Sea':9,'Bismarck Sea':8}[area]||8;
+      const area=s.campaign.patrolArea||'Patrol Area',seed=s.campaign.scenarioSeed||1,hp=s.campaign.historicalProfile||null;
+      const baseDensity={'Java Sea':10,'Luzon Strait':11,'Truk Approaches':9,'Solomon Sea':9,'Bismarck Sea':8}[area]||8;
+      const density=clamp(Math.round(baseDensity*(hp?.trafficDensityFactor||1)),6,12);
       const base=['LONE_FREIGHTER','COASTAL_MERCHANT','SMALL_TANKER','FISHING_CRAFT','PATROL_CRAFT','SMALL_CONVOY'];
       const kinds=[];for(let i=0;i<density;i++)kinds.push(i<base.length?base[i]:base[Math.floor(_trafficHash(seed,`kind:${i}`)*base.length)%base.length]);
       if(_trafficHash(seed,`${area}:task-group`)<.32)kinds[Math.max(0,kinds.length-2)]='TASK_GROUP';
@@ -104,9 +105,9 @@ function _trafficFormation(i){
         const laneBase=kind==='FISHING_CRAFT'?2.2:kind==='COASTAL_MERCHANT'?1.25:kind==='PATROL_CRAFT'?-1.0:kind==='FRIENDLY_TRAFFIC'?-1.5:0;
         const q=routeAdvance(path,s0,dir,0),side=(laneBase?laneBase*(h<.5?-1:1):(_trafficHash(seed,`lane:${i}`)-.5)*1.2);
         const p=_trafficWaterPoint(this,_trafficSideOffset(q.pos,q.heading,side),q.pos);
-        const id=`T${String(i+1).padStart(2,'0')}`;
+        const id=`T${String(i+1).padStart(2,'0')}`,merchantKind=['LONE_FREIGHTER','COASTAL_MERCHANT','SMALL_TANKER','SMALL_CONVOY'].includes(kind),histSpeed=merchantKind?(hp?.merchantSpeedBonus||0):0;
         return{id,seed:Math.floor((seed*9973+i*7919+17)%2147483647),kind,label:TRAFFIC_KIND_LABELS[kind]||kind,side:kind==='FISHING_CRAFT'?'NEUTRAL':kind==='FRIENDLY_TRAFFIC'?'FRIENDLY':'ENEMY',
-          state:'ABSTRACT',routeS:q.s,routeDir:q.dir,laneOffsetNm:side,position:p,heading:q.heading,speedKnots:clamp(speedBase+(h-.5)*2.0,3,22),
+          state:'ABSTRACT',routeS:q.s,routeDir:q.dir,laneOffsetNm:side,position:p,heading:q.heading,speedKnots:clamp(speedBase+histSpeed+(h-.5)*2.0,3,22),
           memberIds:[],materializedAt:null,lastAbstractAt:s.time.elapsedSeconds||0};
       });
       this.adoptPrimaryConvoy();T.generated=true;T.lastTickAt=s.time.elapsedSeconds||0;return T;
@@ -174,7 +175,8 @@ function _trafficFormation(i){
       for(let i=0;i<defs.length;i++){
         const d=defs[i],o=_trafficFormation(i),r=degToRad(q.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
         const p0={xNm:pos.xNm+fx*o.fwd+sx*o.side,yNm:pos.yNm+fy*o.fwd+sy*o.side},p=_trafficWaterPoint(this,p0,pos);
-        const id=`${g.id}-${d.suffix}`,contact={id,name:d.name,type:d.type,displayType:d.displayType,lengthYards:d.lengthYards,tonsFactor:d.tonsFactor,
+        const hp=s.campaign.historicalProfile||null,isEnemyMerchant=d.side==='ENEMY'&&(d.type==='MERCHANT'||d.type==='TANKER'),scale=isEnemyMerchant?(hp?.merchantTonnageFactor||1):1;
+        const id=`${g.id}-${d.suffix}`,contact={id,name:d.name,type:d.type,displayType:d.displayType,lengthYards:Math.round(d.lengthYards*(1+(scale-1)*.28)),tonsFactor:Math.round(d.tonsFactor*scale),
           visualProfile:d.visualProfile,acousticBase:d.acousticBase,side:d.side,position:p,heading:normDeg(q.heading+(_trafficHash(g.seed,`hdg:${i}`)-.5)*2),
           desiredHeading:q.heading,speedKnots:clamp(g.speedKnots+d.speedBias+(_trafficHash(g.seed,`spd:${i}`)-.5)*.35,2,26),
           baseSpeed:clamp(g.speedKnots+d.speedBias,2,26),desiredSpeed:clamp(g.speedKnots+d.speedBias,2,26),trafficAmbient:true,trafficGroupId:g.id,

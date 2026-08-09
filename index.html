@@ -335,8 +335,8 @@
         <strong id="torpDepthVal">10ft</strong>
       </div>
       <select id="dudSelect" style="width:100%;background:#102a31;border:1px solid var(--line);color:var(--ink);padding:5px;font-family:inherit;font-size:11px;margin-top:4px;">
-        <option value="historical">Historical (25% dud rate)</option>
-        <option value="reduced" selected>Reduced (10%)</option>
+        <option value="historical">Historical reliability</option>
+        <option value="reduced" selected>Reduced reliability (default)</option>
         <option value="none">None (arcade)</option>
       </select>
     </div>
@@ -636,8 +636,8 @@
           <strong id="mTorpDepthV">10ft</strong>
         </div>
         <select id="mDudSel">
-          <option value="historical">Dud rate: historical (25%)</option>
-          <option value="reduced" selected>Dud rate: reduced (10%)</option>
+          <option value="historical">Dud rate: historical reliability</option>
+          <option value="reduced" selected>Dud rate: reduced reliability (default)</option>
           <option value="none">Dud rate: none (arcade)</option>
         </select>
 
@@ -724,6 +724,7 @@
 <script src="./js/simulation/physics-navigation.js"></script>
 <script src="./js/simulation/mission-framework.js"></script>
 <script src="./js/simulation/traffic-director.js"></script>
+<script src="./js/simulation/historical-campaign.js"></script>
 <script src="./js/simulation/after-action-report.js"></script>
 <script src="./js/rendering/world-geometry.js"></script>
 <script src="./js/rendering/canvas-core.js"></script>

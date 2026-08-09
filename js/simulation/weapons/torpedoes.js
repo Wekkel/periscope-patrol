@@ -47,7 +47,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
         this.notify(`Long shot — intercept run ${runNm.toFixed(1)} nm of ${spec.maxRangeNm.toFixed(1)} nm max. Little margin if she zigs.`,'warn');
     }
     const dudMode=DUD_MODES[tdc.dudMode]??1;
-    const dudChance=spec.dudChanceBase*dudMode;
+    const dudChance=typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(this.state,tdc.torpedoSpecKey,tdc.dudMode):spec.dudChanceBase*dudMode;
 
     // A torpedo leaves the tube along the tube's axis. The gyro then swings it
     // onto the set course over a turning circle — it cannot simply point

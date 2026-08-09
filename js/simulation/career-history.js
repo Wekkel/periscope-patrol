@@ -71,6 +71,7 @@ class SimEngineCareer extends SimEngineDamage {
       version:CAREER_RECORD_VERSION,id:c.historyId,
       patrolNumber:c.patrolNumber||1,area:c.patrolArea||'UNKNOWN',missionName:c.missionName||c.primaryMission?.title||null,
       missionType:c.missionType||c.primaryMission?.type||'CONVOY_INTERDICTION',primaryMission:_careerClone(c.primaryMission||null),
+      historicalProfile:_careerClone(c.historicalProfile||null),equipment:_careerClone(c.equipment||null),
       startDate:c._careerStartDate,
       endDate:_careerStampFrom(c._careerStartDate,c.patrolDuration||0),
       durationSeconds:Math.round(c.patrolDuration||0),outcome:String(outcome||c.missionStatus||'UNKNOWN'),

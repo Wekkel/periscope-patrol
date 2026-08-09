@@ -575,6 +575,7 @@ class TouchCtrl{
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale) tsel.value=String(state.time.timeScale);
     const hsel=g('mTimeSel');
     if(hsel&&hsel!==document.activeElement&&+hsel.value!==state.time.timeScale) hsel.value=String(state.time.timeScale);
+    const torpSel=g('mTorpSel');if(torpSel){for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
     set('mScore',state.campaign.score.toLocaleString());
 
     // alert strip
@@ -690,7 +691,7 @@ class TouchCtrl{
     // ── panes (only refresh the visible one) ──
     if(this.pane==='paneAttack'||force){
       const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||{};
-      const dudPct=Math.round((spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)*100);
+      const dudPct=Math.round(100*(typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(state,tdc.torpedoSpecKey,tdc.dudMode):(spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)));
       const dudSel=g('mDudSel');if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
       set('mTdcTgt',tdc.targetId||'no target');
       const note=g('mTdcNote');

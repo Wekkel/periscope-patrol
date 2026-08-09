@@ -6,6 +6,7 @@ class SimEngineCore{
     this.ensureTacticalExtensions();
     this.ensureWorldExtensions();
     this.ensureCareerPatrolState?.();
+    this.ensureHistoricalCampaignProfile?.();
     this.ensureMissionFramework?.();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
@@ -308,13 +309,16 @@ class SimEngineCore{
       case'SET_TORPEDO_TYPE':{
         const spec=TORPEDO_SPECS[cmd.specKey];
         if(!spec) break;
+        if(typeof isTorpedoAvailableForState==='function'&&!isTorpedoAvailableForState(this.state,cmd.specKey)){
+          this.notify(`${spec.name} is not available on this patrol date. Refit availability follows the war calendar.`,'warn');break;
+        }
         this.state.tdc.torpedoSpecKey=cmd.specKey;
         this.state.tdc.torpedoType=spec.name;
         this.state.tdc.torpedoSpeedKnots=spec.speedKnots;
         this.state.tdc.torpedoMaxRangeNm=spec.maxRangeNm;
         // Update all loaded tubes
         for(const t of this.state.weapons.tubes) if(t.status==='LOADED_DRY') t.specKey=cmd.specKey;
-        this.log(`Torpedo loaded: ${spec.name}. Speed ${spec.speedKnots}kn, range ${spec.maxRangeNm}nm. Dud risk: ${Math.round(spec.dudChanceBase*100*DUD_MODES[this.state.tdc.dudMode])}%`);
+        this.log(`Torpedo loaded: ${spec.name}. Speed ${spec.speedKnots}kn, range ${spec.maxRangeNm}nm. Dud risk: ${Math.round(100*(typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(this.state,cmd.specKey,this.state.tdc.dudMode):spec.dudChanceBase*DUD_MODES[this.state.tdc.dudMode]))}%`);
         this.updateTdc(); break;}
       case'SET_DUD_MODE': this.state.tdc.dudMode=cmd.mode; this.log(`Dud mode: ${cmd.mode}.`); break;
       case'SET_TORPEDO_DEPTH':
@@ -753,6 +757,10 @@ class SimEngineCore{
     this.captainLog?.('RETURNED_TO_PORT',`Returned to ${portName}.`,{portName,hull:hullAtReturn},'returned-to-port');
     this.updateAfterActionRecorder?.(999);
     const patrolRecord=this.finalizePatrol?.('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
+    if(typeof historicalNextPatrolDate==='function'){
+      const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(camp._careerStartDate,camp.patrolDuration):camp.startDate);
+      camp.nextPatrolDate=historicalNextPatrolDate(endDate,camp.patrolNumber,camp.scenarioSeed);
+    }
     if(patrolRecord&&globalThis.aarController?.open)setTimeout(()=>globalThis.aarController.open(patrolRecord,{completed:true}),0);
     camp.score=0;                       // banked — startNewPatrol would count it twice
     this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
@@ -776,7 +784,8 @@ class SimEngineCore{
     const s=this.state;
     const prevTotal=s.campaign.totalScore+(s.campaign.score||0);
     const prevPatrol=s.campaign.patrolNumber||1;
-    const patrolStartDate=options.startDate||s.campaign.startDate||s.time.campaignDate||'1943-08-17';
+    const prevHistoricalProfile=s.campaign.historicalProfile||null;
+    const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||'1943-08-17';
     s.time.campaignDate=patrolStartDate;
     const careerStart=this.ensureCareerPatrolState?_careerStampFrom(s.campaign._careerStartDate||`${s.campaign.startDate||s.time.campaignDate||'1943-08-17'} 06:00`,s.campaign.patrolDuration||0):`${s.time.campaignDate||'1943-08-17'} 06:00`;
     // Reset world
@@ -833,7 +842,8 @@ class SimEngineCore{
     s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,
       alarmedAt:-999,sdOn:true,nextCheck:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
-    s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty});
+    const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
+    s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
     this.setupHarbor(key);this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
     // Patch 6: mission setup happens only after world truth (convoy/harbor) exists,
@@ -844,6 +854,7 @@ class SimEngineCore{
     this.ensureTrafficDirector?.(true);
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
     this.log(`${area.description}`);
+    for(const msg of s.campaign.refitMessages||[])this.log(msg,'warn');
     showBriefing(key,s);
   }
 
@@ -913,8 +924,10 @@ class SimEngineCore{
     const cr=area.convoyRoutes[0];
     const path=this.ensureWaterRoute(cr);
     const spawn=path[0]||cr.from, next=path[1]||cr.to;
-    const spd=area.convoySpeedRange[0]+Math.random()*(area.convoySpeedRange[1]-area.convoySpeedRange[0]);
-    const count=Math.floor(area.convoyCountRange[0]+Math.random()*(area.convoyCountRange[1]-area.convoyCountRange[0]+1));
+    const hp=options.historicalProfile||this.state.campaign?.historicalProfile||null;
+    const spd=area.convoySpeedRange[0]+Math.random()*(area.convoySpeedRange[1]-area.convoySpeedRange[0])+(hp?.merchantSpeedBonus||0);
+    const rawCount=Math.floor(area.convoyCountRange[0]+Math.random()*(area.convoyCountRange[1]-area.convoyCountRange[0]+1));
+    const count=clamp(Math.round(rawCount*(hp?.primaryMerchantCountFactor||1)),area.convoyCountRange[0],area.convoyCountRange[1]);
     const crs=bearingBetween(spawn,next);
     const crsRad=degToRad(crs);
     const perpRad=degToRad(crs+90);
@@ -946,7 +959,8 @@ class SimEngineCore{
     for(let i=0;i<numMerchants;i++){
       const off=formationOffsets[i]||{fwd:-i*1.2,side:(i%2===0?-1:1)*(i*0.5)};
       const t=merchantTemplates[i];
-      contacts.push({...t,
+      const merchantScale=hp?.merchantTonnageFactor||1;
+      contacts.push({...t,tonsFactor:Math.round((t.tonsFactor||0)*merchantScale),lengthYards:Math.round((t.lengthYards||0)*(1+(merchantScale-1)*.28)),
         position:{
           xNm:spawn.xNm+Math.sin(crsRad)*off.fwd+Math.cos(crsRad)*off.side,
           yNm:spawn.yNm-Math.cos(crsRad)*off.fwd+Math.sin(crsRad)*off.side

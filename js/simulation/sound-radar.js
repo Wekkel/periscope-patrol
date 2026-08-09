@@ -21,12 +21,15 @@ function _soundDateNumber(date){
    force first; SJ followed during 1942.  Late-war SJ can be worked at radar
    depth with the extensible mast. */
 function radarFitForDate(date){
-  const d=_soundDateNumber(date);
+  const d=_soundDateNumber(date),p=typeof historicalCampaignProfile==='function'?historicalCampaignProfile(date):null;
   return{
-    sd:d>=19420401,
-    sj:d>=19420701,
-    sjRadarDepthFt:d>=19440101?48:12,
-    label:d<19420401?'NO RADAR FIT':d<19420701?'SD AIR WARNING':'SD + SJ'
+    sd:p?p.sdAvailable:d>=19420401,
+    sj:p?p.sjAvailable:d>=19420701,
+    sjRadarDepthFt:p?p.sjRadarDepthFt:(d>=19440101?48:12),
+    sjRangeNm:p?p.sjRangeNm:6.8,
+    sjErrorFactor:p?p.sjErrorFactor:1,
+    sjSweepSec:p?p.sjSweepSec:SOUND_ROOM.sjSweepSec,
+    label:p?p.radarLabel:(d<19420401?'NO RADAR FIT':d<19420701?'SD AIR WARNING':'SD + SJ')
   };
 }
 
@@ -55,7 +58,8 @@ function soundBaseQuality(state,contact){
   const wx=weatherBetween(state,sub.position,contact.position);
   const sea=clamp(1-(wx.seaState||0)*.33,.52,1);
   const depth=sub.depthFeet>20?1:sub.depthFeet>5?.78:.62;
-  return clamp(machinery*range*sea*depth*soundOwnNoiseFactor(state)*wx.hydrophoneFactor,0,1);
+  const hist=state.campaign?.historicalProfile?.soundFactor||1;
+  return clamp(machinery*range*sea*depth*soundOwnNoiseFactor(state)*wx.hydrophoneFactor*hist,0,1);
 }
 
 function soundSignalAt(state,bearingDeg){
@@ -112,7 +116,8 @@ function triangulateSoundMarks(marks){
 function radarObservation(state,contact){
   const seed=state.campaign?.scenarioSeed||1,bucket=Math.floor((state.time?.elapsedSeconds||0)/SOUND_ROOM.sjSweepSec),tag=`SJ:${contact.id}:${bucket}`;
   const trueB=bearingBetween(state.playerSub.position,contact.position),trueR=distNm(state.playerSub.position,contact.position);
-  const b=trueB+(_soundHashUnit(seed,tag,31)*2-1)*.28,r=trueR*(1+(_soundHashUnit(seed,tag,32)*2-1)*.008);
+  const ef=state.campaign?.historicalProfile?.sjErrorFactor||1;
+  const b=trueB+(_soundHashUnit(seed,tag,31)*2-1)*.28*ef,r=trueR*(1+(_soundHashUnit(seed,tag,32)*2-1)*.008*ef);
   const br=degToRad(b);
   return{bearing:normDeg(b),rangeNm:r,position:{xNm:state.playerSub.position.xNm+Math.sin(br)*r,yNm:state.playerSub.position.yNm-Math.cos(br)*r}};
 }
@@ -134,7 +139,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     S.lastOperatorReport=S.lastOperatorReport||null;S.qcLastAt=Number.isFinite(S.qcLastAt)?S.qcLastAt:-999;
     S._tick=Number.isFinite(S._tick)?S._tick:0;
     const R=W.radar||(W.radar={});
-    R.sdAvailable=fit.sd;R.sjAvailable=fit.sj;R.sjRadarDepthFt=fit.sjRadarDepthFt;R.fitLabel=fit.label;
+    R.sdAvailable=fit.sd;R.sjAvailable=fit.sj;R.sjRadarDepthFt=fit.sjRadarDepthFt;R.fitLabel=fit.label;R.sjRangeNm=fit.sjRangeNm||6.8;R.sjErrorFactor=fit.sjErrorFactor||1;R.sjSweepSec=fit.sjSweepSec||SOUND_ROOM.sjSweepSec;
     R.sjTracks=R.sjTracks||{};R._tick=Number.isFinite(R._tick)?R._tick:0;R.lastSweepAt=Number.isFinite(R.lastSweepAt)?R.lastSweepAt:-999;
     W.airThreat=W.airThreat||{};W.airThreat.sdOn=!!fit.sd;
     return{S,R,fit};
@@ -197,18 +202,18 @@ class SimEngineSoundRadar extends SimEngineSensors{
 
   _updateSJRadar(dt){
     const s=this.state,W=s.world,R=W.radar,sub=s.playerSub,now=s.time.elapsedSeconds;
-    R._tick+=dt;if(R._tick<SOUND_ROOM.sjSweepSec)return;R._tick=0;
+    const sweepSec=R.sjSweepSec||SOUND_ROOM.sjSweepSec;R._tick+=dt;if(R._tick<sweepSec)return;R._tick=0;
     const usable=R.sjAvailable&&sub.depthFeet<=R.sjRadarDepthFt&&sub.mode!=='SUNK';
     R.active=!!usable;if(!usable){R.sjTracks={};return;}
     R.lastSweepAt=now;const seen={};
     for(const c of W.contacts||[]){
       if(c.sunk)continue;const rng=distNm(sub.position,c.position),size=c.lengthYards||400;
-      const max=c.type==='RAFT'?2.2:clamp(4.5+size/500*1.8+((c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT')?0.5:0),4.7,7.2);if(rng>max)continue;
+      const baseMax=c.type==='RAFT'?2.2:clamp(4.5+size/500*1.8+((c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT')?0.5:0),4.7,7.2),max=c.type==='RAFT'?baseMax:baseMax*clamp((R.sjRangeNm||6.8)/6.8,.72,1.28);if(rng>max)continue;
       const o=radarObservation(s,c);seen[c.id]={id:c.id,bearing:o.bearing,rangeNm:o.rangeNm,position:o.position,t:now,strength:clamp(1-rng/max,.15,1)};
       const old=W.contactTracks[c.id],known=(old?.positionSource||old?.source)==='VISUAL'&&old.confidence>.6;
       const tr=old||{id:c.id,typeEstimate:'SURFACE SHIP',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,contactType:'UNKNOWN',lengthYards:c.lengthYards};
       tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.70)+.035,0,.92);tr.lastSensorSource='SJ RADAR';
-      updateStableContactPlot(s,tr,o.position,'SJ RADAR',seen[c.id].strength,SOUND_ROOM.sjSweepSec);
+      updateStableContactPlot(s,tr,o.position,'SJ RADAR',seen[c.id].strength,sweepSec);
       if(!known){tr.typeEstimate=tr.typeEstimate==='UNKNOWN'?'SURFACE SHIP':tr.typeEstimate;tr.contactType=tr.contactType||'UNKNOWN';}
       W.contactTracks[c.id]=tr;
     }
