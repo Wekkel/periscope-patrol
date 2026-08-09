@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.5'; // patch 10.8 changes
+const VERSION = '0.8.6'; // patch 10.9 Playtest Hardening changes
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
