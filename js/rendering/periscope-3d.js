@@ -862,7 +862,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   drawShip3D(ctx,cam,it,state,dl,light,visNm,t){
     const c=it.c;
     const model=SHIP_MODELS[typeof shipVisualModelKey==='function'?shipVisualModelKey(c):c.type]||SHIP_MODELS.MERCHANT;
-    const realLen=(c.lengthYards||400)*0.9144;
+    const realLen=shipVisualLengthM(c,400);
     const S=realLen/model.len;                            // uniform scale
     const hb=degToRad(c.heading), cosH=Math.cos(hb), sinH=Math.sin(hb);
     const sinkP=c.sinkingProgress??0, style=c.sinkStyle||0;
@@ -1009,11 +1009,18 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         const rgb=pal[p.c]||pal.house;
         if(p.t==='b'){
           const x0=p.x-p.w/2,x1=p.x+p.w/2,y0=p.y,y1=p.y+p.h,z0=p.z-p.d/2,z1=p.z+p.d/2;
-          quad([[x1,y0,z0],[x1,y1,z0],[x1,y1,z1],[x1,y0,z1]],rgb);       // starboard
-          quad([[x0,y0,z1],[x0,y1,z1],[x0,y1,z0],[x0,y0,z0]],rgb);       // port
-          quad([[x0,y0,z1],[x1,y0,z1],[x1,y1,z1],[x0,y1,z1]],rgb);       // forward
-          quad([[x1,y0,z0],[x0,y0,z0],[x0,y1,z0],[x1,y1,z0]],rgb);       // aft
-          quad([[x0,y1,z0],[x0,y1,z1],[x1,y1,z1],[x1,y1,z0]],pal.top);   // roof
+          /* Rectangular Lego blocks were especially ugly in close scope views.
+             The same five cheap faces now form a subtly tapered deckhouse:
+             broad at deck level, narrower at the roof. Parts still share the
+             ship's one rigid transform, so this costs essentially nothing on
+             low-end Canvas2D hardware. */
+          const tp=clamp(p.taper??(p.c==='house'?.90:p.c==='top'?.84:p.c==='gun'?.80:.96),.68,1);
+          const tx0=p.x-p.w*tp/2,tx1=p.x+p.w*tp/2,zin=(1-tp)*p.d*.16,tz0=z0+zin,tz1=z1-zin;
+          quad([[x1,y0,z0],[tx1,y1,tz0],[tx1,y1,tz1],[x1,y0,z1]],rgb);       // starboard
+          quad([[x0,y0,z1],[tx0,y1,tz1],[tx0,y1,tz0],[x0,y0,z0]],rgb);       // port
+          quad([[x0,y0,z1],[x1,y0,z1],[tx1,y1,tz1],[tx0,y1,tz1]],rgb);       // forward
+          quad([[x1,y0,z0],[x0,y0,z0],[tx0,y1,tz0],[tx1,y1,tz0]],rgb);       // aft
+          quad([[tx0,y1,tz0],[tx0,y1,tz1],[tx1,y1,tz1],[tx1,y1,tz0]],pal.top);// roof
         }else if(p.t==='f'){                                              // funnel
           const seg=lod>1?8:5, rake=p.rake||0;
           for(let i=0;i<seg;i++){
@@ -1335,7 +1342,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const sub=state.playerSub,bd=shortDelta(state.tactical.periscopeBearing,bearingBetween(sub.position,c.position));
     if(Math.abs(bd)>cam.fovDeg*0.9)return;
     for(const o of (this._landOcc||[]))if(p.x>=o.x0-4&&p.x<=o.x1+4&&p.d>o.d*1.02)return;
-    const sc=cam.f/p.d,lenM=(c.lengthYards||400)*0.9144,fade=clamp(1-since/300,0,1);
+    const sc=cam.f/p.d,lenM=shipVisualLengthM(c,400),fade=clamp(1-since/300,0,1);
     const seed=(c.id||'X').split('').reduce((a,ch)=>a+ch.charCodeAt(0),0);
     const rnd=n=>{const x=Math.sin(seed*12.9898+n*78.233)*43758.5453;return x-Math.floor(x);};
     const wind=(rnd(901)-.5)*1.15, R=Math.max(4,lenM*(0.44+Math.sqrt(since)*0.10)*sc),flat=Math.max(1.2,R*.18);

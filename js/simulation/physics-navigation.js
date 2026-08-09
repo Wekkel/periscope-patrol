@@ -464,8 +464,13 @@ class SimEngine extends SimEngineCareer {
         ex.turnRateEstimateDegSec=lerp(ex.turnRateEstimateDegSec||0,observedTurn,clamp(.18+ex.confidence*.22,.18,.4));
         const knownType=c.displayType||c.type;
         const smokeOnly=sub.depthFeet<8&&rng>weatherVisibilityBetween(this.state,sub.position,c.position)*1.02;
-        ex.visualHullConfirmed=src==='VISUAL'&&!smokeOnly;
-        if(ex.visualHullConfirmed)ex.hullConfirmedAt=now;
+        /* A fresh hydrophone sample must not erase a visual identification the
+           instant the skipper leaves SCOPE for MAP. `visualHullConfirmed` is
+           the remembered fact that a hull was resolved; `hullConfirmedAt`
+           carries freshness. It expires naturally after a short visual-memory
+           window instead of flickering with the active station. */
+        if(src==='VISUAL'&&!smokeOnly){ex.visualHullConfirmed=true;ex.hullConfirmedAt=now;}
+        else if(ex.visualHullConfirmed&&now-(Number.isFinite(ex.hullConfirmedAt)?ex.hullConfirmedAt:-999)>24)ex.visualHullConfirmed=false;
         // The Truk heavy unit is deliberately reported only as HEAVY UNIT.
         // Hydrophones may build a good positional track, but they do not hand
         // the player a magical carrier/cruiser classification. Exact identity
@@ -706,9 +711,26 @@ class SimEngine extends SimEngineCareer {
     d.warnings=W;
   }
 
+  confirmScopeVisualContact(trackId){
+    const s=this.state,T=s.tactical,sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;
+    if(T.activeStation!=='PERISCOPE'||sub.depthFeet<8||sub.depthFeet>65)return null;
+    const c=(W.contacts||[]).find(q=>q.id===trackId&&!q.sunk);if(!c)return null;
+    const rng=distNm(sub.position,c.position),bear=bearingBetween(sub.position,c.position);
+    const fov=typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[T.periscopeZoom===1?0:1].fov:(T.periscopeZoom===1?32:8);
+    if(rng>bridgeVisualLimitNm(s,c)||Math.abs(shortDelta(T.periscopeBearing,bear))>fov*.52)return null;
+    const tr=W.contactTracks[trackId];if(!tr)return null;
+    const q=T.periscopeZoom===1?.82:.96,knownType=c.displayType||c.type;
+    tr.confidence=Math.max(tr.confidence||0,T.periscopeZoom===1?.78:.90);
+    tr.courseEstimate=c.heading;tr.speedEstimateKnots=c.speedKnots;tr.contactType=c.type;tr.lengthYards=c.lengthYards;
+    tr.typeEstimate=knownType;tr.affiliation=c.side||'ENEMY';tr.visualHullConfirmed=true;tr.hullConfirmedAt=now;tr.visualLastSeenAt=now;
+    updateStableContactPlot(s,tr,{...c.position},'VISUAL',q,.1);
+    return tr;
+  }
+
   selectScopeContact(){
     const c=this.nearestScopeTrack();
     if(!c){this.log('No contact near periscope centreline.','warn');return;}
+    this.confirmScopeVisualContact(c.id);
     this.state.tactical.selectedTrackId=c.id; this.state.tdc.targetId=c.id;
     this.log(`Selected ${c.id} for TDC tracking.`); this.updateTdc();
   }
@@ -716,6 +738,7 @@ class SimEngine extends SimEngineCareer {
   sendScopeToTdc(){
     const sid=this.state.tactical.selectedTrackId||this.state.tdc.targetId;
     if(!sid){this.log('No selected contact.','warn');return;}
+    this.confirmScopeVisualContact(sid);
     const tr=this.state.world.contactTracks[sid];
     if(!tr){this.log('Track lost.','warn');return;}
     const tdc=this.state.tdc;

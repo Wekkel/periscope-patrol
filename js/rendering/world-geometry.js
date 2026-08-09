@@ -2,6 +2,16 @@
 // ═══════════════════════════════════════════════════ 3D PERISCOPE DATA
 const NM_M=1852, EARTH_R=6371000;
 
+/* Legacy contact data calls this field `lengthYards`, but the authored values
+   are ship lengths in FEET: e.g. destroyer 350, merchant 420, tanker 520.
+   Treating those numbers as yards made every optical model almost exactly 3×
+   too large. Keep the save/schema field untouched for compatibility and fix
+   only visual geometry through this one helper. */
+function shipVisualLengthM(c,fallbackFt=400){
+  return Math.max(2,(Number(c?.lengthYards)||fallbackFt)*0.3048);
+}
+function shipVisualLengthNm(c,fallbackFt=400){return shipVisualLengthM(c,fallbackFt)/NM_M;}
+
 // Rudder and engine limits. A Fubuki-class destroyer needed roughly 90 s for a
 // full circle at speed; a loaded freighter far longer.
 const SHIP_TURN_RATE={ESCORT:3.4,WARSHIP:2.8,PATROL_CRAFT:2.4,MERCHANT:1.2,TANKER:0.85,TROOP:1.0,JUNK:1.5};
@@ -97,7 +107,23 @@ SHIP_MODELS.MERCHANT_COASTAL={
 function shipVisualModelKey(c){if(!c)return'MERCHANT';if(!['MERCHANT','TROOP'].includes(c.type))return c.type;const d=String(c.displayType||'').toUpperCase();if(d.includes('COASTAL'))return'MERCHANT_COASTAL';if(d.includes('TRANSPORT')||d.includes('TROOP'))return'MERCHANT_ISLAND';let h=0;for(const ch of String(c.id||c.name||''))h=(h*33+ch.charCodeAt(0))>>>0;return['MERCHANT','MERCHANT_FORECASTLE','MERCHANT_ISLAND'][h%3];}
 SHIP_MODELS.TROOP=SHIP_MODELS.MERCHANT_ISLAND;
 SHIP_MODELS.WARSHIP=SHIP_MODELS.ESCORT;
-SHIP_MODELS.PATROL_CRAFT=SHIP_MODELS.ESCORT;
+/* A small patrol craft/subchaser is not a destroyer shrunk by a scale factor.
+   Give it a low, continuous bridge/funnel silhouette so close periscope views
+   read as one vessel rather than a stack of unrelated boxes. */
+SHIP_MODELS.PATROL_CRAFT={
+  len:43,beam:6.2,fb:2.55,
+  hull:[[-.50,.34],[-.43,.70],[-.28,.94],[.02,1.00],[.27,.91],[.41,.61],[.48,.28],[.50,.04]],
+  parts:[
+    {t:'b',x:0,y:2.55,z:5,w:4.9,h:2.0,d:13,c:'house',big:1,taper:.92},
+    {t:'b',x:0,y:4.55,z:5.5,w:4.0,h:1.7,d:9,c:'house',big:1,taper:.86},
+    {t:'b',x:0,y:6.25,z:6.2,w:2.8,h:1.25,d:5.6,c:'top',big:1,taper:.80},
+    {t:'b',x:0,y:2.55,z:15.0,w:3.5,h:.8,d:4.6,c:'gun',big:1,taper:.76},
+    {t:'f',x:0,y:2.65,z:-3.8,r:1.05,h:5.2,c:'funnel',rake:.10,big:1},
+    {t:'b',x:0,y:2.55,z:-10.5,w:4.0,h:1.5,d:8.5,c:'house',big:1,taper:.90},
+    {t:'b',x:0,y:2.55,z:-18,w:3.0,h:.65,d:4.0,c:'dark',taper:.82}
+  ],
+  masts:[{x:0,y:6.7,z:3.8,h:8.2,yard:2.4}],smoke:{x:0,y:8.0,z:-3.8}
+};
 SHIP_MODELS.JUNK={
   len:22,beam:5.2,fb:1.3,
   hull:[[-.50,.28],[-.40,.70],[-.18,.96],[.22,.92],[.43,.48],[.50,.06]],

@@ -64,6 +64,24 @@ CanvasViewDeckGun.prototype.drawDeckGun.call(seqView,fakeCtx,844,390,drawState);
 assert('gun painter draws far splashes before ships and near splashes after ships',order.indexOf('far-splash')<order.indexOf('fleet')&&order.indexOf('near-splash')>order.indexOf('fleet'),order);
 assert('gun view now includes projected ownship deck beneath the mount',order.includes('own-deck'),order);
 
+// Forward-looking bridge and gun ownship meshes stay inside sane bounds on both
+// phone and tablet layouts instead of ballooning far beyond the hull rails.
+const meshBounds=(kind,w,h)=>{
+  const hdg=kind==='gun'?285:149;
+  const s=vm.runInContext(`(()=>{const s=createState('Java Sea');s.playerSub.depthFeet=0;s.playerSub.mode='SURFACED';s.playerSub.position={xNm:0,yNm:0};s.playerSub.heading=${hdg};s.tactical.bridgeBearing=149;s.tactical.periscopeBearing=285;return s})()`,ctx);
+  let cam;
+  if(kind==='gun'){
+    cam=cv.setupCam(s,w<h?62:56,w/2,h*0.46,Math.max(w,h)*0.72);
+    cam.h=5.6;cam.bearingDeg=285;const br=285*Math.PI/180;cam.sin=Math.sin(br);cam.cos=Math.cos(br);
+  }else cam=cv.setupBridgeCam(s,82,w,h);
+  const faces=cv.ownshipSurfaceMesh(cam,s,{[kind]:true}).filter(f=>f.kind.startsWith('DECK')||f.kind==='PORT'||f.kind==='STARBOARD');
+  let minX=Infinity,maxX=-Infinity;
+  for(const f of faces)for(const p of f.pts){minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);}return{count:faces.length,minX,maxX};
+};
+const bTab=meshBounds('bridge',1280,800),bPho=meshBounds('bridge',800,1280),gTab=meshBounds('gun',1280,800),gPho=meshBounds('gun',800,1280);
+assert('bridge foredeck stays inside the visible hull envelope on tablet and phone',bTab.count>=10&&bPho.count>=10&&bTab.minX>1280*.18&&bTab.maxX<1280*.82&&bPho.minX>800*.18&&bPho.maxX<800*.82,{tablet:bTab,phone:bPho});
+assert('gun deck slab no longer balloons wildly outside the hull on tablet and phone',gTab.count>=10&&gPho.count>=10&&gTab.minX>-128&&gTab.maxX<1408&&gPho.minX>-160&&gPho.maxX<960,{tablet:gTab,phone:gPho});
+
 // Turn dynamics: angular rate itself ramps, while escort remains more agile than merchant.
 const turnData=vm.runInContext(`(()=>{const s=createState('Java Sea'),e=new SimEngine(s,new CommandBus());const run=type=>{const c={type,heading:0,desiredHeading:90,speedKnots:10,desiredSpeed:10};let maxStep=0,first=null;for(let i=0;i<100;i++){const b=c.heading;e.steerShip(c,.1);const step=Math.abs(shortDelta(b,c.heading));maxStep=Math.max(maxStep,step);if(i===0)first={heading:c.heading,rate:c.turnRateDegSec};}return{heading:c.heading,rate:c.turnRateDegSec,maxStep,first}};const speed={type:'MERCHANT',heading:0,desiredHeading:0,speedKnots:5,desiredSpeed:10};for(let i=0;i<100;i++)e.steerShip(speed,.1);return{merchant:run('MERCHANT'),escort:run('ESCORT'),speed:speed.speedKnots}})()`,ctx);
 assert('ships ramp into turns instead of snapping instantly to full rudder',turnData.merchant.first.rate>0&&turnData.merchant.first.rate<1.2&&turnData.merchant.maxStep<=.121,turnData.merchant);
@@ -76,9 +94,20 @@ assert('MAP contact heading follows a turning observed ship and records turn dir
 const mapSource=fs.readFileSync(path.join(root,'js/rendering/map.js'),'utf8');
 assert('MAP renders a turn cue from observed turn rate without using desiredHeading',mapSource.includes('turnRateEstimateDegSec')&&mapSource.includes('this.turnCue('),{});
 
+// A scope lock is a visual fix. It must survive the station change to MAP long
+// enough for the player to see the same identified hull he just observed.
+const scopeMemory=vm.runInContext(`(()=>{const s=createState('Java Sea'),e=new SimEngine(s,new CommandBus());s.playerSub.position={xNm:0,yNm:0};s.playerSub.depthFeet=55;s.playerSub.mode='PERISCOPE_DEPTH';s.playerSub.propulsion.speedKnots=0;s.world.environment.visibilityNm=15;s.world.environment.daylight=1;s.world.environment.seaState=0;const c={id:'P-SCOPE',name:'Patrol Craft',type:'PATROL_CRAFT',displayType:'PATROL CRAFT',side:'ENEMY',lengthYards:135,visualProfile:.55,acousticBase:.5,position:{xNm:0,yNm:-.5},heading:90,desiredHeading:90,speedKnots:12,desiredSpeed:12,sunk:false};s.world.contacts=[c];s.world.contactTracks[c.id]={id:c.id,typeEstimate:'SURFACE SHIP',bearing:0,rangeEstimateNm:.5,courseEstimate:90,speedEstimateKnots:12,confidence:1,source:'HYDROPHONE',positionSource:'HYDROPHONE',positionConfidence:.4,positionUncertaintyNm:.5,plotPosition:{xNm:.03,yNm:-.49},lastFixPosition:{xNm:.03,yNm:-.49},positionFixAt:0,lastUpdated:0,staleSeconds:0,contactType:'PATROL_CRAFT',lengthYards:135};s.tactical.activeStation='PERISCOPE';s.tactical.periscopeZoom=2.5;s.tactical.periscopeBearing=0;s.tactical.selectedTrackId=c.id;s.tdc.targetId=c.id;e.sendScopeToTdc();const locked={source:s.world.contactTracks[c.id].positionSource,hull:s.world.contactTracks[c.id].visualHullConfirmed,type:s.world.contactTracks[c.id].typeEstimate};s.tactical.activeStation='MAP';for(let i=0;i<12;i++){s.time.elapsedSeconds++;e.updateDetection(1);}const tr=s.world.contactTracks[c.id];return{locked,after:{source:tr.positionSource,hull:tr.visualHullConfirmed,age:s.time.elapsedSeconds-tr.hullConfirmedAt,type:tr.typeEstimate}}})()`,ctx);
+assert('scope acquisition becomes an immediate visual MAP fix and survives station change',scopeMemory.locked.source==='VISUAL'&&scopeMemory.locked.hull&&scopeMemory.locked.type==='PATROL CRAFT'&&scopeMemory.after.hull&&scopeMemory.after.age<=18,scopeMemory);
+
+const visualScale=vm.runInContext(`({destroyer:shipVisualLengthM({lengthYards:350}),merchant:shipVisualLengthM({lengthYards:420}),patrolSeparate:SHIP_MODELS.PATROL_CRAFT!==SHIP_MODELS.ESCORT,patrolLen:SHIP_MODELS.PATROL_CRAFT.len})`,ctx);
+assert('legacy ship-length values are interpreted as feet for optical geometry',Math.abs(visualScale.destroyer-106.68)<.01&&Math.abs(visualScale.merchant-128.016)<.01,visualScale);
+assert('patrol craft has its own compact cohesive visual model instead of inheriting destroyer blocks',visualScale.patrolSeparate&&visualScale.patrolLen<60,visualScale);
+
 // Performance architecture remains bounded: no new render context or particle engine.
-const bridgeSrc=fs.readFileSync(path.join(root,'js/rendering/bridge-3d.js'),'utf8'),gunSrc=fs.readFileSync(path.join(root,'js/rendering/deck-gun-3d.js'),'utf8');
+const bridgeSrc=fs.readFileSync(path.join(root,'js/rendering/bridge-3d.js'),'utf8'),gunSrc=fs.readFileSync(path.join(root,'js/rendering/deck-gun-3d.js'),'utf8'),touchSrc=fs.readFileSync(path.join(root,'js/controllers/touch-controller.js'),'utf8'),engineSrc=fs.readFileSync(path.join(root,'js/simulation/engine-core.js'),'utf8');
 assert('refinement adds no extra canvas/WebGL/offscreen renderer',!/(createElement\s*\(\s*['"]canvas|WebGL|OffscreenCanvas)/.test(bridgeSrc+gunSrc),{});
+assert('mobile deck gun gets a dedicated elevation slider and damped vertical drag',touchSrc.includes("oGunElev")&&touchSrc.includes("SET_DECK_GUN_ELEVATION")&&touchSrc.includes("dy*0.35"),{});
+assert('simulation accepts absolute deck gun elevation orders from the UI slider',engineSrc.includes("case'SET_DECK_GUN_ELEVATION'"),{});
 
 if(failed){console.error(`REFINEMENT POLISH CONTRACT: FAIL (${failed})`);process.exit(1)}
 console.log('REFINEMENT POLISH CONTRACT: PASS');

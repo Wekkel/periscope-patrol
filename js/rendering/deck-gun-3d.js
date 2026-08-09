@@ -271,7 +271,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     for(const c of state.world.contacts||[]){
       if(c.sunk)continue;
       const cr=distNm(sub.position,c.position);if(cr>=spRange-.01)continue;
-      const cb=bearingBetween(sub.position,c.position),realLen=(c.lengthYards||400)*.9144;
+      const cb=bearingBetween(sub.position,c.position),realLen=shipVisualLengthM(c,400);
       const broad=Math.abs(Math.sin(degToRad(shortDelta(c.heading||0,cb))));
       const apparentM=realLen*(.13+.87*broad);
       const halfDeg=radToDeg(Math.atan2(apparentM*.55,Math.max(20,cr*NM_M)));

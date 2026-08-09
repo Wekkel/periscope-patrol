@@ -723,7 +723,12 @@ class CanvasView extends CanvasViewSound {
          uncertain glyph, even at high confidence. */
       const fixAge=now-(Number.isFinite(tr.hullConfirmedAt)?tr.hullConfirmedAt:(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated||0));
       const visualFlag=tr.visualHullConfirmed===undefined?(tr.positionSource==='VISUAL'||tr.source==='VISUAL'):!!tr.visualHullConfirmed;
-      const hasTruePos=visualFlag&&fixAge<4&&(tr.staleSeconds||0)<6;
+      /* A resolved periscope hull should still look like a ship when the player
+         immediately flips to MAP. Keep the visual silhouette for a short
+         chart-memory window; the kinematic plot continues to age underneath
+         and reverts to an uncertainty glyph once that visual fix is genuinely
+         stale. */
+      const hasTruePos=visualFlag&&fixAge<18&&(tr.staleSeconds||0)<24;
       const pt=hasTruePos?pe:null;
 
       const sensorUncPx=Number.isFinite(tr.positionUncertaintyNm)?tr.positionUncertaintyNm*this.zoom:0;
@@ -743,7 +748,7 @@ class CanvasView extends CanvasViewSound {
         const iconType=(isEsc||tr.contactType==='WARSHIP'||tr.contactType==='PATROL_CRAFT')?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
         if(isSelected)this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
           '#6fe08f',K,`${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
-        const lenNm=(tr.lengthYards||(isEsc?300:450))*0.0004937;
+        const lenNm=shipVisualLengthNm(tr,isEsc?300:450);
         const iconLen=clamp(lenNm*this.zoom,15*K,52*K);
         if(isSelected){ctx.strokeStyle='rgba(111,224,143,.8)';ctx.lineWidth=Math.max(1.5,2*K);ctx.beginPath();ctx.arc(pt.x,pt.y,iconLen*.8,0,Math.PI*2);ctx.stroke();}
         this.shipIcon(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,iconType,shipCol,
