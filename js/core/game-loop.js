@@ -4,7 +4,7 @@ class GameLoop{
     this.game=game;this.cv=cv;this.dv=dv;this.tc=tc;
     this.fdt=1/10;this.acc=0;this.last=performance.now();
     this.domAcc=0;this.domInterval=1/5;      // DOM refresh at 5 Hz — huge saving on tablets
-    this.frameMs=16;this.ambT=0;this.lastLogLen=0;this.stopToastUntil=0;
+    this.frameMs=16;this.ambT=0;this.lastLogLen=0;this.stopToastUntil=0;this.lastTransitRender=0;
     this._frame=this.frame.bind(this);
   }
   start(){requestAnimationFrame(this._frame);}
@@ -52,7 +52,11 @@ class GameLoop{
       const budget=performance.now()+11;              // never block a frame for long
       const eng=this.game.engine||this.game;
       while(performance.now()<budget&&T.transitUntil>T.elapsedSeconds){
-        this.game.update(2.0/Math.max(T.timeScale,1));
+        // Three simulated seconds per engine pass in genuinely empty deep
+        // water; normal two-second/one-second precision resumes automatically
+        // near traffic, aircraft, weapons, shore or a friendly rendezvous.
+        const advance=eng.canUseOpenSeaTransitStep?.()?3.0:2.0;
+        this.game.update(advance/Math.max(T.timeScale,1));
         const why=eng.transitInterrupt&&eng.transitInterrupt();
         if(why){
           // An event has handed the conn back to the player. Do not leave her
@@ -80,7 +84,14 @@ class GameLoop{
     }
 
     const snap=this.game.getSnapshot();
-    this.cv.render(snap);
+    // During transit the simulation, not 60-fps chart repainting, deserves the
+    // CPU. Fifteen visual updates per second still show course, traffic and
+    // day/night motion clearly, while freeing a large slice of a G88-class
+    // frame for the accelerated patrol clock. A transit stop renders at once.
+    const transitRunning=snap.time.transitUntil>snap.time.elapsedSeconds;
+    if(!transitRunning||now-this.lastTransitRender>=66){
+      this.cv.render(snap);this.lastTransitRender=now;
+    }
 
     // throttled DOM / HUD work
     this.domAcc+=dt;

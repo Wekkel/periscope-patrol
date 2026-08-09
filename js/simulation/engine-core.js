@@ -1,6 +1,28 @@
 // ═══════════════════════════════════════════════════ SIMULATION ENGINE
+const FRIENDLY_PORT_SLOW_KN=3.0;
+const FRIENDLY_PORT_HARBOR_RPM=25;
+const FRIENDLY_PORT_SERVICE_SEC=15;
+const FRIENDLY_PORT_RETURN_SEC=30;
+
 class SimEngineCore{
   constructor(state,bus){this.state=state;this.bus=bus;}
+
+  /* Open-ended transit is intentionally CPU-bounded so a budget phone does
+     not freeze its UI. In genuinely empty deep water we can safely integrate
+     in three-second slices instead of one-second slices: no torpedo or depth-
+     charge geometry can be skipped, and the moment traffic/air/shore becomes
+     relevant the engine falls back to normal precision before the event. */
+  canUseOpenSeaTransitStep(){
+    const s=this.state,t=s.time,sub=s.playerSub,W=s.world||{},wep=s.weapons||{};
+    if(!t.transitUntil||sub.mode==='SUNK'||sub.inShallowWater||(sub.keelClearanceFeet??3000)<120)return false;
+    if(Math.abs((sub.propulsion?.actualRpm||0)-(sub.propulsion?.orderedRpm||0))>20||Math.abs(shortDelta(sub.heading,sub.orderedHeading))>3||Math.abs(sub.depthFeet-sub.orderedDepthFeet)>5)return false;
+    if(W.enemy?.alertState&&W.enemy.alertState!=='UNAWARE')return false;
+    if((wep.activeTorpedoes||[]).length||(W.depthCharges||[]).length)return false;
+    if((s.campaign?.portRangeNm??99)<2.5||(W.harbor?.alert||0)>0)return false;
+    for(const c of W.contacts||[]){if(!c?.sunk&&c.position&&distNm(sub.position,c.position)<6)return false;}
+    for(const a of W.aircraft||[]){if(a?.shotDown||!a?.position)continue;if(a.seenBySub||a.state==='ATTACKING'||a.state==='STRAFING'||distNm(sub.position,a.position)<12)return false;}
+    return true;
+  }
 
   update(dt){
     this.ensureTacticalExtensions();
@@ -15,10 +37,11 @@ class SimEngineCore{
     // Transit/skip uses transitInterrupt(), which reports the same hull-aware CPA.
     if(!this.state.time.transitUntil&&(this.state.time.timeScale||1)>1&&this.compressedCollisionWatch?.()) return;
     if(total<=0) return;
-    // Never integrate more than a second at a time, whatever the time scale:
-    // a torpedo at 46 knots covers 24 m per second and the hit test would
-    // start stepping straight over ships.
-    const steps=Math.min(64,Math.max(1,Math.ceil(total/1.0)));
+    // Tactical simulation stays at one-second maximum integration: a torpedo
+    // at 46 knots can otherwise step over a target. Only verified quiet open-
+    // sea transit is allowed the coarse three-second slice described above.
+    const maxStep=(this.state.time.transitUntil&&this.canUseOpenSeaTransitStep())?3.0:1.0;
+    const steps=Math.min(64,Math.max(1,Math.ceil(total/maxStep)));
     const sdt=total/steps;
     for(let i=0;i<steps;i++){
       this.updateSub(sdt);
@@ -252,6 +275,7 @@ class SimEngineCore{
            to be gained by making the player press the button four times. */
         t.transitOpen=!cmd.seconds;
         t.transitUntil=cmd.seconds?t.elapsedSeconds+cmd.seconds:Infinity;
+        if(t.timeScale===0)t.timeScale=1; // transit selected from PAUSE must actually run
         t.transitFrom=t.elapsedSeconds;
         t.transitReason=null;
         this.snapshotWatch();
@@ -789,7 +813,7 @@ class SimEngineCore{
     if(camp.missionStatus==='PATROL'&&camp.primaryMission?.result==='SUCCESS')camp.missionStatus='RETURN TO BASE';
     const returning=camp.missionStatus==='RETURN TO BASE';
     const r=this.friendlyPortNav();
-    const ALONGSIDE_SEC=180,SERVICE_SEC=15,APPROACH_NM=1.5,CLOSE_NM=0.30,SLOW_KN=3.0;
+    const ALONGSIDE_SEC=FRIENDLY_PORT_RETURN_SEC,SERVICE_SEC=FRIENDLY_PORT_SERVICE_SEC,APPROACH_NM=1.5,CLOSE_NM=0.30,SLOW_KN=FRIENDLY_PORT_SLOW_KN;
     if(!r){camp.alongside=0;camp.portService=0;return;}
     camp.portRangeNm=r.rngNm;
 
@@ -807,7 +831,9 @@ class SimEngineCore{
         this.state.time.timeScale=1;this.state.time.transitUntil=0;this.state.time.transitOpen=false;
         this.state.time.stopReason='friendly port approach';this.state.time.stopReasonAt=this.state.time.elapsedSeconds;
       }
-      this.notify(`${r.port.name.toUpperCase()} — FRIENDLY RENDEZVOUS. Surface, slow below ${SLOW_KN.toFixed(0)} kn and enter the 0.3 nm green service ring.`,'ok');
+      this.notify(returning
+        ? `${r.port.name.toUpperCase()} — FINAL RETURN. Enter the 0.3 nm green ring surfaced at ≤${SLOW_KN.toFixed(0)} kn; HARBOR preset is ${FRIENDLY_PORT_HARBOR_RPM} rpm. Hold there for ${ALONGSIDE_SEC} seconds to complete the patrol.`
+        : `${r.port.name.toUpperCase()} — FRIENDLY RENDEZVOUS. Enter the 0.3 nm green ring surfaced at ≤${SLOW_KN.toFixed(0)} kn; HARBOR preset is ${FRIENDLY_PORT_HARBOR_RPM} rpm. Hold ${SERVICE_SEC} seconds for service.`,'ok');
     }
     if(r.rngNm>APPROACH_NM*1.25) camp._approachReached=false;
     if(r.rngNm>4.5) camp._rvSeen=false;
@@ -828,10 +854,10 @@ class SimEngineCore{
       const was=camp.alongside||0;
       camp.alongside=was+dt;
       if(was<=0){
-        this.notify(`${r.port.name.toUpperCase()} — ALONGSIDE. Hoses across; fuel and torpedoes coming aboard. Hold position.`,'ok');
+        this.notify(`${r.port.name.toUpperCase()} — FINAL RETURN STARTED. Hold surfaced at ≤${SLOW_KN.toFixed(0)} kn for 0:${String(ALONGSIDE_SEC).padStart(2,'0')}; leaving the ring, diving or speeding up resets the hold.`,'ok');
         audio.playWaypoint();
-      }else for(const mark of [60,120]) if(was<mark&&camp.alongside>=mark)
-        this.notify(`${r.port.name} transfer ${Math.round(camp.alongside/ALONGSIDE_SEC*100)}% — hold her here.`,'ok');
+      }else for(const mark of [10,20]) if(mark<ALONGSIDE_SEC&&was<mark&&camp.alongside>=mark)
+        this.notify(`${r.port.name} final return — ${Math.max(0,Math.ceil(ALONGSIDE_SEC-camp.alongside))} seconds remaining.`,'ok');
       if(camp.alongside>=ALONGSIDE_SEC){camp.alongside=0;this.completeMission(r.port.name);}
       return;
     }

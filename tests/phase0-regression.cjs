@@ -127,7 +127,7 @@ const result=vm.runInContext(`(()=>{
 
 assert('patrol start',result.patrolStart.area==='Truk Approaches'&&result.patrolStart.contacts>0,result.patrolStart);
 assert('new patrol raises map recenter state signal',result.patrolStart.seqAdvanced,result.patrolStart.recenterSeq);
-assert('MAP consumes recenter signal and centers on ownship',result.mapCenter.matches&&result.mapCenter.follow,result.mapCenter);
+assert('MAP consumes recenter signal, centers once, and leaves the chart free',result.mapCenter.matches&&!result.mapCenter.follow,result.mapCenter);
 assert('MAP renderer route',result.renderRoutes.MAP===1,result.renderRoutes);
 assert('periscope command + renderer route',result.periscope.station==='PERISCOPE'&&result.renderRoutes.PERISCOPE===1,result.periscope);
 assert('time compression',result.timeScale===8,result.timeScale);

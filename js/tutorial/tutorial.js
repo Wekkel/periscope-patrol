@@ -82,7 +82,7 @@ const TUT_STEPS=[
    goal:'Tap NEXT — you will not want to practise this one'},
 
   {id:'done',title:'Qualified',
-   body:'That is the whole loop: <b>find</b> with sonar and periscope, <b>build</b> a track, <b>feed</b> the TDC, <b>flood</b>, <b>shoot</b>, then <b>disappear</b>.<br><br>In a real patrol you also have to come home: when every merchant is sunk the order changes to RETURN TO BASE and you score the bonus by surfacing within 1.5 nm of a friendly port.<br><br>Good hunting, skipper.',
+   body:'That is the whole loop: <b>find</b> with sonar and periscope, <b>build</b> a track, <b>feed</b> the TDC, <b>flood</b>, <b>shoot</b>, then <b>disappear</b>.<br><br>When the patrol changes to <b>RETURN TO BASE</b>, head for the green friendly rendezvous. Enter its 0.30 nm ring surfaced at 3 kn or less — the <b>HARBOR</b> engine preset is made for this — and hold for 30 seconds to close the patrol.<br><br>Good hunting, skipper.',
    goal:'Tap FINISH to pick a real patrol'}
 ];
 

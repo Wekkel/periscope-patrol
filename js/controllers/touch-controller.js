@@ -605,7 +605,7 @@ class TouchCtrl{
       ? `SILENT · ${p.actualRpm.toFixed(0)}rpm`
       : (Math.abs(p.orderedRpm-p.actualRpm)<8?'':`→${p.orderedRpm.toFixed(0)}rpm`));
     if(this.pad){
-      const kn=(p.orderedRpm/450)*(p.engineMode==='DIESEL'?18:8.5);
+      const kn=(p.engineMode==='DIESEL'?18:8.5)*(1-Math.exp(-clamp(p.orderedRpm,0,450)/170));
       set('opDepthVal',`${sub.orderedDepthFeet.toFixed(0)} ft`);
       set('opSpeedVal',`${p.orderedRpm.toFixed(0)} rpm`);
       set('opNow',this.pad==='depth'

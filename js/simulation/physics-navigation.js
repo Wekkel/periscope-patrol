@@ -671,18 +671,19 @@ class SimEngine extends SimEngineCareer {
     const friendlyRv=this.friendlyPortNav();
     if(camp.missionStatus!=='RETURN TO BASE'&&friendlyRv&&friendlyRv.rngNm<=1.5){
       if(camp._portServiceLock) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — SERVICED`});
-      else if((camp.portService||0)>0) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} SERVICE — ${Math.round((camp.portService||0)/15*100)}%`});
+      else if((camp.portService||0)>0) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} SERVICE — ${Math.max(0,Math.ceil(FRIENDLY_PORT_SERVICE_SEC-(camp.portService||0)))} SEC REMAINING`});
       else if(friendlyRv.rngNm<=0.30&&sub.depthFeet>=8) W.push({level:'warn',text:`${friendlyRv.port.name.toUpperCase()} RV — SURFACE TO SERVICE`});
-      else if(friendlyRv.rngNm<=0.30&&sub.propulsion.speedKnots>3) W.push({level:'warn',text:`${friendlyRv.port.name.toUpperCase()} RV — SLOW BELOW 3 KN`});
-      else if(friendlyRv.rngNm<=0.30) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — HOLD FOR SERVICE`});
+      else if(friendlyRv.rngNm<=0.30&&sub.propulsion.speedKnots>FRIENDLY_PORT_SLOW_KN) W.push({level:'warn',text:`${friendlyRv.port.name.toUpperCase()} RV — SELECT HARBOR · ≤3 KN`});
+      else if(friendlyRv.rngNm<=0.30) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — HOLD ${FRIENDLY_PORT_SERVICE_SEC} SEC FOR SERVICE`});
       else W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — ${friendlyRv.rngNm.toFixed(1)} NM`});
     }
     if(camp.missionStatus==='RETURN TO BASE'){
       const r=friendlyRv;
-      if(camp.alongside>0) W.push({level:'normal',text:`${r?.port.name||'RENDEZVOUS'} TRANSFER — ${Math.round(camp.alongside/180*100)}%`});
+      if(camp.alongside>0) W.push({level:'normal',text:`${r?.port.name||'RENDEZVOUS'} FINAL RETURN — ${Math.max(0,Math.ceil(FRIENDLY_PORT_RETURN_SEC-camp.alongside))} SEC REMAINING`});
       else if(r&&r.rngNm<=0.30&&sub.depthFeet>=8) W.push({level:'warn',text:`${r.port.name.toUpperCase()} RV — SURFACE`});
-      else if(r&&r.rngNm<=0.30&&sub.propulsion.speedKnots>3) W.push({level:'warn',text:`${r.port.name.toUpperCase()} RV — SLOW BELOW 3 KN`});
-      else if(r&&r.rngNm<=1.5) W.push({level:'warn',text:`${r.port.name.toUpperCase()} APPROACH — ${r.rngNm.toFixed(1)} NM`});
+      else if(r&&r.rngNm<=0.30&&sub.propulsion.speedKnots>FRIENDLY_PORT_SLOW_KN) W.push({level:'warn',text:`${r.port.name.toUpperCase()} RV — SELECT HARBOR · ≤3 KN`});
+      else if(r&&r.rngNm<=0.30) W.push({level:'normal',text:`${r.port.name.toUpperCase()} FINAL RETURN — HOLD ${FRIENDLY_PORT_RETURN_SEC} SEC`});
+      else if(r&&r.rngNm<=1.5) W.push({level:'warn',text:`${r.port.name.toUpperCase()} APPROACH — ${r.rngNm.toFixed(1)} NM · SURFACE · HARBOR ≤3 KN`});
       else if(r) W.push({level:'warn',text:`RTB ${r.port.name.toUpperCase()} — ${r.rngNm.toFixed(1)} NM`});
       else W.push({level:'warn',text:'OBJECTIVE DONE — RETURN TO BASE'});
     }

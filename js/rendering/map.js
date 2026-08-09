@@ -348,11 +348,11 @@ class CanvasView extends CanvasViewSound {
       ctx.stroke();ctx.setLineDash([]);
     };
     curve(4,'rgba(239,106,88,0.48)',[]);curve(10,'rgba(235,195,125,0.26)',[3,3]);curve(100,'rgba(150,200,214,0.30)',[6,4]);
-    if(cellPx>=30){
-      ctx.fillStyle='rgba(150,190,200,0.30)';ctx.font=this.fnt(7);ctx.textAlign='center';const sk=cellPx>=60?2:3;
-      for(let j=j0;j<j1;j+=sk)for(let i=i0;i<i1;i+=sk){const d=D(i,j);if(d<1)continue;const p=w2s(x0+i*cell,y0+j*cell);ctx.fillText(d<100?String(Math.round(d)):String(Math.round(d/10)*10),p.x,p.y);}
-      ctx.textAlign='left';
-    }
+    /* Numeric depth soundings were historically appropriate, but on this
+       small moving canvas they read like numbered map tiles. Worse, the old
+       viewport-dependent sampling changed which labels were painted while
+       panning. Keep the bathymetry, fills and contour lines as navigation
+       truth; omit the decorative numbers for a calmer, stable chart. */
   }
 
   drawMapTerrain(ctx,terrain,w2s){
@@ -408,7 +408,11 @@ class CanvasView extends CanvasViewSound {
     ctx.fillStyle='rgba(205,245,226,.92)';ctx.font=this.fnt(8.5,true);ctx.textAlign='center';
     ctx.fillText(`${ap.portName} · FRIENDLY RV`,p.x,p.y-r-5*K);
     ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(150,205,180,.82)';
-    ctx.fillText(`SAFE SERVICE WATER · REARM · FUEL · REPAIR`,p.x,p.y+r+11*K);
+    const finalReturn=camp.missionStatus==='RETURN TO BASE';
+    ctx.fillText(`SAFE SERVICE WATER`,p.x,p.y+r+10*K);
+    ctx.fillText(finalReturn
+      ? `FINAL RETURN · SURFACE · HARBOR ≤3 KN · HOLD 0:30`
+      : `SERVICE · SURFACE · HARBOR ≤3 KN · HOLD 0:15`,p.x,p.y+r+20*K);
     ctx.textAlign='left';ctx.restore();
   }
 
@@ -885,7 +889,11 @@ class CanvasView extends CanvasViewSound {
     this.mapCenter.yNm-=dyPx/this.zoom;
     this.follow=false;
   }
-  recenter(sub){this.follow=true;this.mapCenter.xNm=sub.position.xNm;this.mapCenter.yNm=sub.position.yNm;}
+  recenter(sub){
+    // A chart-table centre button is a one-shot reposition, not a camera lock.
+    // Ownship must continue to travel across a fixed map after startup/centring.
+    this.follow=false;this.mapCenter.xNm=sub.position.xNm;this.mapCenter.yNm=sub.position.yNm;
+  }
   // nearest contact track to a tap on the map (returns id or null)
   pickTrack(state,clientX,clientY){
     const p=this.toLocal(clientX,clientY);

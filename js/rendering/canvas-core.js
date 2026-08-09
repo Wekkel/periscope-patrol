@@ -6,7 +6,7 @@ class CanvasViewCore{
     this.w=canvas.width; this.h=canvas.height; this.dpr=1; this.k=1; this.portrait=false;
     this.zoom=28;                 // map pixels per nautical mile
     this.minZoom=0.9; this.maxZoom=900;    // whole sea to a single berth
-    this.follow=true;             // map keeps ownship centred
+    this.follow=false;            // chart stays fixed; centring ownship is a one-shot action
     this.showLegend=false;
     this.scopeGeom={cx:0,cy:0,r:100,hor:0};
     this.quality=1;               // 0..1 — lowered automatically on slow frames

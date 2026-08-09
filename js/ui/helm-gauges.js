@@ -33,8 +33,7 @@ class HelmGauges{
     const seabed=sub.seabedFeet??3000, crush=sub.damage.crushDepthFeet||420;
     const test=crush*0.73;
     const surf=p.engineMode==='DIESEL', ms=surf?18:8.5;
-    const NORM=1-Math.exp(-450/170);
-    const knots=r=>ms*(1-Math.exp(-clamp(r,0,450)/170))/NORM;
+    const knots=r=>ms*(1-Math.exp(-clamp(r,0,450)/170));
     const noise=r=>{const kn=knots(r);
       return clamp(((r/450)*0.6+Math.pow(kn/18,2)*0.8)*(sub.depthFeet>65?0.85:1),0,1.5);};
     const maxDepth=Math.max(0,Math.min(crush-10,seabed-25));
@@ -88,7 +87,7 @@ class HelmGauges{
     return {
       key,start:135,sweep:270,wrap:false,gain:1,max:450,unit:'RPM',
       ordered:p.orderedRpm, actual:p.actualRpm,
-      limit:[0,450], detents:[0,120,200,250,350,450], step:[25,100],
+      limit:[0,450], detents:[0,25,120,200,250,350,450], step:[25,100],
       bells:[[0,'STOP'],[120,'SLOW'],[200,'2/3'],[250,'STD'],[350,'FULL'],[450,'FLANK']],
       send:v=>this.game.dispatch({type:'SET_ENGINE_RPM',rpm:Math.round(v)}),
       big:p.speedKnots.toFixed(1), danger:false,

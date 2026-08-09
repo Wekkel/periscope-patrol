@@ -43,7 +43,7 @@ assert('all event-driven transit stops return time to 1x and close transit mode'
 const mapSrc=fs.readFileSync(path.join(root,'js/rendering/map.js'),'utf8');
 assert('uncertain contacts use subdued narrow plot ink and unselected hulls no longer draw full course vectors',mapSrc.includes("rgba(245,198,92,.28)")&&mapSrc.includes("a*.09")&&mapSrc.includes("if(isSelected)this.courseVector")&&mapSrc.includes('this._mapLabelRects'),{});
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),css=fs.readFileSync(path.join(root,'css/app.css'),'utf8');
-assert('quick speed menus expose a near-max-generator CHARGE preset',html.includes('data-rpm="35">Charge</button>')&&((1-(35/450)**2*1.15)>.99),{generatorShare:1-(35/450)**2*1.15});
+assert('quick speed menus expose a sub-3-knot HARBOR preset with near-max generator share',html.includes('data-rpm="25">Harbor</button>')&&18*(1-Math.exp(-25/170))<3&&((1-(25/450)**2*1.15)>.99),{harborKn:18*(1-Math.exp(-25/170)),generatorShare:1-(25/450)**2*1.15});
 assert('touch controls reserve the lower HUD lane and MAP scale reserves FIRE-button gutter',css.includes('data-station="PERISCOPE"')&&mapSrc.includes('touchInset')&&mapSrc.includes('92*k'),{});
 const airSrc=fs.readFileSync(path.join(root,'js/simulation/ai/aircraft.js'),'utf8');
 assert('air alarm only says CLEAR THE BRIDGE when surfaced and not already diving',airSrc.includes("sub.depthFeet<8&&!diveUnderway?'CLEAR THE BRIDGE!'")&&airSrc.includes("'CONTINUE THE DIVE!'")&&airSrc.includes("'REMAIN SUBMERGED.'"),{});
