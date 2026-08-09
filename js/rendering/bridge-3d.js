@@ -25,7 +25,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       ctx.font=this.fnt(10);ctx.fillStyle='#9bb9ad';ctx.fillText('Surface or come awash to send the watch topside.',w/2,h*.46+24*this.k);ctx.textAlign='left';
       return;
     }
-    const bino=!!tact.bridgeBinoculars,fov=bino?BRIDGE_VIEW.binocularFovDeg:BRIDGE_VIEW.normalFovDeg;
+    const zoom=bridgeZoomAmount(state),bino=zoom>.55,fov=bridgeFovDeg(state);
     const cam=this.setupBridgeCam(state,fov,w,h);this.cam=cam;this.bridgeCam=cam;
     const savedQ=this.quality;
     // A wide bridge scene can expose far more sea/terrain than the scope. On
@@ -42,12 +42,16 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       this.drawOwnWake(ctx,cam,state,t,env.daylight);
       this.drawWakes3D(ctx,cam,state,t,env.daylight);
       this.drawFleet3D(ctx,cam,state,env.daylight,env,t);
+      this.drawBridgeAircraft?.(ctx,cam,state,env.daylight,t);
       this.drawExplosions3D(ctx,cam,state,env.daylight);
       this.drawSplashes3D(ctx,cam,state,env.daylight);
+      // Ownship is real perspective geometry, drawn as foreground world
+      // geometry before rain/night overlays.  Changing focal length therefore
+      // changes magnification, not the apparent course of the hull.
+      this.drawBridgeForedeck(ctx,w,h,cam,state,t);
       if((env.precipitation||0)>.04||weatherIsWet(env.weather))this.drawRain(ctx,w,h,env.seaState,t,env.weather,env.precipitation||.25);
       if(env.seaState>.58&&this.quality>.48)this.drawScopeSpray(ctx,w,h,env.seaState,t);
       if(env.daylight<.32)this.drawNightOverlay(ctx,w,h,env.daylight);
-      this.drawBridgeForedeck(ctx,w,h,cam,state,t);
     }finally{this.quality=savedQ;}
     this.drawBridgeHud(ctx,w,h,state,cam,bino);
   }
@@ -73,30 +77,50 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     }
   }
 
-  drawBridgeForedeck(ctx,w,h,cam,state,t){
-    const sub=state.playerSub,k=this.k,rel=shortDelta(cam.bearingDeg,sub.heading);
-    // The foredeck only belongs in the picture while the watch is looking
-    // generally over the bow. Looking abeam/aft leaves an unobstructed sea view.
-    if(Math.abs(rel)<78){
-      const bx=cam.cx+Math.tan(degToRad(rel))*cam.f,tipY=h*(this.portrait?.66:.71);
-      if(bx>-w*.35&&bx<w*1.35){
-        const halfBottom=Math.min(w*.33,145*k),halfTip=Math.max(5,11*k);
-        ctx.fillStyle='rgba(20,25,24,.97)';ctx.strokeStyle='rgba(94,108,101,.75)';ctx.lineWidth=Math.max(1,1.2*k);
-        ctx.beginPath();ctx.moveTo(cam.cx-halfBottom,h+2);ctx.lineTo(bx-halfTip,tipY);ctx.lineTo(bx+halfTip,tipY);ctx.lineTo(cam.cx+halfBottom,h+2);ctx.closePath();ctx.fill();ctx.stroke();
-        ctx.strokeStyle='rgba(135,145,137,.38)';ctx.beginPath();ctx.moveTo(cam.cx, h);ctx.lineTo(bx,tipY);ctx.stroke();
-        const spd=sub.propulsion.speedKnots||0;
-        if(spd>2.5&&state.world.environment.daylight>.12){
-          const a=clamp((spd-2.5)/14,.12,.75)*(1-state.world.environment.seaState*.28);
-          ctx.strokeStyle=`rgba(238,248,252,${a})`;ctx.lineWidth=Math.max(1,1.5*k);
-          const strokes=this.lowSpec?3:5;
-          for(let i=0;i<strokes;i++){
-            const side=i%2?-1:1,off=(7+i*2.4)*k*side,wob=Math.sin(t*5+i)*3*k;
-            ctx.beginPath();ctx.moveTo(bx+off,tipY+4*k);ctx.quadraticCurveTo(bx+off*2+wob,tipY+17*k,bx+off*3.2,tipY+27*k);ctx.stroke();
-          }
-        }
-      }
+  drawBridgeAircraft(ctx,cam,state,dl,t){
+    const sub=state.playerSub,env=state.world.environment||{},k=this.k;
+    for(const a of state.world.aircraft||[]){
+      if(a.shotDown||a.state==='DEPARTING'||!a.seenBySub)continue;
+      const rng=distNm(sub.position,a.position),wx=weatherBetween(state,sub.position,a.position);
+      if(rng>Math.min(12,Math.max(1.2,wx.visibilityNm*1.15)))continue;
+      const bear=bearingBetween(sub.position,a.position),off=shortDelta(cam.bearingDeg,bear);
+      if(Math.abs(off)>cam.fovDeg*.54)continue;
+      // The aircraft model has no flight-dynamics altitude state. Use a stable
+      // visual flight level keyed to its tactical state; range/heading remain
+      // the real simulated values.
+      const altitude=a.state==='ATTACKING'||a.state==='STRAFING'?clamp(70+rng*48,85,260)
+                    :a.state==='ORBIT'?310:430;
+      const p=this.proj(cam,a.position.xNm*NM_M,-a.position.yNm*NM_M,altitude);if(!p)continue;
+      const spanM=a.kind==='FLYING_BOAT'?28:a.kind==='BOMBER'?15:14;
+      const px=clamp(spanM*cam.f/Math.max(p.d,120),2.2*k,54*k);
+      const attack=a.state==='ATTACKING'||a.state==='STRAFING';
+      const haze=clamp(1-rng/Math.max(1,wx.visibilityNm*1.2),.28,1);
+      ctx.save();ctx.translate(p.x,p.y);
+      // Bank follows heading change enough to make an attacking turn readable,
+      // while remaining a very cheap vector silhouette on low-end hardware.
+      const relH=shortDelta(bear,a.heading),bank=clamp(relH/95,-.48,.48);
+      ctx.rotate(bank);
+      ctx.fillStyle=attack?`rgba(45,33,26,${.92*haze})`:`rgba(32,38,39,${.86*haze})`;
+      ctx.strokeStyle=attack?`rgba(239,106,88,${.62*haze})`:`rgba(200,216,211,${.36*haze})`;
+      ctx.lineWidth=Math.max(.8,k);
+      ctx.beginPath();
+      ctx.moveTo(0,-px*.48);ctx.lineTo(px*.10,-px*.08);ctx.lineTo(px*.50,px*.02);
+      ctx.lineTo(px*.12,px*.10);ctx.lineTo(px*.06,px*.46);ctx.lineTo(0,px*.28);
+      ctx.lineTo(-px*.06,px*.46);ctx.lineTo(-px*.12,px*.10);ctx.lineTo(-px*.50,px*.02);
+      ctx.lineTo(-px*.10,-px*.08);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+      if(attack&&px>5*k){ctx.fillStyle='rgba(239,106,88,.82)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText('AIRCRAFT',p.x,p.y-px*.75-3*k);ctx.textAlign='left';}
     }
-    // Bridge coaming/rail: a tiny foreground cue, not a cockpit UI.
+  }
+
+  drawBridgeForedeck(ctx,w,h,cam,state,t){
+    // The old bridge used a screen-space trapezoid.  Its bow point was
+    // bx = centre + tan(relative bearing) * focalLength, so changing FOV made
+    // the *submarine* appear to rotate.  The deck is now projected from metre
+    // coordinates fixed to ownship's heading, exactly like the other 3-D world
+    // geometry.  The same helper is also used by the gun view.
+    this.drawOwnshipSurfaceDeck3D(ctx,cam,state,{bridge:true,time:t});
+    const k=this.k;
+    // Immediate bridge coaming/rail remains a tiny near-camera cue.
     ctx.strokeStyle='rgba(105,119,112,.68)';ctx.lineWidth=Math.max(1,1.4*k);
     const ry=h-10*k;ctx.beginPath();ctx.moveTo(w*.08,ry);ctx.lineTo(w*.92,ry);ctx.stroke();
     for(let x=.12;x<.92;x+=.10){ctx.beginPath();ctx.moveTo(w*x,ry);ctx.lineTo(w*x,ry-12*k);ctx.stroke();}
@@ -107,7 +131,8 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     ctx.fillStyle='rgba(3,13,16,.66)';this.rr(ctx,8*k,8*k,Math.min(286*k,w-16*k),50*k,6*k);ctx.fill();
     ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText('SURFACE WATCH — BRIDGE',16*k,25*k);
     ctx.fillStyle='rgba(210,235,224,.86)';ctx.font=this.fnt(8.5);
-    ctx.fillText(`LOOK ${fmtDeg(t.bridgeBearing)} · ${bino?'BINOCULARS 3×':'WIDE WATCH'} · FOV ${Math.round(cam.fovDeg)}°`,16*k,41*k);
+    const mag=bridgeMagnification(state);
+    ctx.fillText(`LOOK ${fmtDeg(t.bridgeBearing)} · ${mag>1.08?`BINOCULARS ${mag.toFixed(1)}×`:'WIDE WATCH'} · FOV ${Math.round(cam.fovDeg)}°`,16*k,41*k);
     // A centre mark gives MARK/TARGET a clear datum without turning the view
     // into a gunsight.
     ctx.strokeStyle='rgba(220,236,226,.52)';ctx.lineWidth=Math.max(1,k);

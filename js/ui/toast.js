@@ -12,22 +12,36 @@ const TOAST_RED   = /depth charge|DEPTH CHARGE|ATTACKING|attack run|is turning i
 const TOAST_GREEN = /ULTRA|AMPLIFYING|HIT \+|PATROL COMPLETE|OBJECTIVE COMPLETE|Alongside|SPLASH ONE|drove her away|sheering off|turns for home|turning away|lost you|lost the contact|lost contact|Off the bottom|clear to dive|Transit complete|Rearmed/i;
 
 const Toast = {
+  /* Reading time, not message category, now owns the lifetime.  The old
+     fixed 2.3 s made a 25-word refusal disappear just as the player reached
+     its second line.  220-ish wpm is deliberately conservative for a game:
+     the player is also steering, looking through an optic and reacting to
+     alarms.  Explicit durations remain MINIMUMS, never shorten long text. */
+  durationFor(msg,type='ok',requested=0){
+    const text=String(msg??'').trim();
+    const words=(text.match(/[\p{L}\p{N}]+(?:['’.-][\p{L}\p{N}]+)*/gu)||[]).length;
+    const chars=text.length;
+    const readMs=850+words*275+Math.max(0,chars-80)*7;
+    const floor=type==='bad'?4200:type==='warn'?3200:2800;
+    const cap=type==='bad'?10500:9500;
+    return Math.round(clamp(Math.max(floor,Number(requested)||0,readMs),floor,cap));
+  },
   auto(msg, fallback){
     if (TOAST_RED.test(msg))   return this.bad(msg);
     if (TOAST_GREEN.test(msg)) return this.ok(msg);
     if (fallback === 'ok')     return this.ok(msg);
     return this.warn(msg);
   },
-  show(msg, type='ok', duration=2300, replace=false) {
+  show(msg, type='ok', duration=0, replace=false) {
     const c = document.getElementById('toastContainer');
     if (!c) return;
+    duration=this.durationFor(msg,type,duration);
     if(replace) c.replaceChildren();
     const div = document.createElement('div');
     div.className = `toast ${type}`;
     div.textContent = msg;
-    // CSS owns the fade, JS owns the duration. Previously every toast faded
-    // after 2 s even when bad() asked for 3.5 s, so the critical last line was
-    // already invisible while its DOM node was still alive.
+    div.dataset.duration=String(duration);
+    // CSS owns the fade; JS owns removal. Keep the final 300 ms for fade-out.
     div.style.setProperty('--toast-hold',Math.max(0.35,(duration-300)/1000)+'s');
     c.appendChild(div);
     setTimeout(() => div.remove(), duration + 60);
@@ -35,13 +49,13 @@ const Toast = {
   },
   clear(){ document.getElementById('toastContainer')?.replaceChildren(); },
   stop(msg,type='bad'){
-    // The reason compressed time stopped gets the whole toast lane to itself,
-    // but four seconds is enough to read it without turning it into a HUD panel.
-    this.show(msg,type,3900,true);
+    // Stop reasons own the toast lane, but long reasons are allowed the time
+    // their actual text needs rather than being cut off at four seconds.
+    return this.show(msg,type,3900,true);
   },
-  ok(msg)   { this.show(msg,'ok'); },
-  warn(msg) { this.show(msg,'warn'); },
-  bad(msg)  { this.show(msg,'bad',3500); }
+  ok(msg)   { return this.show(msg,'ok'); },
+  warn(msg) { return this.show(msg,'warn'); },
+  bad(msg)  { return this.show(msg,'bad',3500); }
 };
 
 function transitStopToastKind(why){
@@ -49,4 +63,3 @@ function transitStopToastKind(why){
   if(/ULTRA|new orders|new contact|battery|fuel|air is going bad/i.test(why)) return 'warn';
   return 'bad';
 }
-

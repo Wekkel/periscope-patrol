@@ -71,14 +71,27 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       if(!a.seenBySub){
         const surfaced=sub.depthFeet<12;
         let seen=false, how='';
-        if(surfaced&&air.sdOn&&rng<18&&Math.random()<dt*0.30){
+        const airBear=bearingBetween(sub.position,a.position);
+        if(surfaced&&this.state.tactical.activeStation==='BRIDGE'){
+          const wx=weatherBetween(this.state,sub.position,a.position),off=Math.abs(shortDelta(this.state.tactical.bridgeBearing,airBear));
+          const inGlass=off<=bridgeFovDeg(this.state)*.52;
+          const attack=a.state==='ATTACKING'||a.state==='STRAFING';
+          const bridgeAirRange=Math.min(12,Math.max(1.4,wx.visibilityNm*(attack?1.05:.82)));
+          // An aeroplane actually boring in on the boat cannot remain an
+          // invisible world object while the player is looking straight at it
+          // from an open bridge. Routine distant searches remain probabilistic.
+          if(inGlass&&rng<=bridgeAirRange&&((attack&&rng<=6)||Math.random()<dt*(.18+.28*env.daylight))){
+            seen=true;how=`Bridge lookouts: ${attack?'ATTACKING ':''}AIRCRAFT bearing ${fmtDeg(airBear)}, range ${rng.toFixed(1)} nm`;
+          }
+        }
+        if(!seen&&surfaced&&air.sdOn&&rng<18&&Math.random()<dt*0.30){
           seen=true; how=`SD RADAR — air contact, range ${rng.toFixed(0)} miles, no bearing`;
-        }else if(surfaced&&env.daylight>0.25&&rng<clamp(env.visibilityNm*0.7,4,12)&&Math.random()<dt*0.22){
-          seen=true; how=`Lookouts: AIRCRAFT bearing ${fmtDeg(bearingBetween(sub.position,a.position))}, range ${rng.toFixed(1)} nm`;
-        }else if(!surfaced&&sub.depthFeet<70&&this.state.tactical.activeStation==='PERISCOPE'
-                 &&Math.abs(shortDelta(this.state.tactical.periscopeBearing,bearingBetween(sub.position,a.position)))<16
+        }else if(!seen&&surfaced&&env.daylight>0.25&&rng<clamp(env.visibilityNm*0.7,4,12)&&Math.random()<dt*0.22){
+          seen=true; how=`Lookouts: AIRCRAFT bearing ${fmtDeg(airBear)}, range ${rng.toFixed(1)} nm`;
+        }else if(!seen&&!surfaced&&sub.depthFeet<70&&this.state.tactical.activeStation==='PERISCOPE'
+                 &&Math.abs(shortDelta(this.state.tactical.periscopeBearing,airBear))<16
                  &&rng<6&&Math.random()<dt*0.12){
-          seen=true; how=`Periscope: aircraft in the field, bearing ${fmtDeg(bearingBetween(sub.position,a.position))}`;
+          seen=true; how=`Periscope: aircraft in the field, bearing ${fmtDeg(airBear)}`;
         }
         if(seen){
           a.seenBySub=true; air.alarmedAt=now;

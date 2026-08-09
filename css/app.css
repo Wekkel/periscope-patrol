@@ -354,7 +354,7 @@
        start below it instead of covering the selector the player may need next. */
     html[data-lay="touch"] #toastContainer{top:calc(var(--sat) + 52px);}
     .toast{background:rgba(9,26,31,.97);border:1px solid var(--line);border-radius:6px;padding:9px 16px;
-      font-size:12.5px;letter-spacing:.4px;text-align:center;backdrop-filter:blur(4px);
+      font-size:12.5px;line-height:1.38;letter-spacing:.35px;text-align:center;overflow-wrap:anywhere;backdrop-filter:blur(4px);
       box-shadow:0 4px 18px rgba(0,0,0,.6);
       animation:toastIn .18s ease-out,toastOut .3s ease-in var(--toast-hold,2s) forwards;}
     .toast.ok{border-color:var(--ok);color:var(--ok);}

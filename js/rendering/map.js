@@ -621,6 +621,7 @@ class CanvasView extends CanvasViewSound {
         }
         this.shipIcon(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,iconType,shipCol,
           isSelected?'#eafff0':'rgba(12,20,18,.9)',clamp(a,0.45,1));
+        if(Math.abs(tr.turnRateEstimateDegSec||0)>.12)this.turnCue(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,tr.turnRateEstimateDegSec,isSelected?'#6fe08f':shipCol);
       } else {
         // Low confidence: only estimated — simple circle with course line
         ctx.strokeStyle=isSelected?'#f5c65c':`rgba(245,198,92,${a})`;
@@ -709,6 +710,18 @@ class CanvasView extends CanvasViewSound {
       }
     }
     ctx.globalAlpha=1;
+    ctx.restore();
+  }
+
+  turnCue(ctx,x,y,hdgDeg,lenPx,rateDegSec,color){
+    const L=lenPx,side=rateDegSec>=0?1:-1;
+    ctx.save();ctx.translate(x,y);ctx.rotate(degToRad(hdgDeg));
+    ctx.strokeStyle=color;ctx.fillStyle=color;ctx.lineWidth=Math.max(1,L*.035);
+    const r=Math.max(7,L*.46),cx=side*r*.36,cy=-L*.12;
+    const a0=side>0?-2.35:-.79,a1=side>0?-.75:-2.39;
+    ctx.beginPath();ctx.arc(cx,cy,r,a0,a1,side<0);ctx.stroke();
+    const ex=cx+Math.cos(a1)*r,ey=cy+Math.sin(a1)*r,ang=a1+(side>0?Math.PI/2:-Math.PI/2),ah=Math.max(3,L*.10);
+    ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-Math.cos(ang-.55)*ah,ey-Math.sin(ang-.55)*ah);ctx.lineTo(ex-Math.cos(ang+.55)*ah,ey-Math.sin(ang+.55)*ah);ctx.closePath();ctx.fill();
     ctx.restore();
   }
 

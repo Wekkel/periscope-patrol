@@ -394,10 +394,12 @@ class TouchCtrl{
             D({type:'TOGGLE_PERISCOPE_ZOOM'});buzz(12);lastDist=d;
           }
         }else if(lastDist>0&&s.tactical.activeStation==='BRIDGE'){
-          const ratio=d/lastDist;
-          if((ratio>1.25&&!s.tactical.bridgeBinoculars)||(ratio<0.8&&s.tactical.bridgeBinoculars)){
-            D({type:'TOGGLE_BRIDGE_BINOCULARS'});buzz(12);lastDist=d;
-          }
+          // Bridge optics are continuously zoomable.  The old threshold toggle
+          // made a pinch suddenly jump between two focal lengths, which also
+          // exaggerated the old 2-D foredeck perspective error.
+          const ratio=d/lastDist,z=bridgeZoomAmount(s);
+          const next=clamp(z+Math.log(Math.max(.2,ratio))*1.15,0,1);
+          if(Math.abs(next-z)>.008)D({type:'SET_BRIDGE_ZOOM',zoom:next});
         }
         lastDist=d;return;
       }
@@ -452,12 +454,16 @@ class TouchCtrl{
     window.addEventListener('blur',purge,{passive:true});
     document.addEventListener('visibilitychange',()=>{if(document.hidden)purge();},{passive:true});
     c.addEventListener('contextmenu',e=>e.preventDefault());
-    // desktop wheel zoom on map
+    // Desktop wheel: chart zoom on MAP, optical zoom on the bridge.
     c.addEventListener('wheel',e=>{
       const s=this.game.getSnapshot();
-      if(s.tactical.activeStation!=='MAP') return;
-      e.preventDefault();
-      cv.zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY);
+      if(s.tactical.activeStation==='MAP'){
+        e.preventDefault();cv.zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY);return;
+      }
+      if(s.tactical.activeStation==='BRIDGE'){
+        e.preventDefault();const z=bridgeZoomAmount(s),step=e.deltaY<0?.10:-.10;
+        D({type:'SET_BRIDGE_ZOOM',zoom:clamp(z+step,0,1)});return;
+      }
     },{passive:false});
   }
 
@@ -622,7 +628,8 @@ class TouchCtrl{
       const lock=g('oLock'),fire=g('btnFire');if(lock)lock.style.display=(gun||bridge||sound)?'none':'';if(fire)fire.style.display=(gun||bridge||sound)?'none':'';
       g('bridgeControls')?.classList.toggle('on',bridge);g('soundControls')?.classList.toggle('on',sound);
     }
-    cls('bridgeBino','on',!!state.tactical.bridgeBinoculars);
+    const bz=bridgeZoomAmount(state);cls('bridgeBino','on',bz>.05);
+    const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
     const sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
     cls('oSilent','on',sub.stealth.silentRunning);

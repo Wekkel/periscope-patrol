@@ -61,9 +61,11 @@ class GameLoop{
             // Give the stop reason the toast lane to itself. The queued context
             // may flash first, but this line clears it and then stays readable.
             T.stopReason=why; T.stopReasonAt=T.elapsedSeconds;
-            this.stopToastUntil=performance.now()+4000;
             const stopKind=transitStopToastKind(why);
-            setTimeout(()=>Toast.stop('TRANSIT STOPPED — '+why,stopKind),90);
+            const stopText='TRANSIT STOPPED — '+why;
+            const stopMs=Toast.durationFor?Toast.durationFor(stopText,stopKind,3900):4000;
+            this.stopToastUntil=performance.now()+stopMs+150;
+            setTimeout(()=>Toast.stop(stopText,stopKind),90);
             buzz([20,50,20]);
           }
           break;

@@ -9,6 +9,22 @@ const BRIDGE_VIEW={
   cameraHeightM:7.2
 };
 
+function bridgeZoomAmount(state){
+  const T=state?.tactical||{};
+  const z=Number(T.bridgeZoom);
+  return Number.isFinite(z)?clamp(z,0,1):(T.bridgeBinoculars?1:0);
+}
+
+function bridgeFovDeg(state){
+  const z=bridgeZoomAmount(state),e=z*z*(3-2*z);
+  return lerp(BRIDGE_VIEW.normalFovDeg,BRIDGE_VIEW.binocularFovDeg,e);
+}
+
+function bridgeMagnification(state){
+  const fov=bridgeFovDeg(state);
+  return Math.tan(degToRad(BRIDGE_VIEW.normalFovDeg)/2)/Math.tan(degToRad(fov)/2);
+}
+
 function bridgeCanUse(state){
   const sub=state?.playerSub;
   return !!sub&&sub.mode!=='SUNK'&&(sub.depthFeet||0)<=BRIDGE_VIEW.maxDepthFt;
@@ -37,11 +53,12 @@ function _bridgeHashUnit(seed,text,tag=0){
 
 function bridgeObservation(state,contact,binoculars=false){
   const sub=state.playerSub,seed=state.campaign?.scenarioSeed||1;
+  const z=typeof binoculars==='number'?clamp(binoculars,0,1):(binoculars?1:0);
   const bucket=Math.floor((state.time?.elapsedSeconds||0)/15);
   const tag=`${contact.id}:${bucket}`;
   const trueBearing=bearingBetween(sub.position,contact.position),trueRange=distNm(sub.position,contact.position);
-  const brErr=(_bridgeHashUnit(seed,tag,11)*2-1)*(binoculars?.22:.65);
-  const rangeErr=(_bridgeHashUnit(seed,tag,17)*2-1)*(binoculars?.025:.055);
+  const brErr=(_bridgeHashUnit(seed,tag,11)*2-1)*lerp(.65,.20,z);
+  const rangeErr=(_bridgeHashUnit(seed,tag,17)*2-1)*lerp(.055,.023,z);
   const bearing=normDeg(trueBearing+brErr),rangeNm=Math.max(.03,trueRange*(1+rangeErr)),r=degToRad(bearing);
   return{
     bearing,rangeNm,

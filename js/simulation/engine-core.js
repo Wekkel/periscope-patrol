@@ -32,6 +32,8 @@ class SimEngineCore{
     const T=this.state.tactical||(this.state.tactical={});
     if(!Number.isFinite(T.bridgeBearing))T.bridgeBearing=this.state.playerSub?.heading||0;
     if(T.bridgeBinoculars===undefined)T.bridgeBinoculars=false;
+    if(!Number.isFinite(T.bridgeZoom))T.bridgeZoom=T.bridgeBinoculars?1:0;
+    T.bridgeZoom=clamp(T.bridgeZoom,0,1);
     if(!['TACTICAL','PERISCOPE','MAP','DECK_GUN','BRIDGE','SOUND'].includes(T.activeStation))T.activeStation='TACTICAL';
     return T;
   }
@@ -92,8 +94,8 @@ class SimEngineCore{
 
   bridgeCenterContact(trackId=null){
     if(!bridgeCanUse(this.state))return null;
-    const s=this.state,T=s.tactical,bin=!!T.bridgeBinoculars;
-    const maxOff=bin?4.5:9.0,limitPad=1.01;
+    const s=this.state,T=s.tactical,z=bridgeZoomAmount(s),bin=z>.55;
+    const maxOff=lerp(9.0,4.5,z),limitPad=1.01;
     let best=null,bestScore=Infinity;
     for(const c of s.world.contacts){
       if(c.sunk&&(c.sinkingProgress??0)>=1)continue;
@@ -109,9 +111,10 @@ class SimEngineCore{
     if(!bridgeCanUse(this.state)){this.notify('Bridge watch unavailable — the boat is below the surface.','warn');return null;}
     const c=this.bridgeCenterContact(trackId);
     if(!c){this.notify('Bridge watch: no visual contact on the centre bearing.','warn');return null;}
-    const s=this.state,W=s.world,T=s.tactical,bin=!!T.bridgeBinoculars,now=s.time.elapsedSeconds;
-    const obs=bridgeObservation(s,c,bin),old=W.contactTracks[c.id];
-    const conf=clamp(Math.max(old?.confidence||0,bin?.68:.52)+(old?bin?.12:.08:0),0,1);
+    const s=this.state,W=s.world,T=s.tactical,z=bridgeZoomAmount(s),bin=z>.55,now=s.time.elapsedSeconds;
+    const obs=bridgeObservation(s,c,z),old=W.contactTracks[c.id];
+    const baseConf=lerp(.52,.68,z),repeatGain=lerp(.08,.12,z);
+    const conf=clamp(Math.max(old?.confidence||0,baseConf)+(old?repeatGain:0),0,1);
     const knownType=c.displayType||c.type;
     const hullVisible=distNm(s.playerSub.position,c.position)<=Math.max(.5,s.world.environment.visibilityNm||.5)*1.02;
     const tr=old||{id:c.id,typeEstimate:'UNKNOWN',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards};
@@ -239,7 +242,7 @@ class SimEngineCore{
         if(cmd.station==='BRIDGE'){
           if(!bridgeCanUse(this.state)){this.notify(`Bridge unavailable at ${sub.depthFeet.toFixed(0)} ft — surface or come awash first.`,'warn');break;}
           if(this.state.tactical.activeStation==='DECK_GUN')this.secureDeckGunAuto();
-          this.state.tactical.activeStation='BRIDGE';this.state.tactical.bridgeBearing=sub.heading;this.state.tactical.bridgeBinoculars=false;
+          this.state.tactical.activeStation='BRIDGE';this.state.tactical.bridgeBearing=sub.heading;this.state.tactical.bridgeBinoculars=false;this.state.tactical.bridgeZoom=0;
           break;
         }
         if(this.state.tactical.activeStation==='DECK_GUN') this.secureDeckGunAuto();
@@ -258,7 +261,8 @@ class SimEngineCore{
         }else this.state.tactical.soundDisplay='PASSIVE';
         break;}
       case'ROTATE_BRIDGE': if(bridgeCanUse(this.state))this.state.tactical.bridgeBearing=normDeg(this.state.tactical.bridgeBearing+cmd.deltaDeg); break;
-      case'TOGGLE_BRIDGE_BINOCULARS': if(bridgeCanUse(this.state))this.state.tactical.bridgeBinoculars=!this.state.tactical.bridgeBinoculars; break;
+      case'TOGGLE_BRIDGE_BINOCULARS': if(bridgeCanUse(this.state)){const T=this.state.tactical,on=bridgeZoomAmount(this.state)<.55;T.bridgeZoom=on?1:0;T.bridgeBinoculars=on;} break;
+      case'SET_BRIDGE_ZOOM': if(bridgeCanUse(this.state)){const T=this.state.tactical;T.bridgeZoom=clamp(Number(cmd.zoom)||0,0,1);T.bridgeBinoculars=T.bridgeZoom>=.55;} break;
       case'BRIDGE_MARK_CONTACT': this.markBridgeContact(cmd.trackId||null,false); break;
       case'BRIDGE_TARGET_CENTER': this.markBridgeContact(null,true); break;
       case'BRIDGE_TARGET_CONTACT': this.markBridgeContact(cmd.trackId||null,true); break;
@@ -793,7 +797,7 @@ class SimEngineCore{
     s.weapons.torpedoInventory=16;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
     s.weapons.deckGun={manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
     for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;t.specKey=s.tdc.torpedoSpecKey;}
-    s.tactical.periscopeBearing=90;s.tactical.periscopeZoom=1;s.tactical.bridgeBearing=sub.heading;s.tactical.bridgeBinoculars=false;s.tactical.bridgeMarkedId=null;
+    s.tactical.periscopeBearing=90;s.tactical.periscopeZoom=1;s.tactical.bridgeBearing=sub.heading;s.tactical.bridgeBinoculars=false;s.tactical.bridgeZoom=0;s.tactical.bridgeMarkedId=null;
     s.tactical.soundBearing=sub.heading;s.tactical.soundDisplay='PASSIVE';
     s.world.aircraft=[];s.world.knuckles=[];s.world.sound=null;s.world.radar=null;
     s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,

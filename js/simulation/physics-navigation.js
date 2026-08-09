@@ -248,7 +248,14 @@ class SimEngine extends SimEngineCareer {
     const base=SHIP_TURN_RATE[c.type]||1.2;
     const rate=base*clamp(c.speedKnots/10,0.22,1.0);      // little steerage way when slow
     const d=shortDelta(c.heading,c.desiredHeading===undefined?c.heading:c.desiredHeading);
-    c.heading=normDeg(c.heading+clamp(d,-rate*dt,rate*dt));
+    const targetRate=clamp(d*.55,-rate,rate);             // ease out near the ordered course
+    const angAcc=(SHIP_TURN_ACCEL[c.type]||.7)*clamp(c.speedKnots/6,.35,1);
+    c.turnRateDegSec=Number.isFinite(c.turnRateDegSec)?c.turnRateDegSec:0;
+    c.turnRateDegSec+=clamp(targetRate-c.turnRateDegSec,-angAcc*dt,angAcc*dt);
+    let turn=c.turnRateDegSec*dt;
+    if(Math.abs(turn)>Math.abs(d)){turn=d;c.turnRateDegSec=0;}
+    c.heading=normDeg(c.heading+turn);
+    if(Math.abs(d)<.08&&Math.abs(c.turnRateDegSec)<.08)c.turnRateDegSec=0;
     const acc=SHIP_ACCEL[c.type]||0.10;
     const want=c.desiredSpeed===undefined?c.speedKnots:c.desiredSpeed;
     const ds=want-c.speedKnots;
@@ -371,7 +378,10 @@ class SimEngine extends SimEngineCareer {
         ex.lengthYards=c.lengthYards;
         ex.bearing=lerpAngle(ex.bearing,obsBear,clamp((src==='HYDROPHONE'?.12:.25)+sc*(src==='HYDROPHONE'?.22:.35),0,src==='HYDROPHONE'?.42:.85));
         ex.rangeEstimateNm=lerp(ex.rangeEstimateNm,obsRng,clamp((src==='HYDROPHONE'?.025:.18)+sc*(src==='HYDROPHONE'?.07:.28),0,src==='HYDROPHONE'?.12:.7));
+        const prevCourseEstimate=ex.courseEstimate;
         ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
+        const observedTurn=shortDelta(prevCourseEstimate,ex.courseEstimate)/Math.max(dt,.1);
+        ex.turnRateEstimateDegSec=lerp(ex.turnRateEstimateDegSec||0,observedTurn,clamp(.18+ex.confidence*.22,.18,.4));
         ex.speedEstimateKnots=lerp(ex.speedEstimateKnots,c.speedKnots,clamp(0.08+ex.confidence*0.18,0,0.35));
         const knownType=c.displayType||c.type;
         const smokeOnly=sub.depthFeet<8&&rng>weatherVisibilityBetween(this.state,sub.position,c.position)*1.02;

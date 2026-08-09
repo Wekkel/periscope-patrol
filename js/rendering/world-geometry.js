@@ -6,6 +6,10 @@ const NM_M=1852, EARTH_R=6371000;
 // full circle at speed; a loaded freighter far longer.
 const SHIP_TURN_RATE={ESCORT:3.4,MERCHANT:1.2,TANKER:0.85,TROOP:1.0};
 const SHIP_ACCEL={ESCORT:0.30,MERCHANT:0.10,TANKER:0.07,TROOP:0.09};
+// Angular acceleration prevents a ship from snapping instantly to full rudder.
+// Values are intentionally modest: enough inertia to read on MAP/3-D without
+// making convoy station-keeping or ASW responses sluggish.
+const SHIP_TURN_ACCEL={ESCORT:2.8,MERCHANT:0.75,TANKER:0.52,TROOP:0.64};
 // WWII echo-ranging gear
 const SONAR={
   maxRangeNm:1.5,        // useful echo-ranging range

@@ -936,6 +936,14 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const sink=pass.sink;
       const V=(lx,ly,lz)=>{
         let x=lx*S,y=ly*S,z=lz*S;
+        if(!sink&&!c.stationary){
+          // A ship under helm develops a small, stable heel instead of
+          // remaining perfectly upright while its bow swings on the chart.
+          // This is visual only; collision hulls remain on the simulated
+          // waterplane and therefore stay deterministic/cheap.
+          const heel=clamp((c.turnRateDegSec||0)*(c.speedKnots||0)*.0019,-.075,.075);
+          if(Math.abs(heel)>.001){const cr=Math.cos(heel),sr=Math.sin(heel),nx=x*cr-y*sr;y=x*sr+y*cr;x=nx;}
+        }
         if(sink){
           const p=sink.pitchP??sink.p, pv=sink.pivot*S;
           const pitch=sink.pitch*p, cp=Math.cos(pitch), sp=Math.sin(pitch);
