@@ -113,6 +113,10 @@ assert('ownship foreground closes the camera-space deck gap and bridge gun sits 
 assert('training contains hands-on SOUND and deck-gun lessons and no obsolete harbor hold instruction',tutorialSrc.includes("id:'sound'")&&tutorialSrc.includes("id:'deckgun'")&&tutorialSrc.includes('order <b>Stop</b>')&&!tutorialSrc.includes('hold for 30 seconds'),{});
 assert('phone tutorial collapse is a compact corner chip instead of a full-width blocker',cssSrc.includes('#coach.min{left:6px;right:auto;top:calc(var(--sat) + 58px)'),{});
 assert('custom picker renders above the mission overlay and can be re-enhanced after dynamic rendering',cssSrc.includes('#pkMenu{position:fixed;z-index:190')&&cssSrc.includes('#pkVeil{position:fixed;inset:0;z-index:189')&&scenarioSrc.includes("typeof Picker!=='undefined'"),{});
+const toastSrc=fs.readFileSync(path.join(root,'js/ui/toast.js'),'utf8'),canvasSrc=fs.readFileSync(path.join(root,'js/rendering/canvas-core.js'),'utf8'),torpSrc=fs.readFileSync(path.join(root,'js/simulation/weapons/torpedoes.js'),'utf8');
+assert('friendly-port chart copy has no obsolete hold timer or harbor-speed instruction',!mapSource.includes('HOLD 0:30')&&!mapSource.includes('HOLD 0:15')&&!mapSource.includes('HARBOR ≤3 KN')&&mapSource.includes('STOP TO COMPLETE PATROL'),{});
+assert('torpedo hits can launch a short pausing impact observation and non-optical stations get a clickable offer',engineSrc.includes('offerImpactObservation')&&engineSrc.includes('durationMs:2350')&&engineSrc.includes('s.time.timeScale=0')&&toastSrc.includes('action(msg,label,fn')&&torpSrc.includes("'TORPEDO_HIT'")&&torpSrc.includes('offerImpactObservation'),{});
+assert('impact observation reuses the single 3-D ship renderer instead of adding a second rendering engine',scopeSrc.includes('drawImpactObservation')&&scopeSrc.includes('this.drawShip3D(ctx,cam,it')&&canvasSrc.includes('state.tactical.impactObservation'),{});
 
 if(failed){console.error(`REFINEMENT POLISH CONTRACT: FAIL (${failed})`);process.exit(1)}
 console.log('REFINEMENT POLISH CONTRACT: PASS');

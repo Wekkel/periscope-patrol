@@ -97,12 +97,16 @@ class SimEngineDeckGun extends SimEngineAircraft {
     particles.spawnExplosion(c.position.xNm,c.position.yNm,0.38,false);audio.playHit?.();
     this.alertEscorts('SHIP_HIT',{...c.position},1);
     updateShipDamage(this,c,0);
+    const condition=shipDamageCondition(c);
+    this.aarRecordEvent?.('DECK_GUN_HIT',`Deck gun hit ${c.name} ${dmg.location.toLowerCase()}.`,
+      {contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,location:dmg.location,condition,weapon:'DECK_GUN'},
+      this.state.playerSub.position,c.position);
     if(c.sunk){
       G.lastFall={text:`SUNK — ${c.id} +${ensureShipDamage(c).killPoints||0}`,until:this.state.time.elapsedSeconds+6};
       return;
     }
     const cap=(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c);
-    this.log(`Deck gun hit ${c.name} ${dmg.location.toLowerCase()} — ${shipDamageCondition(c)}; ${shipDamageSummary(c)}${cap>0?`; max about ${cap.toFixed(1)} kn`:''}.`,'warn');
+    this.log(`Deck gun hit ${c.name} ${dmg.location.toLowerCase()} — ${condition}; ${shipDamageSummary(c)}${cap>0?`; max about ${cap.toFixed(1)} kn`:''}.`,'warn');
   }
 
   updateDeckGun(dt){

@@ -4,7 +4,7 @@ function createState(areaKey){
   return{
     time:{elapsedSeconds:0,timeScale:1,campaignDate:'1943-08-17'},
     log:[{t:0,level:'info',message:`Patrol commenced. Area: ${areaKey}. Good hunting.`}],
-    tactical:{activeStation:'TACTICAL',periscopeBearing:90,periscopeZoom:1,bridgeBearing:90,bridgeBinoculars:false,soundBearing:90,soundDisplay:'PASSIVE',selectedTrackId:null},
+    tactical:{activeStation:'TACTICAL',periscopeBearing:90,periscopeZoom:1,bridgeBearing:90,bridgeBinoculars:false,soundBearing:90,soundDisplay:'PASSIVE',selectedTrackId:null,impactObservation:null},
     tdc:{targetId:null,bearing:null,rangeNm:null,targetCourse:null,targetSpeedKnots:null,
       torpedoSpecKey:'mk14fast',
       torpedoType:'Mark 14 Fast',torpedoSpeedKnots:46,torpedoMaxRangeNm:4.9,

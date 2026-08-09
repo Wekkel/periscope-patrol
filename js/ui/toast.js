@@ -47,6 +47,16 @@ const Toast = {
     setTimeout(() => div.remove(), duration + 60);
     return div;
   },
+  action(msg,label,fn,duration=6500,type='ok'){
+    const c=document.getElementById('toastContainer');if(!c)return null;
+    duration=this.durationFor(msg,type,duration);
+    const div=document.createElement('div');div.className=`toast ${type} action-toast`;div.dataset.duration=String(duration);
+    const txt=document.createElement('span');txt.textContent=msg;div.appendChild(txt);
+    const b=document.createElement('button');b.type='button';b.className='toast-action-btn';b.textContent=label;
+    b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();try{fn?.();}finally{div.remove();}});
+    div.appendChild(b);div.style.setProperty('--toast-hold',Math.max(.35,(duration-300)/1000)+'s');c.appendChild(div);
+    setTimeout(()=>div.remove(),duration+60);return div;
+  },
   clear(){ document.getElementById('toastContainer')?.replaceChildren(); },
   stop(msg,type='bad'){
     // Stop reasons own the toast lane, but long reasons are allowed the time

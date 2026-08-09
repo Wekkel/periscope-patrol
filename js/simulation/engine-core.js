@@ -1,11 +1,41 @@
 // ═══════════════════════════════════════════════════ SIMULATION ENGINE
-const FRIENDLY_PORT_SLOW_KN=3.0;
-const FRIENDLY_PORT_HARBOR_RPM=25;
-const FRIENDLY_PORT_SERVICE_SEC=15;
-const FRIENDLY_PORT_RETURN_SEC=30;
-
 class SimEngineCore{
-  constructor(state,bus){this.state=state;this.bus=bus;}
+  constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactSeq=0;}
+
+  impactObservationSnapshot(c,meta={}){
+    if(!c?.position)return null;const sub=this.state.playerSub;
+    const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+    return{
+      token:++this._impactSeq,contactId:c.id,name:c.name||c.id,type:c.type,displayType:c.displayType||c.type,
+      lengthYards:c.lengthYards,tonsFactor:c.tonsFactor||0,heading:c.heading||0,speedKnots:c.speedKnots||0,
+      position:{...c.position},shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,
+      hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1,stationary:!!c.stationary,
+      viewerPos:{...sub.position},viewerDepth:sub.depthFeet||0,viewerHeading:sub.heading||0,
+      originStation:this.state.tactical.activeStation,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
+      condition:meta.condition||null,rangeNm:distNm(sub.position,c.position),durationMs:2350
+    };
+  }
+  startImpactObservation(snapshot){
+    if(!snapshot||this.state.tactical.impactObservation)return false;
+    const s=this.state,restoreScale=s.time.timeScale,token=snapshot.token||++this._impactSeq;
+    if(this._impactTimer)clearTimeout(this._impactTimer);
+    s.tactical.impactObservation={...snapshot,token,startedWall:(typeof performance!=='undefined'?performance.now():Date.now()),restoreScale};
+    s.time.timeScale=0;
+    this._impactTimer=setTimeout(()=>{
+      const cur=s.tactical.impactObservation;if(!cur||cur.token!==token)return;
+      s.tactical.impactObservation=null;this._impactTimer=null;
+      if(s.time.timeScale===0&&s.playerSub.mode!=='SUNK')s.time.timeScale=restoreScale;
+    },snapshot.durationMs||2350);
+    return true;
+  }
+  offerImpactObservation(c,meta={}){
+    const snap=this.impactObservationSnapshot(c,meta);if(!snap)return false;
+    const station=this.state.tactical.activeStation;
+    if(station==='PERISCOPE'||station==='BRIDGE')return this.startImpactObservation(snap);
+    const msg=`${String(meta.weapon||'TORPEDO').replace(/_/g,' ')} HIT — ${c.name||c.id}${meta.location?` ${String(meta.location).toLowerCase()}`:''}.`;
+    if(typeof Toast!=='undefined'&&Toast.action){Toast.action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),7000,'ok');return true;}
+    return false;
+  }
 
   /* Open-ended transit is intentionally CPU-bounded so a budget phone does
      not freeze its UI. In genuinely empty deep water we can safely integrate
@@ -942,7 +972,7 @@ class SimEngineCore{
     // this sequence once, so a map that was panned/free on the previous patrol
     // cannot strand the new boat off-screen.  Undefined in old saves is fine.
     s.map.recenterSeq=(s.map.recenterSeq||0)+1;
-    s.tactical.activeStation='MAP';s.tactical.selectedTrackId=null;s.tactical.bridgeDiveSequence=null;
+    s.tactical.activeStation='MAP';s.tactical.selectedTrackId=null;s.tactical.bridgeDiveSequence=null;s.tactical.impactObservation=null;
     s.tdc.targetId=null;s.tdc.bearing=null;s.tdc.rangeNm=null;s.tdc.targetCourse=null;s.tdc.targetSpeedKnots=null;
     s.tdc.gyroAngle=null;s.tdc.angleOnBow=null;s.tdc.timeToImpactSec=null;s.tdc.solutionQuality=0;s.tdc.status='NO TARGET';s.tdc.autoTrack=true;s.tdc.trackSource='PLOT';
     s.campaign={

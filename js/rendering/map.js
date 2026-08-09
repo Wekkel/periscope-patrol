@@ -434,8 +434,8 @@ class CanvasView extends CanvasViewSound {
     const finalReturn=camp.missionStatus==='RETURN TO BASE';
     ctx.fillText(`SAFE SERVICE WATER`,p.x,p.y+r+10*K);
     ctx.fillText(finalReturn
-      ? `FINAL RETURN · SURFACE · HARBOR ≤3 KN · HOLD 0:30`
-      : `SERVICE · SURFACE · HARBOR ≤3 KN · HOLD 0:15`,p.x,p.y+r+20*K);
+      ? `FINAL RETURN · SURFACE · STOP TO COMPLETE PATROL`
+      : `SERVICE · SURFACE · STOP FOR SERVICE`,p.x,p.y+r+20*K);
     ctx.textAlign='left';ctx.restore();
   }
 

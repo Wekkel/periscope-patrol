@@ -793,6 +793,49 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
   }
 
+  /* ══════════ SHORT IMPACT OBSERVATION ══════════
+     A two-second freeze-frame after a torpedo hit. It uses the same one-ship
+     vector model as the scope, but an automatically tightened field of view so
+     the target fills the frame. This is intentionally not another render loop. */
+  drawImpactObservation(ctx,w,h,state){
+    const O=state.tactical.impactObservation;if(!O?.position||!O?.viewerPos)return;
+    const c={
+      id:O.contactId,name:O.name,type:O.type,displayType:O.displayType,lengthYards:O.lengthYards,tonsFactor:O.tonsFactor,
+      heading:O.heading||0,speedKnots:O.speedKnots||0,position:{...O.position},shipDamage:O.shipDamage?JSON.parse(JSON.stringify(O.shipDamage)):null,
+      sunk:!!O.sunk,sinkingProgress:O.sinkingProgress||0,sinkStyle:O.sinkStyle||0,hitFrac:O.hitFrac||0,hitSide:O.hitSide||1,stationary:!!O.stationary
+    };
+    const dNm=Math.max(.05,distNm(O.viewerPos,c.position)),dM=dNm*NM_M,realLen=shipVisualLengthM(c,400);
+    const angular=radToDeg(2*Math.atan(realLen/(2*dM))),fov=clamp(angular*.78,1.1,7.0);
+    const cx=w*.5,cy=h*.53,r=Math.min(w*.52,h*.58),cam=this.setupCam(state,fov,cx,cy,r);
+    const br=bearingBetween(O.viewerPos,c.position),brR=degToRad(br);
+    cam.E=O.viewerPos.xNm*NM_M;cam.N=-O.viewerPos.yNm*NM_M;cam.h=2.05;cam.bearingDeg=br;cam.sin=Math.sin(brR);cam.cos=Math.cos(brR);cam.kind='IMPACT';
+    cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);
+    const E=c.position.xNm*NM_M,N=-c.position.yNm*NM_M,it={c,E,N,d:dM,bd:0};
+    const env=state.world.environment,dl=env.daylight,t=state.time.elapsedSeconds,wx=env.weather||'CLEAR';
+    const light=(()=>{const tod=((t/DayNightCycle.CYCLE_SECONDS)%1+1)%1,az=degToRad(normDeg(90+tod*360)),el=degToRad(6+58*Math.sin(Math.PI*clamp(dl,0,1)));return{E:Math.sin(az)*Math.cos(el),N:Math.cos(az)*Math.cos(el),Y:Math.sin(el)+.25};})();
+
+    ctx.save();ctx.fillStyle='rgba(0,0,0,.88)';ctx.fillRect(0,0,w,h);
+    const inset=Math.max(6,8*this.k);ctx.save();this.rr(ctx,inset,inset,w-inset*2,h-inset*2,8*this.k);ctx.clip();
+    this.drawSky3D(ctx,w,h,cam,state,dl,wx,t);this.drawSea3D(ctx,w,h,cam,dl,env.seaState,wx,t);this.drawTerrain3D(ctx,cam,state,dl);
+    this.drawShip3D(ctx,cam,it,state,dl,light,Math.max(env.visibilityNm||1,dNm*1.25),t);
+
+    // Localised impact flash/spray at the recorded side and longitudinal hit.
+    const model=SHIP_MODELS[typeof shipVisualModelKey==='function'?shipVisualModelKey(c):c.type]||SHIP_MODELS.MERCHANT,S=realLen/model.len,hb=degToRad(c.heading),cosH=Math.cos(hb),sinH=Math.sin(hb);
+    const hp=V0(this,cam,it,cosH,sinH,S,(O.hitSide||1)*model.beam*.42,model.fb*.42,(O.hitFrac||0)*model.len);
+    if(hp){
+      const rr=Math.max(24*this.k,Math.min(w,h)*.085),g=ctx.createRadialGradient(hp.x,hp.y,1,hp.x,hp.y,rr);g.addColorStop(0,'rgba(255,250,214,1)');g.addColorStop(.18,'rgba(255,180,64,.98)');g.addColorStop(.55,'rgba(220,70,28,.72)');g.addColorStop(1,'rgba(130,30,20,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(hp.x,hp.y,rr,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(225,242,244,.88)';ctx.lineWidth=Math.max(2,3*this.k);for(const q of [-.7,-.25,.25,.7]){ctx.beginPath();ctx.moveTo(hp.x,hp.y+rr*.22);ctx.quadraticCurveTo(hp.x+q*rr*.45,hp.y-rr*.5,hp.x+q*rr*.28,hp.y-rr*1.15);ctx.stroke();}
+      ctx.fillStyle='rgba(35,33,31,.58)';for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(hp.x+rr*(.05+i*.16),hp.y-rr*(.8+i*.18),rr*(.22+i*.04),0,Math.PI*2);ctx.fill();}
+    }
+    ctx.restore();
+
+    ctx.fillStyle='rgba(4,16,20,.94)';this.rr(ctx,inset+6*this.k,inset+6*this.k,Math.min(w-inset*2-12*this.k,390*this.k),46*this.k,6*this.k);ctx.fill();ctx.strokeStyle='rgba(245,198,92,.78)';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#f5c65c';ctx.font=this.fnt(10,true);ctx.fillText('IMPACT OBSERVATION',inset+14*this.k,inset+23*this.k);
+    ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(8.2);const facts=[O.contactId||O.name,O.displayType,O.tonsFactor?`${Number(O.tonsFactor).toLocaleString()} tons`:null,O.location].filter(Boolean).join(' · ');ctx.fillText(facts,inset+14*this.k,inset+38*this.k);
+    const now=(typeof performance!=='undefined'?performance.now():Date.now()),frac=clamp((now-(O.startedWall||now))/(O.durationMs||2350),0,1),bw=Math.min(w*.36,230*this.k),bx=w-inset-bw,by=h-inset-10*this.k;
+    ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(bx,by,bw,3*this.k);ctx.fillStyle='#f5c65c';ctx.fillRect(bx,by,bw*(1-frac),3*this.k);ctx.restore();
+  }
+
   /* ══════════ 3D SHIPS ══════════ */
 
   // shading helper: face normal in world space vs the sun

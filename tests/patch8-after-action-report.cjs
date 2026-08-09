@@ -53,6 +53,8 @@ assert('persisted replay is immutable after active patrol-state mutation',result
 assert('PATROL COMPLETE opens the AAR controller before any menu flow',opened.length===1&&opened[0].o?.completed===true&&opened[0].r?.replay?.route?.length>0,{opened:opened.length,completed:opened[0]?.o?.completed});
 const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),ui=fs.readFileSync(path.join(root,'js/ui/after-action-report.js'),'utf8'),sim=fs.readFileSync(path.join(root,'js/simulation/after-action-report.js'),'utf8');
 assert('AAR overlay exposes timeline, replay canvas and intelligence-picture toggle',/aarCanvas/.test(html)&&/aarTimeline/.test(html)&&/SHOW INTELLIGENCE PICTURE/.test(html),{});
+assert('AAR replay exposes auto camera, manual zoom and fit controls',/aarAutoCam/.test(html)&&/aarZoomIn/.test(html)&&/aarZoomOut/.test(html)&&/aarFit/.test(html)&&ui.includes('autoCamera(')&&ui.includes('drawMomentCard('),{});
+assert('AAR key moments get event holds and procedural picture cards without external image assets',ui.includes('_holdTicksFor')&&ui.includes('drawMomentPicture')&&ui.includes('TORPEDO_HIT')&&ui.includes('SHIP_SUNK'),{});
 assert('AAR UI redraws on interaction and does not own a requestAnimationFrame loop',!/requestAnimationFrame/.test(ui)&&!/requestAnimationFrame/.test(sim),{});
 assert('recorder is explicitly throttled and bounded',sim.includes('AAR_ROUTE_SAMPLE_SEC=15')&&sim.includes('AAR_TRACK_SAMPLE_SEC=30')&&sim.includes('AAR_MAX_POINTS_PER_TRACK=480'),{});
 if(failed){console.error(`PATCH 8 AFTER ACTION REPORT CONTRACT: FAIL (${failed})`);process.exit(1)}console.log('PATCH 8 AFTER ACTION REPORT CONTRACT: PASS');

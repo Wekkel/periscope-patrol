@@ -242,9 +242,14 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             // Resolve a catastrophic structural opening immediately; otherwise
             // the four subsystem states continue evolving in updateWorld().
             updateShipDamage(this,c,0);
+            const condition=shipDamageCondition(c);
+            this.aarRecordEvent?.('TORPEDO_HIT',`${t.id} hit ${c.name} ${dmg.location.toLowerCase()}.`,
+              {torpedoId:t.id,contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,location:dmg.location,
+               incidenceDeg:Math.round(incidence),condition,weapon:'TORPEDO'},this.state.playerSub.position,c.position);
+            this.offerImpactObservation?.(c,{weapon:'TORPEDO',location:dmg.location,condition});
             if(!c.sunk){
               const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));
-              const condition=shipDamageCondition(c),sum=shipDamageSummary(c);
+              const sum=shipDamageSummary(c);
               this.log(`${t.id} HIT ${c.name} ${dmg.location.toLowerCase()} (track ${incidence.toFixed(0)}°) — ${condition}. ${sum}.`,'bad');
               this.notify(`TORPEDO HIT — ${c.name}: ${condition}${speedCap>0?` · estimated max ${speedCap.toFixed(1)} kn`:''}.`,'bad');
             }

@@ -71,9 +71,12 @@ class CanvasViewCore{
     else this.drawTactical(ctx,w,h,state);
     ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
     this.drawHitFlash(ctx,w,h,state);
-    this.drawAirAlarm(ctx,w,h,state);
-    this.drawSoundCallout(ctx,w,h,state);
-    if(mag>1.6){                                    // dust and flakes shaken loose
+    if(state.tactical.impactObservation&&this.drawImpactObservation)this.drawImpactObservation(ctx,w,h,state);
+    else{
+      this.drawAirAlarm(ctx,w,h,state);
+      this.drawSoundCallout(ctx,w,h,state);
+    }
+    if(mag>1.6&&!state.tactical.impactObservation){ // dust and flakes shaken loose
       ctx.fillStyle=`rgba(255,235,200,${clamp(mag/26,0,0.10)})`;
       ctx.fillRect(0,0,w,h);
     }
