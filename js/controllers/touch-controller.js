@@ -577,9 +577,13 @@ class TouchCtrl{
     set('mClock',Math.floor(state.time.elapsedSeconds).toString().padStart(5,'0'));
     set('mMode',sub.mode.replace(/_/g,' '));
     const tsel=g('tBtnTime');
-    if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale) tsel.value=String(state.time.timeScale);
+    if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){
+      tsel.value=String(state.time.timeScale);tsel._pkLabel?.();
+    }
     const hsel=g('mTimeSel');
-    if(hsel&&hsel!==document.activeElement&&+hsel.value!==state.time.timeScale) hsel.value=String(state.time.timeScale);
+    if(hsel&&hsel!==document.activeElement&&+hsel.value!==state.time.timeScale){
+      hsel.value=String(state.time.timeScale);hsel._pkLabel?.();
+    }
     const torpSel=g('mTorpSel');if(torpSel){for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
     set('mScore',state.campaign.score.toLocaleString());
 
@@ -597,7 +601,9 @@ class TouchCtrl{
      qv('qKeel',sea>=3000?'deep':`${Math.max(0,cl).toFixed(0)}ft`,
         sub.bottomed?'':cl<25?'d':cl<60?'w':'');
      set('qBottom',sub.bottomed?'ON BOTTOM':sea>=3000?'':`${sea.toFixed(0)}ft ${(sub.bottomType||'').toLowerCase()}`);}
-    set('qSpdOrd',Math.abs(p.orderedRpm-p.actualRpm)<8?'':`→${p.orderedRpm.toFixed(0)}rpm`);
+    set('qSpdOrd',sub.stealth.silentRunning
+      ? `SILENT · ${p.actualRpm.toFixed(0)}rpm`
+      : (Math.abs(p.orderedRpm-p.actualRpm)<8?'':`→${p.orderedRpm.toFixed(0)}rpm`));
     if(this.pad){
       const kn=(p.orderedRpm/450)*(p.engineMode==='DIESEL'?18:8.5);
       set('opDepthVal',`${sub.orderedDepthFeet.toFixed(0)} ft`);
@@ -620,12 +626,16 @@ class TouchCtrl{
       set('opSpeedNote',`about ${kn.toFixed(1)} kn ordered · ${p.engineMode==='DIESEL'?'diesels — charging fastest at low revs':'battery '+p.battery.toFixed(0)+'% — flank drains it fast'}`);
     }
     qv('qHdg',fmtDeg(sub.heading));
-    qv('qSpd',`${p.speedKnots.toFixed(1)}kn`);
+    qv('qSpd',sub.stealth.silentRunning?`${p.speedKnots.toFixed(1)}kn · SILENT`:`${p.speedKnots.toFixed(1)}kn`,sub.stealth.silentRunning?'w':'');
     {const ts=torpedoStoresStatus(state);qv('qTorp',`${ts.total}·${ts.loadShort}`,ts.total<4?'w':'');}
     const en=state.world.enemy;
     const thr=enemy==='UNAWARE'?'CLEAR':(en.contactHeld?'HELD':enemy==='ATTACKING'?'LOST':'SEARCH');
     qv('qThr',thr,en.contactHeld?'d':enemy!=='UNAWARE'?'w':'');
     qv('qHull',`${sub.damage.hullIntegrity.toFixed(0)}%`,sub.damage.hullIntegrity<35?'d':sub.damage.hullIntegrity<70?'w':'');
+    {const b=p.battery??0,charging=p.engineMode==='DIESEL'&&(p.chargeRate||0)>.002&&b<99.5;
+      const bs=b>=99.5?'FULL':charging?'CHG':p.engineMode==='ELECTRIC'?'DRAIN':'HOLD';
+      qv('qBatt',`${b.toFixed(0)}%`,b<12?'d':b<25?'w':'');set('qBattState',bs);
+    }
 
     // station buttons + contextual overlay
     document.querySelectorAll('#ovlStations button').forEach(b=>b.classList.toggle('active',b.dataset.sta===sta));

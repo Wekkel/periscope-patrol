@@ -1,8 +1,15 @@
 class SimEngine extends SimEngineCareer {
   snapshotWatch(){
-    const s=this.state;
+    const s=this.state,tracks=s.world.contactTracks||{},contacts=s.world.contacts||[],now=s.time.elapsedSeconds;
+    const ids=Object.keys(tracks),byId=new Map(contacts.map(c=>[c.id,c]));
+    const visualIds=ids.filter(id=>{const tr=tracks[id],age=now-(Number.isFinite(tr.hullConfirmedAt)?tr.hullConfirmedAt:-999);return !!tr.visualHullConfirmed&&age<6;});
+    const mainTrackIds=ids.filter(id=>byId.get(id)?.convoyId==='MAIN');
+    const visualMainIds=visualIds.filter(id=>{const c=byId.get(id);return c?.convoyId==='MAIN'&&!isASWCombatant(c);});
+    const visualAswIds=visualIds.filter(id=>isASWCombatant(byId.get(id)));
+    const aswBands={};
+    for(const id of ids){const c=byId.get(id),tr=tracks[id];if(!c||!isASWCombatant(c)||!tr||tr.confidence<=.02)continue;const r=tr.rangeEstimateNm??99;aswBands[id]=r<=1.5?3:r<=3?2:r<=6?1:0;}
     s.time._watch={
-      tracks:Object.keys(s.world.contactTracks).length,
+      trackIds:ids,mainTrackIds,visualIds,visualMainIds,visualAswIds,aswBands,
       alert:s.world.enemy.alertState,
       hull:s.playerSub.damage.hullIntegrity,
       air:(s.world.aircraft||[]).filter(a=>a.seenBySub).length,
@@ -23,6 +30,7 @@ class SimEngine extends SimEngineCareer {
       portApproachNear:(()=>{const r=this.friendlyPortNav();return !!(r&&r.rngNm<=1.5);})()
     };
   }
+
   /* The chart has an edge, and running off it during an open-ended transit
      would take the boat somewhere there is no sea floor, no traffic and no
      way home. The bathymetry box is the chart, so that is the boundary. */
@@ -63,7 +71,26 @@ class SimEngine extends SimEngineCareer {
     if(collisionRisk) return this.collisionRiskText(collisionRisk);
     if(s.playerSub.damage.hullIntegrity<w.hull-0.5) return 'the boat has taken damage';
     if(s.world.enemy.alertState!==w.alert&&s.world.enemy.alertState!=='UNAWARE') return 'the escorts are stirring';
-    if(Object.keys(s.world.contactTracks).length>w.tracks) return 'a new contact';
+    /* Contact changes are judged by tactical SALIENCE, not just count. During
+       a convoy chase we should stop for the first convoy sighting, a new escort
+       or an escort crossing a dangerous range band — not for merchant #4, #5
+       and #6 becoming visual one after another. */
+    const tracks=s.world.contactTracks||{},contacts=s.world.contacts||[],byId=new Map(contacts.map(c=>[c.id,c])),ids=Object.keys(tracks),oldIds=new Set(w.trackIds||[]);
+    const newIds=ids.filter(id=>!oldIds.has(id));
+    if(newIds.some(id=>isASWCombatant(byId.get(id)))) return 'a new escort contact';
+    if(newIds.length){
+      const oldMain=(w.mainTrackIds||[]).length>0;
+      const newMain=newIds.filter(id=>byId.get(id)?.convoyId==='MAIN');
+      if(newMain.length&&!oldMain) return 'convoy contact';
+      if(newIds.some(id=>byId.get(id)?.convoyId!=='MAIN')) return 'a new contact';
+    }
+    const now=s.time.elapsedSeconds,visualIds=ids.filter(id=>{const tr=tracks[id],age=now-(Number.isFinite(tr.hullConfirmedAt)?tr.hullConfirmedAt:-999);return !!tr.visualHullConfirmed&&age<6;}),oldVisual=new Set(w.visualIds||[]);
+    const newVisual=visualIds.filter(id=>!oldVisual.has(id));
+    if(newVisual.some(id=>isASWCombatant(byId.get(id)))) return 'escort now in sight';
+    const visualMain=visualIds.filter(id=>byId.get(id)?.convoyId==='MAIN'&&!isASWCombatant(byId.get(id)));
+    if(!(w.visualMainIds||[]).length&&visualMain.length) return 'convoy sighted';
+    if(newVisual.some(id=>byId.get(id)?.convoyId!=='MAIN')) return 'contact now visual';
+    for(const id of ids){const c=byId.get(id),tr=tracks[id];if(!c||!isASWCombatant(c)||!tr||tr.confidence<=.02)continue;const r=tr.rangeEstimateNm??99,band=r<=1.5?3:r<=3?2:r<=6?1:0;if(band>(w.aswBands?.[id]??band))return band>=3?'escort inside 1.5 nm':band>=2?'escort inside 3 nm':'escort inside 6 nm';}
     if((s.world.aircraft||[]).filter(a=>a.seenBySub).length>w.air) return 'aircraft';
     if((s.world.aircraft||[]).filter(a=>!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length>(w.airDanger||0)) return 'aircraft attack';
     if(s.world.ultra&&!w.ultra) return 'an ULTRA intercept';
@@ -399,7 +426,7 @@ class SimEngine extends SimEngineCareer {
       const visualHeld=surfacedVisual||scopeVisual;
       const acousticHeld=aco.score>0.12;
       const held=visualHeld||acousticHeld;
-      const sc=visualHeld?Math.max(vis.score,aco.score,0.18):aco.score;
+      const sc=visualHeld?Math.max(Number.isFinite(vis.score)?vis.score:0,Number.isFinite(aco.score)?aco.score:0,0.18):(Number.isFinite(aco.score)?aco.score:0);
       const src=visualHeld?'VISUAL':'HYDROPHONE';
       const aobs=src==='HYDROPHONE'?passiveSoundObservation(this.state,c,sc):{bearing:bear,rangeNm:rng};
       const obsBear=aobs.bearing,obsRng=aobs.rangeNm;
@@ -412,6 +439,14 @@ class SimEngine extends SimEngineCareer {
 
       if(held){
         ex.confidence=clamp(ex.confidence+clamp((sc-0.10)*dt*0.34,0.006,0.12),0,1);
+        // A hull actually resolved through the scope is a strong navigation
+        // fix, not merely one more weak sensor sample. In particular 6x optics
+        // should pin position/course quickly enough that the chart agrees with
+        // what the skipper can plainly see through the glass.
+        if(visualHeld){
+          const visualFloor=scopeVisual?(T.periscopeZoom===1?.72:.86):.70;
+          ex.confidence=Math.max(Number.isFinite(ex.confidence)?ex.confidence:0,visualFloor);
+        }
         ex.lastUpdated=now; ex.staleSeconds=0; ex.lastSensorSource=src;
         ex.lengthYards=c.lengthYards;
         const prevCourseEstimate=ex.courseEstimate;
@@ -565,6 +600,29 @@ class SimEngine extends SimEngineCareer {
     const sr=sub.depthFeet<8?2:sub.depthFeet<=65?1:0;
     for(let y=-sr;y<=sr;y++) for(let x=-sr;x<=sr;x++)
       if(Math.hypot(x,y)<=sr+0.1) map.exploredCells[`${cx+x},${cy+y}`]={lastSeenTime:t,confidence:1};
+
+    /* The old chart painted explored 5-nm squares. They looked like literal
+       square eyesight. Keep exploredCells for save/backwards compatibility,
+       but expose a cheap current optical footprint for the renderer instead.
+       Surface lookouts are 360° arcade watch; a submerged scope is a narrow
+       weather-limited wedge. Directional range samples the actual moving
+       weather field, so a squall can shorten one side without shortening all. */
+    if(!map.visibilityFootprint||t-(map.visibilityFootprint.at||-99)>=1){
+      const env=this.state.world.environment||{},surf=sub.depthFeet<8,scope=sub.depthFeet>=8&&sub.depthFeet<=65&&this.state.tactical.activeStation==='PERISCOPE';
+      const pts=[];
+      if(surf||scope){
+        const fov=scope?(typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[this.state.tactical.periscopeZoom===1?0:1].fov:(this.state.tactical.periscopeZoom===1?32:8)):360;
+        const n=surf?18:9,base=clamp((env.visibilityNm||8)*(surf?1.08:.86),.45,18),centre=scope?this.state.tactical.periscopeBearing:0;
+        for(let i=0;i<n;i++){
+          const br=surf?i*360/n:normDeg(centre-fov*.5+i*fov/(n-1));
+          const r0=degToRad(br),probe={xNm:sub.position.xNm+Math.sin(r0)*base,yNm:sub.position.yNm-Math.cos(r0)*base};
+          const local=Math.max(.35,weatherVisibilityBetween(this.state,sub.position,probe)*(surf?1.0:.86));
+          const rr=Math.min(base,local),r=degToRad(br);
+          pts.push({xNm:sub.position.xNm+Math.sin(r)*rr,yNm:sub.position.yNm-Math.cos(r)*rr});
+        }
+      }
+      map.visibilityFootprint={at:t,mode:surf?'LOOKOUT':scope?'SCOPE':'NONE',points:pts,origin:{...sub.position}};
+    }
     if(map.plottedCourse.length&&distNm(sub.position,map.plottedCourse[0])<0.22){
       map.plottedCourse.shift(); this.log('Waypoint reached.'); audio.playWaypoint();
     }

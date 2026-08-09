@@ -15,6 +15,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const cx=w/2, cy=this.portrait?h*0.42:h*0.5;
     this.scopeGeom={cx,cy,r,hor:cy};
     const cam=this.setupCam(state,opt.fov,cx,cy,r);
+    cam.kind='PERISCOPE';cam.bearingDeg=tact.periscopeBearing;
     this.cam=cam;
     this.scopeGeom.hor=cam.horizonY;
 
@@ -765,25 +766,26 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     ctx.fillStyle=col;ctx.font=this.fnt(9,true);ctx.fillText(msg,pad,Math.round(52*k));
 
     const tdc=state.tdc;
-    const by=h-Math.round(46*k);
+    const by=h-Math.round(46*k),touch=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    const side=touch?Math.min(96*k,w*.19):0,boxX=touch?side:pad*.6,boxW=touch?w-side*2:w-pad*1.2,tx=boxX+8*k,tright=boxX+boxW-8*k;
     if(tdc.targetId){
       const sq=Math.round(tdc.solutionQuality*100),ri=torpedoRangeInfo(state,tdc.targetId);
       const c=sq>70?'#6fe08f':sq>40?'#f5c65c':'#ef6a58';
       const rc=ri?(ri.band==='IN'?'#6fe08f':ri.band==='BORDERLINE'?'#f5c65c':'#ef6a58'):c;
-      ctx.fillStyle='rgba(4,12,15,.76)';this.rr(ctx,pad*0.6,by-6*k,w-pad*1.2,Math.round(46*k),5*k);ctx.fill();
+      ctx.fillStyle='rgba(4,12,15,.76)';this.rr(ctx,boxX,by-6*k,boxW,Math.round(46*k),5*k);ctx.fill();
       ctx.strokeStyle=rc;ctx.lineWidth=1;ctx.stroke();
-      ctx.fillStyle=c;ctx.font=this.fnt(10.5,true);
-      ctx.fillText(`${tdc.targetId} · SOL ${sq}%`,pad,by+Math.round(8*k));
+      ctx.fillStyle=c;ctx.font=this.fnt(touch?9.6:10.5,true);
+      ctx.fillText(`${tdc.targetId} · SOL ${sq}%`,tx,by+Math.round(8*k));
       if(ri){
-        ctx.fillStyle=rc;ctx.font=this.fnt(9,true);ctx.textAlign='right';
-        ctx.fillText(ri.label,w-pad,by+Math.round(8*k));ctx.textAlign='left';
+        ctx.fillStyle=rc;ctx.font=this.fnt(touch?8.2:9,true);ctx.textAlign='right';
+        ctx.fillText(ri.label,tright,by+Math.round(8*k));ctx.textAlign='left';
       }
-      ctx.fillStyle='#a4c2b7';ctx.font=this.fnt(8.5);
+      ctx.fillStyle='#a4c2b7';ctx.font=this.fnt(touch?7.6:8.5);
       const rtxt=ri?`R ${ri.rangeNm.toFixed(1)} NM · INTERCEPT ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} NM`:`${tdc.torpedoType}`;
-      ctx.fillText(rtxt,pad,by+Math.round(22*k));
-      ctx.fillStyle='#82a89a';ctx.font=this.fnt(8);
+      ctx.fillText(rtxt,tx,by+Math.round(22*k));
+      ctx.fillStyle='#82a89a';ctx.font=this.fnt(touch?7.2:8);
       const tti=tdc.timeToImpactSec?`${tdc.timeToImpactSec.toFixed(0)}s`:'--';
-      ctx.fillText(`GYRO ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(0)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · TtI ${tti} · ${tdc.torpedoType}`,pad,by+Math.round(35*k));
+      ctx.fillText(`GYRO ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(0)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · TtI ${tti} · ${tdc.torpedoType}`,tx,by+Math.round(35*k));
     }else{
       ctx.fillStyle='rgba(130,168,154,.7)';ctx.font=this.fnt(9);ctx.textAlign='center';
       ctx.fillText('drag to train · double-tap for 6× · tap a ship to lock',w/2,h-Math.round(12*k));
@@ -820,6 +822,10 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const E=c.position.xNm*NM_M, N=-c.position.yNm*NM_M;
       const d=Math.hypot(E-cam.E,N-cam.N);
       if(d>visNm*NM_M*1.15) continue;
+      // Optical rendering and sensor acquisition must share the same local
+      // weather-limited reach. Previously the scope could paint a crisp hull
+      // that detection quite correctly still considered beyond local sight.
+      if(cam.kind==='PERISCOPE'&&d>bridgeVisualLimitNm(state,c)*NM_M*1.02) continue;
       const bear=bearingBetween(sub.position,c.position);
       const viewBearing=cam.bearingDeg??normDeg(radToDeg(Math.atan2(cam.sin,cam.cos)));
       const bd=shortDelta(viewBearing,bear);
@@ -1537,6 +1543,24 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const hs=(i,s)=>{const v=Math.sin(i*127.1+s*311.7+(e.position.xNm*13.3))*43758.5453;return v-Math.floor(v);};
       ctx.save();
       if(!dud){
+        /* Low-light blast illumination. Because ships and sea are already on
+           the canvas, SCREEN blending gives us a convincing local flash and
+           fading reflection without introducing a lighting engine. It ramps in
+           continuously through dusk and also appears faintly in very gloomy
+           squall conditions. */
+        if(/HIT/.test(e.label||'')&&age<5.2){
+          const E=state.world.environment||{},dark=clamp((.58-dl)/.50,0,1),storm=clamp(((E.cloudCover||0)*.30+(E.precipitation||0)*.42)*(1-dl*.72),0,.42),gloom=Math.max(dark,storm);
+          if(gloom>.025){
+            const flash=age<.45?1-age/.45:Math.exp(-(age-.45)/1.55)*.58,intensity=flash*gloom*(e.big?1.16:1);
+            const rr=clamp((80+40*(e.big?1:0))*sc,24*this.k,155*this.k);
+            ctx.save();ctx.globalCompositeOperation='screen';
+            let lg=ctx.createRadialGradient(p.x,p.y-8*sc,0,p.x,p.y-8*sc,rr*1.35);
+            lg.addColorStop(0,`rgba(255,238,176,${.48*intensity})`);lg.addColorStop(.34,`rgba(255,154,58,${.25*intensity})`);lg.addColorStop(1,'rgba(255,80,20,0)');
+            ctx.fillStyle=lg;ctx.beginPath();ctx.arc(p.x,p.y-8*sc,rr*1.35,0,Math.PI*2);ctx.fill();
+            lg=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr*1.45);lg.addColorStop(0,`rgba(255,191,91,${.22*intensity})`);lg.addColorStop(1,'rgba(255,100,25,0)');ctx.fillStyle=lg;ctx.beginPath();ctx.ellipse(p.x,p.y+rr*.10,rr*1.45,rr*.30,0,0,Math.PI*2);ctx.fill();
+            ctx.restore();
+          }
+        }
         // 1 ─ muzzle flash
         if(age<0.35){
           const a=1-age/0.35;

@@ -103,9 +103,13 @@ class CanvasViewCore{
                                   <distNm(state.playerSub.position,b.position)?a:b);
     const rng=distNm(state.playerSub.position,near.position);
     ctx.fillStyle='#fff3ef';ctx.font=this.fnt(11,true);ctx.textAlign='center';
-    ctx.fillText(inbound?`✈ AIRCRAFT ATTACKING — ${rng.toFixed(1)} nm — TAKE HER DOWN`
-                :orbiting?`✈ AIRCRAFT CIRCLING OVERHEAD ${rng.toFixed(1)} nm — STAY DOWN`
-                        :`✈ AIR CONTACT ${rng.toFixed(1)} nm — CLEAR THE BRIDGE`,w/2,y+bh*0.7);
+    const sub=state.playerSub,diveUnderway=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
+    const action=inbound?'TAKE HER DOWN'
+      :orbiting?'STAY DOWN'
+      :(sub.depthFeet>=12?'STAY SUBMERGED':diveUnderway?'CONTINUE THE DIVE':'CLEAR THE BRIDGE');
+    ctx.fillText(inbound?`✈ AIRCRAFT ATTACKING — ${rng.toFixed(1)} nm — ${action}`
+                :orbiting?`✈ AIRCRAFT CIRCLING OVERHEAD ${rng.toFixed(1)} nm — ${action}`
+                        :`✈ AIR CONTACT ${rng.toFixed(1)} nm — ${action}`,w/2,y+bh*0.7);
     ctx.textAlign='left';
   }
 

@@ -124,10 +124,21 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       ctx.strokeStyle=attack?`rgba(239,106,88,${.62*haze})`:`rgba(200,216,211,${.36*haze})`;
       ctx.lineWidth=Math.max(.8,k);
       ctx.beginPath();
-      ctx.moveTo(0,-px*.48);ctx.lineTo(px*.10,-px*.08);ctx.lineTo(px*.50,px*.02);
-      ctx.lineTo(px*.12,px*.10);ctx.lineTo(px*.06,px*.46);ctx.lineTo(0,px*.28);
-      ctx.lineTo(-px*.06,px*.46);ctx.lineTo(-px*.12,px*.10);ctx.lineTo(-px*.50,px*.02);
-      ctx.lineTo(-px*.10,-px*.08);ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
+      if(a.kind==='BOMBER'){
+        // Nakajima B5N: long fuselage with a broad, nearly unswept tapered
+        // carrier wing. The previous generic dart read like a small jet.
+        ctx.moveTo(0,-px*.52);ctx.lineTo(px*.07,-px*.10);ctx.lineTo(px*.50,-px*.025);
+        ctx.lineTo(px*.50,px*.055);ctx.lineTo(px*.08,px*.08);ctx.lineTo(px*.15,px*.40);
+        ctx.lineTo(px*.05,px*.34);ctx.lineTo(0,px*.48);ctx.lineTo(-px*.05,px*.34);
+        ctx.lineTo(-px*.15,px*.40);ctx.lineTo(-px*.08,px*.08);ctx.lineTo(-px*.50,px*.055);
+        ctx.lineTo(-px*.50,-px*.025);ctx.lineTo(-px*.07,-px*.10);
+      }else{
+        ctx.moveTo(0,-px*.48);ctx.lineTo(px*.10,-px*.08);ctx.lineTo(px*.50,px*.02);
+        ctx.lineTo(px*.12,px*.10);ctx.lineTo(px*.06,px*.46);ctx.lineTo(0,px*.28);
+        ctx.lineTo(-px*.06,px*.46);ctx.lineTo(-px*.12,px*.10);ctx.lineTo(-px*.50,px*.02);
+        ctx.lineTo(-px*.10,-px*.08);
+      }
+      ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
       if(attack&&px>5*k){ctx.fillStyle='rgba(239,106,88,.82)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText('AIRCRAFT',p.x,p.y-px*.75-3*k);ctx.textAlign='left';}
     }
   }

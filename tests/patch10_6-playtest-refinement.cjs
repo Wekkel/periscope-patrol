@@ -46,7 +46,7 @@ const html=fs.readFileSync(path.join(root,'index.html'),'utf8'),css=fs.readFileS
 assert('quick speed menus expose a near-max-generator CHARGE preset',html.includes('data-rpm="35">Charge</button>')&&((1-(35/450)**2*1.15)>.99),{generatorShare:1-(35/450)**2*1.15});
 assert('touch controls reserve the lower HUD lane and MAP scale reserves FIRE-button gutter',css.includes('data-station="PERISCOPE"')&&mapSrc.includes('touchInset')&&mapSrc.includes('92*k'),{});
 const airSrc=fs.readFileSync(path.join(root,'js/simulation/ai/aircraft.js'),'utf8');
-assert('air alarm only says CLEAR THE BRIDGE when the boat is actually at bridge depth',airSrc.includes("sub.depthFeet<12?'CLEAR THE BRIDGE!':'REMAIN SUBMERGED.'"),{});
+assert('air alarm only says CLEAR THE BRIDGE when surfaced and not already diving',airSrc.includes("sub.depthFeet<8&&!diveUnderway?'CLEAR THE BRIDGE!'")&&airSrc.includes("'CONTINUE THE DIVE!'")&&airSrc.includes("'REMAIN SUBMERGED.'"),{});
 const perSrc=fs.readFileSync(path.join(root,'js/rendering/periscope-3d.js'),'utf8');
 const utilSrc=fs.readFileSync(path.join(root,'js/core/utilities.js'),'utf8');
 const helperPrefix=perSrc.slice(0,perSrc.indexOf('class CanvasViewPeriscope'));

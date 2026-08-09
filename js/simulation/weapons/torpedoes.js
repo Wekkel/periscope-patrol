@@ -94,6 +94,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     // Electric torps make less noise
     sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.35*(1-spec.acousticPenalty*2),0,1.5);
     this.log(`Tube ${id} (${t.pos}) fired ${spec.name}. ${tid} gyro ${turn.toFixed(0)}° → course ${fmtDeg(courseSet)}. Reserve: ${W.torpedoInventory}.`,'warn');
+    this.notify?.(`TORPEDO AWAY — Tube ${id} (${t.pos}), ${spec.name}.`,'ok');
     audio.playTorpedoLaunch();
     if(t.pos==='FWD') this.alertEscorts('TORPEDO_LAUNCH',{...sub.position},spec.acousticPenalty<0.03?0.55:0.85);
     else this.alertEscorts('TORPEDO_LAUNCH',{...sub.position},0.7);

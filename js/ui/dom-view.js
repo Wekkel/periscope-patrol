@@ -24,7 +24,7 @@ class DomView{
     if(this.station) this.station.textContent=state.tactical.activeStation;
     if(this.timescale) this.timescale.textContent=state.time.timeScale===0?'PAUSED':`${state.time.timeScale}x`;
     const tsel=document.getElementById('timeSelect');
-    if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale) tsel.value=String(state.time.timeScale);
+    if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){tsel.value=String(state.time.timeScale);tsel._pkLabel?.();}
     const dudSel=document.getElementById('dudSelect');
     if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
     const torpSel=document.getElementById('torpTypeSelect');if(torpSel){for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}

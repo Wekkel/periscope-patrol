@@ -690,10 +690,10 @@
     #oGunFire.ready{border-color:var(--ok);color:#dbffe6;background:rgba(10,62,35,.92);}
     #ovlLeft{left:8px;bottom:8px;flex-direction:column;gap:10px;}
     #ovlRight{right:8px;bottom:8px;flex-direction:column;align-items:flex-end;gap:10px;}
-    html[data-lay="touch"] #ovlLeft,html[data-lay="touch"] #ovlRight{bottom:46px;}
+    html[data-lay="touch"] #ovlLeft,html[data-lay="touch"] #ovlRight{bottom:10px;}
     html[data-lay="touch"][data-station="MAP"] #ovlLeft{bottom:8px;}
     html[data-lay="touch"][data-station="PERISCOPE"] #ovlLeft,
-    html[data-lay="touch"][data-station="PERISCOPE"] #ovlRight{bottom:58px;}
+    html[data-lay="touch"][data-station="PERISCOPE"] #ovlRight{bottom:8px;}
     .rbtn{width:58px;height:58px;border-radius:50%;margin:0;padding:0;font-size:20px;
       display:flex;align-items:center;justify-content:center;letter-spacing:0;
       background:rgba(8,22,27,.86);border:1px solid var(--line);backdrop-filter:blur(3px);
@@ -732,6 +732,13 @@
     .qs-cell.tapcell .qs-l{color:var(--alert);opacity:.8;}
     .qs-cell.tapcell.pressed{background:rgba(245,198,92,.22);}
     .qs-cell.tapcell.open{background:rgba(245,198,92,.16);box-shadow:0 -2px 0 var(--alert) inset;}
+
+
+    @media(max-width:430px){
+      #tQS .qs-l{font-size:7px;letter-spacing:.35px;}
+      #tQS .qs-v{font-size:11px;}
+      #tQS .qs-ord{font-size:7.5px;}
+    }
 
     /* ══ ORDER PAD ══════════════════════════════════════════════════════
        The two orders a skipper gives constantly are depth and speed, and

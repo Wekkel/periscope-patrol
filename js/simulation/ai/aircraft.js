@@ -100,7 +100,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         }
         if(seen){
           a.seenBySub=true; air.alarmedAt=now;
-          const airAction=sub.depthFeet<12?'CLEAR THE BRIDGE!':'REMAIN SUBMERGED.';
+          const diveUnderway=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
+          const airAction=sub.depthFeet<8&&!diveUnderway?'CLEAR THE BRIDGE!':sub.depthFeet<18&&diveUnderway?'CONTINUE THE DIVE!':'REMAIN SUBMERGED.';
           this.log(`⚠ AIR ALARM — ${how}. ${airAction}`,'bad');
           audio.playAlarm();
         }

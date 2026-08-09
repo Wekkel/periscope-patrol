@@ -19,23 +19,19 @@ class CanvasView extends CanvasViewSound {
     this.drawMapBathy(ctx,state,w2s,w,h);
     this.drawAreaBounds(ctx,state,w2s);
 
-    // fog of war
-    const cellPx=map.cellSizeNm*pxPerNm;
-    if(cellPx>=8){
-      const sx=Math.floor((this.mapCenter.xNm-w/2/pxPerNm)/map.cellSizeNm)-1;
-      const ex2=Math.floor((this.mapCenter.xNm+w/2/pxPerNm)/map.cellSizeNm)+1;
-      const sy2=Math.floor((this.mapCenter.yNm-h/2/pxPerNm)/map.cellSizeNm)-1;
-      const ey=Math.floor((this.mapCenter.yNm+h/2/pxPerNm)/map.cellSizeNm)+1;
-      const drawGrid=cellPx>=18;
-      for(let cy2=sy2;cy2<=ey;cy2++) for(let cx2=sx;cx2<=ex2;cx2++){
-        const key=`${cx2},${cy2}`;const tl=w2s(cx2*map.cellSizeNm,cy2*map.cellSizeNm);
-        if(map.exploredCells[key]){
-          const age=state.time.elapsedSeconds-map.exploredCells[key].lastSeenTime;
-          ctx.fillStyle=`rgba(111,224,143,${clamp(0.26-age/2400,0.05,0.26)})`;
-        } else ctx.fillStyle='rgba(0,0,0,0.5)';
-        ctx.fillRect(tl.x,tl.y,cellPx+1,cellPx+1);
-        if(drawGrid){ctx.strokeStyle='rgba(47,95,86,0.22)';ctx.lineWidth=1;ctx.strokeRect(tl.x+.5,tl.y+.5,cellPx,cellPx);}
-      }
+    // Current optical coverage. The old 5-nm explored-cell tiles are retained
+    // in save state but deliberately not painted: square blocks read as square
+    // vision. This soft footprint is only an information aid; contacts still
+    // come exclusively from the sensor simulation.
+    const VF=map.visibilityFootprint;
+    if(VF&&VF.points&&VF.points.length){
+      const o=w2s((VF.origin||sub.position).xNm,(VF.origin||sub.position).yNm),P=VF.points.map(q=>w2s(q.xNm,q.yNm));
+      ctx.save();ctx.fillStyle=VF.mode==='SCOPE'?'rgba(111,224,143,.026)':'rgba(111,224,143,.018)';
+      ctx.strokeStyle=VF.mode==='SCOPE'?'rgba(111,224,143,.18)':'rgba(111,224,143,.095)';ctx.lineWidth=Math.max(.65,.8*k);ctx.setLineDash([4*k,7*k]);
+      ctx.beginPath();
+      if(VF.mode==='SCOPE'){ctx.moveTo(o.x,o.y);P.forEach(q=>ctx.lineTo(q.x,q.y));ctx.closePath();}
+      else{P.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.closePath();}
+      ctx.fill();ctx.stroke();ctx.setLineDash([]);ctx.restore();
     }
 
     // convoy routes — the actual water lane the ships and ULTRA use
@@ -187,12 +183,13 @@ class CanvasView extends CanvasViewSound {
         ctx.lineTo(S*0.16,S*0.16);ctx.lineTo(S*0.30,S*0.75);ctx.lineTo(-S*0.30,S*0.75);
         ctx.lineTo(-S*0.16,S*0.16);ctx.lineTo(-S*1.15,S*0.12);ctx.lineTo(-S*1.15,-S*0.05);
         ctx.lineTo(-S*0.16,-S*0.2);
-      }else if(k==='BOMBER'){                          // slim fuselage, tapered wing
+      }else if(k==='BOMBER'){                          // B5N/Kate: broad conventional tapered wing, not jet sweep
         ctx.moveTo(0,-S*1.0);
-        ctx.lineTo(S*0.13,-S*0.25);ctx.lineTo(S*0.95,S*0.10);ctx.lineTo(S*0.95,S*0.26);
-        ctx.lineTo(S*0.13,S*0.20);ctx.lineTo(S*0.34,S*0.80);ctx.lineTo(-S*0.34,S*0.80);
-        ctx.lineTo(-S*0.13,S*0.20);ctx.lineTo(-S*0.95,S*0.26);ctx.lineTo(-S*0.95,S*0.10);
-        ctx.lineTo(-S*0.13,-S*0.25);
+        ctx.lineTo(S*0.12,-S*0.18);ctx.lineTo(S*0.98,-S*0.05);ctx.lineTo(S*0.98,S*0.10);
+        ctx.lineTo(S*0.13,S*0.14);ctx.lineTo(S*0.31,S*0.78);ctx.lineTo(S*0.10,S*0.70);
+        ctx.lineTo(0,S*0.90);ctx.lineTo(-S*0.10,S*0.70);ctx.lineTo(-S*0.31,S*0.78);
+        ctx.lineTo(-S*0.13,S*0.14);ctx.lineTo(-S*0.98,S*0.10);ctx.lineTo(-S*0.98,-S*0.05);
+        ctx.lineTo(-S*0.12,-S*0.18);
       }else{                                           // floatplane: small, with floats
         ctx.moveTo(0,-S*0.8);
         ctx.lineTo(S*0.12,-S*0.2);ctx.lineTo(S*0.85,-S*0.02);ctx.lineTo(S*0.85,S*0.14);
