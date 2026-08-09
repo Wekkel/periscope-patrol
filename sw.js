@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.8'; // bug fixes
+const VERSION = '0.8.9'; // bug fixes bridge view
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
