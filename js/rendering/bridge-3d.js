@@ -37,13 +37,14 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);
       this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
       this.drawTerrain3D(ctx,cam,state,env.daylight);
+      this.drawWeatherCells3D?.(ctx,cam,state,env.daylight,t);
       this.drawDistantBridgeSmoke(ctx,cam,state,env.daylight,t);
       this.drawOwnWake(ctx,cam,state,t,env.daylight);
       this.drawWakes3D(ctx,cam,state,t,env.daylight);
       this.drawFleet3D(ctx,cam,state,env.daylight,env,t);
       this.drawExplosions3D(ctx,cam,state,env.daylight);
       this.drawSplashes3D(ctx,cam,state,env.daylight);
-      if(env.weather==='RAIN'||env.weather==='STORM')this.drawRain(ctx,w,h,env.seaState,t,env.weather);
+      if((env.precipitation||0)>.04||weatherIsWet(env.weather))this.drawRain(ctx,w,h,env.seaState,t,env.weather,env.precipitation||.25);
       if(env.seaState>.58&&this.quality>.48)this.drawScopeSpray(ctx,w,h,env.seaState,t);
       if(env.daylight<.32)this.drawNightOverlay(ctx,w,h,env.daylight);
       this.drawBridgeForedeck(ctx,w,h,cam,state,t);

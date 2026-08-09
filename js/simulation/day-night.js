@@ -30,10 +30,15 @@ const DayNightCycle = {
     const prev = state.world.environment.daylight;
     if (Math.abs(dl - prev) > 0.01) {
       state.world.environment.daylight = dl;
-      // Update visibility based on time of day
+      // Weather owns the final local visibility; retain the old fallback for
+      // saves/builds that do not yet carry the weather system.
       const baseVis = state.world.environment._baseVisibilityNm ?? state.world.environment.visibilityNm;
       if (!state.world.environment._baseVisibilityNm) state.world.environment._baseVisibilityNm = baseVis;
-      state.world.environment.visibilityNm = baseVis * (0.3 + dl * 0.7);
+      if(typeof weatherAtPosition==='function'&&state.world.weatherSystem){
+        const q=weatherAtPosition(state,state.playerSub.position);
+        state.world.environment.visibilityNm=q.visibilityNm;
+        state.world.environment.moonIllumination=weatherMoonIllumination(state);
+      }else state.world.environment.visibilityNm = baseVis * (0.3 + dl * 0.7);
     }
     return { daylight: dl, timeStr: this.getTimeString(state.time.elapsedSeconds) };
   },

@@ -52,9 +52,10 @@ function soundBaseQuality(state,contact){
   if(rng>SOUND_ROOM.maxPassiveNm)return 0;
   const machinery=clamp((contact.acousticBase||.18)+Math.pow((contact.speedKnots||0)/18,2)*.78,.08,1.25);
   const range=1/(1+Math.pow(rng/7.2,1.55));
-  const sea=clamp(1-(env.seaState||0)*.33,.52,1);
+  const wx=weatherBetween(state,sub.position,contact.position);
+  const sea=clamp(1-(wx.seaState||0)*.33,.52,1);
   const depth=sub.depthFeet>20?1:sub.depthFeet>5?.78:.62;
-  return clamp(machinery*range*sea*depth*soundOwnNoiseFactor(state),0,1);
+  return clamp(machinery*range*sea*depth*soundOwnNoiseFactor(state)*wx.hydrophoneFactor,0,1);
 }
 
 function soundSignalAt(state,bearingDeg){

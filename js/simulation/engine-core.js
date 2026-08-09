@@ -743,6 +743,7 @@ class SimEngineCore{
     const prevTotal=s.campaign.totalScore+(s.campaign.score||0);
     const prevPatrol=s.campaign.patrolNumber||1;
     const patrolStartDate=options.startDate||s.campaign.startDate||s.time.campaignDate||'1943-08-17';
+    s.time.campaignDate=patrolStartDate;
     const careerStart=this.ensureCareerPatrolState?_careerStampFrom(s.campaign._careerStartDate||`${s.campaign.startDate||s.time.campaignDate||'1943-08-17'} 06:00`,s.campaign.patrolDuration||0):`${s.time.campaignDate||'1943-08-17'} 06:00`;
     // Reset world
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];
@@ -753,7 +754,7 @@ class SimEngineCore{
     s.world.terrain=area.terrain; s.world.ports=area.ports;
     s.world.convoyRoutes=area.convoyRoutes;
     s.world.shallowZones=area.terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
-    s.world.environment={...area.environment};
+    s.world.environment={...area.environment};s.world.weatherSystem=null;
     s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
     // this sequence once, so a map that was panned/free on the previous patrol
@@ -800,7 +801,7 @@ class SimEngineCore{
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
     s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
-    this.setupHarbor(key);this.ensureSoundRadarState?.();
+    this.setupHarbor(key);this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
     this.log(`${area.description}`);
     showBriefing(key,s);

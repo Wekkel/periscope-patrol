@@ -280,9 +280,10 @@ class SimEngineHarbor extends SimEngineCore {
 
     // Searchlight sweeps are warnings; the battery only has a useful target if
     // the boat is surfaced/awash. Diving under the beams is therefore real cover.
-    if(H.alert>0&&sub.depthFeet<12&&rng<4.4&&now-H.lastSweepAt>22){
+    const harborWx=weatherBetween(this.state,H.center,sub.position);
+    if(H.alert>0&&sub.depthFeet<12&&rng<4.4*harborWx.searchlightFactor&&now-H.lastSweepAt>22){
       H.lastSweepAt=now;
-      H.searchlightActiveUntil=now+8;H.searchlightBearing=normDeg(bearingBetween(H.center,sub.position)+(Math.random()-.5)*12);H.searchlightWidthDeg=14;
+      H.searchlightActiveUntil=now+8*harborWx.searchlightFactor;H.searchlightBearing=normDeg(bearingBetween(H.center,sub.position)+(Math.random()-.5)*12);H.searchlightWidthDeg=14;
       this.notify('Searchlight beam sweeping the harbour entrance — keep the deck down or get under it.','warn');
       H.suspicion=clamp(H.suspicion+5,0,100);
     }
@@ -291,8 +292,8 @@ class SimEngineHarbor extends SimEngineCore {
       this.recordHarborBatteryFire(H);
       const env=W.environment;
       const rangeF=clamp(1-rng/H.batteryRangeNm,0,1);
-      const light=clamp(env.daylight+(H.alert>=2?0.35:0),0.2,1);
-      const pHit=rangeF*rangeF*0.42*light*(1-env.seaState*0.28);
+      const light=clamp(env.daylight+(H.alert>=2?0.35:0),0.2,1)*harborWx.searchlightFactor;
+      const pHit=rangeF*rangeF*0.42*light*(1-harborWx.seaState*0.28);
       if(Math.random()<pHit){
         const dmg=5+Math.random()*12;
         this.applyShock(dmg);

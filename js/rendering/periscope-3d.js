@@ -34,13 +34,15 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     this.drawSky3D(ctx,w,h,cam,state,dl,wx,t);
     this.drawSea3D(ctx,w,h,cam,dl,sea,wx,t);
     this.drawTerrain3D(ctx,cam,state,dl);
+    this.drawWeatherCells3D?.(ctx,cam,state,dl,t);
     this.drawOwnWake(ctx,cam,state,t,dl);
     this.drawWakes3D(ctx,cam,state,t,dl);
     this.drawFleet3D(ctx,cam,state,dl,env,t);
     this.drawExplosions3D(ctx,cam,state,dl);
     this.drawSplashes3D(ctx,cam,state,dl);
     if(dl>0.3&&this.quality>0.5) this.drawGulls(ctx,w,h,cam,t,dl);
-    if(wx==='RAIN'||wx==='STORM') this.drawRain(ctx,w,h,sea,t,wx);
+    if((env.precipitation||0)>.04||weatherIsWet(wx)) this.drawRain(ctx,w,h,sea,t,wx,env.precipitation||.25);
+    if((env.precipitation||0)>.12) this.drawPeriscopeDroplets(ctx,w,h,t,env.precipitation||0);
     if(this._flash>0.01){ctx.fillStyle=`rgba(225,232,255,${this._flash})`;ctx.fillRect(0,0,w,h);}
     if(sea>0.45&&this.quality>0.5) this.drawScopeSpray(ctx,w,h,sea,t);
     if(dl<0.32) this.drawNightOverlay(ctx,w,h,dl);
@@ -51,7 +53,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     this.sunScreen=null;
     const hy=cam.horizonY;
     const g=ctx.createLinearGradient(0,Math.max(0,hy-cam.r*2),0,hy);
-    const storm=wx==='STORM'||wx==='RAIN';
+    const storm=weatherIsWet(wx)||wx==='BUILDING CLOUD'||wx==='CLEARING';
     if(dl>0.55){
       g.addColorStop(0,storm?'#4a5560':'#2f6f9e');
       g.addColorStop(0.62,storm?'#6a747c':'#7fb3d4');
@@ -67,16 +69,17 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
     ctx.fillStyle=g;ctx.fillRect(0,hy-cam.r*2.2,w,cam.r*2.2+2);
 
-    // stars
-    if(dl<0.3&&this.quality>0.4){
-      const n=Math.round(70*this.quality);
+    // stars — low cloud/rain can erase the celestial references entirely.
+    const cloudCover=clamp(state.world.environment.cloudCover||0,0,1);
+    if(dl<0.3&&this.quality>0.4&&cloudCover<.82){
+      const n=Math.round(70*this.quality*(1-cloudCover*.75));
       for(let i=0;i<n;i++){
         const az=(i*137.508)%360;
         const el=degToRad(2+((i*53)%60));
         const p=this.projAzEl(cam,az,el);
         if(!p||p.y>hy-2) continue;
         const tw=0.45+0.55*Math.sin(t*1.3+i);
-        ctx.fillStyle=`rgba(226,240,255,${(0.3-dl)*2.2*tw})`;
+        ctx.fillStyle=`rgba(226,240,255,${(0.3-dl)*2.2*tw*(1-cloudCover*.82)})`;
         ctx.fillRect(p.x,p.y,1.4,1.4);
       }
     }
@@ -99,7 +102,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const rr=cam.r*0.045*(cam.fovDeg<15?2.6:1);
       const moon=this.projAzEl(cam,normDeg(sunAz+180),degToRad(28));
       if(moon){
-        ctx.fillStyle='rgba(232,240,255,.85)';
+        const ma=clamp((state.world.environment.moonIllumination??.55)*(1-cloudCover*.78),.06,.92);
+        ctx.fillStyle=`rgba(232,240,255,${ma})`;
         ctx.beginPath();ctx.arc(moon.x,moon.y,rr,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='rgba(3,8,16,.9)';
         ctx.beginPath();ctx.arc(moon.x-rr*0.42,moon.y-rr*0.2,rr*0.92,0,Math.PI*2);ctx.fill();
@@ -584,10 +588,27 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
   }
 
-  /* ── RAIN ── */
-  drawRain(ctx,w,h,seaState,t,wx){
-    const n=Math.round((wx==='STORM'?150:80)*this.quality);
-    ctx.strokeStyle='rgba(190,215,235,0.30)';ctx.lineWidth=1;
+  /* ── MOVING SQUALLS / RAIN ── */
+  drawWeatherCells3D(ctx,cam,state,dl,t){
+    const cells=state.world.weatherSystem?.cells||[];if(!cells.length||this.quality<.28)return;
+    const own=state.playerSub.position;
+    for(const c of cells){
+      const rng=distNm(own,c.center);if(rng>34)continue;
+      const br=bearingBetween(own,c.center),d=Math.abs(shortDelta(cam.bearingDeg,br));if(d>cam.fovDeg*.72)continue;
+      const p=this.projAzEl(cam,br,degToRad(3.5));if(!p)continue;
+      const angular=radToDeg(Math.atan2(c.radiusNm||5,Math.max(.4,rng)));
+      const ww=Math.max(24*this.k,cam.f*Math.tan(degToRad(Math.min(angular,38))));
+      const hh=Math.max(18*this.k,cam.r*(.10+.10*clamp(1-rng/30,0,1)));
+      const a=clamp(.10+.34*(1-rng/34),.08,.42)*(state.world.environment.cloudCover||.5);
+      const g=ctx.createLinearGradient(0,p.y-hh,0,p.y+hh);g.addColorStop(0,'rgba(35,43,50,0)');g.addColorStop(.45,`rgba(42,50,56,${a})`);g.addColorStop(1,'rgba(80,88,92,0)');
+      ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(p.x,p.y,ww,hh,0,0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  drawRain(ctx,w,h,seaState,t,wx,amount=.4){
+    const heavy=wx==='HEAVY RAIN'||wx==='STORM',q=clamp(amount,0,1);
+    const cap=this.lowSpec?70:150,n=Math.min(cap,Math.round((heavy?145:80)*this.quality*(.35+q*.85)));
+    ctx.strokeStyle=`rgba(190,215,235,${.16+.18*q})`;ctx.lineWidth=1;
     ctx.beginPath();
     for(let i=0;i<n;i++){
       const x=((i*73.13+t*260)%(w+120))-60;
@@ -596,8 +617,17 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       ctx.moveTo(x,y);ctx.lineTo(x-len*0.28,y+len);
     }
     ctx.stroke();
-    ctx.fillStyle=`rgba(150,170,190,${wx==='STORM'?0.14:0.07})`;
-    ctx.fillRect(0,0,w,h);
+    ctx.fillStyle=`rgba(150,170,190,${.035+.12*q})`;ctx.fillRect(0,0,w,h);
+  }
+
+  drawPeriscopeDroplets(ctx,w,h,t,amount){
+    const n=Math.round((this.lowSpec?7:13)*clamp(amount,0,1)*this.quality);
+    for(let i=0;i<n;i++){
+      const x=((i*113.7+31)%997)/997*w,y=((i*67.3+t*(4+i%3))%(h*.78));
+      const r=Math.max(1.2,(2.2+(i%4)*1.1)*this.k);
+      ctx.strokeStyle=`rgba(215,235,242,${.12+.12*amount})`;ctx.lineWidth=Math.max(.7,this.k*.7);
+      ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.stroke();
+    }
   }
 
   drawScopeSpray(ctx,w,h,seaState,t){

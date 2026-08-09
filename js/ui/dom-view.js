@@ -132,6 +132,8 @@ class DomView{
     this.gaugeReadout.innerHTML=
       `<span>Contacts</span><strong>${Object.keys(state.world.contactTracks).length}</strong>`+
       `<span>Visibility</span><strong>${state.world.environment.visibilityNm.toFixed(1)} nm</strong>`+
+      `<span>Weather</span><strong>${state.world.environment.weather||'CLEAR'}</strong>`+
+      `<span>Sea state</span><strong>${state.world.environment.seaState.toFixed(2)}</strong>`+
       `<span>Enemy alert</span><strong>${state.world.enemy.alertState}</strong>`+
       `<span>DCs active</span><strong>${state.world.depthCharges.length}</strong>`+
       `<span>Noise sig</span><strong>${sub.stealth.acousticSignature.toFixed(2)}</strong>`+

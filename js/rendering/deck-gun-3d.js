@@ -89,7 +89,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
   }
 
   drawGunProjectiles3D(ctx,cam,state){
-    const G=state.weapons.deckGun,k=this.k;
+    const G=state.weapons.deckGun,k=this.k,env=state.world.environment||{},sea=clamp(env.seaState||0,0,1),rain=clamp(env.precipitation||0,0,1);
     for(const sh of G?.shells||[]){
       const p=this.proj(cam,sh.xNm*NM_M,-sh.yNm*NM_M,sh.zM);if(!p)continue;
       const a=clamp(1-sh.age/10,0.25,1);ctx.fillStyle=`rgba(255,235,155,${a})`;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(1.2,2.2*k),0,Math.PI*2);ctx.fill();
@@ -97,9 +97,9 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     }
     for(const sp of G?.splashes||[]){
       const p=this.proj(cam,sp.position.xNm*NM_M,-sp.position.yNm*NM_M,0);if(!p)continue;
-      const a=clamp(1-sp.age/4,0,1),rise=Math.sin(clamp(sp.age/1.4,0,1)*Math.PI)*22*k;
-      ctx.fillStyle=`rgba(225,242,248,${a*.86})`;ctx.beginPath();ctx.ellipse(p.x,p.y-rise*0.45,4*k+sp.age*2*k,Math.max(3*k,rise),0,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle=`rgba(230,245,250,${a*.65})`;ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.ellipse(p.x,p.y,8*k+sp.age*5*k,2.5*k+sp.age*k,0,0,Math.PI*2);ctx.stroke();
+      const a=clamp(1-sp.age/4,0,1)*(1-rain*.38),rise=Math.sin(clamp(sp.age/1.4,0,1)*Math.PI)*22*k*(1+sea*.42);
+      ctx.fillStyle=`rgba(225,242,248,${a*.86})`;ctx.beginPath();ctx.ellipse(p.x,p.y-rise*0.45,(4*k+sp.age*2*k)*(1+sea*.18),Math.max(3*k,rise),0,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle=`rgba(230,245,250,${a*.65})`;ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.ellipse(p.x,p.y,(8*k+sp.age*5*k)*(1+sea*.22),2.5*k+sp.age*k,0,0,Math.PI*2);ctx.stroke();
     }
   }
 

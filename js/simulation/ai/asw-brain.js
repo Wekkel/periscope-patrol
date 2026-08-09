@@ -31,7 +31,7 @@ function aswScreenRoles(count,areaKey,opts={}){
   return['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK',scout?'ROAMING_SCOUT':'REAR_GUARD'];
 }
 
-class SimEngineASWBrain extends SimEngineSoundRadar{
+class SimEngineASWBrain extends SimEngineWeather{
   ensureASWState(){
     const W=this.state.world,e=W.enemy||(W.enemy={}),now=this.state.time.elapsedSeconds||0;
     const A=e.asw||(e.asw={});

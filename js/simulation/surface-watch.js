@@ -16,7 +16,7 @@ function bridgeCanUse(state){
 
 function bridgeVisualLimitNm(state,contact){
   const sub=state?.playerSub,env=state?.world?.environment||{};
-  const vis=Math.max(.5,Number(env.visibilityNm)||.5);
+  const vis=Math.max(.5,sub&&contact?weatherVisibilityBetween(state,sub.position,contact.position):(Number(env.visibilityNm)||.5));
   if(!sub)return 0;
   if((sub.depthFeet||0)<8){
     const smoke=(contact&&!contact.stationary&&(contact.speedKnots||0)>=4)

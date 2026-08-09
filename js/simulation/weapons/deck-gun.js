@@ -44,7 +44,8 @@ class SimEngineDeckGun extends SimEngineAircraft {
     if(now-(G.lastFireAt??-999)<1.35){this.notify('Gun crew still loading.','warn');return;}
     const sea=clamp(this.state.world.environment.seaState||0,0,1);
     const fatigue=clamp(sub.damage.crewFatigue||0,0,1);
-    const sig=(0.055+sea*0.12+fatigue*0.05);       // degrees, 1-sigma-ish gameplay dispersion
+    const wx=weatherAtPosition(this.state,sub.position);
+    const sig=(0.055+sea*0.12+fatigue*0.05)*wx.deckGunDispersionFactor; // rain + deck motion widen the pattern
     const bearing=normDeg(sub.heading+(G.trainDeg||0)+(Math.random()-0.5)*sig*2);
     const elev=clamp((G.elevationDeg||0)+(Math.random()-0.5)*sig*1.5,0,22);
     const v=820, er=degToRad(elev), br=degToRad(bearing);

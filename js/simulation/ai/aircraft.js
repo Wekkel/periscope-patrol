@@ -20,8 +20,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       const stirred=W.enemy.alertState!=='UNAWARE'?1.7:1;
       const surfaced=sub.depthFeet<10?1.5:1;
       let chance=0.020*air.level*stirred*surfaced*(0.35+day*0.85)*(nearLand?1.8:0.55);
-      chance*=(1-clamp(env.seaState,0,1)*0.35);
-      if(env.weather==='STORM') chance*=0.25;
+      const localWx=weatherAtPosition(this.state,sub.position);
+      chance*=(1-clamp(localWx.seaState,0,1)*0.35)*localWx.aircraftFactor;
       if(W.aircraft.length>=2) chance=0;
       if(Math.random()<chance){
         const bear=Math.random()*360, rng=11+Math.random()*9;
@@ -55,9 +55,11 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         else if(sub.depthFeet<70){p=0.20;maxR=2.2;}          // scope up in clear water
         else if(sub.depthFeet<110){p=0.10;maxR=0.8;}         // a shadow, straight below
         if(sub.propulsion.speedKnots>10&&sub.depthFeet<20) maxR*=1.3;   // the wake
-        p*=clamp(env.visibilityNm/12,0.3,1.4)*clamp(env.daylight*1.3,0.12,1.2);
-        p*=Math.pow(clamp(1-rng/maxR,0,1),1.7);
-        p*=(1-clamp(env.seaState,0,1)*0.3);
+        const wx=weatherBetween(this.state,a.position,sub.position);
+        maxR=Math.min(maxR,Math.max(.55,wx.visibilityNm*1.15));
+        p*=clamp(wx.visibilityNm/12,0.12,1.4)*clamp(env.daylight*1.3+.10*wx.moonFactor,0.08,1.2);
+        p*=Math.pow(clamp(1-rng/Math.max(.1,maxR),0,1),1.7);
+        p*=(1-clamp(wx.seaState,0,1)*0.3)*wx.aircraftFactor;
         if(Math.random()<p*dt*0.5){
           a.state='ATTACKING'; a.spotted=true; a.runTimer=0;
           this.log(`${a.name} has sighted the boat and is turning in!`,'bad');
@@ -93,6 +95,11 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       const TURN=6.0;
       let want=a.heading;
       if(a.state==='ATTACKING'){
+        const attackWx=weatherBetween(this.state,a.position,sub.position);
+        if(attackWx.precipitation>.62&&rng>Math.max(.75,attackWx.visibilityNm*.8)){
+          a.state='ORBIT';a.spotted=false;a.orbitAt={...sub.position};a.orbitTimer=75;
+          this.log(`${a.name} lost the boat in the rain — circling the last sighting.`,'warn');
+        }
         a.speedKnots=Math.min(a.speedKnots+dt*6,190);
         if(a.runTimer>0){
           // pulling off after a drop: swing wide, then come round for another run

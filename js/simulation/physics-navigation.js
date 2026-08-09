@@ -113,6 +113,7 @@ class SimEngine extends SimEngineCareer {
     this.updateHeading(sub,dt); this.updateDepth(sub,dt); this.updatePropulsion(sub,dt);
     this.updatePosition(sub,dt);
     this.applyTerrainEffects(sub,dt);
+    this.updateWeather?.(dt);
     this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
     this.updateDetection(dt); this.updateSoundRadar?.(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
@@ -373,7 +374,7 @@ class SimEngine extends SimEngineCareer {
         ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
         ex.speedEstimateKnots=lerp(ex.speedEstimateKnots,c.speedKnots,clamp(0.08+ex.confidence*0.18,0,0.35));
         const knownType=c.displayType||c.type;
-        const smokeOnly=sub.depthFeet<8&&rng>env.visibilityNm*1.02;
+        const smokeOnly=sub.depthFeet<8&&rng>weatherVisibilityBetween(this.state,sub.position,c.position)*1.02;
         // The Truk heavy unit is deliberately reported only as HEAVY UNIT.
         // Hydrophones may build a good positional track, but they do not hand
         // the player a magical carrier/cruiser classification. Exact identity
@@ -445,29 +446,27 @@ class SimEngine extends SimEngineCareer {
   }
 
   calcVis(sub,c,rng,env){
-    // Lookout capability: how well can the sub observe?
-    const lookout = sub.depthFeet<8  ? 1.0   // surfaced bridge watch — full view
-                  : sub.depthFeet<=65 ? 0.85  // periscope up — nearly as good
-                  : 0;                         // submerged — no visual at all
+    const lookout = sub.depthFeet<8 ? 1.0 : sub.depthFeet<=65 ? 0.85 : 0;
     if(lookout<=0) return{score:0};
-    // Range factor: linear falloff (not squared — squared was too harsh)
-    const rf = clamp(1 - rng/env.visibilityNm, 0, 1);
-    // Daylight: minimum 0.18 = moonlight/starlight — night isn't completely blind
-    const df = clamp(env.daylight + 0.18, 0.18, 1.0);
-    const sm = clamp(1 - env.seaState*0.35, 0.45, 1);
-    return{score: rf * df * sm * c.visualProfile * lookout};
+    const wx=weatherBetween(this.state,sub.position,c.position);
+    const rf=clamp(1-rng/Math.max(.35,wx.visibilityNm),0,1);
+    const df=clamp(env.daylight+.18*wx.moonFactor,.10,1.0);
+    const sm=clamp(1-wx.seaState*.35,.40,1);
+    return{score:rf*df*sm*c.visualProfile*lookout*wx.visualFactor};
   }
 
   calcAco(sub,c,rng,env){
     const cn=c.acousticBase+Math.pow(c.speedKnots/18,2)*0.65;
     const on=clamp(sub.stealth.acousticSignature*0.55,0,0.75);
-    const sp=env.seaState*0.25; const rf=1+Math.pow(rng/9,1.65);
-    return{score:clamp((cn-on-sp)/rf,0,1)};
+    const wx=weatherBetween(this.state,sub.position,c.position);
+    const sp=wx.seaState*0.25+(1-wx.hydrophoneFactor)*.12; const rf=1+Math.pow(rng/9,1.65);
+    return{score:clamp((cn-on-sp)/rf*wx.hydrophoneFactor,0,1)};
   }
 
   updateSigs(sub){
     const sf=sub.depthFeet<8?1:0; const pf=sub.depthFeet>=8&&sub.depthFeet<=65?0.16:0;
-    sub.stealth.visualProfile=sf+pf;
+    const wx=weatherAtPosition(this.state,sub.position);
+    sub.stealth.visualProfile=(sf+pf)*wx.subVisualFactor;
     const rn=sub.propulsion.actualRpm/450; const sn=Math.pow(sub.propulsion.speedKnots/18,2);
     const sm=sub.stealth.silentRunning?0.38:1; const dm=sub.depthFeet>65?0.85:1;
     const pn=sub.damage.pumpActive?0.12:0; const fn=sub.damage.flooding*0.15;

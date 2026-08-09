@@ -87,8 +87,8 @@ class SimEngineAAGun extends SimEngineDeckGun {
        jinks. The bombs go in the sea. Since damage falls off exponentially
        with miss distance, a hundred yards of extra error is very nearly the
        whole difference between a scratched hull and a lost boat. */
-    const rat=clamp(a.rattled||0,0,1);
-    const err=0.012+Math.random()*0.05+(sub.depthFeet>30?0.03:0)+rat*0.058;
+    const rat=clamp(a.rattled||0,0,1),wx=weatherBetween(this.state,a.position,sub.position);
+    const err=(0.012+Math.random()*0.05+(sub.depthFeet>30?0.03:0)+rat*0.058)/wx.aircraftAttackFactor;
     if(rat>0.25) this.log(`${a.name} is being hosed by the 20 mm — she drops high and wide.`,'warn');
     const pos={xNm:sub.position.xNm+(Math.random()-0.5)*2*err,
                yNm:sub.position.yNm+(Math.random()-0.5)*2*err};
