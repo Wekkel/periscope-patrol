@@ -270,127 +270,128 @@ class CanvasView extends CanvasViewSound {
     ctx.restore();
   }
 
+  _buildBathyOverview(B){
+    if(typeof document==='undefined'||typeof document.createElement!=='function') return null;
+    if(this._bathyOverview?.ref===B) return this._bathyOverview;
+    const scale=6,w=Math.max(1,(B.nx-1)*scale),h=Math.max(1,(B.ny-1)*scale);
+    const canvas=document.createElement('canvas');
+    if(!canvas||typeof canvas.getContext!=='function') return null;
+    canvas.width=w;canvas.height=h;
+    const c=canvas.getContext('2d',{alpha:true});
+    if(!c) return null;
+    const {grid,nx,ny}=B,D=(i,j)=>grid[j*nx+i];
+    const bands=[[10,'rgba(150,215,222,0.085)'],[25,'rgba(135,205,218,0.058)'],
+                 [50,'rgba(120,195,212,0.038)'],[100,'rgba(105,182,205,0.022)']];
+    for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){
+      const d0=D(i,j),d1=D(i+1,j),d2=D(i+1,j+1),d3=D(i,j+1);
+      if(d0<0&&d1<0&&d2<0&&d3<0)continue;
+      const dm=(Math.max(d0,0)+Math.max(d1,0)+Math.max(d2,0)+Math.max(d3,0))/4;
+      let fill=null;for(const b of bands){if(dm<b[0]){fill=b[1];break;}}
+      if(fill){c.fillStyle=fill;c.fillRect(i*scale,j*scale,scale+.5,scale+.5);}
+    }
+    const curve=(T,style,dash)=>{
+      c.strokeStyle=style;c.lineWidth=1;if(dash)c.setLineDash(dash);c.beginPath();
+      for(let j=0;j<ny-1;j++)for(let i=0;i<nx-1;i++){
+        const z=[D(i,j),D(i+1,j),D(i+1,j+1),D(i,j+1)];if(z.some(v=>v<0))continue;
+        const x=[i*scale,(i+1)*scale,(i+1)*scale,i*scale],y=[j*scale,j*scale,(j+1)*scale,(j+1)*scale],pts=[];
+        for(let e=0;e<4;e++){const a=z[e],b=z[(e+1)%4];if((a<T)!==(b<T)){const f=(T-a)/(b-a);pts.push({x:x[e]+(x[(e+1)%4]-x[e])*f,y:y[e]+(y[(e+1)%4]-y[e])*f});}}
+        if(pts.length>=2){c.moveTo(pts[0].x,pts[0].y);c.lineTo(pts[1].x,pts[1].y);if(pts.length===4){c.moveTo(pts[2].x,pts[2].y);c.lineTo(pts[3].x,pts[3].y);}}
+      }
+      c.stroke();c.setLineDash([]);
+    };
+    curve(4,'rgba(239,106,88,0.48)',[]);curve(10,'rgba(235,195,125,0.26)',[3,3]);curve(100,'rgba(150,200,214,0.30)',[6,4]);
+    this._bathyOverview={ref:B,canvas,scale};return this._bathyOverview;
+  }
+
   drawMapBathy(ctx,state,w2s,w,h){
     const B=this._ensureBathy(state); if(!B) return;
-    const {grid,nx,ny,x0,y0,cell}=B;
+    const {grid,nx,ny,x0,y0,cell}=B,cellPx=cell*this.zoom;
+    /* Wide-area map views used to recompute four tint bands plus three complete
+       marching-squares contour passes every frame. That is mostly invisible
+       work when a bathymetry cell is only a few pixels wide, and it is the
+       worst MAP hotspot on Helio G88-class devices. At that scale the exact
+       same chart layer is rasterised once at six pixels per source cell and
+       then transformed as a single image. Close zoom stays fully vector so
+       soundings/coast approach work remain crisp. */
+    if(cellPx<=6||(this.lowSpec&&cellPx<=13)){
+      const O=this._buildBathyOverview(B);
+      if(O&&typeof ctx.drawImage==='function'){
+        const p=w2s(x0,y0),q=w2s(x0+(nx-1)*cell,y0+(ny-1)*cell);
+        ctx.drawImage(O.canvas,p.x,p.y,q.x-p.x,q.y-p.y);
+        return;
+      }
+    }
     const s2w=(sx,sy)=>({x:this.mapCenter.xNm+(sx-w/2)/this.zoom,
                          y:this.mapCenter.yNm+(sy-h/2)/this.zoom});
     const tl=s2w(0,0),br=s2w(w,h);
     const i0=clamp(Math.floor((tl.x-x0)/cell),0,nx-2), i1=clamp(Math.ceil((br.x-x0)/cell),1,nx-1);
     const j0=clamp(Math.floor((tl.y-y0)/cell),0,ny-2), j1=clamp(Math.ceil((br.y-y0)/cell),1,ny-1);
     const D=(i,j)=>grid[j*nx+i];
-    // pale chart-tint washes, lightest where the water is thinnest
     const bands=[[10,'rgba(150,215,222,0.085)'],[25,'rgba(135,205,218,0.058)'],
                  [50,'rgba(120,195,212,0.038)'],[100,'rgba(105,182,205,0.022)']];
     for(let j=j0;j<j1;j++)for(let i=i0;i<i1;i++){
       const d0=D(i,j),d1=D(i+1,j),d2=D(i+1,j+1),d3=D(i,j+1);
-      if(d0<0&&d1<0&&d2<0&&d3<0) continue;                 // pure land — terrain covers it
+      if(d0<0&&d1<0&&d2<0&&d3<0) continue;
       const dm=(Math.max(d0,0)+Math.max(d1,0)+Math.max(d2,0)+Math.max(d3,0))/4;
-      let fill=null;
-      for(const b of bands){if(dm<b[0]){fill=b[1];break;}}
-      if(!fill) continue;
-      const p=w2s(x0+i*cell,y0+j*cell);
-      const q=w2s(x0+(i+1)*cell,y0+(j+1)*cell);
-      ctx.fillStyle=fill;
-      ctx.fillRect(p.x,p.y,q.x-p.x+0.6,q.y-p.y+0.6);
+      let fill=null;for(const b of bands){if(dm<b[0]){fill=b[1];break;}}if(!fill)continue;
+      const p=w2s(x0+i*cell,y0+j*cell),q=w2s(x0+(i+1)*cell,y0+(j+1)*cell);
+      ctx.fillStyle=fill;ctx.fillRect(p.x,p.y,q.x-p.x+0.6,q.y-p.y+0.6);
     }
-    // contour curves — midpoint marching squares, dashed like a chart
     const curve=(T,style,dash)=>{
-      ctx.strokeStyle=style;ctx.lineWidth=1;
-      if(dash)ctx.setLineDash(dash);
-      ctx.beginPath();
+      ctx.strokeStyle=style;ctx.lineWidth=1;if(dash)ctx.setLineDash(dash);ctx.beginPath();
       for(let j=j0;j<j1;j++)for(let i=i0;i<i1;i++){
-        const c=[D(i,j),D(i+1,j),D(i+1,j+1),D(i,j+1)];
-        if(c.some(v=>v<0)) continue;
-        const xs=[x0+i*cell,x0+(i+1)*cell,x0+(i+1)*cell,x0+i*cell];
-        const ys=[y0+j*cell,y0+j*cell,y0+(j+1)*cell,y0+(j+1)*cell];
-        const px2=[];
-        for(let e=0;e<4;e++){
-          const a=c[e],b=c[(e+1)%4];
-          if((a<T)!==(b<T)){
-            const f=(T-a)/(b-a);
-            px2.push(w2s(xs[e]+(xs[(e+1)%4]-xs[e])*f, ys[e]+(ys[(e+1)%4]-ys[e])*f));
-          }
-        }
-        if(px2.length>=2){ctx.moveTo(px2[0].x,px2[0].y);ctx.lineTo(px2[1].x,px2[1].y);
-          if(px2.length===4){ctx.moveTo(px2[2].x,px2[2].y);ctx.lineTo(px2[3].x,px2[3].y);}}
+        const c=[D(i,j),D(i+1,j),D(i+1,j+1),D(i,j+1)];if(c.some(v=>v<0))continue;
+        const xs=[x0+i*cell,x0+(i+1)*cell,x0+(i+1)*cell,x0+i*cell],ys=[y0+j*cell,y0+j*cell,y0+(j+1)*cell,y0+(j+1)*cell],px2=[];
+        for(let e=0;e<4;e++){const a=c[e],b=c[(e+1)%4];if((a<T)!==(b<T)){const f=(T-a)/(b-a);px2.push(w2s(xs[e]+(xs[(e+1)%4]-xs[e])*f,ys[e]+(ys[(e+1)%4]-ys[e])*f));}}
+        if(px2.length>=2){ctx.moveTo(px2[0].x,px2[0].y);ctx.lineTo(px2[1].x,px2[1].y);if(px2.length===4){ctx.moveTo(px2[2].x,px2[2].y);ctx.lineTo(px2[3].x,px2[3].y);}}
       }
       ctx.stroke();ctx.setLineDash([]);
     };
-    curve(4,'rgba(239,106,88,0.48)',[]);                     // close-in grounding danger: 24 ft
-    curve(10,'rgba(235,195,125,0.26)',[3,3]);              // shallow-water danger line
-    curve(100,'rgba(150,200,214,0.30)',[6,4]);             // THE line
-    // spot soundings in fathoms, sparse, when zoomed close enough to read a chart
-    const cellPx=cell*this.zoom;
+    curve(4,'rgba(239,106,88,0.48)',[]);curve(10,'rgba(235,195,125,0.26)',[3,3]);curve(100,'rgba(150,200,214,0.30)',[6,4]);
     if(cellPx>=30){
-      ctx.fillStyle='rgba(150,190,200,0.30)';ctx.font=this.fnt(7);ctx.textAlign='center';
-      const sk=cellPx>=60?2:3;
-      for(let j=j0;j<j1;j+=sk)for(let i=i0;i<i1;i+=sk){
-        const d=D(i,j); if(d<1) continue;
-        const p=w2s(x0+i*cell,y0+j*cell);
-        ctx.fillText(d<100?String(Math.round(d)):String(Math.round(d/10)*10),p.x,p.y);
-      }
+      ctx.fillStyle='rgba(150,190,200,0.30)';ctx.font=this.fnt(7);ctx.textAlign='center';const sk=cellPx>=60?2:3;
+      for(let j=j0;j<j1;j+=sk)for(let i=i0;i<i1;i+=sk){const d=D(i,j);if(d<1)continue;const p=w2s(x0+i*cell,y0+j*cell);ctx.fillText(d<100?String(Math.round(d)):String(Math.round(d/10)*10),p.x,p.y);}
       ctx.textAlign='left';
     }
   }
 
   drawMapTerrain(ctx,terrain,w2s){
     const K=this.k,margin=42*K;
-    // High map zoom used to transform and stroke every Natural-Earth island in
-    // the patrol area, even when only a tiny berth-sized patch was visible.
-    // On a G88 this is needless Canvas2D work with very large off-screen
-    // coordinates. Cache one world-space bbox per feature and reject features
-    // wholly outside the viewport before building their path.
     this._terrainBoundsCache=this._terrainBoundsCache||new WeakMap();
+    const landGradient=ctx.createLinearGradient(0,0,0,this.h);
+    landGradient.addColorStop(0,'rgba(92,104,62,0.92)');landGradient.addColorStop(1,'rgba(66,80,50,0.92)');
+    const thin=(pts,minNm)=>{
+      if(!minNm||pts.length<10)return pts;const out=[pts[0]];let last=pts[0];
+      for(let i=1;i<pts.length-1;i++){const q=pts[i],dx=q.xNm-last.xNm,dy=q.yNm-last.yNm;if(dx*dx+dy*dy>=minNm*minNm){out.push(q);last=q;}}
+      out.push(pts[pts.length-1]);return out.length>=3?out:pts;
+    };
     for(const f of terrain){
       if(!f.points||f.points.length<3) continue;
       let b=this._terrainBoundsCache.get(f);
-      if(!b){let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;for(const q of f.points){minX=Math.min(minX,q.xNm);maxX=Math.max(maxX,q.xNm);minY=Math.min(minY,q.yNm);maxY=Math.max(maxY,q.yNm);}b={minX,maxX,minY,maxY};this._terrainBoundsCache.set(f,b);}
-      const a=w2s(b.minX,b.minY),z=w2s(b.maxX,b.maxY);
-      const l=Math.min(a.x,z.x),r=Math.max(a.x,z.x),t=Math.min(a.y,z.y),bt=Math.max(a.y,z.y);
-      if(r<-margin||l>this.w+margin||bt<-margin||t>this.h+margin) continue;
-      const path=()=>{
-        ctx.beginPath();
-        f.points.forEach((p,i)=>{const q=w2s(p.xNm,p.yNm);if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y);});
-        ctx.closePath();
-      };
-      if(f.type==='REEF'){
-        path();
-        ctx.fillStyle='rgba(215,180,95,0.20)';ctx.fill();
-        ctx.strokeStyle='rgba(240,200,110,0.65)';ctx.lineWidth=Math.max(1,1.4*K);
-        ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);
-        continue;
+      if(!b){
+        let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity,cx=0,cy=0;
+        for(const q of f.points){minX=Math.min(minX,q.xNm);maxX=Math.max(maxX,q.xNm);minY=Math.min(minY,q.yNm);maxY=Math.max(maxY,q.yNm);cx+=q.xNm;cy+=q.yNm;}
+        b={minX,maxX,minY,maxY,cx:cx/f.points.length,cy:cy/f.points.length,
+          lodFar:thin(f.points,.45),lodMid:thin(f.points,.18),lodNear:thin(f.points,.08)};
+        this._terrainBoundsCache.set(f,b);
       }
-      // shelf: a soft halo of shoal water around the shore
-      path();
-      ctx.strokeStyle='rgba(120,175,150,0.16)';
-      ctx.lineWidth=Math.max(6,14*K);ctx.lineJoin='round';ctx.stroke();
-      ctx.strokeStyle='rgba(190,205,120,0.14)';
-      ctx.lineWidth=Math.max(3,7*K);ctx.stroke();
-      // land
-      path();
-      const g=ctx.createLinearGradient(0,0,0,this.h);
-      g.addColorStop(0,'rgba(92,104,62,0.92)');
-      g.addColorStop(1,'rgba(66,80,50,0.92)');
-      ctx.fillStyle=g;ctx.fill();
-      // At close chart scales the coastline itself is the hard no-go edge:
-      // crossing it is a terrain collision, not merely another depth tint.
-      ctx.strokeStyle=this.zoom>=70?'rgba(239,106,88,0.72)':'rgba(214,228,150,0.55)';
-      ctx.lineWidth=this.zoom>=70?Math.max(1.4,1.8*K):Math.max(1,1.3*K);ctx.stroke();
-      // name the bigger islands once they are large enough on screen
+      const a=w2s(b.minX,b.minY),z=w2s(b.maxX,b.maxY),l=Math.min(a.x,z.x),r=Math.max(a.x,z.x),t=Math.min(a.y,z.y),bt=Math.max(a.y,z.y);
+      if(r<-margin||l>this.w+margin||bt<-margin||t>this.h+margin) continue;
+      // At wide zoom the omitted vertices are strictly sub-pixel detail. Keeping
+      // them out of Canvas2D paths saves thousands of commands without changing
+      // the visible coastline; close zoom automatically returns to full geometry.
+      const pts=this.zoom<2?b.lodFar:this.lowSpec?(this.zoom<5?b.lodMid:this.zoom<10?b.lodNear:f.points):f.points;
+      const path=()=>{ctx.beginPath();pts.forEach((p,i)=>{const q=w2s(p.xNm,p.yNm);if(i===0)ctx.moveTo(q.x,q.y);else ctx.lineTo(q.x,q.y);});ctx.closePath();};
+      if(f.type==='REEF'){
+        path();ctx.fillStyle='rgba(215,180,95,0.20)';ctx.fill();ctx.strokeStyle='rgba(240,200,110,0.65)';ctx.lineWidth=Math.max(1,1.4*K);ctx.setLineDash([4,4]);ctx.stroke();ctx.setLineDash([]);continue;
+      }
+      path();ctx.strokeStyle='rgba(120,175,150,0.16)';ctx.lineWidth=Math.max(6,14*K);ctx.lineJoin='round';ctx.stroke();
+      ctx.strokeStyle='rgba(190,205,120,0.14)';ctx.lineWidth=Math.max(3,7*K);ctx.stroke();
+      ctx.fillStyle=landGradient;ctx.fill();
+      ctx.strokeStyle=this.zoom>=70?'rgba(239,106,88,0.72)':'rgba(214,228,150,0.55)';ctx.lineWidth=this.zoom>=70?Math.max(1.4,1.8*K):Math.max(1,1.3*K);ctx.stroke();
       if(f.areaNm2>25){
-        let cx=0,cy=0;
-        for(const p of f.points){const q=w2s(p.xNm,p.yNm);cx+=q.x;cy+=q.y;}
-        cx/=f.points.length;cy/=f.points.length;
-        if(cx>-120&&cx<this.w+120&&cy>-60&&cy<this.h+60){
-          ctx.fillStyle='rgba(226,238,180,0.8)';ctx.font=this.fnt(9,true);ctx.textAlign='center';
-          ctx.fillText(f.name.toUpperCase(),cx,cy);
-          if(f.peakM>500){
-            ctx.fillStyle='rgba(226,238,180,0.5)';ctx.font=this.fnt(7.5);
-            ctx.fillText(`▲ ${f.peakM} m`,cx,cy+10*K);
-          }
-          ctx.textAlign='left';
-        }
+        const c=w2s(b.cx,b.cy),cx=c.x,cy=c.y;
+        if(cx>-120&&cx<this.w+120&&cy>-60&&cy<this.h+60){ctx.fillStyle='rgba(226,238,180,0.8)';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(f.name.toUpperCase(),cx,cy);if(f.peakM>500){ctx.fillStyle='rgba(226,238,180,0.5)';ctx.font=this.fnt(7.5);ctx.fillText(`▲ ${f.peakM} m`,cx,cy+10*K);}ctx.textAlign='left';}
       }
     }
   }

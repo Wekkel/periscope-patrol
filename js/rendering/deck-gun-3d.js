@@ -80,7 +80,13 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     };
     for(let i=0;i<secs.length-1;i++){
       const a=secs[i],b=secs[i+1];
-      add('DECK',[V(a,-1),V(b,-1),V(b,1),V(a,1)]);
+      /* Split the top at the centreline. One large quad can straddle the
+         bridge camera's near plane when looking abeam; painter sorting then
+         made one half appear open and the missing half swapped sides as the
+         view rotated. Two independently clipped deck halves are stable through
+         the full 360° look. */
+      add('DECK_PORT',[V(a,-1),V(b,-1),V(b,0),V(a,0)]);
+      add('DECK_STARBOARD',[V(a,0),V(b,0),V(b,1),V(a,1)]);
       add('PORT',[V(a,-1,.12),V(b,-1,.12),V(b,-1),V(a,-1)]);
       add('STARBOARD',[V(a,1),V(b,1),V(b,1,.12),V(a,1,.12)]);
     }
@@ -99,12 +105,12 @@ class CanvasViewDeckGun extends CanvasViewTactical {
   drawOwnshipSurfaceDeck3D(ctx,cam,state,opts={}){
     const sub=state.playerSub,k=this.k,faces=this.ownshipSurfaceMesh(cam,state);
     for(const face of faces){
-      if(face.kind==='DECK')ctx.fillStyle='rgba(43,51,48,.985)';
+      if(face.kind.startsWith('DECK'))ctx.fillStyle='rgba(43,51,48,.985)';
       else if(face.kind==='FAIRWATER_TOP')ctx.fillStyle='rgba(52,60,56,.99)';
       else if(face.kind.startsWith('FAIRWATER'))ctx.fillStyle='rgba(29,36,34,.99)';
       else ctx.fillStyle='rgba(10,16,17,.98)';
       ctx.beginPath();face.pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fill();
-      ctx.strokeStyle=face.kind==='DECK'?'rgba(126,141,133,.55)':'rgba(94,108,102,.48)';ctx.lineWidth=Math.max(.7,.9*k);ctx.stroke();
+      ctx.strokeStyle=face.kind.startsWith('DECK')?'rgba(126,141,133,.55)':'rgba(94,108,102,.48)';ctx.lineWidth=Math.max(.7,.9*k);ctx.stroke();
     }
 
     // Centre seam and rails are near-plane clipped segments rather than a list
@@ -121,13 +127,45 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     };
     line(0,.035,'rgba(128,141,134,.30)');line(-.92,.30,'rgba(148,160,153,.44)');line(.92,.30,'rgba(148,160,153,.44)');
 
-    // A few fixed fittings keep scale/readability without textures.
+    const shapeAt=fwd=>{
+      if(fwd<=secs[0].f)return{w:secs[0].w,z:secs[0].z};if(fwd>=secs.at(-1).f)return{w:secs.at(-1).w,z:secs.at(-1).z};
+      for(let i=0;i<secs.length-1;i++){const a=secs[i],b=secs[i+1];if(fwd>=a.f&&fwd<=b.f){const u=(fwd-a.f)/(b.f-a.f);return{w:lerp(a.w,b.w,u),z:lerp(a.z,b.z,u)};}}return{w:3,z:1};
+    };
+    const seg=(a,b,col='rgba(139,153,146,.48)',lw=.8)=>{
+      const av=this.ownshipCamVertex(cam,sub,...a),bv=this.ownshipCamVertex(cam,sub,...b),q=this.clipOwnshipSegment(av,bv);if(!q)return false;
+      const p0=this.projectOwnshipLocal(cam,q[0]),p1=this.projectOwnshipLocal(cam,q[1]);if(!p0||!p1)return false;ctx.strokeStyle=col;ctx.lineWidth=Math.max(.65,lw*k);ctx.beginPath();ctx.moveTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);ctx.stroke();return true;
+    };
+
+    // Pressure-hull/deck plating seams and ventilator grilles: sub-pixel at long
+    // range, but they make the bridge foredeck read as steel rather than a slab.
+    for(const fwd of [-37,-26,-16,16,26,36,46]){const sh=shapeAt(fwd);seg([fwd,-sh.w*.72,sh.z+.035],[fwd,sh.w*.72,sh.z+.035],'rgba(131,145,138,.29)',.65);}
+    for(const fwd of [31,34.5]){const sh=shapeAt(fwd);for(let n=-2;n<=2;n++){const side=n*.22;seg([fwd-1.6,side,sh.z+.05],[fwd+1.6,side,sh.z+.05],'rgba(9,15,15,.72)',.7);}}
+
+    // Proper rail stanchions on both shoulders. The continuous top rails above
+    // remain cheap splines; these posts supply the US fleet-boat silhouette.
+    if(!this.lowSpec||this.quality>.48){
+      for(const fwd of [-39,-32,-25,-18,18,25,32,39,46]){const sh=shapeAt(fwd);for(const side of [-.92,.92]){const y=side*sh.w;seg([fwd,y,sh.z+.04],[fwd,y,sh.z+.32],'rgba(154,167,160,.48)',.72);}}
+    }
+
+    // Fixed deck fittings/hatches.
     const detail=opts.gun?[-28,-13,14,30,43]:[-28,-13,13,29,42];
     for(const fwd of detail){
-      const sec=secs.reduce((a,b)=>Math.abs(b.f-fwd)<Math.abs(a.f-fwd)?b:a),q=this.ownshipCamVertex(cam,sub,fwd,0,sec.z+.08);
-      if(q.f<.75)continue;const p=this.projectOwnshipLocal(cam,q);if(!p)continue;
-      const rr=clamp(cam.f/Math.max(q.f,90)*.62,1.1*k,4.2*k);ctx.fillStyle='rgba(7,12,12,.78)';ctx.beginPath();ctx.ellipse(p.x,p.y,rr*1.25,rr*.62,0,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='rgba(128,142,135,.48)';ctx.stroke();
+      const sh=shapeAt(fwd),q=this.ownshipCamVertex(cam,sub,fwd,0,sh.z+.08);if(q.f<.75)continue;const p=this.projectOwnshipLocal(cam,q);if(!p)continue;
+      const rr=clamp(cam.f/Math.max(q.f,90)*.62,1.1*k,4.2*k);ctx.fillStyle='rgba(7,12,12,.78)';ctx.beginPath();ctx.ellipse(p.x,p.y,rr*1.25,rr*.62,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(128,142,135,.48)';ctx.stroke();
+      if(rr>2.2*k){ctx.strokeStyle='rgba(159,172,164,.35)';ctx.beginPath();ctx.moveTo(p.x-rr*.75,p.y);ctx.lineTo(p.x+rr*.75,p.y);ctx.stroke();}
+    }
+
+    // Silversides carried a 3-inch deck gun. In bridge view it is a fixed ship
+    // fitting (the interactive/manned weapon still lives in GUN station). Place
+    // a compact forward mount far enough from the fairwater to remain readable.
+    if(opts.bridge){
+      const fwd=20,sh=shapeAt(fwd),z=sh.z;
+      seg([fwd,0,z+.08],[fwd,0,z+1.12],'rgba(112,124,118,.86)',2.5);
+      seg([fwd-.7,-.58,z+.88],[fwd-.7,.58,z+.88],'rgba(132,145,138,.82)',2.0);
+      seg([fwd-.7,-.58,z+.88],[fwd+.35,-.46,z+1.32],'rgba(116,129,123,.72)',1.4);
+      seg([fwd-.7,.58,z+.88],[fwd+.35,.46,z+1.32],'rgba(116,129,123,.72)',1.4);
+      seg([fwd+.05,0,z+1.12],[fwd+4.7,0,z+1.28],'rgba(151,163,156,.90)',2.1);
+      seg([fwd+4.7,0,z+1.28],[fwd+5.15,0,z+1.30],'rgba(69,78,74,.96)',3.0);
     }
     return faces.length;
   }

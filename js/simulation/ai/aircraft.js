@@ -5,6 +5,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     W.aircraft=W.aircraft||[];
     W.airThreat=W.airThreat||{level:env.airThreat===undefined?0.5:env.airThreat,alarmedAt:-999,sdOn:true};
     const air=W.airThreat;
+    const friendlyPorts=(W.ports||[]).filter(p=>p.side==='FRIENDLY'&&p.pos);
+    const nearestFriendly=pos=>{let best=null;for(const port of friendlyPorts){const rngNm=distNm(pos,port.pos);if(!best||rngNm<best.rngNm)best={port,rngNm};}return best;};
     // Crew-managed arcade assist: SD is not a player toggle.  Whether the
     // boat actually has the set is determined by patrol date in sound-radar.js.
     this.ensureSoundRadarState?.();
@@ -20,8 +22,18 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       const stirred=W.enemy.alertState!=='UNAWARE'?1.7:1;
       const surfaced=sub.depthFeet<10?1.5:1;
       let chance=0.020*air.level*stirred*surfaced*(0.35+day*0.85)*(nearLand?1.8:0.55);
-      const localWx=weatherAtPosition(this.state,sub.position);
+      const localWx=weatherAtPosition(this.state,sub.position),friendly=nearestFriendly(sub.position);
       chance*=(1-clamp(localWx.seaState,0,1)*0.35)*localWx.aircraftFactor;
+      /* A friendly service port represents a locally controlled anchorage, not
+         a magic force field. Routine Japanese reconnaissance/ASW searches are
+         nevertheless very unlikely to orbit directly overhead: fighters, AA
+         and harbour warning nets make the inner approaches expensive. Aircraft
+         already committed to an attack are not deleted or made harmless. */
+      if(friendly&&W.enemy.alertState==='UNAWARE'){
+        if(friendly.rngNm<=6)chance=0;
+        else if(friendly.rngNm<=12)chance*=.18;
+        else if(friendly.rngNm<=18)chance*=.55;
+      }else if(friendly&&friendly.rngNm<=6)chance*=.35;
       if(W.aircraft.length>=2) chance=0;
       if(Math.random()<chance){
         const bear=Math.random()*360, rng=11+Math.random()*9;
@@ -47,7 +59,11 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     }
 
     for(const a of W.aircraft){
-      const rng=distNm(a.position,sub.position);
+      const rng=distNm(a.position,sub.position),friendly=nearestFriendly(a.position);
+      if(a.state==='SEARCHING'&&!a.spotted&&friendly&&friendly.rngNm<5.5){
+        a.state='DEPARTING';a.departBearing=bearingBetween(friendly.port.pos,a.position);
+        if(a.seenBySub)this.log(`${a.name} turns away from ${friendly.port.name}'s defended airspace.`,'warn');
+      }
 
       // ── the aircraft looking for us ──
       if(a.state==='SEARCHING'){
@@ -178,6 +194,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         if(a.orbitTimer<=0){a.state='SEARCHING';a.legTimer=0;}
       }else if(a.state==='DEPARTING'){
         a.speedKnots=Math.min(a.speedKnots+dt*4,170);
+        if(Number.isFinite(a.departBearing))want=a.departBearing;
       }else{                                       // SEARCHING — creeping line ahead
         a.legTimer=(a.legTimer||0)-dt;
         if(a.legTimer<=0){

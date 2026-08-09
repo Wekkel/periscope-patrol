@@ -1418,73 +1418,73 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
      camera. Nothing is drawn nearer than the stern, which is what made the
      old version balloon across the whole optic.                          */
   drawOwnWake(ctx,cam,state,t,dl){
-    const sub=state.playerSub;
-    const spd=sub.propulsion.speedKnots;
-    if(spd<1.5||dl<0.12) return;
-    const surfaced=sub.depthFeet<12;
-    if(!surfaced&&sub.depthFeet>70) return;
-    const back=normDeg(sub.heading+180);
-    const viewBearing=cam.bearingDeg??state.tactical.periscopeBearing;
-    if(Math.abs(shortDelta(viewBearing,back))>cam.fovDeg*0.95) return;
-    const E=sub.position.xNm*NM_M, N=-sub.position.yNm*NM_M;
-    const br=degToRad(back);
-    const sinB=Math.sin(br), cosB=Math.cos(br);
-    // perpendicular, for the width of the strip
-    const px=Math.cos(br), pz=-Math.sin(br);
-    const sternM=surfaced?42:22;                       // the wake begins abaft the bridge
-    const lenM=surfaced?clamp(120+spd*46,200,780):150;
-    const halfNear=surfaced?4.2:0.7;
-    const spread=surfaced?0.055:0.012;                 // metres of half-width per metre run
-    const N_SEG=surfaced?9:5;
-    const left=[],right=[],mid=[];
+    const sub=state.playerSub,spd=Math.max(0,sub.propulsion.speedKnots||0);
+    if(spd<.8||dl<0.12) return;
+    const surfaced=sub.depthFeet<12;if(!surfaced&&sub.depthFeet>70)return;
+    const back=normDeg(sub.heading+180),viewBearing=cam.bearingDeg??state.tactical.periscopeBearing;
+    if(Math.abs(shortDelta(viewBearing,back))>cam.fovDeg*0.98)return;
+    const E=sub.position.xNm*NM_M,N=-sub.position.yNm*NM_M,br=degToRad(back),sinB=Math.sin(br),cosB=Math.cos(br),px=Math.cos(br),pz=-Math.sin(br);
+    const speedN=clamp((spd-1)/17,0,1),foamN=clamp((spd-2.5)/13,0,1);
+    const sternM=surfaced?43:22,lenM=surfaced?clamp(80+spd*38,115,760):clamp(70+spd*12,90,180);
+    const halfNear=surfaced?lerp(1.35,3.8,speedN):.55,spread=surfaced?lerp(.030,.060,speedN):.010;
+    const N_SEG=surfaced?(this.lowSpec?8:11):5,left=[],right=[],mid=[];
+    const world=(d,side=0)=>({E:E+sinB*d+px*side,N:N+cosB*d+pz*side});
     for(let i=0;i<=N_SEG;i++){
-      const f=i/N_SEG;
-      const d=sternM+(lenM-sternM)*Math.pow(f,1.35);
-      const hw=halfNear+d*spread;
-      const cx0=E+sinB*d, cz0=N+cosB*d;
-      const l=this.proj(cam,cx0+px*hw,cz0+pz*hw,0);
-      const r=this.proj(cam,cx0-px*hw,cz0-pz*hw,0);
-      const m=this.proj(cam,cx0,cz0,0);
-      if(!l||!r||!m) break;
-      left.push(l);right.push(r);mid.push({p:m,f,hw,d});
+      const f=i/N_SEG,d=sternM+(lenM-sternM)*Math.pow(f,1.28),hw=halfNear+d*spread,c=world(d),l=this.proj(cam,c.E+px*hw,c.N+pz*hw,0),r=this.proj(cam,c.E-px*hw,c.N-pz*hw,0),m=this.proj(cam,c.E,c.N,0);
+      if(!l||!r||!m)break;left.push(l);right.push(r);mid.push({p:m,f,hw,d});
     }
-    if(left.length<3) return;
-    ctx.save();
-    ctx.beginPath();ctx.rect(0,cam.horizonY,this.w,this.h-cam.horizonY);ctx.clip();
-    // the disturbed water itself
-    const a0=surfaced?0.30:0.13;
-    const g=ctx.createLinearGradient(left[0].x,left[0].y,
-      left[left.length-1].x,left[left.length-1].y);
-    g.addColorStop(0,`rgba(236,246,252,${a0*dl})`);
-    g.addColorStop(0.45,`rgba(226,240,250,${a0*0.55*dl})`);
-    g.addColorStop(1,'rgba(220,236,248,0)');
-    ctx.fillStyle=g;
-    ctx.beginPath();
-    ctx.moveTo(left[0].x,left[0].y);
-    for(let i=1;i<left.length;i++) ctx.lineTo(left[i].x,left[i].y);
-    for(let i=right.length-1;i>=0;i--) ctx.lineTo(right[i].x,right[i].y);
-    ctx.closePath();ctx.fill();
-    // the bright churn right astern, and the transverse crests that follow it
+    if(left.length<3)return;
+    ctx.save();ctx.beginPath();ctx.rect(0,cam.horizonY,this.w,this.h-cam.horizonY);ctx.clip();
+
+    // Turbulent centre wake: narrow at manoeuvring speed, longer/brighter as
+    // shaft power rises. It fades continuously rather than ending in a blunt V.
+    const baseA=(surfaced?lerp(.10,.31,speedN):.10)*dl,g=ctx.createLinearGradient(left[0].x,left[0].y,left.at(-1).x,left.at(-1).y);
+    g.addColorStop(0,`rgba(240,248,251,${baseA})`);g.addColorStop(.32,`rgba(229,242,248,${baseA*.72})`);g.addColorStop(.72,`rgba(220,236,244,${baseA*.28})`);g.addColorStop(1,'rgba(216,232,242,0)');ctx.fillStyle=g;
+    ctx.beginPath();ctx.moveTo(left[0].x,left[0].y);for(let i=1;i<left.length;i++)ctx.lineTo(left[i].x,left[i].y);for(let i=right.length-1;i>=0;i--)ctx.lineTo(right[i].x,right[i].y);ctx.closePath();ctx.fill();
+
     if(surfaced){
-      const n0=mid[0].p, n1=mid[Math.min(1,mid.length-1)].p;
-      const wpx=Math.abs(left[0].x-right[0].x)*0.5;
-      const cg=ctx.createRadialGradient(n0.x,n0.y,0,n0.x,n0.y,Math.max(6,wpx*1.5));
-      cg.addColorStop(0,`rgba(255,255,255,${0.5*dl})`);
-      cg.addColorStop(1,'rgba(255,255,255,0)');
-      ctx.fillStyle=cg;
-      ctx.beginPath();ctx.ellipse(n0.x,(n0.y+n1.y)/2,Math.max(6,wpx*1.5),Math.max(2,wpx*0.45),0,0,Math.PI*2);
-      ctx.fill();
-      if(this.quality>0.45){
-        for(let i=1;i<mid.length-1;i++){
-          const m=mid[i];
-          const phase=Math.sin(m.d*0.05-t*1.6);
-          if(phase<0.25) continue;
-          const w2=Math.abs(left[i].x-right[i].x)*0.5;
-          ctx.strokeStyle=`rgba(255,255,255,${0.16*(1-m.f)*phase*dl})`;
-          ctx.lineWidth=Math.max(1,w2*0.06);
-          ctx.beginPath();ctx.moveTo(left[i].x,left[i].y);ctx.lineTo(right[i].x,right[i].y);ctx.stroke();
+      // Propeller wash is a dense, much narrower core rather than one huge white
+      // blob. At low speed it is almost the only visible wake.
+      const coreL=[],coreR=[];
+      for(let i=0;i<mid.length;i++){
+        const m=mid[i],cw=m.hw*lerp(.19,.31,speedN),c=world(m.d),a=this.proj(cam,c.E+px*cw,c.N+pz*cw,0),b=this.proj(cam,c.E-px*cw,c.N-pz*cw,0);if(a&&b){coreL.push(a);coreR.push(b);}
+      }
+      if(coreL.length>2){
+        const cg=ctx.createLinearGradient(coreL[0].x,coreL[0].y,coreL.at(-1).x,coreL.at(-1).y),ca=lerp(.25,.53,speedN)*dl;
+        cg.addColorStop(0,`rgba(255,255,255,${ca})`);cg.addColorStop(.20,`rgba(247,252,253,${ca*.82})`);cg.addColorStop(1,'rgba(232,244,248,0)');ctx.fillStyle=cg;ctx.beginPath();ctx.moveTo(coreL[0].x,coreL[0].y);for(const q of coreL.slice(1))ctx.lineTo(q.x,q.y);for(let i=coreR.length-1;i>=0;i--)ctx.lineTo(coreR[i].x,coreR[i].y);ctx.closePath();ctx.fill();
+      }
+
+      // Kelvin divergent waves. The classical deep-water wake half-angle is
+      // about 19.5°. Keep these subtle: they should read as moving water, not as
+      // two luminous rails painted behind the submarine.
+      if(spd>5&&this.quality>.32){
+        const kelvin=Math.tan(degToRad(19.47)),steps=this.lowSpec?5:7;
+        for(const side of [-1,1]){
+          ctx.strokeStyle=`rgba(224,240,246,${(.055+.075*foamN)*dl})`;ctx.lineWidth=Math.max(.75,1.05*this.k);ctx.beginPath();let begun=false;
+          for(let i=0;i<=steps;i++){
+            const f=i/steps,d=sternM+25+(lenM-sternM-20)*f,lateral=side*d*kelvin*(.58+.22*f),c=world(d,lateral),q=this.proj(cam,c.E,c.N,0);if(!q)continue;if(!begun){ctx.moveTo(q.x,q.y);begun=true;}else ctx.lineTo(q.x,q.y);
+          }ctx.stroke();
         }
       }
+
+      // Broken shoulder crests replace the old full-width zebra stripes. Their
+      // spacing travels with time and they only appear once the boat is making
+      // enough way to throw persistent foam.
+      if(spd>4&&this.quality>.45){
+        for(let i=1;i<mid.length-1;i++){
+          const m=mid[i],phase=.5+.5*Math.sin(m.d*.075-t*(1.15+spd*.035));if(phase<.58)continue;
+          const alpha=(.035+.12*foamN)*(1-m.f)*phase*dl;
+          for(const side of [-1,1]){
+            const a=side<0?left[i]:right[i],b=mid[i].p,x0=lerp(a.x,b.x,.08),y0=lerp(a.y,b.y,.08),x1=lerp(a.x,b.x,.48),y1=lerp(a.y,b.y,.48);
+            ctx.strokeStyle=`rgba(250,253,255,${alpha})`;ctx.lineWidth=Math.max(.75,1.15*this.k);ctx.beginPath();ctx.moveTo(x0,y0);ctx.quadraticCurveTo(lerp(x0,x1,.55),lerp(y0,y1,.55)-Math.max(.4,this.k*.7),x1,y1);ctx.stroke();
+          }
+        }
+      }
+
+      // Short stern boil, speed-scaled and deliberately bounded to the propeller
+      // wash instead of filling the optic at every speed.
+      const n0=mid[0].p,n1=mid[Math.min(1,mid.length-1)].p,wpx=Math.max(3,Math.abs(left[0].x-right[0].x)*(.20+.15*speedN));
+      const boil=ctx.createRadialGradient(n0.x,n0.y,0,n0.x,n0.y,Math.max(4,wpx*1.35));boil.addColorStop(0,`rgba(255,255,255,${lerp(.20,.48,speedN)*dl})`);boil.addColorStop(1,'rgba(255,255,255,0)');ctx.fillStyle=boil;ctx.beginPath();ctx.ellipse(n0.x,(n0.y+n1.y)/2,Math.max(4,wpx*1.35),Math.max(1.8,wpx*.38),0,0,Math.PI*2);ctx.fill();
     }
     ctx.restore();
   }

@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.6'; // patch 10.9 Playtest Hardening changes
+const VERSION = '0.8.7'; // rest-points: MAP performance, RTB, bridge/wake, sound stop, friendly airspace
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
@@ -72,24 +72,24 @@ const SHELL = [
   './js/pwa/version.js',
   './js/persistence/autosave.js',
   './js/bootstrap/start.js',
-  'js/simulation/collision/hull-geometry.js',
-  'js/simulation/collision/vessel-collision.js',
-  'js/simulation/damage-control.js',
-  'js/simulation/career-history.js',
-  'js/simulation/ai/asw-brain.js',
-  'js/simulation/surface-watch.js',
-  'js/rendering/bridge-3d.js',
-  'js/simulation/sound-radar.js',
-  'js/rendering/sound-room.js',
-  'js/simulation/weather-system.js',
-  'js/simulation/ship-damage.js',
-  'js/simulation/mission-framework.js',
-  'js/simulation/traffic-director.js',
-  'js/simulation/after-action-report.js',
-  'js/ui/after-action-report.js',
-  'js/simulation/historical-campaign.js',
-  'js/simulation/battle-atmosphere.js',
-  'js/rendering/battle-atmosphere.js'
+  './js/simulation/collision/hull-geometry.js',
+  './js/simulation/collision/vessel-collision.js',
+  './js/simulation/damage-control.js',
+  './js/simulation/career-history.js',
+  './js/simulation/ai/asw-brain.js',
+  './js/simulation/surface-watch.js',
+  './js/rendering/bridge-3d.js',
+  './js/simulation/sound-radar.js',
+  './js/rendering/sound-room.js',
+  './js/simulation/weather-system.js',
+  './js/simulation/ship-damage.js',
+  './js/simulation/mission-framework.js',
+  './js/simulation/traffic-director.js',
+  './js/simulation/after-action-report.js',
+  './js/ui/after-action-report.js',
+  './js/simulation/historical-campaign.js',
+  './js/simulation/battle-atmosphere.js',
+  './js/rendering/battle-atmosphere.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {

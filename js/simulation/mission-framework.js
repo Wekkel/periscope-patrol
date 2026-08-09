@@ -84,6 +84,11 @@ function missionProgressText(state){
   if(m.type==='LIFEGUARD')return m.recovered?'Airman aboard':m.survivorSpawned?(m.survivorSeen?'Raft located — close surfaced and slow':'Search for downed airman'):'Proceed to lifeguard station';
   if(m.type==='SPECIAL_TRANSPORT')return m.dropComplete?(m.departed?'Party ashore — area clear':`Party ashore — clear ${m.escapeRadiusNm||4} nm`):`Transfer ${Math.round((m.holdProgress||0)/(m.holdRequired||90)*100)}%${m.compromised?' · enemy response inbound':''}`;
   if(m.type==='MINELAYING')return`Mine pattern ${m.minesLaid||0}/${m.mineCount||12}`;
+  if(m.type==='CONVOY_INTERDICTION'){
+    const ships=Math.max(0,m.neutralizedShips||0),shipGoal=Math.max(1,m.requiredNeutralizedShips||2);
+    const tons=Math.max(0,m.neutralizedTonnage||0),initial=Math.max(1,m.initialMerchantTonnage||1),pct=Math.round(tons/initial*100),goal=Math.round((m.requiredNeutralizedTonnagePct||.45)*100);
+    return`Neutralized ${ships}/${shipGoal} ships · ${pct}%/${goal}% convoy tonnage`;
+  }
   return'Enemy merchant traffic';
 }
 
@@ -242,11 +247,16 @@ function missionProgressText(state){
         if(located&&!_missionObj(c,'locate')?.done){_missionSetDone(c,'locate');this.captainLog?.('CONVOY_SIGHTED','Enemy convoy sighted.',{},'convoy-sighted');}
         const neutralized=members.filter(_missionShipNeutralized),neutralizedTonnage=neutralized.reduce((n,x)=>n+(x.tonsFactor||0),0);
         m.neutralizedShips=neutralized.length;m.neutralizedTonnage=neutralizedTonnage;
-        if(s.weapons.hits.some(h=>convoyIds.has(h.contactId))||neutralized.length)_missionSetDone(c,'attack');
         const initialCount=Math.max(1,m.initialMerchantCount||members.length),initialTons=Math.max(1,m.initialMerchantTonnage||members.reduce((n,x)=>n+(x.tonsFactor||0),0));
         const shipGoal=Math.max(1,Math.min(m.requiredNeutralizedShips||2,initialCount)),tonGoal=initialTons*(m.requiredNeutralizedTonnagePct||.45);
         const allGone=!members.some(x=>!x.sunk)&&!this.primaryConvoyExists?.();
         const tacticalWin=neutralized.length>=shipGoal&&neutralizedTonnage>=tonGoal;
+        /* The checkbox text promises a meaningful share of shipping, so it must
+           not turn green merely because one torpedo happened to score a hit.
+           Keeping it tied to the same threshold that completes the primary
+           mission also repairs old saves whose UI said ATTACK complete while
+           the campaign still (correctly, but invisibly) remained on PATROL. */
+        _missionSetDone(c,'attack',allGone||tacticalWin);
         if(allGone||tacticalWin)this._missionFinish(true);return true;
       }
       if(m.type==='HIGH_VALUE_INTERCEPT'){

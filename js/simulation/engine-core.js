@@ -177,7 +177,15 @@ class SimEngineCore{
           this.log('Helm taken manually — autopilot disengaged.','warn');
         }
         break;
-      case'SET_ENGINE_RPM': sub.propulsion.orderedRpm=clamp(cmd.rpm,0,450); break;
+      case'SET_ENGINE_RPM':{
+        const rpm=clamp(cmd.rpm,0,450);sub.propulsion.orderedRpm=rpm;
+        /* Commands are still processed while the simulation is paused. Until
+           now an ALL STOP issued in that state left the last integrated 13 kn
+           speed and screw-noise value frozen on screen indefinitely. A paused
+           player is not asking us to simulate coasting; make the stopped shaft
+           state internally consistent without moving the boat or advancing time. */
+        if(rpm===0&&this.state.time.timeScale===0){sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;}
+        break;}
       case'SET_ORDERED_DEPTH':
         if(+cmd.depthFeet>10) this.clearDeckForDive('Dive order');
         sub.orderedDepthFeet=clamp(cmd.depthFeet,0,300); this.derivMode(); break;
@@ -774,6 +782,11 @@ class SimEngineCore{
     if(camp.missionStatus==='COMPLETED'||sub.mode==='SUNK'){
       camp.alongside=0;camp.portService=0;return;
     }
+    /* Save-compatibility recovery: older convoy builds could leave the primary
+       mission marked SUCCESS while missionStatus was still PATROL. Without this
+       bridge a player already sitting in the green ring only received the
+       15-second service cycle forever and could never satisfy Return to port. */
+    if(camp.missionStatus==='PATROL'&&camp.primaryMission?.result==='SUCCESS')camp.missionStatus='RETURN TO BASE';
     const returning=camp.missionStatus==='RETURN TO BASE';
     const r=this.friendlyPortNav();
     const ALONGSIDE_SEC=180,SERVICE_SEC=15,APPROACH_NM=1.5,CLOSE_NM=0.30,SLOW_KN=3.0;
