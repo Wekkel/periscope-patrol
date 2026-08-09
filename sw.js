@@ -84,7 +84,9 @@ const SHELL = [
   'js/simulation/weather-system.js',
   'js/simulation/ship-damage.js',
   'js/simulation/mission-framework.js',
-   'js/simulation/traffic-director.js'
+  'js/simulation/traffic-director.js',
+  'js/simulation/after-action-report.js',
+  'js/ui/after-action-report.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
