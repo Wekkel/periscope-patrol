@@ -7,6 +7,7 @@ class ScenarioSelector{
 
   open(){
     audio.ensure();
+    this.syncFooter();
     const career=SaveSystem.getCareer();
     const el=document.getElementById('scenCareerScore');
     if(el)el.textContent=(career.totalScore||0).toLocaleString();
@@ -37,8 +38,25 @@ class ScenarioSelector{
         document.getElementById('stabCareer').style.display=this.activeTab==='career'?'flex':'none';
         if(this.activeTab==='saveload')this.renderSaveSlots();
         if(this.activeTab==='career')this.renderCareer();
+        this.syncFooter();
       });
     });
+  }
+
+  syncFooter(){
+    const launch=document.getElementById('scenLaunch');if(!launch)return;
+    const launchTab=this.activeTab==='patrol'||this.activeTab==='historical';
+    launch.style.display=launchTab?'':'none';
+    if(!launchTab){launch.disabled=true;return;}
+    if(this.activeTab==='historical'){
+      launch.textContent='▶ Launch Historical Mission';
+      launch.disabled=!this.selHist;
+      launch.title=this.selHist?'':'Choose a historical mission first';
+    }else{
+      launch.textContent='▶ Launch Patrol';
+      launch.disabled=!this.selArea;
+      launch.title='';
+    }
   }
 
   renderCards(){
@@ -64,9 +82,9 @@ class ScenarioSelector{
     const ms=c.querySelector('#missionTypeSelect');if(ms)ms.addEventListener('change',()=>{this.selMission=ms.value;});
     c.querySelectorAll('.area-card').forEach(card=>{
       card.addEventListener('click',()=>{
-        this.selArea=card.dataset.area;this.selHist=null;
+        this.selArea=card.dataset.area;
         c.querySelectorAll('.area-card').forEach(x=>x.classList.remove('selected'));
-        card.classList.add('selected');
+        card.classList.add('selected');this.syncFooter();
       });
     });
   }
@@ -84,9 +102,9 @@ class ScenarioSelector{
       </div>`).join('');
     c.querySelectorAll('.hist-card').forEach(card=>{
       card.addEventListener('click',()=>{
-        this.selHist=card.dataset.id;this.selArea=null;
+        this.selHist=card.dataset.id;
         c.querySelectorAll('.hist-card').forEach(x=>x.style.borderColor='');
-        card.style.borderColor='var(--ok)';
+        card.style.borderColor='var(--ok)';this.syncFooter();
       });
     });
   }
@@ -151,7 +169,12 @@ class ScenarioSelector{
   }
 
   launch(){
-    if(this.selHist){
+    // The footer is shared by all tabs, but launching is not. Career and
+    // Save/Load are review/management screens and must never fall through to
+    // a random patrol. Historical missions also require an explicit choice.
+    if(this.activeTab!=='patrol'&&this.activeTab!=='historical')return;
+    if(this.activeTab==='historical'&&!this.selHist){globalThis.Toast?.warn?.('Choose a historical mission first.');return;}
+    if(this.activeTab==='historical'&&this.selHist){
       const h=HISTORICAL_SCENARIOS.find(s=>s.id===this.selHist);
       if(h){
         const aKey=Object.keys(PATROL_AREAS).find(k=>h.area.includes(k.split(' ')[0]))||'Solomon Sea';
@@ -174,7 +197,7 @@ class ScenarioSelector{
         audio.playDive();this.close();showBriefing(aKey,s);return;
       }
     }
-    if(this.selArea){this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});this.close();}
+    if(this.activeTab==='patrol'&&this.selArea){this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});this.close();}
   }
 }
 

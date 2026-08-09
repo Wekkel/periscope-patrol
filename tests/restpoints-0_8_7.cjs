@@ -39,7 +39,7 @@ const sim=vm.runInContext(`(()=>{
 })()`,ctx);
 assert('paused ALL STOP clears stale integrated speed without advancing time',sim.allStop.ordered===0&&sim.allStop.actual===0&&sim.allStop.speed===0&&sim.allStop.elapsed===0,sim.allStop);
 assert('one convoy hit no longer falsely completes meaningful-neutralization objective',sim.oneHit.attack===false&&sim.oneHit.result==='ACTIVE'&&/Neutralized/.test(sim.oneHit.progress),sim.oneHit);
-assert('successful old save in PATROL is recovered into final RETURN TO BASE transfer',sim.returnRecovery.status==='RETURN TO BASE'&&sim.returnRecovery.alongside>0&&sim.returnRecovery.service===0,sim.returnRecovery);
+assert('successful old save in PATROL is recovered and completes immediately when stopped in the friendly harbor ring',sim.returnRecovery.status==='COMPLETED'&&sim.returnRecovery.alongside===0&&sim.returnRecovery.service===0,sim.returnRecovery);
 assert('routine searching aircraft inside friendly-port inner zone turns away',sim.air.state==='DEPARTING'&&Number.isFinite(sim.air.bearing),sim.air);
 
 const mapResult=vm.runInContext(`(()=>{

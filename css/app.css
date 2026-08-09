@@ -442,6 +442,15 @@
     .scen-footer{padding:10px 14px calc(10px + var(--sab));border-top:1px solid var(--line);
       display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;}
     .scen-footer button{width:auto;padding:12px 22px;font-size:12px;margin:0;}
+    .scen-footer button:disabled{opacity:.34;filter:saturate(.45);cursor:default;box-shadow:none;}
+    /* PRIMARY MISSION uses the same in-app picker as the other touch selects.
+       The native Android picker remains hidden, while this button keeps the
+       same footprint and visual hierarchy as the old field. */
+    .pk > #missionTypeSelect + .pk-btn{min-width:250px;max-width:min(100%,430px);justify-content:space-between;
+      padding:10px 12px;font-size:11px;color:var(--ink);background:linear-gradient(180deg,#0d2229,#071216);
+      border-color:var(--line);}
+    .pk > #missionTypeSelect + .pk-btn.open{border-color:var(--alert);color:var(--alert);box-shadow:0 0 0 1px rgba(245,198,92,.14) inset;}
+    @media(max-width:520px){.pk:has(#missionTypeSelect){width:100%;}.pk > #missionTypeSelect + .pk-btn{width:100%;min-width:0;}}
 
     #briefingOverlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;
       display:flex;align-items:center;justify-content:center;padding:14px;}
