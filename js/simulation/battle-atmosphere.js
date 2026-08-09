@@ -119,7 +119,7 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       if(now-(A.lastSignalAt||-999)<26)return;
       const ships=s.world.contacts.filter(c=>!c.sunk&&!c.stationary&&c.type!=='RAFT'&&distNm(s.playerSub.position,c.position)<14);
       const alert=s.world.enemy?.alertState!=='UNAWARE';if(ships.length<2||(!alert&&Math.random()>.20))return;
-      const from=ships.find(c=>c.type==='ESCORT')||ships[0],to=ships.find(c=>c.id!==from.id&&c.convoyId===from.convoyId)||ships.find(c=>c.id!==from.id);if(!to)return;
+      const from=ships.find(c=>isSurfaceCombatant(c))||ships[0],to=ships.find(c=>c.id!==from.id&&c.convoyId===from.convoyId)||ships.find(c=>c.id!==from.id);if(!to)return;
       A.lastSignalAt=now;const pattern=alert?[.0,.22,.46,.62,1.05,1.24]:[0,.34,.82];
       A.signals.push({id:`SIG-${A.nextId++}`,fromId:from.id,toId:to.id,at:now,until:now+2.1,pattern,alert});if(A.signals.length>BATTLE_MAX_SIGNALS)A.signals.shift();
     },

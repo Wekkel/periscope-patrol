@@ -1,6 +1,31 @@
 // ═══════════════════════════════════════════════════ SAVE / LOAD SYSTEM
 const SaveSystem={
   KEY:'ss2_save_', CAREER:'ss2_career', MAX:5,
+  FULL_REPLAY_PATROLS:10,
+
+  _decimateArray(a,max=120){
+    if(!Array.isArray(a)||a.length<=max)return Array.isArray(a)?a:[];
+    const out=[],step=(a.length-1)/(max-1);for(let i=0;i<max;i++)out.push(a[Math.round(i*step)]);
+    return out;
+  },
+
+  _compactReplay(replay){
+    if(!replay||replay.compacted)return replay||null;
+    const compactTrack=g=>({...g,points:this._decimateArray(g.points||[],60)});
+    return{version:replay.version||1,compacted:true,
+      route:this._decimateArray(replay.route||[],120),
+      observedTracks:(replay.observedTracks||[]).slice(0,16).map(compactTrack),
+      truthTracks:(replay.truthTracks||[]).slice(0,16).map(compactTrack),
+      events:this._decimateArray(replay.events||[],140),
+      torpedoes:(replay.torpedoes||[]).slice(-40),
+      aircraftEvaded:Number(replay.aircraftEvaded)||0};
+  },
+
+  _compactOldCareerReplays(c,keepFull=this.FULL_REPLAY_PATROLS){
+    const cut=Math.max(0,(c.patrolHistory||[]).length-keepFull);
+    for(let i=0;i<cut;i++)if(c.patrolHistory[i]?.replay)c.patrolHistory[i].replay=this._compactReplay(c.patrolHistory[i].replay);
+    return c;
+  },
 
   _careerDefault(){return{version:2,totalScore:0,totalTonnage:0,totalShips:0,patrolHistory:[],commendations:[],legacyPatrols:0};},
 
@@ -48,7 +73,22 @@ const SaveSystem={
       c.totalTonnage=(c.totalTonnage||0)+(Number(r.tonnage)||0);
       c.totalShips=(c.totalShips||0)+(Number(r.shipsSunk)||0);
       this._updateCommendations(c,r);
-      localStorage.setItem(this.CAREER,JSON.stringify(c));
+      this._compactOldCareerReplays(c);
+      try{localStorage.setItem(this.CAREER,JSON.stringify(c));}
+      catch(first){
+        // Mobile browsers often give localStorage only a few megabytes. Keep
+        // the complete recent hunts, then degrade older replay geometry before
+        // ever sacrificing the actual patrol history/log.
+        this._compactOldCareerReplays(c,3);
+        for(let i=0;i<Math.max(0,c.patrolHistory.length-3);i++){
+          const q=c.patrolHistory[i];if(q?.replay?.compacted){
+            q.replay.observedTracks=(q.replay.observedTracks||[]).slice(0,8);
+            q.replay.truthTracks=(q.replay.truthTracks||[]).slice(0,8);
+            q.replay.route=this._decimateArray(q.replay.route||[],60);
+          }
+        }
+        localStorage.setItem(this.CAREER,JSON.stringify(c));
+      }
       return JSON.parse(JSON.stringify(r));
     }catch(e){console.warn('Career save failed',e);return null;}
   },

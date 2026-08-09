@@ -24,19 +24,19 @@ const HullGeometry=(()=>{
     const p=h.position||h.center||{xNm:0,yNm:0};
     return{...h,start:{...p},end:{...p}};
   };
-  const beamRatio=c=>c.type==='ESCORT'?10.5:7.2;
+  const beamRatio=c=>['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c.type)?10.5:7.2;
   const draftFeet=c=>{
     if(c.draftFeet!=null)return c.draftFeet;
     if(/CARRIER/i.test(c.displayType||''))return 31;
     if(/CRUISER/i.test(c.displayType||''))return 23;
-    if(c.type==='ESCORT')return 15;
+    if(['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c.type))return 15;
     if(c.type==='TANKER')return 36;
     return clamp(24+((c.lengthYards||400)-350)*0.025,22,32);
   };
   const massTons=c=>{
     if(c.massTons!=null)return c.massTons;
     if(c.tonsFactor>0)return c.tonsFactor;
-    if(c.type==='ESCORT')return clamp((c.lengthYards||320)*6.4,1200,2600);
+    if(['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c.type))return clamp((c.lengthYards||320)*6.4,420,2800);
     return clamp((c.lengthYards||400)*10,2200,8000);
   };
 
@@ -134,3 +134,23 @@ const shipHull=HullGeometry.shipHull;
 const subHull=HullGeometry.subHull;
 const movingHullIntersection=HullGeometry.movingHullIntersection;
 const closestApproach=HullGeometry.closestApproach;
+
+// Patch 10.5 — combat capability helpers.
+// Ship "type" is presentation/history; tactical AI should ask what a hull can do.
+// This lets ambient patrol craft and destroyers participate in ASW without
+// pretending that every surface combatant is the same class of escort.
+function isSurfaceCombatant(c){
+  return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ESCORT','PATROL_CRAFT','WARSHIP'].includes(c.type);
+}
+function hasSonar(c){
+  if(!isSurfaceCombatant(c))return false;
+  if(c.hasSonar!==undefined)return !!c.hasSonar;
+  return true;
+}
+function canProsecuteSubmarine(c){
+  if(!isSurfaceCombatant(c)||!hasSonar(c))return false;
+  return (c.dcRemaining===undefined?28:c.dcRemaining)>0;
+}
+function isASWCombatant(c){return isSurfaceCombatant(c)&&hasSonar(c);}
+function isEscortLike(c){return isSurfaceCombatant(c);}
+

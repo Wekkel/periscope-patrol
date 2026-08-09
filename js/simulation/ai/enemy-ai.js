@@ -4,7 +4,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     // Patch 7: an explosion beside a lone freighter must not telepathically
     // wake the primary convoy screen 80 nm away. The shared ASW brain is local
     // tactical state, so only a nearby real escort can receive this cue.
-    const localEscorts=(W.contacts||[]).filter(c=>c.type==='ESCORT'&&!c.sunk&&distNm(c.position,pos)<=18);
+    const localEscorts=(W.contacts||[]).filter(c=>isASWCombatant(c)&&distNm(c.position,pos)<=18);
     if(!localEscorts.length){
       if(reason==='SHIP_HIT'||reason==='TORPEDO_DUD'||reason==='TORPEDO_LAUNCH'||reason==='DECK_GUN')
         this.log(`Distant shipping alarm — ${reason.replaceAll('_',' ').toLowerCase()}, but no escort screen is close enough to react.`);
@@ -22,10 +22,11 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
 
     if(reason==='SHIP_HIT'||reason==='TORPEDO_DUD'){
       for(const c of this.state.world.contacts){
-        if(c.type==='ESCORT'||c.sunk||c.harborTarget||(c.side&&c.side!=='ENEMY'))continue;const wasAlerted=c.alertedAt&&(this.state.time.elapsedSeconds-c.alertedAt)<120;
+        if(isSurfaceCombatant(c)||c.sunk||c.harborTarget||(c.side&&c.side!=='ENEMY'))continue;const wasAlerted=c.alertedAt&&(this.state.time.elapsedSeconds-c.alertedAt)<120;
         if(!wasAlerted){c.alertedAt=this.state.time.elapsedSeconds;const awayBear=bearingBetween(pos,c.position);c.scatterHeading=normDeg(awayBear+(Math.random()-.5)*60);c.scatterSpeed=c.speedKnots*1.4;c.scattering=true;this.log(`${c.name} emergency speed — scattering.`);}
       }
     }
+    return true;
   }
 
   updateEnemyAI(dt){
@@ -40,7 +41,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       if(evade)evade.done=true;
     }
     e.searchPhase=(e.searchPhase||0)+dt;this.updateASWBrain?.(dt);this.updateSonar(dt);
-    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);escorts.forEach((esc,i)=>this.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
+    const escorts=W.contacts.filter(c=>isASWCombatant(c));escorts.forEach((esc,i)=>this.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
     this.updateLookouts(dt);
 
     // Passive listening may wake the screen, but it creates a deliberately

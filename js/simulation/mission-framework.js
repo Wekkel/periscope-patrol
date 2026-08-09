@@ -53,6 +53,20 @@ function _missionShipNeutralized(c){
   if(!c)return false;if(c.sunk)return true;const D=typeof ensureShipDamage==='function'?ensureShipDamage(c):c.shipDamage;
   return !!(D&&(D.abandoned||D.founderingAt!=null||D.propulsion>=.90||D.flotation>=.94));
 }
+function _missionEstimateInterceptSec(from,targetPos,targetHeading,targetSpeed,ownSpeed=17.5){
+  const maxSec=8*3600,step=30,r=degToRad(targetHeading||0),ts=Math.max(0,targetSpeed||0);
+  for(let t=0;t<=maxSec;t+=step){
+    const d=knotsNmSec(ts)*t,p={xNm:targetPos.xNm+Math.sin(r)*d,yNm:targetPos.yNm-Math.cos(r)*d};
+    if(distNm(from,p)<=knotsNmSec(ownSpeed)*t)return t;
+  }
+  return maxSec;
+}
+function _missionMainMerchants(engine){
+  const W=engine.state.world,live=(W.contacts||[]).filter(x=>x.convoyId==='MAIN'&&x.type!=='ESCORT'&&!isSurfaceCombatant(x));
+  if(live.length)return live;
+  const g=W.traffic?.primaryGroup;
+  return g?.state==='ABSTRACT'?(g.savedMembers||[]).filter(x=>x.type!=='ESCORT'&&!isSurfaceCombatant(x)):[];
+}
 function missionBriefingText(state){
   const m=state?.campaign?.primaryMission;if(!m)return'';let extra='';
   if(m.type==='HIGH_VALUE_INTERCEPT')extra=` Intelligence window: ${Math.round((m.deadlineAt||0)/60)} minutes from patrol start. Reported target: ${m.targetLabel||'high-value ship'}.`;
@@ -105,7 +119,11 @@ function missionProgressText(state){
       c.optionalObjectives=[];W.missionObjects=[];
       const setObjs=rows=>{c.objectives=rows.map(([id,text])=>({id,text,done:false,failed:false}));};
       if(type==='CONVOY_INTERDICTION'){
-        setObjs([['locate','Locate enemy convoy'],['attack','Attack merchant shipping'],['evade','Evade escort vessels'],['return','Return to friendly port']]);
+        setObjs([['locate','Locate enemy convoy'],['attack','Neutralize a meaningful share of enemy shipping'],['evade','Evade escort vessels'],['return','Return to friendly port']]);
+        const merchants=_missionMainMerchants(this),tons=merchants.reduce((n,x)=>n+(x.tonsFactor||0),0);
+        Object.assign(c.primaryMission,{initialMerchantCount:merchants.length,initialMerchantTonnage:tons,
+          requiredNeutralizedShips:Math.max(1,Math.min(2,merchants.length)),requiredNeutralizedTonnagePct:.45,
+          neutralizedShips:0,neutralizedTonnage:0});
       }
       else if(type==='HIGH_VALUE_INTERCEPT'){
         setObjs([['intercept','Reach the reported intercept area'],['identify','Identify the high-value target'],['neutralize','Sink or disable the high-value target'],['return','Return to friendly port']]);
@@ -118,7 +136,10 @@ function missionProgressText(state){
           t.missionRole='HIGH_VALUE_TARGET';
           const err=1.2+_missionHash(c.scenarioSeed,'hvt-error')*1.4,br=degToRad(_missionHash(c.scenarioSeed,'hvt-brg')*360);
           const fix=this.clampToArea({xNm:t.position.xNm+Math.sin(br)*err,yNm:t.position.yNm-Math.cos(br)*err});
-          Object.assign(c.primaryMission,{targetId:t.id,targetLabel:t.displayType||t.name,targetKind:kind,deadlineAt:now+4*3600,intelFix:fix,intelUncertaintyNm:err+1.0,intelCourse:t.heading,intelSpeedKn:t.speedKnots});
+          const interceptSec=_missionEstimateInterceptSec(s.playerSub.position,t.position,t.heading,t.speedKnots,17.5),marginSec=50*60;
+          Object.assign(c.primaryMission,{targetId:t.id,targetLabel:t.displayType||t.name,targetKind:kind,
+            interceptEstimateSec:interceptSec,tacticalMarginSec:marginSec,deadlineAt:now+interceptSec+marginSec,
+            intelFix:fix,intelUncertaintyNm:err+1.0,intelCourse:t.heading,intelSpeedKn:t.speedKnots});
         }
       }
       else if(type==='RECONNAISSANCE'){
@@ -140,7 +161,9 @@ function missionProgressText(state){
       else if(type==='LIFEGUARD'){
         setObjs([['station','Take lifeguard station'],['locate','Locate the downed airman'],['recover','Recover the airman'],['return','Return to friendly port']]);
         const q=_missionRoutePoint(this,10+_missionHash(c.scenarioSeed,'lifeguard-range')*6);
-        Object.assign(c.primaryMission,{station:{...q.pos},stationRadiusNm:2.5,strikeAt:now+720+_missionHash(c.scenarioSeed,'lifeguard-time')*360,survivorId:'LIFE-01',survivorSpawned:false,survivorSeen:false,recovered:false,rescueHold:0});
+        Object.assign(c.primaryMission,{station:{...q.pos},stationRadiusNm:2.5,stationArrivedAt:null,
+          stationWaitSec:180+_missionHash(c.scenarioSeed,'lifeguard-time')*300,strikeAt:null,
+          survivorId:'LIFE-01',survivorSpawned:false,survivorSeen:false,recovered:false,rescueHold:0});
       }
       else if(type==='SPECIAL_TRANSPORT'){
         setObjs([['rendezvous','Reach the coastal rendezvous at night'],['transfer','Put the coastwatcher party and supplies ashore'],['escape','Clear the rendezvous area'],['return','Return to friendly port']]);
@@ -181,7 +204,7 @@ function missionProgressText(state){
     updateMissionFramework(dt){
       const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;
       if(m.type==='LIFEGUARD'){
-        if(now>=m.strikeAt&&!m.survivorSpawned)this._spawnLifeguardSurvivor(m);
+        if(Number.isFinite(m.strikeAt)&&now>=m.strikeAt&&!m.survivorSpawned)this._spawnLifeguardSurvivor(m);
         const raft=m.survivorSpawned&&W.contacts.find(x=>x.id===m.survivorId),tr=raft&&W.contactTracks[m.survivorId];
         if(raft&&tr&&!m.survivorSeen&&((tr.positionSource||tr.source)==='VISUAL'||(tr.positionSource||tr.source)==='SJ RADAR'||tr.lastSensorSource==='SJ RADAR')){
           m.survivorSeen=true;m.survivorPos={...(tr.plotPosition||raft.position)};_missionSetDone(c,'locate');this.notify('LIFEGUARD — LIFE RAFT LOCATED. Close surfaced and slow for recovery.','ok');
@@ -212,11 +235,19 @@ function missionProgressText(state){
     checkPrimaryMission(){
       const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),W=s.world;if(!MISSION_PRIMARY_TYPES.includes(m.type))return false;if(m.result!=='ACTIVE')return true;
       if(m.type==='CONVOY_INTERDICTION'){
-        const convoyIds=new Set(W.contacts.filter(x=>x.convoyId==='MAIN').map(x=>x.id)),located=Object.keys(W.contactTracks).some(id=>convoyIds.has(id));
+        const members=_missionMainMerchants(this),convoyIds=new Set([
+          ...W.contacts.filter(x=>x.convoyId==='MAIN').map(x=>x.id),
+          ...(W.traffic?.primaryGroup?.savedMembers||[]).map(x=>x.id)
+        ]),located=Object.keys(W.contactTracks).some(id=>convoyIds.has(id));
         if(located&&!_missionObj(c,'locate')?.done){_missionSetDone(c,'locate');this.captainLog?.('CONVOY_SIGHTED','Enemy convoy sighted.',{},'convoy-sighted');}
-        if(s.weapons.hits.some(h=>convoyIds.has(h.contactId)))_missionSetDone(c,'attack');
-        const alive=W.contacts.filter(x=>x.convoyId==='MAIN'&&x.type!=='ESCORT'&&!x.sunk);
-        if(!alive.length&&!this.primaryConvoyExists?.())this._missionFinish(true);return true;
+        const neutralized=members.filter(_missionShipNeutralized),neutralizedTonnage=neutralized.reduce((n,x)=>n+(x.tonsFactor||0),0);
+        m.neutralizedShips=neutralized.length;m.neutralizedTonnage=neutralizedTonnage;
+        if(s.weapons.hits.some(h=>convoyIds.has(h.contactId))||neutralized.length)_missionSetDone(c,'attack');
+        const initialCount=Math.max(1,m.initialMerchantCount||members.length),initialTons=Math.max(1,m.initialMerchantTonnage||members.reduce((n,x)=>n+(x.tonsFactor||0),0));
+        const shipGoal=Math.max(1,Math.min(m.requiredNeutralizedShips||2,initialCount)),tonGoal=initialTons*(m.requiredNeutralizedTonnagePct||.45);
+        const allGone=!members.some(x=>!x.sunk)&&!this.primaryConvoyExists?.();
+        const tacticalWin=neutralized.length>=shipGoal&&neutralizedTonnage>=tonGoal;
+        if(allGone||tacticalWin)this._missionFinish(true);return true;
       }
       if(m.type==='HIGH_VALUE_INTERCEPT'){
         const t=W.contacts.find(x=>x.id===m.targetId),rng=t?distNm(s.playerSub.position,t.position):Infinity,tr=t&&W.contactTracks[t.id];
@@ -233,7 +264,12 @@ function missionProgressText(state){
         if(_missionObj(c,'identify')?.done&&distNm(s.playerSub.position,m.center)>=m.escapeRadiusNm){_missionSetDone(c,'escape');this._missionFinish(true);}return true;
       }
       if(m.type==='LIFEGUARD'){
-        if(distNm(s.playerSub.position,m.station)<=m.stationRadiusNm)_missionSetDone(c,'station');return true;
+        if(distNm(s.playerSub.position,m.station)<=m.stationRadiusNm){
+          const first=!_missionObj(c,'station')?.done;_missionSetDone(c,'station');
+          if(first||!Number.isFinite(m.stationArrivedAt)){m.stationArrivedAt=s.time.elapsedSeconds||0;m.strikeAt=m.stationArrivedAt+(m.stationWaitSec||240);
+            this.notify(`LIFEGUARD STATION — on station. Carrier strike expected in about ${Math.ceil((m.stationWaitSec||240)/60)} minutes.`,'ok');}
+        }
+        return true;
       }
       if(m.type==='SPECIAL_TRANSPORT'||m.type==='MINELAYING')return true;
       return true;

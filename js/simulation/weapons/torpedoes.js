@@ -162,7 +162,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       for(const c of this.state.world.contacts){
         if(c.sunk) continue;
         const lenNm=(c.lengthYards||400)*0.9144/1852;
-        let halfL=lenNm*0.5, halfB=lenNm/(c.type==='ESCORT'?11:7.2)*0.5;
+        let halfL=lenNm*0.5, halfB=lenNm/(isSurfaceCombatant(c)?11:7.2)*0.5;
         // A few metres of integration/fuze tolerance on the intended target
         // prevents a mathematically excellent shot missing by one pixel-step
         // or by the short post-launch gyro transient. It is intentionally far

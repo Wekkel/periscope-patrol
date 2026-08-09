@@ -69,7 +69,7 @@ function updateStableContactPlot(state,tr,measurement,source,quality,dt){
 class SimEngineSensors extends SimEngineIntel {
   updateLookouts(dt){
     const W=this.state.world,e=W.enemy,sub=this.state.playerSub,env=W.environment,hist=this.state.campaign?.historicalProfile||null;
-    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk),day=clamp(env.daylight,0,1),sea=clamp(env.seaState,0,1);
+    const escorts=W.contacts.filter(c=>isASWCombatant(c)),day=clamp(env.daylight,0,1),sea=clamp(env.seaState,0,1);
     let anySeen=false,nearestSeen=null;
     for(const esc of escorts){
       const rng=distNm(esc.position,sub.position);let size,what;
@@ -119,7 +119,7 @@ class SimEngineSensors extends SimEngineIntel {
       const s=e.solution,r=degToRad(s.courseDeg||0),d=knotsNmSec(s.speedKn||0)*dt;s.xNm+=Math.sin(r)*d;s.yNm-=Math.cos(r)*d;
       s.errNm=(s.errNm||.03)+dt*.0055;s.ageSec=(s.ageSec||0)+dt;
     }
-    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk),blind=now<(e.sonarBlindUntil||0);let pinged=0,fixes=0;
+    const escorts=W.contacts.filter(c=>isASWCombatant(c)),blind=now<(e.sonarBlindUntil||0);let pinged=0,fixes=0;
     for(const esc of escorts){
       if(esc.sonarContact&&now>(esc.sonarContactUntil||-1))esc.sonarContact=false;
       esc.pingTimer=(Number.isFinite(esc.pingTimer)?esc.pingTimer:Math.random()*7)-dt;if(esc.pingTimer>0)continue;

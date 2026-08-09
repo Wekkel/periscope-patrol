@@ -773,8 +773,9 @@ class SimEngineCore{
     for(const t of W.tubes){t.status='LOADED_DRY';t.reloadProgress=1;}
     sub.damage.hullIntegrity=clamp(sub.damage.hullIntegrity+25,0,100);
     sub.damage.flooding=0;
-    camp.patrolNumber++;
-    setTimeout(()=>this.log(`Rearmed and refueled. Ready for patrol #${camp.patrolNumber}.`)  ,3000);
+    // Patrol number belongs to the completed patrol until a new patrol is
+    // actually commissioned. startNewPatrol() advances it exactly once.
+    setTimeout(()=>this.log(`Rearmed and refueled. Ready for patrol #${(camp.patrolNumber||1)+1}.`)  ,3000);
   }
 
   startNewPatrol(areaKey,options={}){
@@ -782,15 +783,26 @@ class SimEngineCore{
     const key=areaKey||keys[Math.floor(Math.random()*keys.length)];
     const area=PATROL_AREAS[key];
     const s=this.state;
-    const prevTotal=s.campaign.totalScore+(s.campaign.score||0);
+    const prevTotal=Number(s.campaign.totalScore)||0;
     const prevPatrol=s.campaign.patrolNumber||1;
     const prevHistoricalProfile=s.campaign.historicalProfile||null;
+    const pristineBootstrap=prevPatrol===1&&s.campaign.missionStatus==='PATROL'&&(s.time.elapsedSeconds||0)===0&&!s.campaign.primaryMission;
+    const nextPatrol=pristineBootstrap?1:prevPatrol+1;
     const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||'1943-08-17';
-    s.time.campaignDate=patrolStartDate;
-    const careerStart=this.ensureCareerPatrolState?_careerStampFrom(s.campaign._careerStartDate||`${s.campaign.startDate||s.time.campaignDate||'1943-08-17'} 06:00`,s.campaign.patrolDuration||0):`${s.time.campaignDate||'1943-08-17'} 06:00`;
+    const careerStart=`${patrolStartDate} 06:00`;
+
+    // Patch 10.5: a patrol is a lifecycle boundary. No tactical clock, transit,
+    // stale alarm or AAR-pause state may leak across it.
+    Object.assign(s.time,{elapsedSeconds:0,timeScale:1,campaignDate:patrolStartDate,
+      transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null,_pre:null});
+    s.log=[{t:0,level:'info',message:`Patrol commenced. Area: ${key}. Good hunting.`}];
+    if(s.ui){s.ui.toasts=[];s.ui.toastSeq=0;}
     // Reset world
-    s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];
-    s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};
+    s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];s.world.nextDcId=0;
+    s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;
+    s.world.aircraft=[];s.world.knuckles=[];s.world.atmosphere=null;s.world.missionObjects=[];
+    s.world.aaManned=false;s.world.aaAmmo=1200;s.world.aaKills=0;s.world.aaHurt=0;
+    delete s.world.ultra;delete s.world.ultraAt;
     s.weapons.activeTorpedoes=[]; s.weapons.explosions=[]; s.weapons.hits=[];
     s.world.enemy={alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
       searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0};
@@ -798,16 +810,18 @@ class SimEngineCore{
     s.world.convoyRoutes=area.convoyRoutes;
     s.world.shallowZones=area.terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment={...area.environment};s.world.weatherSystem=null;s.world.traffic=null;
-    s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];
+    s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=true;
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
     // this sequence once, so a map that was panned/free on the previous patrol
     // cannot strand the new boat off-screen.  Undefined in old saves is fine.
     s.map.recenterSeq=(s.map.recenterSeq||0)+1;
-    s.tactical.selectedTrackId=null; s.tdc.targetId=null; s.tdc.solutionQuality=0;
+    s.tactical.activeStation='MAP';s.tactical.selectedTrackId=null;s.tactical.bridgeDiveSequence=null;
+    s.tdc.targetId=null;s.tdc.bearing=null;s.tdc.rangeNm=null;s.tdc.targetCourse=null;s.tdc.targetSpeedKnots=null;
+    s.tdc.gyroAngle=null;s.tdc.angleOnBow=null;s.tdc.timeToImpactSec=null;s.tdc.solutionQuality=0;s.tdc.status='NO TARGET';s.tdc.autoTrack=true;s.tdc.trackSource='PLOT';
     s.campaign={
       patrolArea:key,score:0,scenarioSeed:Math.floor(Math.random()*9999),
-      missionStatus:'PATROL',patrolNumber:prevPatrol+1,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
-      historyId:`p${prevPatrol+1}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
+      missionStatus:'PATROL',patrolNumber:nextPatrol,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
+      historyId:`p${nextPatrol}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
       _careerStartDate:careerStart,_historyRecorded:false,_historyRecordId:null,importantEvents:[],_captainEventSeq:0,
       objectives:[
         {text:'Locate enemy convoy',done:false},{text:'Attack merchant shipping',done:false},
@@ -822,7 +836,7 @@ class SimEngineCore{
     const sub=s.playerSub;
     sub.position=area.start?{...area.start}:{xNm:0,yNm:0};
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
-    sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';
+    sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
     sub.stealth.silentRunning=false;sub.stealth.acousticSignature=0;
@@ -832,13 +846,14 @@ class SimEngineCore{
       damageControlActive:false,repairPriority:'FLOODING',driveBankOffline:false,damageEventSeq:0,
       repairFloor:{},instrumentBias:{},warnings:[]});
     sub.inShallowWater=false;sub.groundingRisk=false;sub.inShallowWarned=false;
+    s.map.estimatedPosition={...sub.position};
     sub.bottomed=false;sub.suction=0;sub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
     s.weapons.torpedoInventory=16;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
     s.weapons.deckGun={manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
     for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;t.specKey=s.tdc.torpedoSpecKey;}
     s.tactical.periscopeBearing=90;s.tactical.periscopeZoom=1;s.tactical.bridgeBearing=sub.heading;s.tactical.bridgeBinoculars=false;s.tactical.bridgeZoom=0;s.tactical.bridgeMarkedId=null;
     s.tactical.soundBearing=sub.heading;s.tactical.soundDisplay='PASSIVE';
-    s.world.aircraft=[];s.world.knuckles=[];s.world.sound=null;s.world.radar=null;
+    s.world.sound=null;s.world.radar=null;
     s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,
       alarmedAt:-999,sdOn:true,nextCheck:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
@@ -852,7 +867,7 @@ class SimEngineCore{
     this.ensureAfterActionReport?.(true);
     this.configureMission?.(options.missionType||'AUTO',options);
     this.ensureTrafficDirector?.(true);
-    this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
+    this.log(`=== PATROL #${nextPatrol} — ${key} ===`,'warn');
     this.log(`${area.description}`);
     for(const msg of s.campaign.refitMessages||[])this.log(msg,'warn');
     showBriefing(key,s);

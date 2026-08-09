@@ -42,7 +42,7 @@ class SimEngineASWBrain extends SimEngineWeather{
     if(!Number.isFinite(A.searchStartedAt))A.searchStartedAt=now;
     if(!Number.isFinite(A.searchRadiusNm))A.searchRadiusNm=.55;
     if(!Array.isArray(A.pingEvents))A.pingEvents=[];
-    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);
+    const escorts=W.contacts.filter(c=>isASWCombatant(c));
     const fallback=aswScreenRoles(escorts.length,this.state.campaign.patrolArea,{startDate:this.state.campaign.startDate,difficulty:this.state.campaign.difficulty});
     for(let i=0;i<escorts.length;i++){
       const x=escorts[i];
@@ -151,7 +151,7 @@ class SimEngineASWBrain extends SimEngineWeather{
   assignASWRoles(preferredId=null,force=false){
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     if(!force&&now-A.lastRoleAssignAt<8)return;
-    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);if(!escorts.length)return;
+    const escorts=W.contacts.filter(c=>isASWCombatant(c));if(!escorts.length)return;
     const straggler=this.damagedGuardShip();
     let guard=null;
     if(straggler&&escorts.length>=2){
@@ -185,7 +185,7 @@ class SimEngineASWBrain extends SimEngineWeather{
 
   updateASWBrain(dt){
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
-    const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);
+    const escorts=W.contacts.filter(c=>isASWCombatant(c));
     for(const x of escorts)if(x.sonarContact&&now>(x.sonarContactUntil||-1))x.sonarContact=false;
     const straggler=this.damagedGuardShip(),guard=escorts.find(x=>x.aswRole==='DAMAGED_GUARD');
     if((straggler&&escorts.length>=2&&(!guard||guard.guardShipId!==straggler.id))||(!straggler&&guard))this.assignASWRoles(null,true);

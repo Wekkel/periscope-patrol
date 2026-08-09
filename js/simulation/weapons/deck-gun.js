@@ -67,7 +67,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     const hit=HullGeometry.segmentHullIntersection(a,b,shipHull(c));
     if(!hit)return null;
     const z=a.zM+(b.zM-a.zM)*hit.u;
-    const tall=/CARRIER/i.test(c.displayType||'')?32:/CRUISER/i.test(c.displayType||'')?24:c.type==='ESCORT'?15:c.type==='TANKER'?22:19;
+    const tall=/CARRIER/i.test(c.displayType||'')?32:/CRUISER/i.test(c.displayType||'')?24:isSurfaceCombatant(c)?15:c.type==='TANKER'?22:19;
     if(z<-1||z>tall)return null;
     return{...hit,z};
   }
@@ -86,7 +86,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     // gunDamage survives only as backwards-compatible evidence that shells have
     // hit this ship. It is no longer a health pool or a sinking threshold.
     const heavy=/CARRIER|CRUISER/i.test(c.displayType||'');
-    const legacyStep=(heavy ? .34 : c.type==='ESCORT' ? .58 : c.type==='TANKER' ? .78 : 1)*.20;
+    const legacyStep=(heavy ? .34 : isSurfaceCombatant(c) ? .58 : c.type==='TANKER' ? .78 : 1)*.20;
     c.gunDamage=clamp((c.gunDamage||0)+legacyStep,0,4);
     const dmg=applyDeckGunShipDamage(this,c,hit);
     if(c.harborTarget)this.noteHarborAttack?.(c);

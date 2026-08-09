@@ -41,7 +41,7 @@ function bridgeVisualLimitNm(state,contact){
   }
   if((sub.depthFeet||0)<8){
     let smoke=(contact&&!contact.stationary&&(contact.speedKnots||0)>=4)
-      ?(contact.type==='TANKER'?1.20:contact.type==='ESCORT'?1.10:1.16):1.04;
+      ?(contact.type==='TANKER'?1.20:isSurfaceCombatant(contact)?1.10:1.16):1.04;
     if(contact?.shipDamage){const D=ensureShipDamage(contact);smoke*=1+clamp(D.fire*.42+D.propulsion*.12,0,.52);}
     return vis*smoke;
   }

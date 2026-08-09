@@ -13,7 +13,7 @@ function _shipHash01(key){
   return (h>>>0)/4294967295;
 }
 function _shipLegacyGunThreshold(c){
-  return /CARRIER|CRUISER/i.test(c?.displayType||'')?2.7:c?.type==='ESCORT'?1.55:c?.type==='TANKER'?1.25:1.0;
+  return /CARRIER|CRUISER/i.test(c?.displayType||'')?2.7:['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c?.type)?1.55:c?.type==='TANKER'?1.25:1.0;
 }
 function ensureShipDamage(c){
   if(!c)return null;
@@ -82,7 +82,7 @@ function shipDamageTurnFactor(c){
   return clamp(1-D.steering*.82,.10,1);
 }
 function shipIsStraggler(c){
-  if(!c||c.sunk||c.harborTarget||c.type==='ESCORT'||c.convoyId!=='MAIN')return false;
+  if(!c||c.sunk||c.harborTarget||isSurfaceCombatant(c)||c.convoyId!=='MAIN')return false;
   const D=ensureShipDamage(c),base=Math.max(1,c.baseSpeed||c.speedKnots||8);
   return D.abandoned||D.propulsion>.55||D.flotation>.68||D.fire>.72||(c.speedKnots||0)<base*.58;
 }
@@ -137,7 +137,7 @@ function applyTorpedoShipDamage(engine,c,impact){
     f=.69;prop=.29;steer=.10;fire=.27;flood=.00034;trim=.05;
   }
   if(c.type==='TANKER')fire*=1.28;
-  if(c.type==='ESCORT'){f*=1.06;prop*=.95;}
+  if(isSurfaceCombatant(c)){f*=1.06;prop*=.95;}
   _shipSetDamage(c,D,'flotation',f*p);_shipSetDamage(c,D,'propulsion',prop*p);
   _shipSetDamage(c,D,'steering',steer*p);_shipSetDamage(c,D,'fire',fire*p);
   D.floodRate=Math.max(D.floodRate,flood*p);
@@ -167,7 +167,7 @@ function applyDeckGunShipDamage(engine,c,hit){
   const frac=clamp((hit?.along||0)/(len||1),-.5,.5);
   const location=shipTorpedoHitLocation(frac);
   const heavy=/CARRIER|CRUISER/i.test(c.displayType||'');
-  const typeScale=heavy ? .34 : c.type==='ESCORT' ? .62 : c.type==='TANKER' ? .86 : 1;
+  const typeScale=heavy ? .34 : isSurfaceCombatant(c) ? .62 : c.type==='TANKER' ? .86 : 1;
   const n=D.hitCount+1,h=.88+_shipHash01(`${c.id}:DG:${n}:${location}`)*.24;
   let f=.025,prop=.025,steer=.015,fire=.075;
   if(location==='ENGINE ROOM'){f=.018;prop=.095;fire=.11;}
@@ -208,8 +208,8 @@ function beginShipSinking(engine,c,reason='FLOODING'){
   c.hitSide=c.hitSide??(D.list>=0?1:-1);
   c.sinkStyle=_shipSinkStyle(c,D);
   const fast=D.flotation>.995||reason==='STRUCTURAL';
-  c.sinkDurationSec=fast?(c.type==='ESCORT'?25:34)+_shipHash01(`${c.id}:sinkdur`)*18
-                    :(c.type==='ESCORT'?36:56)+_shipHash01(`${c.id}:sinkdur`)*34;
+  c.sinkDurationSec=fast?(isSurfaceCombatant(c)?25:34)+_shipHash01(`${c.id}:sinkdur`)*18
+                    :(isSurfaceCombatant(c)?36:56)+_shipHash01(`${c.id}:sinkdur`)*34;
   const tr=engine.state.world.contactTracks[c.id];if(tr){tr.sunk=true;tr.lastFixPosition={...c.position};tr.plotPosition={...c.position};delete tr.truePosition;}
   if(!D.killCredited){
     const gun=D.lastWeapon==='DECK_GUN',side=c.side||'ENEMY';

@@ -1,0 +1,13 @@
+PASS: JavaScript syntaxcheck — {"files":63}
+PASS: campaign lifecycle numbers patrols exactly 1 → 2 → 3 — {"first":{"n":1,"t":0,"scale":1,"start":"1943-08-17","career":"1943-08-17 06:00"},"afterComplete":{"n":1,"next":"1943-09-02"},"second":{"n":2,"t":0,"scale":1,"transit":0,"transitOpen":false,"stop":null,"aaKills":0,"aaAmmo":1200,"aaManned":false,"ultra":false,"atmosphere":null,"diveDelay":0,"bridgeSeq":null,"logOld":false,"start":"1943-09-02","career":"1943-09-02 06:00","aar0":0},"third":{"n":3,"t":0,"start":"1943-09-24","career":"1943-09-24 06:00"},"history":[1,2]}
+PASS: new patrol resets clock, AAR pause/transit and stale tactical state — {"n":2,"t":0,"scale":1,"transit":0,"transitOpen":false,"stop":null,"aaKills":0,"aaAmmo":1200,"aaManned":false,"ultra":false,"atmosphere":null,"diveDelay":0,"bridgeSeq":null,"logOld":false,"start":"1943-09-02","career":"1943-09-02 06:00","aar0":0}
+PASS: new patrol career timestamp matches its actual refit/start date — {"second":{"n":2,"t":0,"scale":1,"transit":0,"transitOpen":false,"stop":null,"aaKills":0,"aaAmmo":1200,"aaManned":false,"ultra":false,"atmosphere":null,"diveDelay":0,"bridgeSeq":null,"logOld":false,"start":"1943-09-02","career":"1943-09-02 06:00","aar0":0},"third":{"n":3,"t":0,"start":"1943-09-24","career":"1943-09-24 06:00"}}
+PASS: new AAR timeline starts at patrol T+0 and save/load preserves new patrol identity — {"n":2,"t":0,"start":"1943-09-02"}
+PASS: completed career history is sequential without skipped patrol numbers — [1,2]
+PASS: lifeguard strike waits until station is occupied, then gives 3–8 minutes station time — {"before":{"strike":null,"spawned":false},"arrival":1800,"strike":2067.232316561796,"wait":267.23231656179587,"preSpawn":false,"spawned":true}
+PASS: HVI window always includes at least 50 minutes tactical margin after physical intercept estimate — {"minMargin":3000,"maxWindow":16470,"minWindow":14700}
+PASS: convoy interdiction can be won by meaningful neutralization while survivors still float — {"result":"SUCCESS","neutralized":2,"tons":13000,"requiredShips":2,"requiredTons":9450,"alive":4}
+PASS: ambient patrol craft is a real ASW combatant, not decorative traffic — {"alerted":true,"state":"ATTACKING","role":"PROSECUTOR","sonar":true,"prosecute":true}
+PASS: far stale observed traffic frees its tactical slot but preserves player knowledge track — {"state":"ABSTRACT","memberIds":0,"contactStill":false,"trackStill":true,"abstractFlag":true,"tactical":0}
+PASS: career storage keeps newest ten full AARs and compacts older replay geometry — {"count":12,"firstCompact":true,"secondCompact":true,"thirdCompact":false,"lastCompact":false,"firstRoute":120,"lastRoute":600}
+PATCH 10.5 INTEGRATION & PACING CONTRACT: PASS
