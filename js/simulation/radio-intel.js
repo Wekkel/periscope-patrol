@@ -53,35 +53,38 @@ class SimEngineIntel extends SimEngineAAGun {
       return{type:'SPECIAL INTELLIGENCE',subject:'TRUK ANCHORAGE',harborSpecial:true,
         text:`HEAVY UNIT REPORTED AT TRUK ANCHORAGE. DEPARTURE UNKNOWN. ATTACK AT COMMANDING OFFICER'S DISCRETION.`};
     }
-    const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT'&&!c.harborTarget);
+    const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT'&&!c.harborTarget&&(!c.side||c.side==='ENEMY'));
+    const shipping=(this.trafficIntelCandidates?.()||[]).filter(x=>x.side==='ENEMY');
     const R=W.radio||{};
     const forced=!!R.forceUltra; R.forceUltra=false;
     if(forced) R.coldFor=0;
     const roll=forced?0:Math.random();
-    if(alive.length&&roll<0.5){
-      const t=alive[Math.floor(Math.random()*alive.length)];
-      // the intelligence is a few hours old and carries an error, as it did
-      /* An amplifying report is fresher and tighter than a routine decrypt —
-         that is the whole point of asking for one. */
+    if((shipping.length||alive.length)&&roll<0.5){
+      /* Routine decrypts now report SHIPPING, not the single guaranteed convoy.
+         A cold-trail amplifying report still favors the primary mission group so
+         the anti-frustration mechanic does not send the skipper after a sampan. */
+      let q=null;
+      if(shipping.length){
+        const primary=shipping.find(x=>x.missionCritical);
+        q=forced&&primary?primary:shipping[Math.floor(Math.random()*shipping.length)];
+      }
+      if(!q&&alive.length){const t=alive[Math.floor(Math.random()*alive.length)];q={id:t.id,label:(t.displayType||t.type||'enemy ship').toLowerCase(),count:1,position:{...t.position},heading:t.heading,speedKnots:t.speedKnots,routeS:null,routeDir:null,missionCritical:t.convoyId==='MAIN'};}
       const err=forced?(0.4+Math.random()*0.8):(0.8+Math.random()*2.2);
       const ageSec=forced?(600+Math.random()*1800):(1800+Math.random()*7200);
-      const back=knotsNmSec(t.speedKnots)*ageSec;
+      const speed=q.speedKnots||8,back=knotsNmSec(speed)*ageSec;
       const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);
-      let pos,courseDeg=t.heading,routeS=null,routeDir=null;
-      if(t.convoyId==='MAIN'&&path&&path.length>1){
-        const cur=routeProject(path,t.position);
-        // Walk backwards along the actual shipping lane, then put the reporting
-        // error mostly along that lane. The fix remains plausible water, never land.
-        const hist=routeAdvance(path,cur.s,W.convoyLeg||1,-back);
-        const noisy=routeAdvance(path,hist.s,hist.dir,(Math.random()-0.5)*2*err);
+      let pos,courseDeg=q.heading||0,routeS=q.routeS??null,routeDir=q.routeDir??null;
+      if(path&&path.length>1&&routeS!=null&&routeDir!=null){
+        const hist=routeAdvance(path,routeS,routeDir,-back);
+        const noisy=routeAdvance(path,hist.s,hist.dir,(Math.random()-.5)*2*err);
         pos=noisy.pos;courseDeg=noisy.heading;routeS=noisy.s;routeDir=noisy.dir;
       }else{
-        const br=degToRad(t.heading);
-        pos={xNm:t.position.xNm-Math.sin(br)*back,yNm:t.position.yNm+Math.cos(br)*back};
+        const br=degToRad(courseDeg);pos={xNm:q.position.xNm-Math.sin(br)*back,yNm:q.position.yNm+Math.cos(br)*back};
       }
-      return{type:'ULTRA',subject:forced?'CONVOY ROUTING — AMPLIFYING REPORT':'CONVOY ROUTING',
-        text:`ULTRA. Convoy of ${alive.length} in ${camp.patrolArea}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(courseDeg)}, speed ${t.speedKnots.toFixed(0)} knots. Run ahead of her track and intercept.`,
-        intel:{pos,courseDeg,speedKn:t.speedKnots,ageSec,routeS,routeDir,uncBaseNm:err}};
+      const label=q.missionCritical?'convoy':(q.label||'enemy shipping');
+      return{type:'ULTRA',subject:forced?'ENEMY SHIPPING — AMPLIFYING REPORT':'ENEMY SHIPPING REPORTED',
+        text:`ULTRA. ${label.toUpperCase()} reported in ${camp.patrolArea}${q.count>1?` — approximately ${q.count} ships`:''}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(courseDeg)}, speed ${speed.toFixed(0)} knots. This report is not guaranteed to be the patrol's primary target.`,
+        intel:{pos,courseDeg,speedKn:speed,ageSec,routeS,routeDir,uncBaseNm:err,targetLabel:label,targetId:q.id,missionCritical:!!q.missionCritical}};
     }
     if(roll<0.68){
       return{type:'WARNING',subject:'AIR ACTIVITY',
@@ -124,7 +127,7 @@ class SimEngineIntel extends SimEngineAAGun {
            the roof. If only the second exists, the answer to "why can I never
            find them" is: you have to surface and run. */
         const now2=sub.propulsion.speedKnots;
-        out.push({kind:'ULTRA',name:'Convoy (ULTRA estimate)',pos:dr,rngNm:rng,
+        out.push({kind:'ULTRA',name:`${U.targetLabel||'Enemy shipping'} (ULTRA estimate)`,pos:dr,rngNm:rng,
           brg:bearingBetween(sub.position,dr),ageSec:age,courseDeg:(nowFix?.heading??U.courseDeg),speedKn:U.speedKn,
           closing:distNm(sub.position,fwd)<rng,
           icptNow:this.interceptSolution(dr,U.courseDeg,U.speedKn,now2),
@@ -193,7 +196,7 @@ class SimEngineIntel extends SimEngineAAGun {
       // It is plotted where the convoy WAS, and dead-reckoned forward from the
       // reported course and speed — that estimate is what you steer to
       // intercept. It is a fixed plot in the sea, not a marker on your boat.
-      W.ultra={reportPos:this.clampToArea(m.intel.pos),courseDeg:m.intel.courseDeg,speedKn:m.intel.speedKn,
+      W.ultra={reportPos:this.clampToArea(m.intel.pos),courseDeg:m.intel.courseDeg,speedKn:m.intel.speedKn,targetLabel:m.intel.targetLabel||'Enemy shipping',targetId:m.intel.targetId||null,missionCritical:!!m.intel.missionCritical,
         routeS:m.intel.routeS??null,routeDir:m.intel.routeDir??null,uncBaseNm:m.intel.uncBaseNm??0.8,
         reportedAt:this.state.time.elapsedSeconds-(m.intel.ageSec||0),
         receivedAt:this.state.time.elapsedSeconds,label:m.subject};

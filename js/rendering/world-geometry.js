@@ -4,12 +4,12 @@ const NM_M=1852, EARTH_R=6371000;
 
 // Rudder and engine limits. A Fubuki-class destroyer needed roughly 90 s for a
 // full circle at speed; a loaded freighter far longer.
-const SHIP_TURN_RATE={ESCORT:3.4,MERCHANT:1.2,TANKER:0.85,TROOP:1.0};
-const SHIP_ACCEL={ESCORT:0.30,MERCHANT:0.10,TANKER:0.07,TROOP:0.09};
+const SHIP_TURN_RATE={ESCORT:3.4,WARSHIP:2.8,PATROL_CRAFT:2.4,MERCHANT:1.2,TANKER:0.85,TROOP:1.0,JUNK:1.5};
+const SHIP_ACCEL={ESCORT:0.30,WARSHIP:0.26,PATROL_CRAFT:0.22,MERCHANT:0.10,TANKER:0.07,TROOP:0.09,JUNK:0.13};
 // Angular acceleration prevents a ship from snapping instantly to full rudder.
 // Values are intentionally modest: enough inertia to read on MAP/3-D without
 // making convoy station-keeping or ASW responses sluggish.
-const SHIP_TURN_ACCEL={ESCORT:2.8,MERCHANT:0.75,TANKER:0.52,TROOP:0.64};
+const SHIP_TURN_ACCEL={ESCORT:2.8,WARSHIP:2.2,PATROL_CRAFT:1.8,MERCHANT:0.75,TANKER:0.52,TROOP:0.64,JUNK:1.0};
 // WWII echo-ranging gear
 const SONAR={
   maxRangeNm:1.5,        // useful echo-ranging range
@@ -80,6 +80,14 @@ const SHIP_MODELS={
   }
 };
 SHIP_MODELS.TROOP=SHIP_MODELS.MERCHANT;
+SHIP_MODELS.WARSHIP=SHIP_MODELS.ESCORT;
+SHIP_MODELS.PATROL_CRAFT=SHIP_MODELS.ESCORT;
+SHIP_MODELS.JUNK={
+  len:22,beam:5.2,fb:1.3,
+  hull:[[-.50,.28],[-.40,.70],[-.18,.96],[.22,.92],[.43,.48],[.50,.06]],
+  parts:[{t:'b',x:0,y:1.3,z:-4,w:3.8,h:1.7,d:7,c:'house',big:1}],
+  masts:[{x:0,y:2.4,z:2,h:8,yard:2.5}],smoke:null
+};
 
 SHIP_MODELS.RAFT={
   len:5.5,beam:2.2,fb:.35,

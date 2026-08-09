@@ -216,7 +216,7 @@ function missionProgressText(state){
         if(located&&!_missionObj(c,'locate')?.done){_missionSetDone(c,'locate');this.captainLog?.('CONVOY_SIGHTED','Enemy convoy sighted.',{},'convoy-sighted');}
         if(s.weapons.hits.some(h=>convoyIds.has(h.contactId)))_missionSetDone(c,'attack');
         const alive=W.contacts.filter(x=>x.convoyId==='MAIN'&&x.type!=='ESCORT'&&!x.sunk);
-        if(!alive.length)this._missionFinish(true);return true;
+        if(!alive.length&&!this.primaryConvoyExists?.())this._missionFinish(true);return true;
       }
       if(m.type==='HIGH_VALUE_INTERCEPT'){
         const t=W.contacts.find(x=>x.id===m.targetId),rng=t?distNm(s.playerSub.position,t.position):Infinity,tr=t&&W.contactTracks[t.id];

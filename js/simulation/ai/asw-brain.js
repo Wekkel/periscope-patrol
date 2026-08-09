@@ -67,7 +67,7 @@ class SimEngineASWBrain extends SimEngineWeather{
   }
 
   damagedGuardShip(){
-    const candidates=this.state.world.contacts.filter(c=>shipIsStraggler(c));
+    const candidates=this.state.world.contacts.filter(c=>c.convoyId==='MAIN'&&shipIsStraggler(c));
     if(!candidates.length)return null;
     return candidates.slice().sort((a,b)=>shipDamageSeverity(b)-shipDamageSeverity(a)||
       distNm(a.position,this.convoyFrame()||a.position)-distNm(b.position,this.convoyFrame()||b.position))[0];

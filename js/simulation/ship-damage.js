@@ -212,17 +212,25 @@ function beginShipSinking(engine,c,reason='FLOODING'){
                     :(c.type==='ESCORT'?36:56)+_shipHash01(`${c.id}:sinkdur`)*34;
   const tr=engine.state.world.contactTracks[c.id];if(tr){tr.sunk=true;tr.lastFixPosition={...c.position};tr.plotPosition={...c.position};delete tr.truePosition;}
   if(!D.killCredited){
-    const gun=D.lastWeapon==='DECK_GUN',pts=Math.round((c.harborValue||(c.type==='ESCORT'?(gun?1800:2200):(gun?1000:1400)))*(gun ? .85 : 1));
-    camp.score+=pts;camp.tonnageSunk+=(c.tonsFactor||3000);if(c.type==='ESCORT')camp.escortsSunk++;
-    const attackObj=camp.objectives?.find?.(o=>o.id==='attack')||(!camp.missionType?camp.objectives?.[1]:null);
-    if(attackObj)attackObj.done=true;
-    D.killCredited=true;D.killPoints=pts;
-    engine.notify(`${D.lastWeapon==='DECK_GUN'?'DECK GUN':'TORPEDO DAMAGE'} — ${c.name} is going down. +${pts} pts.`,'ok');
-    engine.log(`${c.name} is sinking — ${reason.toLowerCase()}. ${camp.tonnageSunk.toLocaleString()} tons sunk.`,'bad');
-    engine.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:D.lastWeapon||'DAMAGE'},`sunk:${c.id}`);
+    const gun=D.lastWeapon==='DECK_GUN',side=c.side||'ENEMY';
+    if(side==='FRIENDLY'||side==='NEUTRAL'){
+      const pts=side==='FRIENDLY'?-2500:-1000;camp.score+=pts;D.killCredited=true;D.killPoints=pts;
+      engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name}. ${pts.toLocaleString()} pts.`,'bad');
+      engine.log(`${c.name} is sinking — ${side.toLowerCase()} traffic hit. No enemy tonnage credited.`,'bad');
+      engine.captainLog?.(side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
+    }else{
+      const pts=Math.round((c.harborValue||(c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT'?(gun?1800:2200):(gun?1000:1400)))*(gun ? .85 : 1));
+      camp.score+=pts;camp.tonnageSunk+=(c.tonsFactor||3000);if(c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT')camp.escortsSunk++;
+      const attackObj=camp.objectives?.find?.(o=>o.id==='attack')||(!camp.missionType?camp.objectives?.[1]:null);
+      if(attackObj)attackObj.done=true;
+      D.killCredited=true;D.killPoints=pts;
+      engine.notify(`${D.lastWeapon==='DECK_GUN'?'DECK GUN':'TORPEDO DAMAGE'} — ${c.name} is going down. +${pts} pts.`,'ok');
+      engine.log(`${c.name} is sinking — ${reason.toLowerCase()}. ${camp.tonnageSunk.toLocaleString()} tons sunk.`,'bad');
+      engine.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:D.lastWeapon||'DAMAGE'},`sunk:${c.id}`);
+    }
   }
   if(c.harborTarget){engine.noteHarborAttack?.(c);if(engine.state.world.harbor){engine.state.world.harbor.alert=2;engine.state.world.harbor.suspicion=100;}}
-  engine.alertEscorts?.('SHIP_HIT',{...c.position},1);engine.checkMissionObjectives?.();
+  if(!c.side||c.side==='ENEMY')engine.alertEscorts?.('SHIP_HIT',{...c.position},1);engine.checkMissionObjectives?.();
   return true;
 }
 

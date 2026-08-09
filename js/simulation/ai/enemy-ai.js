@@ -1,6 +1,15 @@
 class SimEngineEnemyAI extends SimEngineTorpedoes {
   alertEscorts(reason,pos,conf){
-    const e=this.state.world.enemy;this.ensureASWState?.();
+    const W=this.state.world,e=W.enemy;this.ensureASWState?.();
+    // Patch 7: an explosion beside a lone freighter must not telepathically
+    // wake the primary convoy screen 80 nm away. The shared ASW brain is local
+    // tactical state, so only a nearby real escort can receive this cue.
+    const localEscorts=(W.contacts||[]).filter(c=>c.type==='ESCORT'&&!c.sunk&&distNm(c.position,pos)<=18);
+    if(!localEscorts.length){
+      if(reason==='SHIP_HIT'||reason==='TORPEDO_DUD'||reason==='TORPEDO_LAUNCH'||reason==='DECK_GUN')
+        this.log(`Distant shipping alarm — ${reason.replaceAll('_',' ').toLowerCase()}, but no escort screen is close enough to react.`);
+      return false;
+    }
     const newState=conf>.75?'ATTACKING':'SEARCHING';if(!(e.alertState==='ATTACKING'&&newState==='SEARCHING'))e.alertState=newState;
     const timers={TORPEDO_LAUNCH:280,SHIP_HIT:480,EMERGENCY_BLOW:240,TORPEDO_DUD:160,COLLISION:300,DECK_GUN:260,AIR_ATTACK:220,NOISE:160,ACTIVE_QC:260};
     e.alertTimerSec=Math.max(e.alertTimerSec,timers[reason]||200);
@@ -13,7 +22,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
 
     if(reason==='SHIP_HIT'||reason==='TORPEDO_DUD'){
       for(const c of this.state.world.contacts){
-        if(c.type==='ESCORT'||c.sunk||c.harborTarget)continue;const wasAlerted=c.alertedAt&&(this.state.time.elapsedSeconds-c.alertedAt)<120;
+        if(c.type==='ESCORT'||c.sunk||c.harborTarget||(c.side&&c.side!=='ENEMY'))continue;const wasAlerted=c.alertedAt&&(this.state.time.elapsedSeconds-c.alertedAt)<120;
         if(!wasAlerted){c.alertedAt=this.state.time.elapsedSeconds;const awayBear=bearingBetween(pos,c.position);c.scatterHeading=normDeg(awayBear+(Math.random()-.5)*60);c.scatterSpeed=c.speedKnots*1.4;c.scattering=true;this.log(`${c.name} emergency speed — scattering.`);}
       }
     }

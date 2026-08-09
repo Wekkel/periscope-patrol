@@ -150,7 +150,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     const min=SOUND_ROOM.operatorReportMinSec+(1-q)*25;if(now-S.lastOperatorAt<min)return;
     const obs=passiveSoundObservation(s,best,q),near=(W.contacts||[]).filter(c=>c!==best&&!c.sunk&&!c.stationary&&soundBaseQuality(s,c)>.12&&Math.abs(shortDelta(obs.bearing,bearingBetween(s.playerSub.position,c.position)))<28);
     let detail;
-    if((best.speedKnots||0)>14||best.type==='ESCORT')detail='High-speed screws — probable escort.';
+    if((best.speedKnots||0)>14||best.type==='ESCORT'||best.type==='WARSHIP'||best.type==='PATROL_CRAFT')detail='High-speed screws — probable escort.';
     else if(near.length)detail='Multiple screws. Slow cadence.';
     else detail=(best.speedKnots||0)>9?'Steady screws. Moderate cadence.':'Slow screws. Heavy cadence.';
     const text=`SOUND — screws bearing ${fmtDeg(obs.bearing)} · ${detail}`;
@@ -203,7 +203,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     R.lastSweepAt=now;const seen={};
     for(const c of W.contacts||[]){
       if(c.sunk)continue;const rng=distNm(sub.position,c.position),size=c.lengthYards||400;
-      const max=c.type==='RAFT'?2.2:clamp(4.5+size/500*1.8+(c.type==='ESCORT'?.5:0),4.7,7.2);if(rng>max)continue;
+      const max=c.type==='RAFT'?2.2:clamp(4.5+size/500*1.8+((c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT')?0.5:0),4.7,7.2);if(rng>max)continue;
       const o=radarObservation(s,c);seen[c.id]={id:c.id,bearing:o.bearing,rangeNm:o.rangeNm,position:o.position,t:now,strength:clamp(1-rng/max,.15,1)};
       const old=W.contactTracks[c.id],known=(old?.positionSource||old?.source)==='VISUAL'&&old.confidence>.6;
       const tr=old||{id:c.id,typeEstimate:'SURFACE SHIP',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,contactType:'UNKNOWN',lengthYards:c.lengthYards};

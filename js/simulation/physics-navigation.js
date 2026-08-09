@@ -118,6 +118,7 @@ class SimEngine extends SimEngineCareer {
     this.updatePosition(sub,dt);
     this.applyTerrainEffects(sub,dt);
     this.updateWeather?.(dt);
+    this.updateTrafficDirector?.(dt);
     this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
     this.updateDetection(dt); this.updateSoundRadar?.(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
@@ -424,6 +425,7 @@ class SimEngine extends SimEngineCareer {
           ex.typeEstimate=ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         else ex.typeEstimate=ex.confidence>0.65?knownType:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         ex.contactType=c.type;
+        if(src==='VISUAL'&&ex.visualHullConfirmed&&ex.confidence>=.65)ex.affiliation=c.side||'ENEMY';
         if(src==='VISUAL'&&shipDamageSeverity(c)>.10){
           ex.damageEstimate=shipDamageCondition(c);ex.damageSeverity=shipDamageSeverity(c);ex.damageObservedAt=now;
         }

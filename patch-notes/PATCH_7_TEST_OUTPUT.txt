@@ -1,0 +1,15 @@
+PASS: JavaScript syntaxcheck — {"files":58}
+PASS: new patrol creates a populated abstract Pacific without extra full-AI hulls at spawn — {"enabled":true,"generated":true,"groups":9,"abstract":9,"ambientContacts":0,"main":6,"kinds":["LONE_FREIGHTER","COASTAL_MERCHANT","SMALL_TANKER","FISHING_CRAFT","PATROL_CRAFT","SMALL_CONVOY","TASK_GROUP","FRIENDLY_TRAFFIC"]}
+PASS: far mission convoy can be abstracted without false mission completion and rematerializes with identical ship IDs on approach — {"afterAbstract":{"distance":88.76840007226573,"state":"ABSTRACT","mainContacts":0,"mission":"ACTIVE","exists":true},"afterApproach":{"state":"TACTICAL","mainContacts":6,"sameIds":true,"mission":"ACTIVE","exists":true}}
+PASS: far traffic advances as an abstract route track and remains unmaterialized — {"id":"T01","d0":89.87166054059274,"moveM":79.59972049219687,"state":"ABSTRACT","contactIds":0,"contacts":0}
+PASS: traffic group materializes into individual normal contacts inside the tactical radius — {"state":"TACTICAL","count":2,"types":["MERCHANT","MERCHANT"],"ids":["T06-A","T06-B"],"tactical":3}
+PASS: unobserved healthy ambient traffic dematerializes again outside the tactical radius — {"state":"ABSTRACT","ambientMembers":0,"orphanTracks":0,"demats":3}
+PASS: full-detail ambient traffic is hard-capped for low-end devices — {"tactical":3,"max":3,"ambientContacts":5,"totalContacts":9}
+PASS: traffic population spans freighters, coastal traffic, tankers, fishing craft, patrol craft, convoys and occasional task groups — {"kinds":["COASTAL_MERCHANT","FISHING_CRAFT","FRIENDLY_TRAFFIC","LONE_FREIGHTER","PATROL_CRAFT","SMALL_CONVOY","SMALL_TANKER","TASK_GROUP"],"taskCount":21}
+PASS: routine ULTRA can point to ambient shipping while forced amplifying intel still favors the mission convoy — {"routineSubject":"ENEMY SHIPPING REPORTED","routineTarget":"T01","routineLabel":"lone freighter","forcedTarget":"MAIN","forcedCritical":true}
+PASS: two-hour traffic run remains bounded while abstract and tactical groups cycle — {"maxGroups":3,"maxAmbient":3,"materialized":3,"dematerialized":0,"currentAmbient":3}
+PASS: neutral traffic cannot inflate enemy tonnage and incurs a score penalty when lost — {"scoreDelta":-1000,"tonDelta":0,"killPoints":-1000}
+PASS: materialized ambient patrol craft enters the same visual contact system as ordinary ships — {"type":"PATROL_CRAFT","trackType":"PATROL_CRAFT","source":"VISUAL","hull":true,"affiliation":"ENEMY"}
+PASS: traffic director has no render loop, WebGL, offscreen canvas or per-frame particle engine — {}
+PASS: traffic director is explicitly throttled and bounded — {}
+PATCH 7 PACIFIC TRAFFIC CONTRACT: PASS

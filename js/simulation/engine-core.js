@@ -144,6 +144,7 @@ class SimEngineCore{
       positionUncertaintyNm:hullVisible?lerp(.03,.012,z):lerp(.18,.08,z),visualHullConfirmed:hullVisible});
     if(hullVisible){tr.hullConfirmedAt=now;tr.visualLastSeenAt=now;tr.visualKinematic=true;}
     tr.typeEstimate=hullVisible&&conf>=.65?knownType:conf>=.35?'SURFACE SHIP':'UNKNOWN';
+    if(hullVisible&&conf>=.65)tr.affiliation=c.side||'ENEMY';
     if(shipDamageSeverity(c)>.10){tr.damageEstimate=shipDamageCondition(c);tr.damageSeverity=shipDamageSeverity(c);tr.damageObservedAt=now;}
     delete tr.truePosition;W.contactTracks[c.id]=tr;
     T.bridgeMarkedId=c.id;
@@ -785,7 +786,7 @@ class SimEngineCore{
     s.world.terrain=area.terrain; s.world.ports=area.ports;
     s.world.convoyRoutes=area.convoyRoutes;
     s.world.shallowZones=area.terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
-    s.world.environment={...area.environment};s.world.weatherSystem=null;
+    s.world.environment={...area.environment};s.world.weatherSystem=null;s.world.traffic=null;
     s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
     // this sequence once, so a map that was panned/free on the previous patrol
@@ -837,6 +838,7 @@ class SimEngineCore{
     // but before the briefing is rendered. Historical scenarios can pin a type;
     // ordinary patrols may use AUTO or the player's explicit selection.
     this.configureMission?.(options.missionType||'AUTO',options);
+    this.ensureTrafficDirector?.(true);
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
     this.log(`${area.description}`);
     showBriefing(key,s);

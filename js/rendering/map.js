@@ -669,9 +669,9 @@ class CanvasView extends CanvasViewSound {
           this.drawContactUncertaintyGlyph(ctx,gp,{...tr,positionSource:tr.visualTransitionSource||'HYDROPHONE'},
             Math.max(12*K,(tr.visualTransitionUncertaintyNm||.25)*this.zoom*K),K,false,a*fade,ownScreen);
         }
-        const isEsc=tr.contactType==='ESCORT';
-        const shipCol=isEsc?'#ef6a58':'#f5c65c';
-        const iconType=isEsc?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
+        const isEsc=tr.contactType==='ESCORT'||tr.contactType==='WARSHIP'||tr.contactType==='PATROL_CRAFT';
+        const shipCol=tr.affiliation==='FRIENDLY'?'#6fe08f':tr.affiliation==='NEUTRAL'?'#9ec9d3':isEsc?'#ef6a58':'#f5c65c';
+        const iconType=(isEsc||tr.contactType==='WARSHIP'||tr.contactType==='PATROL_CRAFT')?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
         this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
           isSelected?'#6fe08f':`rgba(245,198,92,${clamp(a,0.4,1)})`,K,
           `${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
@@ -701,7 +701,7 @@ class CanvasView extends CanvasViewSound {
       ctx.fillStyle=`rgba(245,198,92,${isSelected?1:a})`;
       ctx.font=this.fnt(isSelected?10.5:8.5,true);
       const stale=Math.floor(now-(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated));
-      ctx.fillText(`${tr.id} ${tr.typeEstimate}`,lx,ly);
+      ctx.fillText(`${tr.id} ${tr.affiliation&&tr.affiliation!=='ENEMY'?tr.affiliation+' ':''}${tr.typeEstimate}`,lx,ly);
       ctx.font=this.fnt(isSelected?9:7.5);
       ctx.fillStyle=`rgba(245,198,92,${isSelected?1:a})`;
       ctx.fillText(`${tr.source} C${Math.round(conf*100)}% ${stale}s`,lx,labelPos.y+2*K);

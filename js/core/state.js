@@ -52,6 +52,7 @@ function createState(areaKey){
       airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,sdOn:true,nextCheck:120},
       sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,qcLastAt:-999,_tick:0},
       radar:null,weatherSystem:null,
+      traffic:{version:1,enabled:false,groups:[],nextId:1,clock:0,generated:false},
       radio:{pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0},
       environment:{...area.environment},
       enemy:{alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
