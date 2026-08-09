@@ -283,26 +283,33 @@ class SimEngineHarbor extends SimEngineCore {
     const harborWx=weatherBetween(this.state,H.center,sub.position);
     if(H.alert>0&&sub.depthFeet<12&&rng<4.4*harborWx.searchlightFactor&&now-H.lastSweepAt>22){
       H.lastSweepAt=now;
-      H.searchlightActiveUntil=now+8*harborWx.searchlightFactor;H.searchlightBearing=normDeg(bearingBetween(H.center,sub.position)+(Math.random()-.5)*12);H.searchlightWidthDeg=14;
+      if(this.startHarborSearchlightSweep)this.startHarborSearchlightSweep(H);
+      else{H.searchlightActiveUntil=now+8*harborWx.searchlightFactor;H.searchlightBearing=normDeg(bearingBetween(H.center,sub.position)+(Math.random()-.5)*12);H.searchlightWidthDeg=14;}
       this.notify('Searchlight beam sweeping the harbour entrance — keep the deck down or get under it.','warn');
       H.suspicion=clamp(H.suspicion+5,0,100);
     }
     if(H.alert>=2&&sub.depthFeet<12&&rng<H.batteryRangeNm&&now-H.lastGunAt>11){
       H.lastGunAt=now;
       this.recordHarborBatteryFire(H);
-      const env=W.environment;
-      const rangeF=clamp(1-rng/H.batteryRangeNm,0,1);
-      const light=clamp(env.daylight+(H.alert>=2?0.35:0),0.2,1)*harborWx.searchlightFactor;
-      const pHit=rangeF*rangeF*0.42*light*(1-harborWx.seaState*0.28);
-      if(Math.random()<pHit){
-        const dmg=5+Math.random()*12;
-        this.applyShock(dmg);
-        this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
-        this.notify(`COASTAL BATTERY HIT — ${dmg.toFixed(0)}% damage. Get below the searchlights!`,'bad');
-        audio.playDepthCharge(0.55);
+      if(this.scheduleCoastalBatteryShot){
+        const shot=this.scheduleCoastalBatteryShot(H,harborWx);
+        if(shot)this.log(`Coastal battery firing — muzzle flash, shell time of flight about ${(shot.impactAt-now).toFixed(1)} seconds.`,'warn');
       }else{
-        this.notify('Coastal battery firing — shell splashes close aboard.','bad');
-        audio.playDepthCharge(0.9);
+        // Compatibility fallback for builds/tests that do not load Patch 10.
+        const env=W.environment;
+        const rangeF=clamp(1-rng/H.batteryRangeNm,0,1);
+        const light=clamp(env.daylight+(H.alert>=2?0.35:0),0.2,1)*harborWx.searchlightFactor;
+        const pHit=rangeF*rangeF*0.42*light*(1-harborWx.seaState*0.28);
+        if(Math.random()<pHit){
+          const dmg=5+Math.random()*12;
+          this.applyShock(dmg);
+          this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
+          this.notify(`COASTAL BATTERY HIT — ${dmg.toFixed(0)}% damage. Get below the searchlights!`,'bad');
+          audio.playDepthCharge(0.55);
+        }else{
+          this.notify('Coastal battery firing — shell splashes close aboard.','bad');
+          audio.playDepthCharge(0.9);
+        }
       }
     }
 

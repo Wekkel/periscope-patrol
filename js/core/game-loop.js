@@ -122,7 +122,7 @@ class GameLoop{
 
     // ambient audio ~every 2 s
     this.ambT+=dt;
-    if(this.ambT>2){this.ambT=0;audio.setAmbient(snap.playerSub.depthFeet,snap.playerSub.stealth.silentRunning);}
+    if(this.ambT>2){this.ambT=0;audio.setAmbient(snap.playerSub.depthFeet,snap.playerSub.stealth.silentRunning);audio.setBattleAmbience?.(snap);}
 
     // adaptive effect quality — keeps mid-range tablets smooth
     const ms=performance.now()-t0;

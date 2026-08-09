@@ -55,16 +55,19 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
       this.drawTerrain3D(ctx,cam,state,env.daylight);
       this.drawWeatherCells3D?.(ctx,cam,state,env.daylight,t);
+      this.drawBattleAtmosphereBack?.(ctx,cam,state,env.daylight,t);
       this.drawDistantBridgeSmoke(ctx,cam,state,env.daylight,t);
       this.drawOwnWake(ctx,cam,state,t,env.daylight);
       this.drawWakes3D(ctx,cam,state,t,env.daylight);
       this.drawFleet3D(ctx,cam,state,env.daylight,env,t);
       this.drawBridgeAircraft?.(ctx,cam,state,env.daylight,t);
       this.drawExplosions3D(ctx,cam,state,env.daylight);
-      this.drawSplashes3D(ctx,cam,state,env.daylight);ctx.restore();
+      this.drawSplashes3D(ctx,cam,state,env.daylight);
+      this.drawBattleAtmosphereFront?.(ctx,cam,state,env.daylight,t);ctx.restore();
       // Deck/camera are rigidly attached to the same boat; unlike the horizon,
       // ownship therefore does not wobble relative to the observer.
       this.drawBridgeForedeck(ctx,w,h,deckCam,state,t);
+      this.drawBridgeDeckSpray?.(ctx,w,h,state,t);
       (this.drawBridgeDiveSequence||CanvasViewBridge.prototype.drawBridgeDiveSequence).call(this,ctx,w,h,state,t);
       if((env.precipitation||0)>.04||weatherIsWet(env.weather))this.drawRain(ctx,w,h,env.seaState,t,env.weather,env.precipitation||.25);
       if(env.seaState>.58&&this.quality>.48)this.drawScopeSpray(ctx,w,h,env.seaState,t);

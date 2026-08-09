@@ -144,6 +144,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);
     this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
     this.drawTerrain3D(ctx,cam,state,env.daylight);
+    this.drawBattleAtmosphereBack?.(ctx,cam,state,env.daylight,t);
     this.drawWakes3D(ctx,cam,state,t,env.daylight);
     // Overshoots aligned with a target are painted BEFORE the nearer hull;
     // the ship therefore occludes the water column instead of a far splash
@@ -153,6 +154,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     this.drawExplosions3D(ctx,cam,state,env.daylight);
     this.drawGunProjectiles3D(ctx,cam,state,false);
     this.drawGunSplashes3D(ctx,cam,state,false);
+    this.drawBattleAtmosphereFront?.(ctx,cam,state,env.daylight,t);
     if((env.weather==='RAIN'||env.weather==='STORM'))this.drawRain(ctx,w,h,env.seaState,t,env.weather);
     if(env.daylight<0.32)this.drawNightOverlay(ctx,w,h,env.daylight);
     // A slice of pressure-hull deck beneath the mount makes it unmistakable

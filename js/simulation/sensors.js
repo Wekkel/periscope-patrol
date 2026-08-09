@@ -128,7 +128,7 @@ class SimEngineSensors extends SimEngineIntel {
       const ranging=!!(esc.sonarContact||e.contactHeld);
       const baseInterval=ranging?clamp(3.2+estRng*.45+(1-q)*2.0,3.0,7.5):clamp(9.5+Math.random()*4.5+(esc.aswRole==='CONVOY_GUARD'?2:0),8.5,16);
       const interval=baseInterval*(hist?.sonarIntervalFactor||1);
-      esc.pingTimer=interval;esc.lastPingAt=now;pinged++;audio.playSonarPing();
+      esc.pingTimer=interval;esc.lastPingAt=now;pinged++;audio.playSonarPing(bearingBetween(sub.position,esc.position),sub.heading);
       A.pingEvents=A.pingEvents||[];A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN'});if(A.pingEvents.length>80)A.pingEvents.shift();
 
       const rng=distNm(esc.position,sub.position),dead=rng<SONAR.deadZoneNm;let p=0;

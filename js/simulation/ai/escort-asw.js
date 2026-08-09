@@ -91,7 +91,8 @@ class SimEngineASW extends SimEngineASWBrain {
       if(estRng<gunRange&&esc.gunTimer>8){
         esc.gunTimer=0;
         const pHit=clamp(1-trueRng/gunRange,0,1)**1.6*(day>.3?.62:lit?.5:.34)*(1-clamp(env.seaState,0,1)*.3);
-        if(Math.random()<pHit){
+        const hit=Math.random()<pHit;this.noteSurfaceGunfire?.(esc,sub,hit);
+        if(hit){
           const dmg=4+Math.random()*11;this.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
           this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');audio.playDepthCharge(.5);
         }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);audio.playDepthCharge(.9);}

@@ -35,14 +35,17 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     this.drawSea3D(ctx,w,h,cam,dl,sea,wx,t);
     this.drawTerrain3D(ctx,cam,state,dl);
     this.drawWeatherCells3D?.(ctx,cam,state,dl,t);
+    this.drawBattleAtmosphereBack?.(ctx,cam,state,dl,t);
     this.drawOwnWake(ctx,cam,state,t,dl);
     this.drawWakes3D(ctx,cam,state,t,dl);
     this.drawFleet3D(ctx,cam,state,dl,env,t);
     this.drawExplosions3D(ctx,cam,state,dl);
     this.drawSplashes3D(ctx,cam,state,dl);
+    this.drawBattleAtmosphereFront?.(ctx,cam,state,dl,t);
     if(dl>0.3&&this.quality>0.5) this.drawGulls(ctx,w,h,cam,t,dl);
     if((env.precipitation||0)>.04||weatherIsWet(wx)) this.drawRain(ctx,w,h,sea,t,wx,env.precipitation||.25);
     if((env.precipitation||0)>.12) this.drawPeriscopeDroplets(ctx,w,h,t,env.precipitation||0);
+    this.drawPeriscopeBroachWash?.(ctx,w,h,state,t);
     if(this._flash>0.01){ctx.fillStyle=`rgba(225,232,255,${this._flash})`;ctx.fillRect(0,0,w,h);}
     if(sea>0.45&&this.quality>0.5) this.drawScopeSpray(ctx,w,h,sea,t);
     if(dl<0.32) this.drawNightOverlay(ctx,w,h,dl);
@@ -50,7 +53,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
 
   /* ── SKY: gradient, sun/moon, clouds, stars ── */
   drawSky3D(ctx,w,h,cam,state,dl,wx,t){
-    this.sunScreen=null;
+    this.sunScreen=null;this.celestialIsMoon=false;this.celestialPathStrength=0;
     const hy=cam.horizonY;
     const g=ctx.createLinearGradient(0,Math.max(0,hy-cam.r*2),0,hy);
     const storm=weatherIsWet(wx)||wx==='BUILDING CLOUD'||wx==='CLEARING';
@@ -97,7 +100,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       ctx.fillStyle=gg;ctx.beginPath();ctx.arc(body.x,body.y,rr*7,0,Math.PI*2);ctx.fill();
       ctx.fillStyle=`rgba(255,252,236,${0.9*dl})`;
       ctx.beginPath();ctx.arc(body.x,body.y,rr,0,Math.PI*2);ctx.fill();
-      this.sunScreen=body;
+      this.sunScreen=body;this.celestialIsMoon=false;this.celestialPathStrength=dl;
     }else if(body&&dl<=0.12){
       const rr=cam.r*0.045*(cam.fovDeg<15?2.6:1);
       const moon=this.projAzEl(cam,normDeg(sunAz+180),degToRad(28));
@@ -107,7 +110,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         ctx.beginPath();ctx.arc(moon.x,moon.y,rr,0,Math.PI*2);ctx.fill();
         ctx.fillStyle='rgba(3,8,16,.9)';
         ctx.beginPath();ctx.arc(moon.x-rr*0.42,moon.y-rr*0.2,rr*0.92,0,Math.PI*2);ctx.fill();
-        this.sunScreen=moon;
+        this.sunScreen=moon;this.celestialIsMoon=true;this.celestialPathStrength=ma;
       }
     }
     // clouds — fixed in the world, so they pan as the scope trains around.
@@ -223,11 +226,14 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     rb.addColorStop(1,`rgba(${skyRef},0)`);
     ctx.fillStyle=rb;ctx.fillRect(0,hy,w,bandH);
 
-    // glitter path under the sun
-    if(this.sunScreen&&dl>0.25&&this.quality>0.4&&
+    // Glitter path under the sun — and, at night, a colder narrower moon
+    // path.  The celestial body is world-anchored in drawSky3D, so the path
+    // moves consistently when the player trains the bridge/scope.
+    const moonPath=!!this.celestialIsMoon&&dl<=.15&&(this.celestialPathStrength||0)>.12;
+    if(this.sunScreen&&(dl>0.25||moonPath)&&this.quality>0.4&&
        this.sunScreen.x>-w*0.4&&this.sunScreen.x<w*1.4){
       const sx=this.sunScreen.x;
-      const rows=Math.round(26*this.quality);
+      const rows=Math.round((moonPath?18:26)*this.quality);
       for(let i=0;i<rows;i++){
         const f=i/rows;
         const d=cam.dHor*Math.pow(1-f,2.1)+18;
@@ -237,9 +243,10 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         const n=Math.round(3+f*8);
         for(let j=0;j<n;j++){
           const px=sx+(Math.sin(j*12.9898+i*4.14+t*0.6)*spread);
-          const a=(0.5-f*0.35)*dl*(0.5+0.5*Math.sin(t*3+i*2+j));
-          ctx.fillStyle=`rgba(255,240,205,${clamp(a,0,0.55)})`;
-          ctx.fillRect(px,y,Math.max(1.2,(cam.f/d)*7),Math.max(1,(cam.f/d)*1.6));
+          const strength=moonPath?clamp((this.celestialPathStrength||.3)*.42,.05,.34):dl;
+          const a=(0.5-f*0.35)*strength*(0.5+0.5*Math.sin(t*3+i*2+j));
+          ctx.fillStyle=moonPath?`rgba(205,222,242,${clamp(a,0,0.30)})`:`rgba(255,240,205,${clamp(a,0,0.55)})`;
+          ctx.fillRect(px,y,Math.max(1.2,(cam.f/d)*(moonPath?5:7)),Math.max(1,(cam.f/d)*1.6));
         }
       }
     }

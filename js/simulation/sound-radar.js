@@ -75,8 +75,11 @@ function soundSignalAt(state,bearingDeg){
     if(strength>bestStrength){best=c;bestStrength=strength;bestBase=base;bestOff=off;}
   }
   if(!best)return{contact:null,strength:0,baseQuality:0,offsetDeg:180,cadenceHz:0};
+  const kind=String(best.type||'MERCHANT').toUpperCase();
+  const cadenceBase=kind==='ESCORT'||kind==='PATROL_CRAFT'?1.00:kind==='TANKER'?.56:kind==='JUNK'?.48:.68;
+  const cadenceSlope=kind==='ESCORT'||kind==='PATROL_CRAFT'?.12:kind==='TANKER'?.085:.10;
   return{contact:best,strength:clamp(bestStrength,0,1),baseQuality:bestBase,offsetDeg:bestOff,
-    cadenceHz:clamp(.7+(best.speedKnots||0)*.11,.7,3.1)};
+    cadenceHz:clamp(cadenceBase+(best.speedKnots||0)*cadenceSlope,.55,3.35)};
 }
 
 function passiveSoundObservation(state,contact,quality){
