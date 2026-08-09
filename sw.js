@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.5'; // fase 1 changes
+const VERSION = '0.8.5'; // patch 7 changes
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
@@ -83,7 +83,8 @@ const SHELL = [
   'js/rendering/sound-room.js',
   'js/simulation/weather-system.js',
   'js/simulation/ship-damage.js',
-  'js/simulation/mission-framework.js'
+  'js/simulation/mission-framework.js',
+   'js/simulation/traffic-director.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
