@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.11'; // Fix mission picker, training UX, visual contacts, deck-gun controls, and weather overlay
+const VERSION = '0.8.11'; // Add cinematic AAR camera, key-moment cards, and torpedo impact observation
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
