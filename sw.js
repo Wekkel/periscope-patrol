@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.9'; // bug fixes bridge view
+const VERSION = '0.8.10'; // Fix bridge/deck-gun ownship rendering, visual contact persistence, and 3D ship models
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
