@@ -1171,7 +1171,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
 
     // ── funnel smoke ──
-    if(!c.sunk&&this.quality>0.35&&lod>0){
+    if(!c.sunk&&c.type!=='RAFT'&&this.quality>0.35&&lod>0){
       const f=model.smoke||{x:0,y:26,z:-10};
       const base=V0(this,cam,it,cosH,sinH,S,f.x,f.y,f.z);
       if(base){

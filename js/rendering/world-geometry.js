@@ -81,6 +81,13 @@ const SHIP_MODELS={
 };
 SHIP_MODELS.TROOP=SHIP_MODELS.MERCHANT;
 
+SHIP_MODELS.RAFT={
+  len:5.5,beam:2.2,fb:.35,
+  hull:[[-.50,.32],[-.40,.85],[.25,1],[.46,.52],[.50,.08]],
+  parts:[{t:'b',x:0,y:.35,z:0,w:1.7,h:.35,d:3.4,c:'house',big:1}],
+  masts:[],smoke:null
+};
+
 function SHIP_PALETTE(seed,night){
   const v=seed%3;
   const hull=v===0?[34,38,44]:v===1?[54,58,62]:[64,50,40];

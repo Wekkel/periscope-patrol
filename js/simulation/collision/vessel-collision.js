@@ -15,7 +15,7 @@ class SimEngineCollision extends SimEngineASW {
   }
 
   surfaceAvoidance(){
-    const ships=(this.state.world.contacts||[]).filter(c=>!c.sunk);
+    const ships=(this.state.world.contacts||[]).filter(c=>!c.sunk&&c.type!=='RAFT');
     // Remove only an avoidance order that is still exactly the one we wrote on
     // the previous step. If convoy/ASW logic changed the desired heading in the
     // meantime, that newer tactical/navigation order is the new base instead.
@@ -50,7 +50,7 @@ class SimEngineCollision extends SimEngineASW {
     if(sub.mode==='SUNK')return null;
     let best=null;
     for(const c of this.state.world.contacts||[]){
-      if(c.sunk||c.stationary&&c.harborTarget&&distNm(sub.position,c.position)>horizonSec*Math.max(0.001,knotsNmSec(sub.propulsion.speedKnots)))continue;
+      if(c.sunk||c.type==='RAFT'||c.stationary&&c.harborTarget&&distNm(sub.position,c.position)>horizonSec*Math.max(0.001,knotsNmSec(sub.propulsion.speedKnots)))continue;
       const sh=subHull(sub),ch=shipHull(c);
       if(!HullGeometry.verticalOverlap(sh,ch))continue;
       const ca=HullGeometry.closestApproach(sub,c,horizonSec,sh,ch);
@@ -140,7 +140,7 @@ class SimEngineCollision extends SimEngineASW {
     this.ensureCollisionState();
     const sub=this.state.playerSub,W=this.state.world;
     if(sub._collisionPrev&&sub.mode!=='SUNK')for(const c of W.contacts||[]){
-      if(c.sunk||!c._collisionPrev)continue;
+      if(c.sunk||c.type==='RAFT'||!c._collisionPrev)continue;
       const sh0=subHull(sub,sub._collisionPrev.position,sub._collisionPrev.heading),sh1=subHull(sub,sub.position,sub.heading);
       const ch0=shipHull(c,c._collisionPrev.position,c._collisionPrev.heading),ch1=shipHull(c,c.position,c.heading);
       // A deep boat is physically below the surface ship's draft. Use the
@@ -153,7 +153,7 @@ class SimEngineCollision extends SimEngineASW {
       if(hit)this.resolveSubShipCollision(sub,c,hit,dt);
     }
 
-    const ships=(W.contacts||[]).filter(c=>!c.sunk&&c._collisionPrev);
+    const ships=(W.contacts||[]).filter(c=>!c.sunk&&c.type!=='RAFT'&&c._collisionPrev);
     for(let i=0;i<ships.length;i++)for(let j=i+1;j<ships.length;j++){
       const a=ships[i],b=ships[j];if(a.stationary&&b.stationary)continue;
       const hit=movingHullIntersection(shipHull(a,a._collisionPrev.position,a._collisionPrev.heading),shipHull(a),

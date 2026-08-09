@@ -203,7 +203,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     R.lastSweepAt=now;const seen={};
     for(const c of W.contacts||[]){
       if(c.sunk)continue;const rng=distNm(sub.position,c.position),size=c.lengthYards||400;
-      const max=clamp(4.5+size/500*1.8+(c.type==='ESCORT'?.5:0),4.7,7.2);if(rng>max)continue;
+      const max=c.type==='RAFT'?2.2:clamp(4.5+size/500*1.8+(c.type==='ESCORT'?.5:0),4.7,7.2);if(rng>max)continue;
       const o=radarObservation(s,c);seen[c.id]={id:c.id,bearing:o.bearing,rangeNm:o.rangeNm,position:o.position,t:now,strength:clamp(1-rng/max,.15,1)};
       const old=W.contactTracks[c.id],known=(old?.positionSource||old?.source)==='VISUAL'&&old.confidence>.6;
       const tr=old||{id:c.id,typeEstimate:'SURFACE SHIP',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,contactType:'UNKNOWN',lengthYards:c.lengthYards};

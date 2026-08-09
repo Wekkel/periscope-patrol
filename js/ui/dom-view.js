@@ -105,8 +105,10 @@ class DomView{
         const result=o.result&&o.result!=='not_attempted'?` · ${o.result.toUpperCase()}`:'';
         return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
       }).join('<br>');
+      const pm=camp.primaryMission,progress=typeof missionProgressText==='function'?missionProgressText(state):'';
       this.missionStatus.innerHTML=
-        `<strong style="color:var(--alert)">${camp.missionStatus}</strong><br>`+
+        `<strong style="color:var(--alert)">${pm?.title||camp.missionStatus}</strong> <span style="color:var(--dim);font-size:10px;">${camp.missionStatus}</span><br>`+
+        (progress?`<span style="color:var(--alert);font-size:10px;">${progress}</span><br>`:'')+
         camp.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
         (opt?`<br>${opt}`:'')+
         `<br><span style="color:var(--muted);font-size:10px;">Tonnage: ${camp.tonnageSunk.toLocaleString()}t | #${camp.patrolNumber} | Career: ${camp.totalScore}</span>`;

@@ -214,7 +214,8 @@ function beginShipSinking(engine,c,reason='FLOODING'){
   if(!D.killCredited){
     const gun=D.lastWeapon==='DECK_GUN',pts=Math.round((c.harborValue||(c.type==='ESCORT'?(gun?1800:2200):(gun?1000:1400)))*(gun ? .85 : 1));
     camp.score+=pts;camp.tonnageSunk+=(c.tonsFactor||3000);if(c.type==='ESCORT')camp.escortsSunk++;
-    if(camp.objectives[1])camp.objectives[1].done=true;
+    const attackObj=camp.objectives?.find?.(o=>o.id==='attack')||(!camp.missionType?camp.objectives?.[1]:null);
+    if(attackObj)attackObj.done=true;
     D.killCredited=true;D.killPoints=pts;
     engine.notify(`${D.lastWeapon==='DECK_GUN'?'DECK GUN':'TORPEDO DAMAGE'} — ${c.name} is going down. +${pts} pts.`,'ok');
     engine.log(`${c.name} is sinking — ${reason.toLowerCase()}. ${camp.tonnageSunk.toLocaleString()} tons sunk.`,'bad');

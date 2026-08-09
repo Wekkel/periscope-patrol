@@ -85,6 +85,9 @@ class SimEngine extends SimEngineCareer {
   // Subsystem damage and damage-control doctrine live in damage-control.js.
 
   checkMissionObjectives(){
+    // Patch 6 owns objectives for configured missions. If the mission module is
+    // absent (old isolated tests/builds), the legacy convoy contract below remains.
+    if(this.checkPrimaryMission?.()) return;
     const camp=this.state.campaign;
     // Convoy objectives are about the patrol convoy, not optional harbour prizes.
     const convoyIds=new Set(this.state.world.contacts.filter(c=>c.convoyId==='MAIN').map(c=>c.id));
@@ -117,6 +120,7 @@ class SimEngine extends SimEngineCareer {
     this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
     this.updateDetection(dt); this.updateSoundRadar?.(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
+    this.updateMissionFramework?.(dt);
     if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
     this.updateDmg(sub,dt); this.updateDmgCtrl(sub,dt); this.updateWarnings(sub);
     this.checkMissionObjectives(); this.checkPortArrival(dt);

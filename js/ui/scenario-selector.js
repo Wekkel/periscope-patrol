@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════ SCENARIO SELECTOR UI
 class ScenarioSelector{
   constructor(game){
-    this.game=game;this.selArea='Solomon Sea';this.selHist=null;this.activeTab='patrol';
+    this.game=game;this.selArea='Solomon Sea';this.selHist=null;this.selMission='AUTO';this.activeTab='patrol';
     this.bind();this.renderCards();this.renderHistorical();
   }
 
@@ -45,6 +45,7 @@ class ScenarioSelector{
     const c=document.getElementById('stabPatrol');if(!c)return;
     const diffs={'Solomon Sea':{l:'MEDIUM',cls:'diff-med',s:'★★☆'},'Bismarck Sea':{l:'MEDIUM',cls:'diff-med',s:'★★☆'},
       'Luzon Strait':{l:'HARD',cls:'diff-hard',s:'★★★'},'Truk Approaches':{l:'HARD',cls:'diff-hard',s:'★★★'},'Java Sea':{l:'EASY',cls:'diff-easy',s:'★☆☆'}};
+    const missionOpts=[['AUTO','AUTO — varied patrol orders'],...(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).map(k=>[k,(typeof MISSION_DEFINITIONS!=='undefined'&&MISSION_DEFINITIONS[k]?.title)||k.replaceAll('_',' ')])];
     c.innerHTML=Object.entries(PATROL_AREAS).map(([name,area])=>{
       const d=diffs[name]||{l:'MEDIUM',cls:'diff-med',s:'★★☆'};
       return `<div class="area-card${name===this.selArea?' selected':''}" data-area="${name}">
@@ -59,7 +60,8 @@ class ScenarioSelector{
         </div>
         <span class="area-diff ${d.cls}">${d.s} ${d.l}</span>
       </div>`;
-    }).join('');
+    }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">One primary mission per patrol. Truk harbor raids remain intelligence-driven optional opportunities.</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
+    const ms=c.querySelector('#missionTypeSelect');if(ms)ms.addEventListener('change',()=>{this.selMission=ms.value;});
     c.querySelectorAll('.area-card').forEach(card=>{
       card.addEventListener('click',()=>{
         this.selArea=card.dataset.area;this.selHist=null;
@@ -96,7 +98,7 @@ class ScenarioSelector{
     const rows=hist.map(r=>{
       const ev=(r.importantEvents||[]).map(e=>`<div class="log-entry">${e.date||''} · ${e.text}</div>`).join('');
       const opt=(r.optionalObjectives||[]).length?` · optional ${(r.optionalObjectives||[]).map(o=>o.result||(o.done?'done':'not attempted')).join(', ')}`:'';
-      return `<div class="hist-card"><h3>Patrol #${r.patrolNumber} — ${r.area} · ${r.outcome}</h3>
+      return `<div class="hist-card"><h3>Patrol #${r.patrolNumber} — ${r.area} · ${r.outcome}</h3><div style="font-size:10px;color:var(--alert);margin:2px 0 4px;">${r.missionName||String(r.missionType||'CONVOY_INTERDICTION').replaceAll('_',' ')}</div>
         <div class="hist-date">${r.startDate||''} → ${r.endDate||''}</div>
         <div class="hist-desc">${r.shipsSunk||0} sunk · ${(r.tonnage||0).toLocaleString()}t · ${r.shipsDamaged||0} damaged · hull ${Math.round(r.hullAtEnd??100)}%<br>
         Torpedoes ${r.torpedoesFired||0} fired / ${r.torpedoHits||0} hits / ${r.torpedoDuds||0} duds · deck gun ${r.deckGunRounds||0} rounds / ${r.deckGunHits||0} hits · aircraft ${r.aircraftKills||0}${opt}</div>
@@ -151,7 +153,7 @@ class ScenarioSelector{
       const h=HISTORICAL_SCENARIOS.find(s=>s.id===this.selHist);
       if(h){
         const aKey=Object.keys(PATROL_AREAS).find(k=>h.area.includes(k.split(' ')[0]))||'Solomon Sea';
-        this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty});
+        this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty,missionType:h.missionType||'CONVOY_INTERDICTION'});
         const s=this.game.getSnapshot();
         Object.assign(s.world.environment,h.environment);
         s.world.weatherSystem=null;(this.game.engine||this.game).ensureWeatherSystem?.(true);
@@ -170,7 +172,7 @@ class ScenarioSelector{
         audio.playDive();this.close();showBriefing(aKey,s);return;
       }
     }
-    if(this.selArea){this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea});this.close();}
+    if(this.selArea){this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});this.close();}
   }
 }
 

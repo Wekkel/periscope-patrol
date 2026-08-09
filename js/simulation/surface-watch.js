@@ -34,6 +34,11 @@ function bridgeVisualLimitNm(state,contact){
   const sub=state?.playerSub,env=state?.world?.environment||{};
   const vis=Math.max(.5,sub&&contact?weatherVisibilityBetween(state,sub.position,contact.position):(Number(env.visibilityNm)||.5));
   if(!sub)return 0;
+  if(contact?.type==='RAFT'){
+    if((sub.depthFeet||0)<8)return Math.min(3.2,vis*.30);
+    if((sub.depthFeet||0)<=65)return Math.min(1.8,vis*.17);
+    return 0;
+  }
   if((sub.depthFeet||0)<8){
     let smoke=(contact&&!contact.stationary&&(contact.speedKnots||0)>=4)
       ?(contact.type==='TANKER'?1.20:contact.type==='ESCORT'?1.10:1.16):1.04;

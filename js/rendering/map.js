@@ -54,6 +54,7 @@ class CanvasView extends CanvasViewSound {
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
     this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds);
+    this.drawMissionOverlay(ctx,state,w2s);
     this.drawMapTrail(ctx,map.ownshipTrail,w2s);
     this.drawMapPlot(ctx,map.plottedCourse,w2s,sub.position,map.autoFollowPlot);
     this.drawTorpedoEnvelope(ctx,state,w2s,w,h);
@@ -109,6 +110,35 @@ class CanvasView extends CanvasViewSound {
     ctx.fillText(`${nm} nm`,sbx+sbw/2,sby-6*k);ctx.textAlign='left';
 
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
+  }
+
+  drawMissionOverlay(ctx,state,w2s){
+    const m=state.campaign?.primaryMission;if(!m||m.type==='CONVOY_INTERDICTION')return;
+    const K=this.k,ring=(pos,r,label,col='rgba(111,224,143,.72)',dash=[6,5])=>{
+      if(!pos)return;const p=w2s(pos.xNm,pos.yNm);ctx.save();ctx.strokeStyle=col;ctx.lineWidth=Math.max(1,1.4*K);ctx.setLineDash(dash);
+      ctx.beginPath();ctx.arc(p.x,p.y,Math.max(8,r*this.zoom),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle=col;ctx.font=this.fnt(8,true);ctx.fillText(label,p.x+Math.max(10,r*this.zoom)+4*K,p.y-4*K);ctx.restore();
+    };
+    if(m.type==='HIGH_VALUE_INTERCEPT'){
+      ring(m.intelFix,m.intelUncertaintyNm||2.5,'HVT — REPORTED AREA','rgba(160,205,255,.82)');
+      if(m.intelFix&&Number.isFinite(m.intelCourse)){
+        const a=w2s(m.intelFix.xNm,m.intelFix.yNm),r=degToRad(m.intelCourse),L=Math.min(8*this.zoom,120*K);
+        ctx.strokeStyle='rgba(160,205,255,.48)';ctx.lineWidth=1.2;ctx.setLineDash([8,5]);ctx.beginPath();ctx.moveTo(a.x-Math.sin(r)*L,a.y+Math.cos(r)*L);ctx.lineTo(a.x+Math.sin(r)*L,a.y-Math.cos(r)*L);ctx.stroke();ctx.setLineDash([]);
+      }
+    }else if(m.type==='RECONNAISSANCE'){
+      ring(m.center,m.radiusNm||3.2,'RECON AREA','rgba(245,198,92,.78)');
+    }else if(m.type==='LIFEGUARD'){
+      ring(m.station,m.stationRadiusNm||2.5,'LIFEGUARD STATION','rgba(111,224,143,.78)');
+      if(m.survivorSpawned&&!m.survivorSeen)ring(m.searchCenter,m.searchUncertaintyNm||1.6,'AIRMAN — SEARCH AREA','rgba(245,198,92,.80)',[3,5]);
+      if(m.survivorSeen&&m.survivorPos){const p=w2s(m.survivorPos.xNm,m.survivorPos.yNm);ctx.fillStyle='#f5c65c';ctx.font=this.fnt(13,true);ctx.textAlign='center';ctx.fillText('⊙',p.x,p.y+4*K);ctx.font=this.fnt(7.5,true);ctx.fillText('LIFE RAFT',p.x,p.y-10*K);ctx.textAlign='left';}
+    }else if(m.type==='SPECIAL_TRANSPORT'){
+      ring(m.rendezvous,m.radiusNm||.18,m.dropComplete?'COASTWATCHERS — CLEAR AREA':'COASTWATCHER RV','rgba(111,224,143,.82)');
+      if(m.dropComplete)ring(m.rendezvous,m.escapeRadiusNm||4,'CLEAR THIS RING','rgba(245,198,92,.42)',[3,7]);
+    }else if(m.type==='MINELAYING'){
+      ring(m.zone,m.zoneRadiusNm||.75,`MINE BOX · ${m.minesLaid||0}/${m.mineCount||12}`,'rgba(245,198,92,.82)');
+      for(const q of m.mines||[]){const p=w2s(q.pos.xNm,q.pos.yNm);ctx.fillStyle='rgba(245,198,92,.72)';ctx.beginPath();ctx.arc(p.x,p.y,Math.max(1.5,2*K),0,Math.PI*2);ctx.fill();}
+      if(m.zone&&Number.isFinite(m.layHeading)){const p=w2s(m.zone.xNm,m.zone.yNm),r=degToRad(m.layHeading),L=Math.min(2.2*this.zoom,58*K);ctx.strokeStyle='rgba(245,198,92,.6)';ctx.beginPath();ctx.moveTo(p.x-Math.sin(r)*L,p.y+Math.cos(r)*L);ctx.lineTo(p.x+Math.sin(r)*L,p.y-Math.cos(r)*L);ctx.stroke();}
+    }
   }
 
   drawUltra(ctx,state,w2s){

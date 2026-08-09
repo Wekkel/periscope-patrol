@@ -6,6 +6,7 @@ class SimEngineCore{
     this.ensureTacticalExtensions();
     this.ensureWorldExtensions();
     this.ensureCareerPatrolState?.();
+    this.ensureMissionFramework?.();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
     if(this.state.campaign.missionStatus==='LOST')this.finalizePatrol?.('LOST',{reason:'boat lost'});
@@ -666,7 +667,10 @@ class SimEngineCore{
      close, surfaced and slow. */
   checkPortArrival(dt){
     const sub=this.state.playerSub,camp=this.state.campaign;
-    if(camp.missionStatus!=='RETURN TO BASE'&&camp.missionStatus!=='PATROL'){
+    if(camp.primaryMission&&camp.missionStatus!=='RETURN TO BASE'){
+      camp.alongside=0;return;
+    }
+    if(!camp.primaryMission&&camp.missionStatus!=='RETURN TO BASE'&&camp.missionStatus!=='PATROL'){
       camp.alongside=0;return;
     }
     const r=this.friendlyPortNav();
@@ -713,7 +717,8 @@ class SimEngineCore{
     const camp=this.state.campaign;
     const W=this.state.weapons;
     camp.missionStatus='COMPLETED';
-    if(camp.objectives[3]) camp.objectives[3].done=true;
+    const returnObj=camp.objectives?.find?.(o=>o.id==='return')||(!camp.missionType?camp.objectives?.[3]:null);
+    if(returnObj) returnObj.done=true;
     // Score bonus for fuel/torps remaining, hull condition
     const sub=this.state.playerSub;
     const fuelBonus=Math.floor(sub.propulsion.fuel*8);
@@ -808,6 +813,10 @@ class SimEngineCore{
     s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
     this.setupHarbor(key);this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
+    // Patch 6: mission setup happens only after world truth (convoy/harbor) exists,
+    // but before the briefing is rendered. Historical scenarios can pin a type;
+    // ordinary patrols may use AUTO or the player's explicit selection.
+    this.configureMission?.(options.missionType||'AUTO',options);
     this.log(`=== PATROL #${prevPatrol+1} — ${key} ===`,'warn');
     this.log(`${area.description}`);
     showBriefing(key,s);

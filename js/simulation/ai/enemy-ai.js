@@ -27,7 +27,8 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     }else if(e.alertState!=='UNAWARE'){
       e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;this.assignASWRoles?.(null,true);this.log('Escort search abandoned; convoy screen reforming.');
       if(this.state.campaign._depthChargeAttackSeen){this.captainLog?.('DEPTH_CHARGE_ATTACK_SURVIVED','Depth-charge attack survived.',{},`dc-survived:${Math.floor((this.state.time.elapsedSeconds||0)/60)}`);this.state.campaign._depthChargeAttackSeen=false;}
-      if(this.state.campaign.objectives[2])this.state.campaign.objectives[2].done=true;
+      const camp=this.state.campaign,evade=camp.objectives?.find?.(o=>o.id==='evade')||(!camp.missionType?camp.objectives?.[2]:null);
+      if(evade)evade.done=true;
     }
     e.searchPhase=(e.searchPhase||0)+dt;this.updateASWBrain?.(dt);this.updateSonar(dt);
     const escorts=W.contacts.filter(c=>c.type==='ESCORT'&&!c.sunk);escorts.forEach((esc,i)=>this.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
