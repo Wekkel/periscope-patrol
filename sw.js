@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.7'; // rest-points: MAP performance, RTB, bridge/wake, sound stop, friendly airspace
+const VERSION = '0.8.8'; // bug fixes
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
