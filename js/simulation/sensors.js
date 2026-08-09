@@ -4,7 +4,7 @@
 // source-appropriate rate.  This prevents a new hydrophone/radar noise sample
 // from making a 10-knot merchant appear to teleport hundreds of metres.
 const CONTACT_PLOT_PROFILE={
-  VISUAL:{rank:5,holdSec:10,tauSec:1.1,maxCorrectionNmSec:.040,posConf:.94,uncertaintyNm:.035},
+  VISUAL:{rank:5,holdSec:10,tauSec:.01,maxCorrectionNmSec:9,posConf:.97,uncertaintyNm:.018},
   'QC ECHO':{rank:5,holdSec:12,tauSec:.7,maxCorrectionNmSec:.055,posConf:.92,uncertaintyNm:.030},
   'SJ RADAR':{rank:4,holdSec:6,tauSec:3.0,maxCorrectionNmSec:.0025,posConf:.78,uncertaintyNm:.075},
   'SOUND TRIANGULATION':{rank:3,holdSec:24,tauSec:7,maxCorrectionNmSec:.004,posConf:.66,uncertaintyNm:.22},
@@ -25,18 +25,36 @@ function updateStableContactPlot(state,tr,measurement,source,quality,dt){
   const lowerSourceHeld=!!tr.plotPosition&&incoming.rank<old.rank&&(now-oldFixAt)<old.holdSec;
   let pos=contactPlotPredicted(tr,now)||{...measurement};
   tr.rawObservationPosition={...measurement};tr.rawObservationAt=now;tr.lastSensorSource=source;
-  if(!lowerSourceHeld){
+
+  /* A visual hull is not a paper bearing plot. Once lookouts can actually see
+     the ship, the map swaps the uncertainty symbol for a kinematic hull at the
+     observed position. We deliberately do NOT drag the old hydrophone/radar
+     plot sideways into place: that made a 10-knot merchant appear to crab at
+     100+ knots. The old paper solution is retained briefly only as a fading
+     acquisition ghost for the renderer. */
+  if(source==='VISUAL'){
+    const wasVisual=tr.positionSource==='VISUAL'&&Number.isFinite(tr.visualLastSeenAt)&&(now-tr.visualLastSeenAt)<2;
+    if(!wasVisual&&tr.plotPosition){
+      tr.visualTransitionFrom={...tr.plotPosition};
+      tr.visualTransitionAt=now;tr.visualTransitionSource=oldSource;
+      tr.visualTransitionUncertaintyNm=Number.isFinite(tr.positionUncertaintyNm)?tr.positionUncertaintyNm:.35;
+    }
+    pos={...measurement};
+    tr.positionSource='VISUAL';tr.source='VISUAL';tr.positionFixAt=now;
+    tr.visualLastSeenAt=now;tr.visualKinematic=true;
+    tr.positionConfidence=clamp(.94+q*.04,.94,.985);
+    tr.positionUncertaintyNm=lerp(.032,.012,q);
+  }else if(!lowerSourceHeld){
     const err=distNm(pos,measurement),stepTime=clamp(Number(dt)||.1,.05,2.5);
     const alpha=1-Math.exp(-stepTime/Math.max(.25,incoming.tauSec));
     const maxStep=incoming.maxCorrectionNmSec*stepTime,step=Math.min(err,err*alpha,maxStep);
     if(err>1e-9&&step>0){const k=step/err;pos={xNm:pos.xNm+(measurement.xNm-pos.xNm)*k,yNm:pos.yNm+(measurement.yNm-pos.yNm)*k};}
-    tr.positionSource=source;tr.source=source;tr.positionFixAt=now;
+    tr.positionSource=source;tr.source=source;tr.positionFixAt=now;tr.visualKinematic=false;
     const targetConf=clamp(incoming.posConf+(q-.5)*(source==='HYDROPHONE'?.16:.08),.08,.98);
-    tr.positionConfidence=Number.isFinite(tr.positionConfidence)?lerp(tr.positionConfidence,targetConf,source==='VISUAL'?.32:.16):targetConf;
+    tr.positionConfidence=Number.isFinite(tr.positionConfidence)?lerp(tr.positionConfidence,targetConf,.16):targetConf;
     let targetUnc=incoming.uncertaintyNm;
     if(source==='HYDROPHONE')targetUnc*=lerp(1.8,.65,q);
     else if(source==='SJ RADAR')targetUnc*=lerp(1.45,.72,q);
-    else if(source==='VISUAL')targetUnc*=lerp(1.8,.65,q);
     tr.positionUncertaintyNm=Number.isFinite(tr.positionUncertaintyNm)?lerp(tr.positionUncertaintyNm,targetUnc,.20):targetUnc;
   }
   tr.plotPosition={...pos};tr.plotUpdatedAt=now;

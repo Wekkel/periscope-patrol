@@ -36,58 +36,100 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       yNm:sub.position.yNm+(fy*forwardM+sy*sideM)/NM_M,zM};
   }
 
-  drawOwnshipSurfaceDeck3D(ctx,cam,state,opts={}){
-    const sub=state.playerSub,k=this.k,rel=Math.abs(shortDelta(cam.bearingDeg??sub.heading,sub.heading));
-    // Looking almost exactly abeam, the long deck is below/behind the bridge
-    // camera and should not turn into a giant screen-space wedge.
-    if(rel>82&&rel<98)return;
-    const aft=rel>=98;
-    const specs=aft
-      ?[[-4,3.85,1.85],[-10,3.8,1.70],[-21,3.5,1.45],[-33,2.65,1.15],[-43,.18,.72]]
-      :[[4,3.85,1.90],[10,4.0,1.75],[21,3.75,1.48],[34,3.15,1.20],[48,1.65,.92],[55,.16,.68]];
-    const rows=[];
-    for(const [fwd,width,z] of specs){
-      const L=this.ownshipDeckPoint(sub,fwd,-width,z),R=this.ownshipDeckPoint(sub,fwd,width,z);
-      const lp=this.proj(cam,L.xNm*NM_M,-L.yNm*NM_M,L.zM),rp=this.proj(cam,R.xNm*NM_M,-R.yNm*NM_M,R.zM);
-      const Lw=this.ownshipDeckPoint(sub,fwd,-width,0),Rw=this.ownshipDeckPoint(sub,fwd,width,0);
-      const lw=this.proj(cam,Lw.xNm*NM_M,-Lw.yNm*NM_M,0),rw=this.proj(cam,Rw.xNm*NM_M,-Rw.yNm*NM_M,0);
-      if(lp&&rp)rows.push({fwd,width,z,lp,rp,lw,rw});
+  /* Ownship needs a different projection rule from distant world geometry.
+     The bridge camera is physically ON the submarine, so deck polygons can
+     cross the camera's near plane as the player looks abeam. Dropping any
+     vertex with fwd<3 m (the normal world-object rule) cut the boat in half.
+     This tiny low-poly mesh clips faces against a 0.55 m near plane instead. */
+  ownshipSurfaceSections(){
+    return[
+      {f:-47,w:.18,z:.68},{f:-41,w:2.35,z:.96},{f:-32,w:3.15,z:1.20},{f:-22,w:3.55,z:1.43},
+      {f:-12,w:3.82,z:1.67},{f:-5,w:3.90,z:1.82},{f:4,w:3.92,z:1.88},{f:11,w:4.00,z:1.73},
+      {f:22,w:3.72,z:1.47},{f:35,w:3.05,z:1.18},{f:48,w:1.58,z:.90},{f:55,w:.16,z:.67}
+    ];
+  }
+  ownshipCamVertex(cam,sub,forwardM,sideM,zM){
+    const d=degToRad(sub.heading-(cam.bearingDeg??sub.heading)),c=Math.cos(d),q=Math.sin(d);
+    return{f:forwardM*c-sideM*q,r:forwardM*q+sideM*c,z:zM};
+  }
+  clipOwnshipPolygon(poly,near=.55){
+    if(!poly.length)return[];const out=[];
+    for(let i=0;i<poly.length;i++){
+      const a=poly[i],b=poly[(i+1)%poly.length],ai=a.f>=near,bi=b.f>=near;
+      if(ai)out.push(a);
+      if(ai!==bi){const t=(near-a.f)/(b.f-a.f);out.push({f:near,r:lerp(a.r,b.r,t),z:lerp(a.z,b.z,t)});}
     }
-    if(rows.length<2)return;
-    // Hull sides first: a thin vertical face makes the deck feel like a body in
-    // space rather than a flat HUD polygon.
-    ctx.fillStyle='rgba(11,17,18,.97)';
-    for(let i=0;i<rows.length-1;i++){
-      const a=rows[i],b=rows[i+1];
-      if(a.lp&&b.lp&&a.lw&&b.lw){ctx.beginPath();ctx.moveTo(a.lp.x,a.lp.y);ctx.lineTo(b.lp.x,b.lp.y);ctx.lineTo(b.lw.x,b.lw.y);ctx.lineTo(a.lw.x,a.lw.y);ctx.closePath();ctx.fill();}
-      if(a.rp&&b.rp&&a.rw&&b.rw){ctx.beginPath();ctx.moveTo(a.rp.x,a.rp.y);ctx.lineTo(b.rp.x,b.rp.y);ctx.lineTo(b.rw.x,b.rw.y);ctx.lineTo(a.rw.x,a.rw.y);ctx.closePath();ctx.fill();}
+    return out;
+  }
+  projectOwnshipLocal(cam,v){
+    if(v.f<.54)return null;
+    return{x:cam.cx+v.r/v.f*cam.f,y:cam.cy+((cam.h-v.z)/v.f+v.f/(2*EARTH_R))*cam.f,d:v.f};
+  }
+  clipOwnshipSegment(a,b,near=.55){
+    const ai=a.f>=near,bi=b.f>=near;if(!ai&&!bi)return null;
+    if(ai&&bi)return[a,b];const t=(near-a.f)/(b.f-a.f),m={f:near,r:lerp(a.r,b.r,t),z:lerp(a.z,b.z,t)};
+    return ai?[a,m]:[m,b];
+  }
+  ownshipSurfaceMesh(cam,state){
+    const sub=state.playerSub,secs=this.ownshipSurfaceSections(),faces=[],near=.55;
+    const V=(r,side,z)=>this.ownshipCamVertex(cam,sub,r.f,side*r.w,z===undefined?r.z:z);
+    const add=(kind,poly)=>{
+      const clipped=this.clipOwnshipPolygon(poly,near);if(clipped.length<3)return;
+      const pts=clipped.map(v=>this.projectOwnshipLocal(cam,v));if(pts.some(x=>!x))return;
+      faces.push({kind,pts,depth:clipped.reduce((n,v)=>n+v.f,0)/clipped.length});
+    };
+    for(let i=0;i<secs.length-1;i++){
+      const a=secs[i],b=secs[i+1];
+      add('DECK',[V(a,-1),V(b,-1),V(b,1),V(a,1)]);
+      add('PORT',[V(a,-1,.12),V(b,-1,.12),V(b,-1),V(a,-1)]);
+      add('STARBOARD',[V(a,1),V(b,1),V(b,1,.12),V(a,1,.12)]);
     }
-    const grd=ctx.createLinearGradient?ctx.createLinearGradient(cam.cx,cam.cy,cam.cx,Math.max(cam.cy,this.h||cam.cy+300)):null;
-    if(grd){grd.addColorStop(0,'rgba(58,66,63,.98)');grd.addColorStop(1,'rgba(24,30,29,.99)');ctx.fillStyle=grd;}else ctx.fillStyle='rgba(38,46,43,.98)';
-    ctx.beginPath();
-    rows.forEach((r,i)=>i?ctx.lineTo(r.lp.x,r.lp.y):ctx.moveTo(r.lp.x,r.lp.y));
-    for(let i=rows.length-1;i>=0;i--)ctx.lineTo(rows[i].rp.x,rows[i].rp.y);
-    ctx.closePath();ctx.fill();
-    ctx.strokeStyle='rgba(122,137,130,.72)';ctx.lineWidth=Math.max(1,1.15*k);ctx.stroke();
+    // Fairwater/conning-tower body bridges the visual gap around the camera.
+    const box=[
+      [-4,-1.55,1.75],[-4,1.55,1.75],[4,1.55,1.75],[4,-1.55,1.75],
+      [-3,-1.28,5.25],[-3,1.28,5.25],[3,1.28,5.25],[3,-1.28,5.25]
+    ].map(v=>this.ownshipCamVertex(cam,sub,v[0],v[1],v[2]));
+    add('FAIRWATER',[box[0],box[1],box[5],box[4]]);add('FAIRWATER',[box[1],box[2],box[6],box[5]]);
+    add('FAIRWATER',[box[2],box[3],box[7],box[6]]);add('FAIRWATER',[box[3],box[0],box[4],box[7]]);
+    add('FAIRWATER_TOP',[box[4],box[5],box[6],box[7]]);
+    faces.sort((a,b)=>b.depth-a.depth);
+    return faces;
+  }
 
-    // Deck centre line and edge rails, all projected from ownship coordinates.
-    const centres=rows.map(r=>{const q=this.ownshipDeckPoint(sub,r.fwd,0,r.z+.025);return this.proj(cam,q.xNm*NM_M,-q.yNm*NM_M,q.zM)}).filter(Boolean);
-    if(centres.length>1){ctx.strokeStyle='rgba(127,139,132,.38)';ctx.lineWidth=Math.max(.8,k);ctx.beginPath();centres.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();}
-    ctx.strokeStyle='rgba(144,156,149,.48)';ctx.lineWidth=Math.max(.7,.85*k);
-    for(const side of [-1,1]){
-      const pts=rows.map(r=>{const q=this.ownshipDeckPoint(sub,r.fwd,side*r.width*.92,r.z+.28);return this.proj(cam,q.xNm*NM_M,-q.yNm*NM_M,q.zM)}).filter(Boolean);
-      if(pts.length>1){ctx.beginPath();pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();}
+  drawOwnshipSurfaceDeck3D(ctx,cam,state,opts={}){
+    const sub=state.playerSub,k=this.k,faces=this.ownshipSurfaceMesh(cam,state);
+    for(const face of faces){
+      if(face.kind==='DECK')ctx.fillStyle='rgba(43,51,48,.985)';
+      else if(face.kind==='FAIRWATER_TOP')ctx.fillStyle='rgba(52,60,56,.99)';
+      else if(face.kind.startsWith('FAIRWATER'))ctx.fillStyle='rgba(29,36,34,.99)';
+      else ctx.fillStyle='rgba(10,16,17,.98)';
+      ctx.beginPath();face.pts.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.fill();
+      ctx.strokeStyle=face.kind==='DECK'?'rgba(126,141,133,.55)':'rgba(94,108,102,.48)';ctx.lineWidth=Math.max(.7,.9*k);ctx.stroke();
     }
-    // Hatches / cleats give scale without textures or a second render engine.
-    const detailFwd=aft?[-13,-28]:[13,29,42];
-    for(const fwd of detailFwd){
-      const q=this.ownshipDeckPoint(sub,fwd,0,1.65),p=this.proj(cam,q.xNm*NM_M,-q.yNm*NM_M,q.zM);if(!p)continue;
-      const rr=clamp(cam.f/Math.max(p.d,100)*.75,1.2*k,5*k);ctx.fillStyle='rgba(8,13,13,.82)';ctx.beginPath();ctx.arc(p.x,p.y,rr,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(132,145,138,.58)';ctx.stroke();
+
+    // Centre seam and rails are near-plane clipped segments rather than a list
+    // of independently projected points, so they remain continuous at 90°.
+    const secs=this.ownshipSurfaceSections(),line=(side,height,col)=>{
+      ctx.strokeStyle=col;ctx.lineWidth=Math.max(.7,.85*k);ctx.beginPath();let started=false;
+      for(let i=0;i<secs.length-1;i++){
+        const a=secs[i],b=secs[i+1];
+        const av=this.ownshipCamVertex(cam,sub,a.f,side*a.w,a.z+height),bv=this.ownshipCamVertex(cam,sub,b.f,side*b.w,b.z+height);
+        const seg=this.clipOwnshipSegment(av,bv);if(!seg){started=false;continue;}
+        const p0=this.projectOwnshipLocal(cam,seg[0]),p1=this.projectOwnshipLocal(cam,seg[1]);if(!p0||!p1)continue;
+        if(!started){ctx.moveTo(p0.x,p0.y);started=true;}else ctx.lineTo(p0.x,p0.y);ctx.lineTo(p1.x,p1.y);
+      }ctx.stroke();
+    };
+    line(0,.035,'rgba(128,141,134,.30)');line(-.92,.30,'rgba(148,160,153,.44)');line(.92,.30,'rgba(148,160,153,.44)');
+
+    // A few fixed fittings keep scale/readability without textures.
+    const detail=opts.gun?[-28,-13,14,30,43]:[-28,-13,13,29,42];
+    for(const fwd of detail){
+      const sec=secs.reduce((a,b)=>Math.abs(b.f-fwd)<Math.abs(a.f-fwd)?b:a),q=this.ownshipCamVertex(cam,sub,fwd,0,sec.z+.08);
+      if(q.f<.75)continue;const p=this.projectOwnshipLocal(cam,q);if(!p)continue;
+      const rr=clamp(cam.f/Math.max(q.f,90)*.62,1.1*k,4.2*k);ctx.fillStyle='rgba(7,12,12,.78)';ctx.beginPath();ctx.ellipse(p.x,p.y,rr*1.25,rr*.62,0,0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(128,142,135,.48)';ctx.stroke();
     }
-    if(opts.bridge&&!aft){
-      const q=this.ownshipDeckPoint(sub,18,0,2.0),p=this.proj(cam,q.xNm*NM_M,-q.yNm*NM_M,q.zM);
-      if(p){const rr=clamp(cam.f/Math.max(p.d,80)*1.2,2*k,8*k);ctx.fillStyle='rgba(25,31,29,.98)';ctx.beginPath();ctx.arc(p.x,p.y,rr,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(134,146,139,.62)';ctx.stroke();}
-    }
+    return faces.length;
   }
 
   drawDeckGun(ctx,w,h,state){

@@ -594,6 +594,31 @@ class CanvasView extends CanvasViewSound {
     }
   }
 
+  drawContactUncertaintyGlyph(ctx,pe,tr,uncertaintyR,K,isSelected,a,ownScreen){
+    const src=tr.positionSource||tr.source||'HYDROPHONE';
+    const hydro=src==='HYDROPHONE'||src==='SOUND BEARING';
+    const triang=src==='SOUND TRIANGULATION';
+    const radar=src==='SJ RADAR'||src==='QC ECHO';
+    const ang=degToRad(hydro?(tr.bearing||0):(tr.courseEstimate||tr.bearing||0))-Math.PI/2;
+    const major=uncertaintyR*(hydro?1.85:triang?1.35:1.05);
+    const minor=uncertaintyR*(hydro?.34:triang?.54:.72);
+    if(hydro&&ownScreen){
+      ctx.save();ctx.strokeStyle=isSelected?'rgba(245,198,92,.52)':`rgba(245,198,92,${a*.20})`;
+      ctx.lineWidth=Math.max(3,7*K);ctx.setLineDash([10*K,8*K]);
+      ctx.beginPath();ctx.moveTo(ownScreen.x,ownScreen.y);ctx.lineTo(pe.x,pe.y);ctx.stroke();ctx.restore();
+    }
+    ctx.save();ctx.translate(pe.x,pe.y);ctx.rotate(ang);
+    ctx.fillStyle=isSelected?'rgba(245,198,92,.085)':`rgba(245,198,92,${a*.045})`;
+    ctx.strokeStyle=isSelected?'rgba(245,198,92,.86)':`rgba(245,198,92,${a*.58})`;
+    ctx.lineWidth=isSelected?Math.max(1.5,2*K):Math.max(1,1.1*K);ctx.setLineDash(hydro?[7*K,6*K]:[4*K,4*K]);
+    ctx.beginPath();ctx.ellipse(0,0,major,minor,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
+    if(radar&&clamp(tr.positionConfidence||0,0,1)>.68){
+      const iconType=tr.contactType==='ESCORT'?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
+      this.shipIcon(ctx,pe.x,pe.y,tr.courseEstimate||0,clamp(13*K,11,24),iconType,
+        'rgba(245,198,92,.08)','rgba(245,198,92,.34)',.34);
+    }
+  }
+
   drawMapContacts(ctx,tracks,w2s,now,ownPos,selId){
     const K=this.k;
     for(const tr of Object.values(tracks)){
@@ -622,49 +647,47 @@ class CanvasView extends CanvasViewSound {
                  yNm:ownPos.yNm-Math.cos(bRad)*tr.rangeEstimateNm};
       const pe=w2s(est.xNm,est.yNm);
 
-      // A fresh high-confidence plot gets the solid symbol treatment, but this
-      // is still the player's best estimate — not the simulation's hidden truth.
-      const hasTruePos=posConf>0.5&&(tr.staleSeconds||0)<45;
+      /* Only a genuinely seen hull is drawn as a ship. Positional confidence
+         from SOUND/SJ/QC is useful knowledge, but it is still a plot solution;
+         drawing a crisp hull while that solution converges makes the vessel
+         appear to move sideways. Uncertain sources therefore get an explicitly
+         uncertain glyph, even at high confidence. */
+      const fixAge=now-(Number.isFinite(tr.hullConfirmedAt)?tr.hullConfirmedAt:(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated||0));
+      const visualFlag=tr.visualHullConfirmed===undefined?(tr.positionSource==='VISUAL'||tr.source==='VISUAL'):!!tr.visualHullConfirmed;
+      const hasTruePos=visualFlag&&fixAge<4&&(tr.staleSeconds||0)<6;
       const pt=hasTruePos?pe:null;
 
-      // Uncertainty circle around estimated position
       const sensorUncPx=Number.isFinite(tr.positionUncertaintyNm)?tr.positionUncertaintyNm*this.zoom:0;
       const uncertaintyR=clamp(Math.max(10+(1-posConf)*30,sensorUncPx)+Math.min(36,(tr.staleSeconds||0)*0.06),8,72)*K;
-      ctx.strokeStyle=isSelected?'#f0c35a':`rgba(240,195,90,${a*0.6})`;
-      ctx.lineWidth=isSelected?2:1;
-      ctx.setLineDash([4,4]);
-      ctx.beginPath();ctx.arc(pe.x,pe.y,uncertaintyR,0,Math.PI*2);ctx.stroke();
-      ctx.setLineDash([]);
+      const ownScreen=w2s(ownPos.xNm,ownPos.yNm);
 
-      // Fresh high-confidence paper plot: solid ship symbol. No hidden truth
-      // is consulted here; the world position is the current plotted estimate.
       if(pt){
+        // Acquisition is a symbol transition, not a 150-knot lateral manoeuvre.
+        const transAge=Number.isFinite(tr.visualTransitionAt)?now-tr.visualTransitionAt:99;
+        if(tr.visualTransitionFrom&&transAge>=0&&transAge<.45){
+          const gp=w2s(tr.visualTransitionFrom.xNm,tr.visualTransitionFrom.yNm),fade=1-transAge/.45;
+          this.drawContactUncertaintyGlyph(ctx,gp,{...tr,positionSource:tr.visualTransitionSource||'HYDROPHONE'},
+            Math.max(12*K,(tr.visualTransitionUncertaintyNm||.25)*this.zoom*K),K,false,a*fade,ownScreen);
+        }
         const isEsc=tr.contactType==='ESCORT';
         const shipCol=isEsc?'#ef6a58':'#f5c65c';
         const iconType=isEsc?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
         this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
           isSelected?'#6fe08f':`rgba(245,198,92,${clamp(a,0.4,1)})`,K,
           `${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
-        const lenNm=(tr.lengthYards||(isEsc?300:450))*0.0004937;      // yards → nm
+        const lenNm=(tr.lengthYards||(isEsc?300:450))*0.0004937;
         const iconLen=clamp(lenNm*this.zoom,15*K,52*K);
-        if(isSelected){
-          ctx.strokeStyle='rgba(111,224,143,.8)';ctx.lineWidth=Math.max(1.5,2*K);
-          ctx.beginPath();ctx.arc(pt.x,pt.y,iconLen*0.8,0,Math.PI*2);ctx.stroke();
-        }
+        if(isSelected){ctx.strokeStyle='rgba(111,224,143,.8)';ctx.lineWidth=Math.max(1.5,2*K);ctx.beginPath();ctx.arc(pt.x,pt.y,iconLen*.8,0,Math.PI*2);ctx.stroke();}
         this.shipIcon(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,iconType,shipCol,
           isSelected?'#eafff0':'rgba(12,20,18,.9)',clamp(a,0.45,1));
         if(Math.abs(tr.turnRateEstimateDegSec||0)>.12)this.turnCue(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,tr.turnRateEstimateDegSec,isSelected?'#6fe08f':shipCol);
-      } else {
-        // Low confidence: only estimated — simple circle with course line
-        ctx.strokeStyle=isSelected?'#f5c65c':`rgba(245,198,92,${a})`;
-        ctx.lineWidth=isSelected?3:2;
-        ctx.beginPath();ctx.arc(pe.x,pe.y,8*K,0,Math.PI*2);ctx.stroke();
-        this.shipIcon(ctx,pe.x,pe.y,tr.courseEstimate,clamp(14*K,12,26),
-          tr.contactType==='ESCORT'?'ESCORT':'MERCHANT','rgba(245,198,92,.18)',
-          `rgba(245,198,92,${a*0.55})`,0.9);
-        const cRad=degToRad(tr.courseEstimate);
-        ctx.beginPath();ctx.moveTo(pe.x,pe.y);
-        ctx.lineTo(pe.x+Math.sin(cRad)*22*K,pe.y-Math.cos(cRad)*22*K);ctx.stroke();
+      }else{
+        this.drawContactUncertaintyGlyph(ctx,pe,tr,uncertaintyR,K,isSelected,a,ownScreen);
+        // Course is advisory for a plot, not a drawn hull trajectory.
+        if(Number.isFinite(tr.courseEstimate)&&!(tr.positionSource==='HYDROPHONE'||tr.positionSource==='SOUND BEARING')){
+          const cRad=degToRad(tr.courseEstimate);ctx.strokeStyle=isSelected?'rgba(245,198,92,.75)':`rgba(245,198,92,${a*.48})`;ctx.lineWidth=Math.max(1,K);
+          ctx.beginPath();ctx.moveTo(pe.x,pe.y);ctx.lineTo(pe.x+Math.sin(cRad)*18*K,pe.y-Math.cos(cRad)*18*K);ctx.stroke();
+        }
       }
 
       // Selected-contact text is deliberately promoted above the ambient plot.

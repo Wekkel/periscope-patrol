@@ -113,6 +113,7 @@ class SimEngine extends SimEngineCareer {
   updateSub(dt){
     const sub=this.state.playerSub;
     this.captureCollisionFrame();
+    this.updateBridgeDiveSequence?.(dt);
     this.updateHeading(sub,dt); this.updateDepth(sub,dt); this.updatePropulsion(sub,dt);
     this.updatePosition(sub,dt);
     this.applyTerrainEffects(sub,dt);
@@ -152,7 +153,7 @@ class SimEngine extends SimEngineCareer {
     // compensate for it instead of chasing per-frame random noise.
     const trimBias=(sub.damage.instrumentBias?.ballastTrimFps??damageBiasesFor(this.state).ballastTrimFps)*(em?.35:1);
     sub.verticalSpeedFps=lerp(sub.verticalSpeedFps,cv*sp+fp+trimBias,clamp(dt*0.8,0,1));
-    if(sub.diveDelay>0){sub.diveDelay-=dt;sub.verticalSpeedFps=Math.min(sub.verticalSpeedFps,0);}
+    if(sub.diveDelay>0){sub.diveDelay=Math.max(0,sub.diveDelay-dt);sub.verticalSpeedFps=Math.min(sub.verticalSpeedFps,0);}
     sub.depthFeet=clamp(sub.depthFeet+sub.verticalSpeedFps*dt,0,sub.damage.crushDepthFeet+80);
     if(Math.abs(de)<2&&Math.abs(sub.verticalSpeedFps)<0.25) sub.verticalSpeedFps=0;
     // at the surface only the UPWARD component is cancelled — Math.min() here
@@ -399,12 +400,22 @@ class SimEngine extends SimEngineCareer {
         ex.lastUpdated=now; ex.staleSeconds=0; ex.lastSensorSource=src;
         ex.lengthYards=c.lengthYards;
         const prevCourseEstimate=ex.courseEstimate;
-        ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
+        if(src==='VISUAL'){
+          /* Arcade-readable visual tracking: if the hull is genuinely in sight,
+             its map symbol must move like the ship being watched. Heading and
+             speed therefore follow the observed hull directly instead of
+             lagging behind while position snaps to the visual line of sight. */
+          ex.courseEstimate=c.heading;ex.speedEstimateKnots=c.speedKnots;
+        }else{
+          ex.courseEstimate=lerpAngle(ex.courseEstimate,c.heading,clamp(0.08+ex.confidence*0.18,0,0.35));
+          ex.speedEstimateKnots=lerp(ex.speedEstimateKnots,c.speedKnots,clamp(0.08+ex.confidence*0.18,0,0.35));
+        }
         const observedTurn=shortDelta(prevCourseEstimate,ex.courseEstimate)/Math.max(dt,.1);
         ex.turnRateEstimateDegSec=lerp(ex.turnRateEstimateDegSec||0,observedTurn,clamp(.18+ex.confidence*.22,.18,.4));
-        ex.speedEstimateKnots=lerp(ex.speedEstimateKnots,c.speedKnots,clamp(0.08+ex.confidence*0.18,0,0.35));
         const knownType=c.displayType||c.type;
         const smokeOnly=sub.depthFeet<8&&rng>weatherVisibilityBetween(this.state,sub.position,c.position)*1.02;
+        ex.visualHullConfirmed=src==='VISUAL'&&!smokeOnly;
+        if(ex.visualHullConfirmed)ex.hullConfirmedAt=now;
         // The Truk heavy unit is deliberately reported only as HEAVY UNIT.
         // Hydrophones may build a good positional track, but they do not hand
         // the player a magical carrier/cruiser classification. Exact identity

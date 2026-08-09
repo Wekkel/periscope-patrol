@@ -15,6 +15,17 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     };
   }
 
+  bridgeSurfaceMotion(state,t){
+    const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),spd=clamp((sub.propulsion?.speedKnots||0)/18,0,1);
+    if((sub.depthFeet||0)>8)return{heaveM:0,pitchDeg:0,rollDeg:0};
+    const live=clamp(.18+sea*.82+spd*.22,0,1.15);
+    return{
+      heaveM:Math.sin(t*.93+1.1)*(.025+.19*sea)*live,
+      pitchDeg:Math.sin(t*.71+.35)*(.08+.72*sea+.13*spd)*live,
+      rollDeg:Math.sin(t*.57+2.2)*(.10+1.05*sea)*live
+    };
+  }
+
   drawBridge(ctx,w,h,state){
     const sub=state.playerSub,tact=state.tactical,env=state.world.environment,t=state.time.elapsedSeconds;
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
@@ -26,7 +37,12 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       return;
     }
     const zoom=bridgeZoomAmount(state),bino=zoom>.55,fov=bridgeFovDeg(state);
-    const cam=this.setupBridgeCam(state,fov,w,h);this.cam=cam;this.bridgeCam=cam;
+    const cam=this.setupBridgeCam(state,fov,w,h),deckCam={...cam},motion=(this.bridgeSurfaceMotion||CanvasViewBridge.prototype.bridgeSurfaceMotion).call(this,state,t);
+    // The observer and submarine move together, so ownship stays stable in the
+    // foreground while the horizon/world gently heaves, pitches and rolls.
+    cam.h+=motion.heaveM;cam.cy+=Math.tan(degToRad(motion.pitchDeg))*cam.f;
+    cam.dip=Math.sqrt(2*Math.max(.2,cam.h)/EARTH_R);cam.horizonY=cam.cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*Math.max(.2,cam.h));
+    this.cam=cam;this.bridgeCam=cam;this.bridgeDeckCam=deckCam;this.bridgeMotion=motion;
     const savedQ=this.quality;
     // A wide bridge scene can expose far more sea/terrain than the scope. On
     // 4 GB / low-core devices hold the effect density below the adaptive cap;
@@ -34,6 +50,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     if(this.lowSpec)this.quality=Math.min(this.quality,.58);
     else this.quality=Math.min(this.quality,.92);
     try{
+      ctx.save();ctx.translate(cam.cx,cam.cy);ctx.rotate(degToRad(-motion.rollDeg));ctx.translate(-cam.cx,-cam.cy);
       this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);
       this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
       this.drawTerrain3D(ctx,cam,state,env.daylight);
@@ -44,11 +61,11 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       this.drawFleet3D(ctx,cam,state,env.daylight,env,t);
       this.drawBridgeAircraft?.(ctx,cam,state,env.daylight,t);
       this.drawExplosions3D(ctx,cam,state,env.daylight);
-      this.drawSplashes3D(ctx,cam,state,env.daylight);
-      // Ownship is real perspective geometry, drawn as foreground world
-      // geometry before rain/night overlays.  Changing focal length therefore
-      // changes magnification, not the apparent course of the hull.
-      this.drawBridgeForedeck(ctx,w,h,cam,state,t);
+      this.drawSplashes3D(ctx,cam,state,env.daylight);ctx.restore();
+      // Deck/camera are rigidly attached to the same boat; unlike the horizon,
+      // ownship therefore does not wobble relative to the observer.
+      this.drawBridgeForedeck(ctx,w,h,deckCam,state,t);
+      (this.drawBridgeDiveSequence||CanvasViewBridge.prototype.drawBridgeDiveSequence).call(this,ctx,w,h,state,t);
       if((env.precipitation||0)>.04||weatherIsWet(env.weather))this.drawRain(ctx,w,h,env.seaState,t,env.weather,env.precipitation||.25);
       if(env.seaState>.58&&this.quality>.48)this.drawScopeSpray(ctx,w,h,env.seaState,t);
       if(env.daylight<.32)this.drawNightOverlay(ctx,w,h,env.daylight);
@@ -124,6 +141,31 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     ctx.strokeStyle='rgba(105,119,112,.68)';ctx.lineWidth=Math.max(1,1.4*k);
     const ry=h-10*k;ctx.beginPath();ctx.moveTo(w*.08,ry);ctx.lineTo(w*.92,ry);ctx.stroke();
     for(let x=.12;x<.92;x+=.10){ctx.beginPath();ctx.moveTo(w*x,ry);ctx.lineTo(w*x,ry-12*k);ctx.stroke();}
+  }
+
+  drawBridgeDiveSequence(ctx,w,h,state,t){
+    const seq=state.tactical.bridgeDiveSequence;if(!seq?.active)return;
+    const k=this.k,p=clamp(seq.progress||0,0,1),crash=!!seq.crash;
+    const hatchX=w*.57,hatchY=h*.78,hatchR=clamp(22*k,18,34);
+    // Hatch/coaming lives in camera space because the watch is standing next
+    // to it. Crew are deliberately simple silhouettes: four keyed poses cost
+    // essentially nothing on low-end hardware but make the sequence readable.
+    ctx.fillStyle='rgba(8,12,12,.92)';ctx.strokeStyle='rgba(136,149,142,.72)';ctx.lineWidth=Math.max(1,1.2*k);
+    ctx.beginPath();ctx.ellipse(hatchX,hatchY,hatchR,hatchR*.58,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+    const gone=Math.floor(clamp(p/.78,0,1)*4),remaining=Math.max(0,4-gone);
+    for(let i=0;i<remaining;i++){
+      const q=(p*.92+i*.17)%1,fromLeft=i%2===0,x=lerp(fromLeft?w*.18:w*.86,hatchX,q),y=lerp(h*.62,hatchY-10*k,q);
+      const s=(crash?9:8)*k;ctx.strokeStyle='rgba(226,236,226,.82)';ctx.fillStyle='rgba(32,39,37,.96)';ctx.lineWidth=Math.max(1,1.2*k);
+      ctx.beginPath();ctx.arc(x,y-s*.82,s*.22,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x,y-s*.58);ctx.lineTo(x,y);ctx.moveTo(x,y-s*.38);ctx.lineTo(x+(fromLeft?1:-1)*s*.42,y-s*.08);ctx.moveTo(x,y);ctx.lineTo(x-s*.25,y+s*.48);ctx.moveTo(x,y);ctx.lineTo(x+s*.25,y+s*.48);ctx.stroke();
+    }
+    if(p>=.78&&p<.96){
+      const q=clamp((p-.78)/.18,0,1),x=hatchX,y=hatchY-lerp(18*k,-4*k,q),s=8*k*(1-q*.32);
+      ctx.fillStyle='rgba(28,34,32,.98)';ctx.strokeStyle='rgba(230,238,230,.88)';ctx.beginPath();ctx.arc(x,y-s,s*.22,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.beginPath();ctx.moveTo(x,y-s*.72);ctx.lineTo(x,y);ctx.stroke();
+    }
+    if(p>=.90){const q=clamp((p-.90)/.10,0,1);ctx.strokeStyle=`rgba(174,188,180,${.85*q})`;ctx.lineWidth=Math.max(2,3*k);ctx.beginPath();ctx.ellipse(hatchX,hatchY,hatchR*(1-q*.08),hatchR*.58*(1-q*.08),0,0,Math.PI*2);ctx.stroke();}
+    ctx.fillStyle='rgba(3,13,16,.70)';this.rr(ctx,w*.18,18*k,w*.64,34*k,5*k);ctx.fill();ctx.fillStyle=crash?'#ef6a58':'#f5c65c';ctx.font=this.fnt(9.5,true);ctx.textAlign='center';
+    ctx.fillText(p<.78?(crash?'CRASH DIVE — CLEAR THE BRIDGE!':'DIVE — BRIDGE WATCH GOING BELOW'):p<.92?'LAST MAN DOWN':'HATCH SHUT',w/2,39*k);ctx.textAlign='left';
   }
 
   drawBridgeHud(ctx,w,h,state,cam,bino){

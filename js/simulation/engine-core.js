@@ -53,24 +53,41 @@ class SimEngineCore{
   }
 
   clearDeckForDive(label='Dive'){
-    const sub=this.state.playerSub, W=this.state.world, G=this.state.weapons.deckGun;
-    if(this.state.tactical.activeStation==='BRIDGE'){
-      this.state.tactical.activeStation='MAP';
-      this.log('Bridge watch clearing below as the dive order is passed.');
+    const sub=this.state.playerSub,W=this.state.world,G=this.state.weapons.deckGun,T=this.state.tactical;
+    let delay=0;const crews=[];
+    if(T.activeStation==='BRIDGE'){
+      const crash=/crash/i.test(label),watchDelay=crash?5.5:9;
+      if(!T.bridgeDiveSequence?.active){
+        T.bridgeDiveSequence={active:true,elapsed:0,duration:watchDelay,crash,label,
+          progress:0,lastManDown:false,hatchClosed:false,startedAt:this.state.time.elapsedSeconds};
+        this.log(crash?'CRASH DIVE — bridge watch scrambling for the hatch.':'Bridge watch clearing below — last man will dog the hatch before the boat goes down.','warn');
+      }
+      delay=Math.max(delay,T.bridgeDiveSequence.duration-T.bridgeDiveSequence.elapsed);crews.push('bridge watch');
+      // Stay on BRIDGE while the men clear. The actual dive is held by
+      // diveDelay; the view changes only after the last man and hatch animation.
     }
-    let delay=0; const crews=[];
     if(G?.manned){
       G.manned=false;delay=Math.max(delay,18);crews.push('deck-gun crew');
-      if(this.state.tactical.activeStation==='DECK_GUN') this.state.tactical.activeStation='MAP';
+      if(T.activeStation==='DECK_GUN')T.activeStation='MAP';
     }
-    if(W.aaManned){
-      W.aaManned=false;delay=Math.max(delay,14);crews.push('AA crew');
-    }
+    if(W.aaManned){W.aaManned=false;delay=Math.max(delay,14);crews.push('AA crew');}
     if(delay>0){
       sub.diveDelay=Math.max(sub.diveDelay||0,delay);
-      this.notify(`${label}: ${crews.join(' and ')} clearing the deck automatically — dive held about ${delay} seconds until the hatch is shut.`,'bad');
+      this.notify(`${label}: ${crews.join(' and ')} clearing the deck automatically — dive held about ${Math.ceil(delay)} seconds until the hatch is shut.`,'bad');
     }
     return delay;
+  }
+
+  updateBridgeDiveSequence(dt){
+    const T=this.state.tactical,seq=T?.bridgeDiveSequence;if(!seq?.active)return;
+    seq.elapsed=clamp((seq.elapsed||0)+dt,0,seq.duration);seq.progress=clamp(seq.elapsed/Math.max(.1,seq.duration),0,1);
+    seq.lastManDown=seq.progress>=.78;seq.hatchClosed=seq.progress>=.92;
+    if(seq.progress>=1){
+      seq.active=false;seq.hatchClosed=true;seq.completedAt=this.state.time.elapsedSeconds;
+      if(T.activeStation==='BRIDGE')T.activeStation='MAP';
+      T.bridgeBinoculars=false;T.bridgeZoom=0;
+      this.log('Bridge clear — last man below, hatch shut. Diving can commence.');
+    }
   }
 
   tryAutoManDeckGun(){
@@ -119,10 +136,13 @@ class SimEngineCore{
     const knownType=c.displayType||c.type;
     const hullVisible=distNm(s.playerSub.position,c.position)<=Math.max(.5,s.world.environment.visibilityNm||.5)*1.02;
     const tr=old||{id:c.id,typeEstimate:'UNKNOWN',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards};
+    const mapPos=hullVisible?c.position:obs.position;
     Object.assign(tr,{bearing:obs.bearing,rangeEstimateNm:obs.rangeNm,confidence:conf,source:'VISUAL',observer:'BRIDGE',
       lastUpdated:now,staleSeconds:0,courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards,
-      lastFixPosition:{...obs.position},plotPosition:{...obs.position},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,
-      positionSource:'VISUAL',positionConfidence:clamp(.80+z*.14,.80,.94),positionUncertaintyNm:lerp(.08,.025,z)});
+      lastFixPosition:{...mapPos},plotPosition:{...mapPos},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,
+      positionSource:'VISUAL',positionConfidence:hullVisible?clamp(.94+z*.04,.94,.98):clamp(.55+z*.12,.55,.67),
+      positionUncertaintyNm:hullVisible?lerp(.03,.012,z):lerp(.18,.08,z),visualHullConfirmed:hullVisible});
+    if(hullVisible){tr.hullConfirmedAt=now;tr.visualLastSeenAt=now;tr.visualKinematic=true;}
     tr.typeEstimate=hullVisible&&conf>=.65?knownType:conf>=.35?'SURFACE SHIP':'UNKNOWN';
     if(shipDamageSeverity(c)>.10){tr.damageEstimate=shipDamageCondition(c);tr.damageSeverity=shipDamageSeverity(c);tr.damageObservedAt=now;}
     delete tr.truePosition;W.contactTracks[c.id]=tr;
@@ -159,7 +179,7 @@ class SimEngineCore{
       case'SET_ORDERED_DEPTH':
         if(+cmd.depthFeet>10) this.clearDeckForDive('Dive order');
         sub.orderedDepthFeet=clamp(cmd.depthFeet,0,300); this.derivMode(); break;
-      case'SURFACE': sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); audio.playSurface(); break;
+      case'SURFACE':{const q=this.state.tactical.bridgeDiveSequence;if(q?.active){q.active=false;q.cancelled=true;sub.diveDelay=0;this.log('Dive cancelled — bridge watch remains topside.','warn');}sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); audio.playSurface(); break;}
       case'DIVE':
         this.clearDeckForDive('Dive order');
         sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); audio.playDive(); break;

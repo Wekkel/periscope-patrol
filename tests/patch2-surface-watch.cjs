@@ -74,7 +74,7 @@ assert('bridge observation error is stable for the same seed/time bucket',result
 assert('binocular TARGET uses existing selected-track and TDC state',result.target.track==='M-CLOSE'&&result.target.selected==='M-CLOSE'&&result.target.tdc==='M-CLOSE'&&result.target.confidence>=.68,result.target);
 assert('binocular centre field is narrower than wide watch',result.target.wide==='M-OFF'&&result.target.centreOff===null,result.target);
 assert('bridge GUN action enters existing auto-manned deck-gun station without spending ammo',result.gun.station==='DECK_GUN'&&result.gun.manned&&result.gun.unchanged,result.gun);
-assert('dive order automatically clears bridge station and takes the boat down',result.dive.station==='MAP'&&result.dive.orderedDepth>=100&&result.dive.mode==='DIVING',result.dive);
+assert('dive order is accepted while bridge watch remains topside for the clear-deck sequence',result.dive.station==='BRIDGE'&&result.dive.orderedDepth>=100&&result.dive.mode==='DIVING',result.dive);
 assert('surfaced submarine is materially more visually exposed than periscope depth',result.visibility.surface.sighted===true&&result.visibility.periscope.sighted===false,result.visibility);
 
 // Renderer + low-end resource contract.
