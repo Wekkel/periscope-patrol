@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.5'; // patch 9 changes
+const VERSION = '0.8.5'; // patch 10 changes
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
@@ -87,7 +87,9 @@ const SHELL = [
   'js/simulation/traffic-director.js',
   'js/simulation/after-action-report.js',
   'js/ui/after-action-report.js',
-  'js/simulation/historical-campaign.js'
+  'js/simulation/historical-campaign.js',
+  'js/simulation/battle-atmosphere.js',
+  'js/rendering/battle-atmosphere.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
