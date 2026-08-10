@@ -40,7 +40,7 @@ const TUT_STEPS=[
    goal:'Study the two sensor sources, then tap NEXT', objective:TUT_OBJECTIVE.ACK},
 
   {id:'sound',title:'Work the hydrophones',
-   body:'Open <b>SND</b>. The passive hydrophones are directional: use <b>◀ Train / Train ▶</b> (or drag) until the screw noise is centred, then press <b>✚ Mark Bearing</b>. One mark is a line of bearing, not a magic range; after you move the boat, a second mark can triangulate a much better plot.<br><br><b>◉ Echo Range</b> sends an active QC ping and can give a short-range range fix — but every escort can hear the transmission. <b>SJ Radar</b> switches this station to surface-search radar only on patrol dates when the set is fitted. Slow or stop if your own screws are masking contacts.',
+   body:'Open <b>SND</b>. The passive hydrophones are directional: use <b>◀ Train / Train ▶</b> (or drag) until the screw noise is centred, then press <b>✚ Mark Bearing</b>. <b>Mark Bearing is passive</b>: you are only writing down what the hydrophones already hear, so it does not reveal the boat. One mark is a line of bearing, not a magic range; after you move the boat, a second mark can triangulate a much better plot.<br><br><b>Do not confuse that with ◉ Echo Range.</b> Echo Range transmits an active QC ping. It can give a short-range range fix, but it is the acoustic equivalent of <b>ringing a bell underwater</b>: an escort in the area can hear the transmission and may start searching the datum. In combat, use active echo only when the information is worth giving away your presence.<br><br><b>SJ Radar</b> switches this station to surface-search radar only on patrol dates when the set is fitted. Slow or stop if your own screws are masking contacts.',
    goal:'Centre the screws and make one SOUND bearing mark', sta:'SOUND', hl:'soundControls', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareSoundLesson(),
    check:(s,T)=>T.soundMarkCount(s)>T._soundMarks0},
@@ -80,13 +80,20 @@ const TUT_STEPS=[
    check:(s,T)=>T.fireLessonSatisfied(s)},
 
   {id:'impact',title:'The run',
-   body:'Watch the torpedo on the map — the white line is its wake, which the enemy can spot too. A Mark 14 runs at 46 kn, so a 2 nm shot takes about 2½ minutes. Use the time-scale button if you are impatient.<br><br>Historically about a quarter of Mark 14s were duds; training has that switched off, but in a real patrol you can choose the dud rate in the Attack tab.',
+   body:'The torpedo is now running independently. <b>Switch to MAP if you want to follow the whole run</b>: the moving torpedo and its white wake make the geometry much easier to understand than waiting in one optic. You may use <b>8× / 16× / 32× time</b> while the fish is still well away.<br><br>During this training step the instructor will automatically return the clock to <b>1×</b> shortly before the predicted impact, so you do not race straight through the terminal run. A Mark 14 runs at 46 kn, so a 2 nm shot takes about 2½ minutes at real time.<br><br>Historically about a quarter of Mark 14s were duds; training has that switched off, but in a real patrol you can choose the dud rate in the Attack tab.',
    goal:'Score a hit', objective:TUT_OBJECTIVE.STATE,
+   enter:T=>T.prepareRunLesson(),
    check:(s,T)=>s.weapons.hits.length>T._fireHits0},
 
+  {id:'gunsurface',title:'Surface for the gun',
+   body:'A deck gun is exactly what the name says: men, ammunition and an open mount <b>on deck</b>. It cannot be used from periscope depth. First open <b>Helm</b> and give the <b>Surface</b> command. Wait until the boat is actually on the surface; only then can the gun crew go topside.<br><br>The training sea is deliberately safe here. There is <b>no escort attack during this gun lesson</b>. The escort exercise comes later, after you have finished the practice shot.',
+   goal:'Order Surface and reach the surface', pane:'paneHelm', hl:'mSurface', objective:TUT_OBJECTIVE.FRESH,
+   enter:T=>T.prepareGunSurfaceLesson(),
+   check:s=>s.playerSub.orderedDepthFeet<8&&s.playerSub.depthFeet<8},
+
   {id:'deckgun',title:'The 3-inch deck gun',
-   body:'The deck gun is for a surfaced boat and is best used against a small or already-crippled target — not while an escort is bearing down on you. Training has put a harmless hulk ahead.<br><br>Enter <b>GUN</b>; the crew mans it automatically. Drag left/right for quick training. Vertical drag is deliberately coarse. Press <b>🎯 LAY</b> for the crew&apos;s range lay, then use the right-hand <b>ELEV slider</b> or ELEV+/− for tenths of a degree before firing. The sight ring moves vertically with the actual gun elevation.',
-   goal:'Lay the deck gun and fire one practice round', sta:'DECK_GUN', hl:'gunElevPanel', objective:TUT_OBJECTIVE.FRESH,
+   body:'Now that the boat is surfaced, enter <b>GUN</b>; the crew mans the mount automatically. The deck gun is best used against a small or already-crippled target — never as your answer to an escort bearing down on you. Training has put a harmless hulk ahead.<br><br>Drag left/right for quick training. Vertical drag is deliberately coarse. Press <b>🎯 LAY</b> for the crew&apos;s range lay, then use the right-hand <b>ELEV slider</b> or ELEV+/− for tenths of a degree before firing. The sight ring moves vertically with the actual gun elevation.',
+   goal:'Enter GUN, lay the deck gun and fire one practice round', hl:'gunElevPanel', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareGunLesson(),
    check:(s,T)=>(s.weapons.deckGun?.shots||0)>T._gunShots0},
 
@@ -174,7 +181,7 @@ class Tutorial{
     /* Dodge: if the card covers the very control we are pointing at, send it
        to the other end of the screen. If neither end is clear — a tall step
        on a small phone — fold it instead, which always clears. */
-    const hl=this.hlEl;
+    const hl=done?null:this.hlEl;
     if(hl&&hl.getBoundingClientRect){
       const r=hl.getBoundingClientRect();
       if(r.width||r.height){
@@ -213,6 +220,13 @@ class Tutorial{
     s.weapons.torpedoInventory=16;
     for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;}
     s.world.environment={daylight:0.9,visibilityNm:16,seaState:0.15,weather:'CLEAR',_baseVisibilityNm:16};
+    // Training is a scripted sandbox. NEW_PATROL also creates the ordinary
+    // Pacific traffic director and air-threat clock; leaving those alive lets a
+    // random patrol craft/task group or aircraft wander into a long lesson and
+    // turn the deck-gun exercise into an accidental combat scenario.
+    if(s.world.traffic){s.world.traffic.enabled=false;s.world.traffic.groups=[];s.world.traffic.primaryGroup=null;s.world.traffic.generated=true;}
+    s.world.aircraft=[];
+    s.world.airThreat={...(s.world.airThreat||{}),level:0,nextCheck:1e9,alarmedAt:-999};
     s.world.enemy={alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
       searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0};
     s.tdc.dudMode='none';s.tdc.targetId=null;s.tdc.solutionQuality=0;
@@ -337,17 +351,49 @@ class Tutorial{
     return (s.weapons.activeTorpedoes||[]).some(t=>!this._fireActive0?.has(t.id));
   }
 
+  prepareRunLesson(){
+    this._runSlowdownDone=false;
+  }
+
+  maybeSlowTerminalRun(s){
+    if(this._runSlowdownDone||(s.time?.timeScale||1)<=1)return;
+    const running=(s.weapons?.activeTorpedoes||[]).filter(t=>t.status==='RUNNING'&&!this._fireActive0?.has(t.id));
+    let best=Infinity;
+    for(const t of running){
+      const c=(s.world?.contacts||[]).find(q=>q.id===t.targetId&&!q.sunk);if(!c)continue;
+      // A cheap terminal estimate is sufficient here. The simulation itself
+      // still resolves the real moving-hull intersection; this only decides
+      // when the instructor releases time compression.
+      const closingSec=distNm(t.position,c.position)/Math.max(1e-6,knotsNmSec(t.speedKnots||46));
+      best=Math.min(best,closingSec);
+    }
+    if(best<=10){
+      s.time.timeScale=1;s.time.transitUntil=0;s.time.transitOpen=false;
+      this._runSlowdownDone=true;
+      Toast.ok('TRAINING — terminal run: time returned to 1×');
+    }
+  }
+
+  prepareGunSurfaceLesson(){
+    const s=this.game.getSnapshot(),sub=s.playerSub;
+    // Re-arm the lesson without teleporting the submarine. The skipper must
+    // issue the Surface command and wait for the physical boat to arrive.
+    sub.orderedDepthFeet=Math.max(55,sub.depthFeet||55);
+    const m=document.getElementById('mDpt'),d=document.getElementById('depthInput');
+    if(m)m.value=sub.orderedDepthFeet;if(d)d.value=sub.orderedDepthFeet;
+  }
+
   prepareGunLesson(){
     const s=this.game.getSnapshot(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;
-    sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.mode='SURFACED';
+    // Do not surface/teleport here: the preceding lesson taught that control.
     sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;
     let c=W.contacts.find(q=>q.id==='GUN-T');
     if(!c){
-      const b=degToRad(sub.heading),d=.82;c={id:'GUN-T',name:'Training Hulk',type:'PATROL_CRAFT',displayType:'PATROL CRAFT',lengthYards:145,visualProfile:.9,acousticBase:.1,tonsFactor:0,
+      const b=degToRad(sub.heading),d=.82;c={id:'GUN-T',name:'Training Hulk',type:'MERCHANT',displayType:'TARGET HULK',lengthYards:145,visualProfile:.9,acousticBase:.1,tonsFactor:0,trainingHulk:true,
         position:{xNm:sub.position.xNm+Math.sin(b)*d,yNm:sub.position.yNm-Math.cos(b)*d},heading:normDeg(sub.heading+90),speedKnots:0,desiredSpeed:0,stationary:true,side:'ENEMY'};
       W.contacts.push(c);
     }
-    W.contactTracks[c.id]={id:c.id,typeEstimate:'PATROL CRAFT',affiliation:'ENEMY',bearing:bearingBetween(sub.position,c.position),rangeEstimateNm:distNm(sub.position,c.position),
+    W.contactTracks[c.id]={id:c.id,typeEstimate:'TARGET HULK',affiliation:'ENEMY',bearing:bearingBetween(sub.position,c.position),rangeEstimateNm:distNm(sub.position,c.position),
       courseEstimate:c.heading,speedEstimateKnots:0,confidence:1,source:'VISUAL',lastSensorSource:'VISUAL',lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards,
       plotPosition:{...c.position},lastFixPosition:{...c.position},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,positionSource:'VISUAL',positionConfidence:1,positionUncertaintyNm:.01,visualHullConfirmed:true,hullConfirmedAt:now,visualLastSeenAt:now};
     s.tactical.selectedTrackId=c.id;s.tdc.targetId=c.id;s.tdc.autoTrack=true;s.tdc.trackSource='VISUAL';
@@ -438,6 +484,7 @@ class Tutorial{
   update(state){
     if(!this.active) return;
     const st=TUT_STEPS[this.idx];
+    if(st.id==='impact')this.maybeSlowTerminalRun(state);
     const kind=this.objectiveKind(st);
     let ok=false;
     if(st.check){
@@ -456,6 +503,9 @@ class Tutorial{
       // Progress is deliberately manual; a pre-satisfied objective must never
       // consume the next explanation before a new player can read it.
       clearTimeout(this._minT);this.userMin=null;this._readDone=-1;
+      // Once the highlighted control has done its job it must not keep pushing
+      // the completed card around (or back into minimized state) on a phone.
+      this.clearHl();
       this.render(true);this.layout();
     }
     this.render(false);

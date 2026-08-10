@@ -213,6 +213,14 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     const fov=this.portrait?62:56,cx=w/2,cy=this.portrait?h*0.46:h*0.49,r=Math.max(w,h)*0.72;
     const cam=this.setupCam(state,fov,cx,cy,r);
     cam.h=5.6;cam.bearingDeg=bearing;cam.viewW=w;cam.viewH=h;const br=degToRad(bearing);cam.sin=Math.sin(br);cam.cos=Math.cos(br);
+    // The gun camera physically stands at the forward mount. setupCam's
+    // generic world camera is at the submarine origin; with the gun trained
+    // abeam that made a correctly simulated shell appear to emerge from the
+    // boat's old straight-ahead axis. Move the world camera to the same mount
+    // used by the ownship mesh so muzzle, flash and tracer share one origin.
+    const hr=degToRad(sub.heading),mountForwardM=12.0;
+    cam.E=(sub.position.xNm+Math.sin(hr)*mountForwardM/NM_M)*NM_M;
+    cam.N=-(sub.position.yNm-Math.cos(hr)*mountForwardM/NM_M)*NM_M;
     cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);cam.kind='GUN';
     this.cam=cam;this.gunCam=cam;
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
