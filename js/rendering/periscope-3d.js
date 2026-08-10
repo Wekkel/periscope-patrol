@@ -42,27 +42,35 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const duration=Math.max(.5,(obs.durationMs||5000)/1000),k=this.k;
     const preImpactSec=Math.max(0,(obs.preImpactMs||0)/1000),impactAge=age-preImpactSec,beforeImpact=impactAge<0;
     const range=Math.max(.05,Number(obs.rangeNm)||distNm(obs.viewerPos||state.playerSub.position,obs.position));
-    const lenM=Math.max(20,(Number(obs.lengthYards)||300)*.3048);
+    const lenM=Math.max(35,(Number(obs.lengthYards)||300)*.9144);
     const angular=radToDeg(Math.atan2(lenM,range*NM_M));
-    // The impact view is a deliberate cinematic cut, not a reconstructed replay.
-    // Start at the final crash-zoom framing on the very first frame so the
-    // already-laid torpedo wake cannot appear to race toward the target while
-    // the camera changes focal length. Keep the full hull plus some sea either
-    // side; note that the legacy `lengthYards` field is authored in FEET.
-    const targetFov=clamp(angular*1.58,2.35,72);
-    const fov=targetFov;
+    // Crash-zoom close enough to read the casualty, but keep the complete hull
+    // and a strip of sea on both sides. The zoom settles before the scripted
+    // 1.5-second pre-impact beat ends, so the player can find the ship before
+    // the warhead goes off.
+    const targetFov=clamp(angular*1.72,2.5,72);
+    const sourceFov=Math.min(Number(obs.originFov)||24,82);
+    // Make the crash zoom a cut-plus-settle rather than a long optical pull.
+    // The old 0.85 s sweep magnified the already-static torpedo wake so quickly
+    // that it looked like a rocket streak racing into the target. Start already
+    // close, then settle the last small amount in ~0.3 s; the remaining pre-hit
+    // beat is stable and readable.
+    const startFov=clamp(Math.min(sourceFov,Math.max(targetFov*1.24,targetFov+.75)),targetFov,82);
+    const zoomIn=phaseSmooth01(clamp(age/.32,0,1));
+    const fov=lerp(startFov,targetFov,zoomIn);
     const cx=w/2,cy=this.portrait?h*.46:h*.50,r=Math.max(w,h)*.72;
     const cinematicDepth=obs.originStation==='BRIDGE'?0:Math.min(Number(obs.viewerDepth)||55,55);
     const sub={...state.playerSub,position:{...(obs.viewerPos||state.playerSub.position)},depthFeet:cinematicDepth,heading:obs.viewerHeading??state.playerSub.heading};
     const tact={...state.tactical,periscopeBearing:obs.targetBearing??bearingBetween(sub.position,obs.position)};
     const live=(state.world.contacts||[]).find(c=>c.id===obs.contactId);
-    // The hit is already resolved internally before this cinematic starts.
-    // For the 1.5-second anticipation beat, deliberately freeze the captured
-    // pre-hit ship AT the true impact geometry instead of trying to rewind it.
-    // Target, wake and camera therefore share one coherent world snapshot:
-    // cut to impact framing -> hold -> boom -> resolved damage state.
+    // The hit is resolved before the next display frame. Replay the captured
+    // pre-hit ship for the opening beat, then switch to the resolved casualty
+    // state exactly when the visual explosion begins. This avoids fragile
+    // predictive collision logic while still giving the player a 1.5-second
+    // anticipation beat to settle into the crash zoom before the visual hit.
     const shipState=beforeImpact&&obs.beforeShip?obs.beforeShip:obs;
-    const displayPos={...obs.position};
+    const remainingPre=Math.max(0,-impactAge),preTravelNm=(Number(shipState.speedKnots)||0)*remainingPre/3600,hr=degToRad(Number(shipState.heading)||0);
+    const displayPos=beforeImpact?{xNm:obs.position.xNm-Math.sin(hr)*preTravelNm,yNm:obs.position.yNm+Math.cos(hr)*preTravelNm}:{...obs.position};
     const target={...(live||{}),id:obs.contactId,name:obs.name||obs.contactId,type:obs.type||'MERCHANT',displayType:obs.displayType||obs.type,
       lengthYards:obs.lengthYards||live?.lengthYards||300,tonsFactor:obs.tonsFactor||live?.tonsFactor||0,heading:shipState.heading||0,speedKnots:shipState.speedKnots||0,
       position:displayPos,shipDamage:shipState.shipDamage||null,sunk:!!shipState.sunk,sinkingProgress:shipState.sinkingProgress||0,sinkStyle:shipState.sinkStyle||0,
@@ -70,9 +78,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const impactPos=obs.impactPosition||obs.position;
     const env={...state.world.environment,visibilityNm:Math.max(Number(state.world.environment?.visibilityNm)||.5,range*1.35)};
     const viewState={...state,playerSub:sub,tactical:tact,
-      // Freeze waves/wakes as well during the anticipation beat. After impact,
-      // cinematic effects may advance on wall-clock time while simulation stays paused.
-      time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+Math.max(0,impactAge)},
+      time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+impactAge},
       world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
       weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`}]}};
     const cam=this.setupCam(viewState,fov,cx,cy,r);cam.kind='IMPACT';cam.bearingDeg=tact.periscopeBearing;cam.viewW=w;cam.viewH=h;
@@ -587,7 +593,11 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const {STEP,NB}=prof;
     this._landOcc=[];                                     // per-frame occlusion segments
     if(!prof.feats.length) return;
-    const brg=state.tactical.periscopeBearing;
+    // The terrain profile is world-anchored and must be projected through the
+    // ACTIVE optical camera, not always through the periscope bearing. Bridge
+    // and deck-gun views reuse this renderer; tying land to the scope bearing
+    // made islands appear nailed to the horizon instead of rotating with view.
+    const brg=(cam&&Number.isFinite(cam.bearingDeg))?cam.bearingDeg:(state.tactical.periscopeBearing||0);
     const colPx=this.quality>0.6?2:3;
     const x0=Math.max(0,cam.cx-cam.r), x1=Math.min(this.w,cam.cx+cam.r);
     const sample=(arr,az)=>{                              // linear interp over bins
