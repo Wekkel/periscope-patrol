@@ -9,6 +9,29 @@ class GameLoop{
   }
   start(){requestAnimationFrame(this._frame);}
 
+  _safeUpdate(dt){
+    try{
+      this.game.update(dt);
+      this._simErrorKey=null;
+      const s=this.game.getSnapshot();if(s?.ui?.runtimeError?.kind==='SIMULATION')s.ui.runtimeError=null;
+      return true;
+    }catch(err){
+      const s=this.game.getSnapshot(),msg=String(err?.message||err||'unknown simulation error'),key=msg;
+      if(this._simErrorKey!==key){
+        this._simErrorKey=key;
+        console.error('[SIM] update failed — bridge UI kept alive',err);
+        try{Toast.bad(`SIMULATION PAUSED — ${msg.slice(0,72)}`);}catch(_){ }
+      }
+      /* Stop time rather than repeatedly mutating a damaged state. Crucially,
+         do not abort the frame: station navigation and the canvas remain live
+         so the player can inspect STATUS, MAP or another view and recover by
+         starting/loading a patrol. Commands still process on later safe calls. */
+      if(s?.time){s.time.timeScale=0;s.time.transitUntil=0;s.time.transitOpen=false;}
+      if(s){s.ui=s.ui||{};s.ui.runtimeError={kind:'SIMULATION',message:msg,at:performance.now()};}
+      return false;
+    }
+  }
+
   frame(now){
     requestAnimationFrame(this._frame);
     const dt=Math.min((now-this.last)/1000,0.25);
@@ -43,7 +66,10 @@ class GameLoop{
     // fixed-step simulation
     this.acc+=dt;
     let steps=0;
-    while(this.acc>=this.fdt&&steps<8){this.game.update(this.fdt);this.acc-=this.fdt;steps++;}
+    while(this.acc>=this.fdt&&steps<8){
+      const ok=this._safeUpdate(this.fdt);this.acc-=this.fdt;steps++;
+      if(!ok){this.acc=0;break;}
+    }
     if(this.acc>this.fdt*8) this.acc=0;
 
     // ── transit: burn through the empty hours, but keep a hand on the tiller ──
@@ -56,7 +82,9 @@ class GameLoop{
         // water; normal two-second/one-second precision resumes automatically
         // near traffic, aircraft, weapons, shore or a friendly rendezvous.
         const advance=eng.canUseOpenSeaTransitStep?.()?3.0:2.0;
-        this.game.update(advance/Math.max(T.timeScale,1));
+        if(!this._safeUpdate(advance/Math.max(T.timeScale,1))){
+          T.transitUntil=0;T.transitOpen=false;break;
+        }
         const why=eng.transitInterrupt&&eng.transitInterrupt();
         if(why){
           // An event has handed the conn back to the player. Do not leave her

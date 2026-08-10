@@ -78,7 +78,7 @@ class CanvasView extends CanvasViewSound {
     ctx.fillStyle=map.autoFollowPlot&&wp?'#6fe08f':'rgba(140,175,160,.9)';
     ctx.fillText(navTxt,pad,Math.round(40*k));
     ctx.fillStyle='rgba(140,175,160,.9)';
-    {const ts=torpedoStoresStatus(state);ctx.fillText(`TRACKS ${Object.keys(state.world.contactTracks).length} · TORPS ${ts.total} (${ts.loadShort}) · WX ${state.world.environment.weather||'CLEAR'} · MAP ${this.follow?'LOCKED':'FREE'}`,pad,Math.round(51*k));}
+    {const ts=torpedoStoresStatus(state),wx=String(state.world.environment?.weather||'CLEAR').replace(/_/g,' ');ctx.fillText(`TRACKS ${Object.keys(state.world.contactTracks).length} · TORPS ${ts.total} (${ts.loadShort}) · WX ${wx} · MAP ${this.follow?'LOCKED':'FREE'}`,pad,Math.round(51*k));}
     if(sub.inShallowWater||(sub.keelClearanceFeet??3000)<35){
       ctx.fillStyle=(sub.keelClearanceFeet??3000)<15?'#ef6a58':'#f5c65c';ctx.font=this.fnt(9,true);
       const clr=sub.keelClearanceFeet??3000;
@@ -111,31 +111,47 @@ class CanvasView extends CanvasViewSound {
   }
 
   drawMapWeather(ctx,state,w2s,w,h){
-    const cells=state.world.weatherSystem?.cells||[];if(!cells.length)return;
-    const own=state.playerSub.position,K=this.k,zoom=this.zoom;
+    /* Read-only weather plotting.  This deliberately does not call back into
+       the weather simulation: MAP must remain a pure consumer of state so a
+       display bug can never change or stall the simulation.  Cells are broad
+       cloud/squall areas, not radar-quality truth. */
+    const cells=state?.world?.weatherSystem?.cells;
+    if(!Array.isArray(cells)||!cells.length)return;
+    const own=state.playerSub?.position,K=this.k,z=this.zoom;
+    if(!own||!Number.isFinite(z)||z<=0)return;
     ctx.save();
-    for(const c of cells){
-      const rng=distNm(own,c.center),rNm=Math.max(.8,c.radiusNm||5);
-      // The chart is not an omniscient meteorological radar. Plot only cloud
-      // masses close enough to be apparent to the surfaced/periscope watch or
-      // currently affecting the boat. Max three cells exist in simulation.
-      const influence=_weatherCellInfluence(c,own);
-      if(rng>30&&influence<.02)continue;
-      const p=w2s(c.center.xNm,c.center.yNm),rp=Math.max(8,rNm*zoom);
-      if(p.x+rp<-20||p.x-rp>w+20||p.y+rp<-20||p.y-rp>h+20)continue;
-      const local=weatherAtPosition(state,c.center),heavy=local.precipitation>.55;
-      ctx.fillStyle=heavy?'rgba(105,126,139,.085)':'rgba(112,133,142,.052)';
-      ctx.strokeStyle=heavy?'rgba(166,190,199,.42)':'rgba(153,181,190,.28)';
+    for(const c of cells.slice(0,3)){
+      const center=c?.center;
+      if(!center||!Number.isFinite(center.xNm)||!Number.isFinite(center.yNm))continue;
+      const rNm=clamp(Number(c.radiusNm)||5,.8,12),rng=distNm(own,center);
+      // A lookout can read a nearby weather mass from the horizon, but MAP is
+      // not an omniscient meteorological radar. Far cells stay off the chart.
+      if(rng>30+rNm)continue;
+      const p=w2s(center.xNm,center.yNm),rp=rNm*z;
+      if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||!Number.isFinite(rp))continue;
+      if(p.x+rp<-32||p.x-rp>w+32||p.y+rp<-32||p.y-rp>h+32)continue;
+
+      const core=Math.max(7,rp*.44),outer=Math.max(10,rp);
+      // Outer cloud mass: faint and dashed. Inner core: precipitation/squall.
+      ctx.fillStyle='rgba(116,139,150,.045)';ctx.strokeStyle='rgba(158,188,198,.28)';
       ctx.lineWidth=Math.max(.8,1.05*K);ctx.setLineDash([5*K,6*K]);
-      ctx.beginPath();ctx.arc(p.x,p.y,rp,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
-      // A coarse movement arrow is useful without pretending to give an exact
-      // storm track. It comes from the same slow cell model as the 3-D horizon.
-      const a=degToRad(c.heading||0),L=clamp(rp*.42,12*K,48*K),ex=p.x+Math.sin(a)*L,ey=p.y-Math.cos(a)*L;
-      ctx.strokeStyle='rgba(160,190,198,.34)';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(ex,ey);ctx.stroke();
-      ctx.fillStyle='rgba(172,198,205,.70)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';
-      ctx.fillText(heavy?'HEAVY WEATHER':'SQUALL / CLOUD',p.x,p.y-rp-5*K);
+      ctx.beginPath();ctx.ellipse(p.x,p.y,outer,outer*.72,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.setLineDash([]);ctx.fillStyle='rgba(112,135,148,.075)';ctx.strokeStyle='rgba(177,204,211,.34)';
+      ctx.beginPath();ctx.ellipse(p.x,p.y,core,core*.68,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+
+      const hdg=Number(c.heading)||0,a=degToRad(hdg),L=clamp(outer*.38,12*K,46*K);
+      const ex=p.x+Math.sin(a)*L,ey=p.y-Math.cos(a)*L;
+      ctx.strokeStyle='rgba(174,204,211,.42)';ctx.lineWidth=Math.max(.8,K);
+      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(ex,ey);ctx.stroke();
+      const ah=4*K,aa=Math.atan2(ey-p.y,ex-p.x);
+      ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-Math.cos(aa-.55)*ah,ey-Math.sin(aa-.55)*ah);ctx.moveTo(ex,ey);ctx.lineTo(ex-Math.cos(aa+.55)*ah,ey-Math.sin(aa+.55)*ah);ctx.stroke();
+
+      if(outer>18*K){
+        ctx.fillStyle='rgba(183,210,216,.72)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';
+        ctx.fillText('WEATHER CELL',p.x,p.y-outer*.72-5*K);
+      }
     }
-    ctx.textAlign='left';ctx.restore();
+    ctx.setLineDash([]);ctx.textAlign='left';ctx.restore();
   }
 
   drawMissionOverlay(ctx,state,w2s){

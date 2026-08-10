@@ -140,7 +140,15 @@ class TouchCtrl{
     document.querySelectorAll('#ovlStations button').forEach(b=>{
       b.addEventListener('click',()=>{
         D({type:'SET_ACTIVE_STATION',station:b.dataset.sta});
-        this.setPane('view');buzz(8);
+        this.setPane('view');
+        /* Do not wait for the next physics/RAF tick to make a station tap
+           visible. A view change is navigation, so repaint it immediately.
+           This also keeps the bridge usable if a migrated save trips a
+           simulation subsystem later in the frame. */
+        const snap=this.game.getSnapshot();
+        this.cv.render(snap);
+        this.updateTouch(snap,true);
+        buzz(8);
       },{passive:true});
     });
 
@@ -149,7 +157,6 @@ class TouchCtrl{
     btn('oZoomOut',()=>this.cv.zoomAt(1/1.35,innerWidth/2,innerHeight/2));
     btn('oCenter', ()=>{this.cv.recenter(this.game.getSnapshot().playerSub);Toast.ok('Map centred on ownship');});
     btn('oClear',  ()=>D({type:'MAP_CLEAR_PLOT'}));
-    btn('oWeather',()=>{D({type:'TOGGLE_MAP_WEATHER'});buzz(8);});
     btn('oScopeL', ()=>D({type:'ROTATE_PERISCOPE',deltaDeg:-5}));
     btn('oScopeR', ()=>D({type:'ROTATE_PERISCOPE',deltaDeg:5}));
     btn('oScopeZ', ()=>D({type:'TOGGLE_PERISCOPE_ZOOM'}));
@@ -158,22 +165,20 @@ class TouchCtrl{
     btn('oDive',   ()=>{D({type:'DIVE'});this.setDepthSlider(100);});
     btn('oGunLay', ()=>{D({type:'LAY_DECK_GUN'});buzz(10);});
     btn('oGunFire',()=>{D({type:'FIRE_DECK_GUN'});buzz([18,22,18]);});
-    const setGunElev=v=>{
-      v=clamp(Number(v)||0,0,22);const el=g('oGunElev'),r=g('gunElevReadout');
-      if(el)el.value=v.toFixed(1);if(r)r.textContent=`${v.toFixed(1)}°`;
-      D({type:'SET_DECK_GUN_ELEVATION',elevationDeg:v});return v;
-    };
-    const gunElevNow=()=>{const el=g('oGunElev');return Number.isFinite(+el?.value)?+el.value:clamp(this.game.getSnapshot().weapons.deckGun?.elevationDeg??0,0,22);};
-    btn('oGunElevUp',()=>{setGunElev(gunElevNow()+.1);buzz(6);});
-    btn('oGunElevDown',()=>{setGunElev(gunElevNow()-.1);buzz(6);});
+    btn('oGunElevUp',()=>{D({type:'ADJUST_DECK_GUN',deltaElevDeg:.1});buzz(6);});
+    btn('oGunElevDown',()=>{D({type:'ADJUST_DECK_GUN',deltaElevDeg:-.1});buzz(6);});
     {const el=g('oGunElev');
       if(el){
-        el.addEventListener('input',()=>setGunElev(+el.value),{passive:true});
+        const read=()=>g('gunElevReadout');
+        el.addEventListener('input',()=>{
+          const v=clamp(+el.value,0,22),r=read();
+          if(r)r.textContent=`${v.toFixed(1)}°`;
+          D({type:'SET_DECK_GUN_ELEVATION',elevationDeg:v});
+        },{passive:true});
         el.addEventListener('pointerdown',()=>{this.dragging='oGunElev';},{passive:true});
         const drop=()=>{if(this.dragging==='oGunElev')this.dragging=null;};
-        for(const ev of ['pointerup','pointercancel','lostpointercapture','change'])el.addEventListener(ev,drop,{passive:true});
-        window.addEventListener('pointerup',drop,{passive:true});
-        window.addEventListener('blur',drop,{passive:true});
+        el.addEventListener('pointerup',drop,{passive:true});
+        el.addEventListener('pointercancel',drop,{passive:true});
       }
     }
     btn('bridgeBino',()=>{D({type:'TOGGLE_BRIDGE_BINOCULARS'});buzz(10);});
@@ -535,7 +540,7 @@ class TouchCtrl{
       const id=this.cv.pickTrack(s,e.clientX,e.clientY);
       if(id){
         if(id===s.tactical.selectedTrackId){D({type:'DESELECT_TRACK'});Toast.ok('Contact selection cleared');}
-        else {D({type:'SELECT_TRACK',trackId:id});}
+        else {D({type:'SELECT_TRACK',trackId:id});D({type:'TDC_SEND_SCOPE_OBSERVATION'});}
         buzz(14);return;
       }
       const w=this.cv.screenToWorldMap(e.clientX,e.clientY);
@@ -672,7 +677,6 @@ class TouchCtrl{
     }
     const bz=bridgeZoomAmount(state);cls('bridgeBino','on',bz>.05);
     const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
-    cls('oWeather','on',!!state.map.weatherOverlay);
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
     const sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
     cls('oSilent','on',sub.stealth.silentRunning);

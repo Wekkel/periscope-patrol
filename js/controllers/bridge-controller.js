@@ -14,7 +14,14 @@ class BridgeController{
     const stP=document.getElementById('stationPeriscope');
     const stM=document.getElementById('stationMap');
     const stG=document.getElementById('stationDeckGun');
-    const setSta=(s,a,o)=>{a?.classList.add('active');o.filter(Boolean).forEach(b=>b.classList.remove('active'));this.game.dispatch({type:'SET_ACTIVE_STATION',station:s});};
+    const allStations=[stT,stB,stS,stP,stM,stG].filter(Boolean);
+    const stationByName={TACTICAL:stT,BRIDGE:stB,SOUND:stS,PERISCOPE:stP,MAP:stM,DECK_GUN:stG};
+    const setSta=s=>{
+      this.game.dispatch({type:'SET_ACTIVE_STATION',station:s});
+      const snap=this.game.getSnapshot(),actual=snap.tactical.activeStation;
+      allStations.forEach(b=>b.classList.toggle('active',b===stationByName[actual]));
+      this.cv.render(snap);                 // navigation should feel immediate
+    };
     hi?.addEventListener('input',()=>{if(hv)hv.textContent=fmtDeg(+hi.value);this.game.dispatch({type:'SET_ORDERED_HEADING',heading:+hi.value});});
     ri?.addEventListener('input',()=>{if(rv)rv.textContent=ri.value;this.game.dispatch({type:'SET_ENGINE_RPM',rpm:+ri.value});});
     di?.addEventListener('input',()=>{if(dv)dv.textContent=`${di.value} ft`;this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:+di.value});});
@@ -49,16 +56,15 @@ class BridgeController{
     btn('floodAftButton',   ()=>this.game.dispatch({type:'FLOOD_AFT_TUBES'}));
     btn('fireAftButton',    ()=>this.game.dispatch({type:'FIRE_AFT_SPREAD'}));
     btn('clearPlotButton',  ()=>this.game.dispatch({type:'MAP_CLEAR_PLOT'}));
-    btn('mapWeatherButton',()=>this.game.dispatch({type:'TOGGLE_MAP_WEATHER'}));
     btn('followPlotButton', ()=>this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('portButton',       ()=>this.game.dispatch({type:'HEAD_TO_PORT'}));
     btn('newScenarioButton',()=>this.game.dispatch({type:'NEW_PATROL'}));
-    btn('stationTactical',  ()=>setSta('TACTICAL',stT,[stB,stS,stP,stM,stG]));
-    btn('stationBridge',    ()=>setSta('BRIDGE',stB,[stT,stS,stP,stM,stG]));
-    btn('stationSound',     ()=>setSta('SOUND',stS,[stT,stB,stP,stM,stG]));
-    btn('stationPeriscope', ()=>setSta('PERISCOPE',stP,[stT,stB,stS,stM,stG]));
-    btn('stationMap',       ()=>setSta('MAP',stM,[stT,stB,stS,stP,stG]));
-    btn('stationDeckGun',   ()=>setSta('DECK_GUN',stG,[stT,stB,stS,stP,stM]));
+    btn('stationTactical',  ()=>setSta('TACTICAL'));
+    btn('stationBridge',    ()=>setSta('BRIDGE'));
+    btn('stationSound',     ()=>setSta('SOUND'));
+    btn('stationPeriscope', ()=>setSta('PERISCOPE'));
+    btn('stationMap',       ()=>setSta('MAP'));
+    btn('stationDeckGun',   ()=>setSta('DECK_GUN'));
     btn('soundLeft',       ()=>this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:-5}));
     btn('soundRight',      ()=>this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:5}));
     btn('soundMark',       ()=>this.game.dispatch({type:'SOUND_MARK_BEARING'}));
@@ -111,7 +117,8 @@ class BridgeController{
       const id=this.cv.pickTrack(s,e.clientX,e.clientY);
       if(id){
         if(id===s.tactical.selectedTrackId)this.game.dispatch({type:'DESELECT_TRACK'});
-        else {this.game.dispatch({type:'SELECT_TRACK',trackId:id});}
+        else {this.game.dispatch({type:'SELECT_TRACK',trackId:id});
+              this.game.dispatch({type:'TDC_SEND_SCOPE_OBSERVATION'});}
         return;
       }
       const w=this.cv.screenToWorldMap(e.clientX,e.clientY);
