@@ -1044,13 +1044,16 @@ class CanvasView extends CanvasViewSound {
     if(!cam) return null;
     const fov=SCOPE_OPTICS[state.tactical.periscopeZoom===1?0:1].fov;
     let best=null,bd=Infinity;
-    // prefer a real ship the player can actually see
+    // Prefer a real hull only when the same canonical visual test says the
+    // periscope can actually resolve it. A tap on that hull can then become a
+    // VISUAL map fix instead of selecting an unrelated hydrophone plot.
     for(const c of state.world.contacts){
       if(c.sunk&&(c.sinkingProgress??0)>=1) continue;
+      if(typeof scopeCanResolveHull==='function'&&!scopeCanResolveHull(state,c,{fovPad:.60}))continue;
       const scr=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);
       if(!scr) continue;
       const d=Math.abs(scr.x-p.x);
-      if(d<bd&&state.world.contactTracks[c.id]){bd=d;best=c.id;}
+      if(d<bd){bd=d;best=c.id;}
     }
     if(best===null){
       for(const tr of Object.values(state.world.contactTracks)){

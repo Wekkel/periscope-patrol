@@ -47,10 +47,40 @@ const result=vm.runInContext(`(()=>{
 })()`,ctx);
 assert('full station sequence dispatches and renders on a G88-class portrait viewport',result.routes.every(x=>x.asked===x.actual&&!x.error),result.routes);
 assert('a renderer exception is contained instead of freezing station navigation',!result.guarded.threw&&result.guarded.error==='synthetic map failure'&&result.guarded.recovered,result.guarded);
-const mapSrc=fs.readFileSync(path.join(root,'js/rendering/map.js'),'utf8'),gameSrc=fs.readFileSync(path.join(root,'js/core/game.js'),'utf8'),loopSrc=fs.readFileSync(path.join(root,'js/core/game-loop.js'),'utf8'),touchSrc=fs.readFileSync(path.join(root,'js/controllers/touch-controller.js'),'utf8');
+
+const scopeResult=vm.runInContext(`(()=>{
+ const g=new Game(),s=g.state;
+ s.playerSub.position={xNm:0,yNm:0};s.playerSub.depthFeet=55;s.playerSub.mode='PERISCOPE_DEPTH';
+ s.tactical.activeStation='PERISCOPE';s.tactical.periscopeBearing=0;s.tactical.periscopeZoom=2.5;
+ const c={id:'SCOPE-T',name:'Patrol Craft',type:'PATROL_CRAFT',displayType:'PATROL CRAFT',side:'ENEMY',lengthYards:135,visualProfile:.55,position:{xNm:0,yNm:-.5},heading:90,speedKnots:10,sunk:false};
+ s.world.contacts=[c];s.world.environment.visibilityNm=12;s.world.environment.daylight=1;s.world.environment.seaState=0;
+ s.world.contactTracks[c.id]={id:c.id,typeEstimate:'SURFACE SHIP',bearing:0,rangeEstimateNm:.5,courseEstimate:90,speedEstimateKnots:10,confidence:.7,source:'HYDROPHONE',lastUpdated:0,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards};
+ const can=scopeCanResolveHull(s,c),obs=scopeHullObservation(s,c);
+ const tr=g.engine.confirmScopeVisualContact(c.id);
+ g.dispatch({type:'ROTATE_PERISCOPE',deltaDeg:1});g.update(.1);
+ const canvas={width:800,height:1200,clientWidth:800,clientHeight:1200,getContext:()=>fakeCtx,getBoundingClientRect:()=>({width:800,height:1200,left:0,top:0}),addEventListener(){}};
+ const cv=new CanvasView(canvas);cv.render(s);const scopeErr=cv._lastRenderError?.message||null;
+ g.dispatch({type:'SET_ACTIVE_STATION',station:'MAP'});cv.render(s);const mapErr=cv._lastRenderError?.message||null;
+ return{can,obs:!!obs,tr:!!tr,source:s.world.contactTracks[c.id]?.positionSource,hull:s.world.contactTracks[c.id]?.visualHullConfirmed,scopeErr,mapErr,station:s.tactical.activeStation};
+})()`,ctx);
+assert('scope hull helpers are globally defined and produce a coherent visual observation',scopeResult.can&&scopeResult.obs&&scopeResult.tr&&scopeResult.source==='VISUAL'&&scopeResult.hull,scopeResult);
+assert('periscope rotate/render and subsequent MAP switch survive without scope helper ReferenceErrors',!scopeResult.scopeErr&&!scopeResult.mapErr&&scopeResult.station==='MAP',scopeResult);
+
+const weatherResult=vm.runInContext(`(()=>{
+ const g=new Game(),s=g.state,canvas={width:800,height:1200,clientWidth:800,clientHeight:1200,getContext:()=>fakeCtx,getBoundingClientRect:()=>({width:800,height:1200,left:0,top:0}),addEventListener(){}};
+ const cv=new CanvasView(canvas);cv.zoom=28;let ellipses=0,lines=0;
+ const wxCtx=new Proxy(fakeCtx,{get:(o,k)=>k==='ellipse'?(()=>{ellipses++;}):k==='lineTo'?(()=>{lines++;}):o[k],set:(o,k,v)=>(o[k]=v,true)});
+ const own={...s.playerSub.position};s.world.weatherSystem={cells:[{id:'WX-T',center:{xNm:own.xNm+2,yNm:own.yNm+1},radiusNm:4,heading:90,speedKnots:12,bornAt:0,lifeSec:10000}]};
+ const before=JSON.stringify(s.world.weatherSystem.cells),w2s=(x,y)=>({x:400+(x-own.xNm)*28,y:600+(y-own.yNm)*28});
+ cv.drawMapWeather(wxCtx,s,w2s,800,1200);const after=JSON.stringify(s.world.weatherSystem.cells);
+ return{ellipses,lines,unchanged:before===after};
+})()`,ctx);
+assert('weather MAP overlay actually draws a cell and remains read-only',weatherResult.ellipses>=2&&weatherResult.lines>=2&&weatherResult.unchanged,weatherResult);
+const mapSrc=fs.readFileSync(path.join(root,'js/rendering/map.js'),'utf8'),gameSrc=fs.readFileSync(path.join(root,'js/core/game.js'),'utf8'),loopSrc=fs.readFileSync(path.join(root,'js/core/game-loop.js'),'utf8'),touchSrc=fs.readFileSync(path.join(root,'js/controllers/touch-controller.js'),'utf8'),surfaceSrc=fs.readFileSync(path.join(root,'js/simulation/surface-watch.js'),'utf8'),physicsSrc=fs.readFileSync(path.join(root,'js/simulation/physics-navigation.js'),'utf8');
 assert('station switching is synchronous UI state and no longer waits for a simulation tick',gameSrc.includes("cmd?.type==='SET_ACTIVE_STATION'")&&gameSrc.includes('this.engine.applyCmd(cmd)'),{});
 assert('touch station taps repaint immediately',touchSrc.includes('this.cv.render(snap)')&&touchSrc.includes('this.updateTouch(snap,true)'),{});
 assert('game loop contains simulation faults without sacrificing later rendering',loopSrc.includes('_safeUpdate(dt)')&&loopSrc.includes("SIMULATION PAUSED"),{});
 assert('weather overlay is present but read-only and independent from weather simulation callbacks',mapSrc.includes('drawMapWeather(ctx,state,w2s,w,h)')&&mapSrc.includes('weatherSystem?.cells')&&!mapSrc.includes('weatherAtPosition(state,c.center)')&&!mapSrc.includes('_weatherCellInfluence(c,own)'),{});
+assert('scope visual resolution has one canonical globally loaded implementation',surfaceSrc.includes('function scopeCanResolveHull')&&surfaceSrc.includes('function scopeHullObservation')&&physicsSrc.includes('scopeHullObservation(s,c)'),{});
 if(failed){console.error(`STATION SWITCH / RENDER REGRESSION: FAIL (${failed})`);process.exit(1)}
 console.log('STATION SWITCH / RENDER REGRESSION: PASS');

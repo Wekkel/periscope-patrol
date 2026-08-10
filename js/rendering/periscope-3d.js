@@ -793,84 +793,6 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
   }
 
-  /* ══════════ CINEMATIC IMPACT OBSERVATION ══════════
-     Five seconds of wall-clock animation. Simulation time is paused by the
-     engine, but the normal canvas RAF keeps painting: the torpedo closes the
-     last few yards, the flash blossoms, water and smoke rise, and the post-hit
-     list/trim settles in. The camera is fitted to the full ship rather than
-     cropping the bow/stern, so the result remains readable on a phone. */
-  drawImpactObservation(ctx,w,h,state){
-    const O=state.tactical.impactObservation;if(!O?.position||!O?.viewerPos)return;
-    const nowWall=(typeof performance!=='undefined'?performance.now():Date.now()),dur=Math.max(1000,O.durationMs||5000);
-    const frac=clamp((nowWall-(O.startedWall||nowWall))/dur,0,1),hitAt=.18;
-    const before=O.beforeShip||{},afterDamage=O.shipDamage||null,beforeDamage=before.shipDamage||null;
-    const mixDamage=(a,b,p)=>{
-      if(!a&&!b)return null;const out={},keys=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);
-      for(const k of keys){const av=a?.[k],bv=b?.[k];if(Number.isFinite(av)||Number.isFinite(bv))out[k]=lerp(Number.isFinite(av)?av:0,Number.isFinite(bv)?bv:0,p);else out[k]=p>.55?bv:av;}
-      return out;
-    };
-    const damageP=clamp((frac-hitAt)/.55,0,1);
-    const cinematicSink=O.sunk?Math.max(O.sinkingProgress||0,clamp((frac-.56)/.44,0,1)*.34):(O.sinkingProgress||0);
-    const c={
-      id:O.contactId,name:O.name,type:O.type,displayType:O.displayType,lengthYards:O.lengthYards,tonsFactor:O.tonsFactor,
-      heading:lerpAngle(before.heading??O.heading??0,O.heading||0,damageP),speedKnots:lerp(before.speedKnots??O.speedKnots??0,O.speedKnots||0,damageP),
-      position:{...O.position},shipDamage:mixDamage(beforeDamage,afterDamage,damageP),
-      sunk:damageP>.58?!!O.sunk:!!before.sunk,sinkingProgress:lerp(before.sinkingProgress||0,cinematicSink,damageP),
-      sinkStyle:O.sinkStyle||before.sinkStyle||0,hitFrac:Number.isFinite(O.hitFrac)?O.hitFrac:0,hitSide:O.hitSide||1,stationary:!!O.stationary
-    };
-    const dNm=Math.max(.05,distNm(O.viewerPos,c.position)),dM=dNm*NM_M,realLen=shipVisualLengthM(c,400);
-    const angular=radToDeg(2*Math.atan(realLen/(2*dM)));
-    /* This is a cinematic continuation of the player's optical sightline, not
-       another historical periscope power. Start at the real SCOPE/BRG field,
-       then crash-zoom along the same line of sight until the target fills the
-       frame. The virtual cinematic lens may therefore be far stronger than 6x,
-       while the actual playable periscope remains historically 1.5x/6x. */
-    const targetFov=clamp(angular*.88,.45,3.2),zoomP=phaseSmooth01(clamp(frac/.14,0,1));
-    const startFov=clamp(Number(O.originFov)||8,targetFov,82),fov=lerp(startFov,targetFov,zoomP);
-    const targetBearing=bearingBetween(O.viewerPos,c.position),startBearing=Number.isFinite(O.viewBearing)?O.viewBearing:targetBearing;
-    const panP=phaseSmooth01(clamp(frac/.10,0,1)),br=normDeg(startBearing+shortDelta(startBearing,targetBearing)*panP),brR=degToRad(br);
-    const shock=(frac>=hitAt&&frac<hitAt+.25)?Math.sin((frac-hitAt)/.25*Math.PI):0;
-    const jx=Math.sin(frac*95)*shock*4*this.k,jy=Math.cos(frac*81)*shock*2.5*this.k;
-    const cx=w*.5+jx,cy=h*.52+jy,r=Math.min(w*.52,h*.58),cam=this.setupCam(state,fov,cx,cy,r);
-    cam.E=O.viewerPos.xNm*NM_M;cam.N=-O.viewerPos.yNm*NM_M;cam.h=O.originStation==='BRIDGE'?6.5:2.05;cam.bearingDeg=br;cam.sin=Math.sin(brR);cam.cos=Math.cos(brR);cam.kind='IMPACT';
-    cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);
-    const E=c.position.xNm*NM_M,N=-c.position.yNm*NM_M,it={c,E,N,d:dM,bd:0};
-    const env=state.world.environment,dl=env.daylight,t=state.time.elapsedSeconds,wx=env.weather||'CLEAR';
-    const light=(()=>{const tod=((t/DayNightCycle.CYCLE_SECONDS)%1+1)%1,az=degToRad(normDeg(90+tod*360)),el=degToRad(6+58*Math.sin(Math.PI*clamp(dl,0,1)));return{E:Math.sin(az)*Math.cos(el),N:Math.cos(az)*Math.cos(el),Y:Math.sin(el)+.25};})();
-
-    ctx.save();ctx.fillStyle='rgba(0,0,0,.90)';ctx.fillRect(0,0,w,h);
-    const inset=Math.max(6,8*this.k);ctx.save();this.rr(ctx,inset,inset,w-inset*2,h-inset*2,8*this.k);ctx.clip();
-    this.drawSky3D(ctx,w,h,cam,state,dl,wx,t);this.drawSea3D(ctx,w,h,cam,dl,env.seaState,wx,t);this.drawTerrain3D(ctx,cam,state,dl);
-    this.drawShip3D(ctx,cam,it,state,dl,light,Math.max(env.visibilityNm||1,dNm*1.25),t);
-
-    const model=SHIP_MODELS[typeof shipVisualModelKey==='function'?shipVisualModelKey(c):c.type]||SHIP_MODELS.MERCHANT,S=realLen/model.len,hb=degToRad(c.heading),cosH=Math.cos(hb),sinH=Math.sin(hb);
-    const hp=V0(this,cam,it,cosH,sinH,S,(O.hitSide||1)*model.beam*.42,model.fb*.42,(O.hitFrac||0)*model.len);
-    if(hp){
-      if(frac<hitAt){
-        const run=clamp(frac/hitAt,0,1),sx=w*.50,sy=h*.90,tx=lerp(sx,hp.x,run),ty=lerp(sy,hp.y,run);
-        ctx.strokeStyle=`rgba(235,249,250,${.28+.50*run})`;ctx.lineWidth=Math.max(2,3*this.k);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(tx,ty);ctx.stroke();
-        ctx.fillStyle='rgba(38,45,43,.95)';ctx.beginPath();ctx.ellipse(tx,ty,4*this.k,1.7*this.k,Math.atan2(hp.y-sy,hp.x-sx),0,Math.PI*2);ctx.fill();
-      }
-      if(frac>=hitAt){
-        const base=Math.max(22*this.k,Math.min(w,h)*.070),grow=clamp((frac-hitAt)/.17,0,1),fade=1-clamp((frac-.42)/.36,0,1),rr=base*(.35+1.75*Math.sqrt(grow));
-        const g=ctx.createRadialGradient(hp.x,hp.y,1,hp.x,hp.y,rr);g.addColorStop(0,`rgba(255,252,225,${fade})`);g.addColorStop(.18,`rgba(255,185,62,${.96*fade})`);g.addColorStop(.55,`rgba(224,72,28,${.70*fade})`);g.addColorStop(1,'rgba(120,25,18,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(hp.x,hp.y,rr,0,Math.PI*2);ctx.fill();
-        const sprayT=clamp((frac-hitAt)/.48,0,1),sprayFade=1-clamp((frac-.62)/.30,0,1);ctx.strokeStyle=`rgba(228,246,247,${.92*sprayFade})`;ctx.lineWidth=Math.max(1.5,2.6*this.k);
-        for(let i=0;i<9;i++){const q=(i-4)/4,top=base*(1.0+1.55*sprayT)*(1-.16*Math.abs(q));ctx.beginPath();ctx.moveTo(hp.x+q*base*.55,hp.y+base*.16);ctx.quadraticCurveTo(hp.x+q*base*.8,hp.y-top*.55,hp.x+q*base*.48,hp.y-top);ctx.stroke();}
-        const smokeT=clamp((frac-.27)/.73,0,1);if(smokeT>0){
-          for(let i=0;i<7;i++){const age=clamp(smokeT-i*.055,0,1);if(age<=0)continue;const drift=(i-3)*base*.11+Math.sin(i*2.7)*base*.06,rad=base*(.22+.34*age+i*.018);ctx.fillStyle=`rgba(38,38,36,${.18+.34*(1-age)})`;ctx.beginPath();ctx.arc(hp.x+drift,hp.y-base*(.55+age*1.9)-i*base*.07,rad,0,Math.PI*2);ctx.fill();}
-          const fire=1-clamp((frac-.72)/.28,0,1);if(fire>0){ctx.fillStyle=`rgba(255,142,38,${.55*fire*(.75+.25*Math.sin(frac*80))})`;ctx.beginPath();ctx.arc(hp.x,hp.y-base*.25,base*.32,0,Math.PI*2);ctx.fill();}
-        }
-      }
-    }
-    ctx.restore();
-
-    const stage=frac<hitAt?'TORPEDO RUN':frac<.38?'IMPACT':frac<.70?'BLAST & SPRAY':'DAMAGE OBSERVATION';
-    ctx.fillStyle='rgba(4,16,20,.94)';this.rr(ctx,inset+6*this.k,inset+6*this.k,Math.min(w-inset*2-12*this.k,420*this.k),50*this.k,6*this.k);ctx.fill();ctx.strokeStyle='rgba(245,198,92,.78)';ctx.lineWidth=1;ctx.stroke();
-    ctx.fillStyle='#f5c65c';ctx.font=this.fnt(10,true);ctx.fillText(`IMPACT OBSERVATION — ${stage}`,inset+14*this.k,inset+23*this.k);
-    ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(8.2);const facts=[O.contactId||O.name,O.displayType,O.tonsFactor?`${Number(O.tonsFactor).toLocaleString()} tons`:null,O.location,O.condition].filter(Boolean).join(' · ');ctx.fillText(facts,inset+14*this.k,inset+40*this.k);
-    const bw=Math.min(w*.36,230*this.k),bx=w-inset-bw,by=h-inset-10*this.k;ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(bx,by,bw,3*this.k);ctx.fillStyle='#f5c65c';ctx.fillRect(bx,by,bw*(1-frac),3*this.k);ctx.restore();
-  }
-
   /* ══════════ 3D SHIPS ══════════ */
 
   // shading helper: face normal in world space vs the sun
@@ -900,15 +822,15 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const E=c.position.xNm*NM_M, N=-c.position.yNm*NM_M;
       const d=Math.hypot(E-cam.E,N-cam.N);
       if(d>visNm*NM_M*1.15) continue;
-      // Optical rendering and sensor acquisition must share the same local
-      // weather-limited reach. Previously the scope could paint a crisp hull
-      // that detection quite correctly still considered beyond local sight.
-      if(cam.kind==='PERISCOPE'&&d>bridgeVisualLimitNm(state,c)*NM_M*1.02) continue;
+      // Optical rendering and sensor acquisition share one canonical scope
+      // hull-resolution test. This prevents SCOPE from drawing a hull that MAP
+      // still treats as an unresolved acoustic contact, and also keeps legacy
+      // callers of scopeCanResolveHull compatible across PWA updates.
+      if(cam.kind==='PERISCOPE'&&!scopeCanResolveHull(state,c,{rangePad:1.02,fovPad:.85})) continue;
       const bear=bearingBetween(sub.position,c.position);
       const viewBearing=cam.bearingDeg??normDeg(radToDeg(Math.atan2(cam.sin,cam.cos)));
       const bd=shortDelta(viewBearing,bear);
-      if(cam.kind==='PERISCOPE'&&!scopeCanResolveHull(state,c,false)) continue;
-      if(cam.kind!=='PERISCOPE'&&Math.abs(bd)>cam.fovDeg*0.85) continue;
+      if(Math.abs(bd)>cam.fovDeg*0.85) continue;
       // hidden behind land?
       const sx=cam.cx+Math.tan(degToRad(bd))*cam.f;
       let occluded=false;
@@ -1620,7 +1542,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
      pure function of the explosion's age, so the picture is stable.      */
   drawExplosions3D(ctx,cam,state,dl){
     for(const e of state.weapons.explosions){
-      const p=this.proj(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,e.zM||0);
+      const p=this.proj(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,0);
       if(!p) continue;
       const sc=cam.f/p.d;                                   // pixels per metre
       const dud=e.kind==='dud'||/DUD|GLANCED/.test(e.label||'');

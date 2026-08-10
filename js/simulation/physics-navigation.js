@@ -152,9 +152,7 @@ class SimEngine extends SimEngineCareer {
     this.updateWeather?.(dt);
     this.updateTrafficDirector?.(dt);
     this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
-    // Lower-grade electronic/acoustic sensors update first; optical truth is
-    // applied last so a visible hull remains authoritative for MAP and TDC.
-    this.updateSoundRadar?.(dt); this.updateDetection(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
+    this.updateDetection(dt); this.updateSoundRadar?.(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
     this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     this.updateBattleAtmosphere?.(dt);
     this.updateMissionFramework?.(dt);
@@ -408,17 +406,7 @@ class SimEngine extends SimEngineCareer {
           tr.sunk=true;tr.speedEstimateKnots=0;tr.staleSeconds+=dt;
           tr.lastFixPosition={...c.position};tr.plotPosition={...c.position};tr.lastFixTime=now;
           delete tr.truePosition;
-          if((c.sinkingProgress??0)>=1){
-            // Once the hull has disappeared below the surface it is a wreck,
-            // not a live fire-control target. Keep the chart wreck briefly, but
-            // drop active MAP/TDC selection so no green target label/solution
-            // can survive on a ship that is physically gone.
-            if(this.state.tactical.selectedTrackId===c.id)this.state.tactical.selectedTrackId=null;
-            if(this.state.tdc.targetId===c.id){
-              Object.assign(this.state.tdc,{targetId:null,autoTrack:false,trackSource:'MANUAL',bearing:null,rangeNm:null,targetCourse:null,targetSpeedKnots:null,gyroAngle:null,angleOnBow:null,timeToImpactSec:null,solutionQuality:0,status:'NO TARGET'});
-            }
-            if(tr.staleSeconds>90) delete W.contactTracks[c.id];
-          }
+          if((c.sinkingProgress??0)>=1&&tr.staleSeconds>90) delete W.contactTracks[c.id];
         }
         continue;
       }
@@ -429,13 +417,9 @@ class SimEngine extends SimEngineCareer {
          because the generic confidence score is a little below 0.12. The 3-D
          renderer can show ships near the visibility limit; give those weak but
          real visual observations a floor instead of letting the plot decay. */
-      const T=this.state.tactical,key=c.id,prior=W.contactTracks[key];
+      const T=this.state.tactical;
       const surfacedVisual=sub.depthFeet<8&&rng<=bridgeVisualLimitNm(this.state,c);
-      const scopeObs=scopeHullObservation(this.state,c,true),scopeVisual=scopeObs.visible;
-      // Only an actually manned optical station creates a NEW visual fix. The
-      // remembered fix is handled separately by hasFreshVisualFix(); MAP itself
-      // never grants omniscient visual tracking merely because the old bearing
-      // still happens to line up with the target.
+      const scopeVisual=T.activeStation==='PERISCOPE'&&scopeCanResolveHull(this.state,c);
       const visualHeld=surfacedVisual||scopeVisual;
       const acousticHeld=aco.score>0.12;
       const held=visualHeld||acousticHeld;
@@ -443,7 +427,8 @@ class SimEngine extends SimEngineCareer {
       const src=visualHeld?'VISUAL':'HYDROPHONE';
       const aobs=src==='HYDROPHONE'?passiveSoundObservation(this.state,c,sc):{bearing:bear,rangeNm:rng};
       const obsBear=aobs.bearing,obsRng=aobs.rangeNm;
-      let ex=prior;
+      const key=c.id;
+      let ex=W.contactTracks[key];
       if(!ex&&!held) continue;
       ex=ex||{id:key,typeEstimate:'UNKNOWN',bearing:obsBear,rangeEstimateNm:obsRng,
         courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,source:src,
@@ -456,7 +441,7 @@ class SimEngine extends SimEngineCareer {
         // should pin position/course quickly enough that the chart agrees with
         // what the skipper can plainly see through the glass.
         if(visualHeld){
-          const visualFloor=scopeVisual?scopeObs.quality:.88;
+          const visualFloor=scopeVisual?(T.periscopeZoom===1?.72:.86):.70;
           ex.confidence=Math.max(Number.isFinite(ex.confidence)?ex.confidence:0,visualFloor);
         }
         ex.lastUpdated=now; ex.staleSeconds=0; ex.lastSensorSource=src;
@@ -482,7 +467,7 @@ class SimEngine extends SimEngineCareer {
            carries freshness. It expires naturally after a short visual-memory
            window instead of flickering with the active station. */
         if(src==='VISUAL'&&!smokeOnly){ex.visualHullConfirmed=true;ex.hullConfirmedAt=now;}
-        else if(ex.visualHullConfirmed&&!hasFreshVisualFix(this.state,ex))ex.visualHullConfirmed=false;
+        else if(ex.visualHullConfirmed&&now-(Number.isFinite(ex.hullConfirmedAt)?ex.hullConfirmedAt:-999)>24)ex.visualHullConfirmed=false;
         // The Truk heavy unit is deliberately reported only as HEAVY UNIT.
         // Hydrophones may build a good positional track, but they do not hand
         // the player a magical carrier/cruiser classification. Exact identity
@@ -534,7 +519,6 @@ class SimEngine extends SimEngineCareer {
   updateTdc(){
     const tdc=this.state.tdc;
     if(!tdc.targetId){tdc.status='NO TARGET';tdc.solutionQuality=0;return;}
-    if(tdc.trackSource==='SCOPE'&&this.state.tactical.activeStation==='PERISCOPE')this.confirmScopeVisualContact(tdc.targetId);
     const tr=this.state.world.contactTracks[tdc.targetId];
     const manual=tdc.targetId==='MANUAL'||tdc.autoTrack===false;
     if(!manual&&(!tr||tr.confidence<=0.02)){tdc.status='TRACK LOST';tdc.solutionQuality=0;return;}
@@ -563,12 +547,8 @@ class SimEngine extends SimEngineCareer {
     const calcSpd=Math.max(0,spd+(bias.tdcSpeedKnots||0));
     const res=calcTdc({ownPosition:sub.position,ownHeading:sub.heading,bearing:calcBear,
       rangeNm:calcRng,targetCourse:calcCrs,targetSpeedKnots:calcSpd,
-      torpedoSpeedKnots:tdc.torpedoSpeedKnots,confidence:manual?0.65:(()=>{
-        const p=Number.isFinite(tr.positionConfidence)?tr.positionConfidence:tr.confidence;
-        const base=Math.min(tr.confidence,p);
-        if(hasFreshVisualFix(this.state,tr))return Math.max(base,clamp(.96-visualFixAgeSec(this.state,tr)*.003,.86,.96));
-        return base;
-      })()});
+      torpedoSpeedKnots:tdc.torpedoSpeedKnots,confidence:manual?0.65:Math.min(tr.confidence,
+        Number.isFinite(tr.positionConfidence)?tr.positionConfidence:tr.confidence)});
     tdc.bearing=bear;tdc.rangeNm=rng;tdc.targetCourse=crs;tdc.targetSpeedKnots=spd;
     tdc.gyroAngle=res.gyroAngle===null?null:res.gyroAngle+(bias.gyroDeg||0);tdc.angleOnBow=res.angleOnBow;
     tdc.timeToImpactSec=res.timeToImpactSec;
@@ -728,25 +708,25 @@ class SimEngine extends SimEngineCareer {
     d.warnings=W;
   }
 
-  refreshScopeVisualContacts(){
-    const s=this.state,T=s.tactical;if(T.activeStation!=='PERISCOPE')return 0;
-    let n=0;for(const c of s.world.contacts||[]){if(scopeCanResolveHull(s,c,true)&&this.confirmScopeVisualContact(c.id))n++;}
-    return n;
-  }
-
   confirmScopeVisualContact(trackId){
-    const s=this.state,T=s.tactical,sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;
-    if(T.activeStation!=='PERISCOPE'||sub.depthFeet<8||sub.depthFeet>65)return null;
+    const s=this.state,T=s.tactical,W=s.world,now=s.time.elapsedSeconds||0;
+    if(T.activeStation!=='PERISCOPE')return null;
     const c=(W.contacts||[]).find(q=>q.id===trackId&&!q.sunk);if(!c)return null;
-    const obs=scopeHullObservation(s,c,true);if(!obs.visible)return null;
-    const rng=obs.rangeNm,bear=obs.bearing,q=obs.quality,knownType=c.displayType||c.type;
-    const tr=W.contactTracks[trackId]||{id:c.id,typeEstimate:'UNKNOWN',bearing:bear,rangeEstimateNm:rng,
-      courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,source:'VISUAL',lastUpdated:now,staleSeconds:0,
-      contactType:c.type,lengthYards:c.lengthYards};
-    tr.confidence=Math.max(tr.confidence||0,q);tr.lastUpdated=now;tr.staleSeconds=0;
-    tr.courseEstimate=c.heading;tr.speedEstimateKnots=c.speedKnots;tr.contactType=c.type;tr.lengthYards=c.lengthYards;
-    tr.typeEstimate=knownType;tr.affiliation=c.side||'ENEMY';tr.visualHullConfirmed=true;tr.hullConfirmedAt=now;tr.visualLastSeenAt=now;
-    updateStableContactPlot(s,tr,{...c.position},'VISUAL',q,.1);W.contactTracks[trackId]=tr;
+    const obs=scopeHullObservation(s,c);if(!obs)return null;
+    let tr=W.contactTracks[trackId];
+    if(!tr){
+      tr={id:c.id,typeEstimate:'UNKNOWN',bearing:obs.bearing,rangeEstimateNm:obs.rangeNm,
+        courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,source:'VISUAL',
+        lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards};
+      W.contactTracks[trackId]=tr;
+    }
+    tr.confidence=Math.max(tr.confidence||0,obs.confidenceFloor);
+    tr.bearing=obs.bearing;tr.rangeEstimateNm=obs.rangeNm;
+    tr.courseEstimate=obs.courseDeg;tr.speedEstimateKnots=obs.speedKnots;tr.contactType=c.type;tr.lengthYards=c.lengthYards;
+    tr.typeEstimate=obs.typeEstimate;tr.affiliation=obs.affiliation;tr.visualHullConfirmed=true;tr.hullConfirmedAt=now;tr.visualLastSeenAt=now;
+    tr.source='VISUAL';tr.lastSensorSource='VISUAL';tr.observer='PERISCOPE';tr.lastUpdated=now;tr.staleSeconds=0;
+    tr.positionSource='VISUAL';tr.positionFixAt=now;tr.positionConfidence=obs.positionConfidence;tr.positionUncertaintyNm=obs.positionUncertaintyNm;
+    updateStableContactPlot(s,tr,obs.position,'VISUAL',obs.quality,.1);
     return tr;
   }
 
@@ -759,7 +739,6 @@ class SimEngine extends SimEngineCareer {
   }
 
   sendScopeToTdc(){
-    if(this.state.tactical.activeStation!=='PERISCOPE'){this.log('Scope observation unavailable — raise and look through the periscope first.','warn');return;}
     const sid=this.state.tactical.selectedTrackId||this.state.tdc.targetId;
     if(!sid){this.log('No selected contact.','warn');return;}
     this.confirmScopeVisualContact(sid);

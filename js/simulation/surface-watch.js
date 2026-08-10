@@ -72,3 +72,49 @@ function bridgeObservation(state,contact,binoculars=false){
     bearingErrorDeg:brErr,rangeErrorPct:rangeErr
   };
 }
+
+/* ══════════ PERISCOPE VISUAL COHERENCE ═══════════════════════════════
+   These helpers are deliberately defined in surface-watch.js because that
+   script loads before both simulation/physics-navigation.js and the 3-D
+   renderers.  Older/intermediate builds called these names directly, while
+   later patches had inlined the same logic.  Keeping one canonical pair here
+   prevents a mixed/stale PWA cache from turning SCOPE into a ReferenceError
+   and gives rendering + MAP acquisition exactly the same definition of a
+   resolved hull. */
+function scopeCanResolveHull(state,contact,opts={}){
+  if(!state||!contact||!state.playerSub||!state.tactical)return false;
+  if(contact.sunk&&(contact.sinkingProgress??0)>=1)return false;
+  const sub=state.playerSub,T=state.tactical;
+  if((sub.depthFeet||0)<8||(sub.depthFeet||0)>65)return false;
+  const zoom=Number(opts.zoom??T.periscopeZoom??1);
+  const fov=(typeof SCOPE_OPTICS!=='undefined'&&Array.isArray(SCOPE_OPTICS))
+    ?(SCOPE_OPTICS[zoom===1?0:1]?.fov??(zoom===1?32:8))
+    :(zoom===1?32:8);
+  const rng=distNm(sub.position,contact.position);
+  const bear=bearingBetween(sub.position,contact.position);
+  const off=Math.abs(shortDelta(T.periscopeBearing??sub.heading??0,bear));
+  const limit=typeof bridgeVisualLimitNm==='function'
+    ?bridgeVisualLimitNm(state,contact)
+    :Math.max(.5,Number(state.world?.environment?.visibilityNm)||.5)*.86;
+  const pad=Number.isFinite(opts.rangePad)?opts.rangePad:1.02;
+  const fovPad=Number.isFinite(opts.fovPad)?opts.fovPad:.52;
+  return rng<=limit*pad&&off<=fov*fovPad;
+}
+
+function scopeHullObservation(state,contact,opts={}){
+  if(!scopeCanResolveHull(state,contact,opts))return null;
+  const sub=state.playerSub,T=state.tactical;
+  const zoom=Number(opts.zoom??T.periscopeZoom??1);
+  const rng=distNm(sub.position,contact.position),bear=bearingBetween(sub.position,contact.position);
+  const quality=zoom===1?.82:.96;
+  return{
+    resolved:true,contactId:contact.id,bearing:bear,rangeNm:rng,
+    position:{xNm:contact.position.xNm,yNm:contact.position.yNm},
+    courseDeg:contact.heading,speedKnots:contact.speedKnots,
+    typeEstimate:contact.displayType||contact.type,affiliation:contact.side||'ENEMY',
+    quality,confidenceFloor:zoom===1?.78:.90,
+    positionConfidence:zoom===1?.90:.97,
+    positionUncertaintyNm:zoom===1?.045:.018,
+    observedAt:Number(state.time?.elapsedSeconds)||0
+  };
+}
