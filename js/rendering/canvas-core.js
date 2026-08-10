@@ -184,24 +184,52 @@ class CanvasViewCore{
     ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
 
     // Water still reflects preferentially along the observer/impact line, but
-    // as a broad feathered fan rather than the former narrow triangular tube.
-    const ey=Math.min(h,p.y+Math.max(90*k,(h-p.y)*.84));
+    // it must read as a wide sheet of illuminated sea rather than a searchlight
+    // cone.  The outer passes flare almost immediately and can extend beyond
+    // the viewport; their low alpha keeps the edge soft and atmospheric.
+    const ey=Math.min(h,p.y+Math.max(90*k,(h-p.y)*.88));
     if(ey>p.y+8*k){
       const dy=ey-p.y,rg=ctx.createLinearGradient(p.x,p.y,w/2,ey);
-      rg.addColorStop(0,`rgba(255,222,148,${a*.24})`);
-      rg.addColorStop(.42,`rgba(255,168,82,${a*.13})`);
-      rg.addColorStop(1,'rgba(255,126,46,0)');
+      rg.addColorStop(0,`rgba(255,226,158,${a*.25})`);
+      rg.addColorStop(.34,`rgba(255,174,88,${a*.14})`);
+      rg.addColorStop(.76,`rgba(255,132,54,${a*.055})`);
+      rg.addColorStop(1,'rgba(255,118,42,0)');
       for(const pass of [
-        {near:8*k,half:clamp(dy*.24,28*k,w*.28),alpha:1},
-        {near:15*k,half:clamp(dy*.38,44*k,w*.40),alpha:.52},
-        {near:24*k,half:clamp(dy*.52,60*k,w*.48),alpha:.24}
+        {near:Math.max(14*k,rr*.16),half:clamp(dy*.48,58*k,w*.44),alpha:.92,flare:.62},
+        {near:Math.max(26*k,rr*.27),half:clamp(dy*.74,92*k,w*.64),alpha:.42,flare:.72},
+        {near:Math.max(40*k,rr*.40),half:clamp(dy*.98,132*k,w*.82),alpha:.16,flare:.80}
       ]){
+        const shoulderY=lerp(p.y,ey,.34),shoulderX=lerp(p.x,w/2,.32);
         ctx.globalAlpha=pass.alpha;ctx.fillStyle=rg;ctx.beginPath();
         ctx.moveTo(p.x-pass.near,p.y);
-        ctx.quadraticCurveTo(lerp(p.x,w/2,.48)-pass.half*.34,lerp(p.y,ey,.54),w/2-pass.half,ey);
+        ctx.quadraticCurveTo(shoulderX-pass.half*pass.flare,shoulderY,w/2-pass.half,ey);
         ctx.lineTo(w/2+pass.half,ey);
-        ctx.quadraticCurveTo(lerp(p.x,w/2,.48)+pass.half*.34,lerp(p.y,ey,.54),p.x+pass.near,p.y);
+        ctx.quadraticCurveTo(shoulderX+pass.half*pass.flare,shoulderY,p.x+pass.near,p.y);
         ctx.closePath();ctx.fill();
+      }
+
+      // A very diffuse pool of reflected light breaks up the last hint of a
+      // geometric triangle and lets the sea around the reflection participate.
+      const washX=lerp(p.x,w/2,.58),washY=lerp(p.y,ey,.58);
+      const washR=Math.max(w*.48,dy*.78);
+      glow=ctx.createRadialGradient(washX,washY,0,washX,washY,washR);
+      glow.addColorStop(0,`rgba(255,176,92,${a*.075})`);
+      glow.addColorStop(.52,`rgba(255,142,62,${a*.032})`);
+      glow.addColorStop(1,'rgba(255,120,46,0)');
+      ctx.globalAlpha=1;ctx.fillStyle=glow;ctx.fillRect(0,p.y,w,h-p.y);
+
+      // In the deck-gun station the nearby bow/mount should catch a faint warm
+      // glint from the blast.  This is deliberately a cheap screen-space wash,
+      // not a second lighting/shadow pass: enough to tie the foreground hull to
+      // the flash without adding expensive geometry work on mobile hardware.
+      if(station==='DECK_GUN'){
+        const side=clamp((p.x-w/2)/Math.max(1,w/2),-1,1);
+        const deckX=w/2+side*w*.20,deckY=h*.90,deckR=Math.max(w*.50,h*.38);
+        glow=ctx.createRadialGradient(deckX,deckY,0,deckX,deckY,deckR);
+        glow.addColorStop(0,`rgba(255,198,116,${a*.075})`);
+        glow.addColorStop(.48,`rgba(255,154,78,${a*.030})`);
+        glow.addColorStop(1,'rgba(255,128,54,0)');
+        ctx.fillStyle=glow;ctx.fillRect(0,h*.66,w,h*.34);
       }
       ctx.globalAlpha=1;
     }
