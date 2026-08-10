@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.13'; // Improve impact crash-zoom, deck-gun blast effects, ownship deck continuity, and sunk-target cleanup
+const VERSION = '0.8.14'; // Rework ownship 3D projection, bridge FOV, gun position and weather map
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
