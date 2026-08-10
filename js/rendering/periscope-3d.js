@@ -876,7 +876,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     else if(prof.damage>.62){msg='OPTICAL DISTORTION — MEASUREMENTS UNRELIABLE';col='#ef6a58';}
     else if(prof.damage>.28){msg='OPTICS DAMAGED — BLUR / CALIBRATION ERROR';col='#f5c65c';}
     else if(prof.damage>.07){msg='OPTICS SCRATCHED — CONTRAST REDUCED';col='#f5c65c';}
-    else if(sub.depthFeet<8) msg='SURFACED — BRIDGE LOOKOUT';
+    else if(sub.depthFeet<8) msg='SURFACED · SCOPE ACTIVE';
     ctx.fillStyle=col;ctx.font=this.fnt(9,true);ctx.fillText(msg,pad,Math.round(52*k));
 
     const tdc=state.tdc;

@@ -55,6 +55,7 @@ class CanvasView extends CanvasViewSound {
     this.drawMapTrail(ctx,map.ownshipTrail,w2s);
     this.drawMapPlot(ctx,map.plottedCourse,w2s,sub.position,map.autoFollowPlot);
     this.drawTorpedoEnvelope(ctx,state,w2s,w,h);
+    this.drawScopeFovCue(ctx,state,w2s,w,h);
     this.drawMapDCs(ctx,state.world.depthCharges,w2s);
     this.drawMapTorps(ctx,state.weapons.activeTorpedoes,w2s);
     this.drawMapExplosions(ctx,state.weapons.explosions,w2s);
@@ -743,6 +744,39 @@ class CanvasView extends CanvasViewSound {
     occupied.push(fallback);return fallback;
   }
 
+  drawScopeFovCue(ctx,state,w2s,w,h){
+    const sub=state?.playerSub,T=state?.tactical,K=this.k;
+    if(!sub||!T||sub.mode==='SUNK'||(Number(sub.depthFeet)||0)>65)return;
+    if(typeof scopeOpticProfile==='function'&&scopeOpticProfile(sub.damage?.periscopeDamage).unusable)return;
+    const opt=(typeof SCOPE_OPTICS!=='undefined'&&Array.isArray(SCOPE_OPTICS))
+      ?SCOPE_OPTICS[T.periscopeZoom===1?0:1]
+      :{fov:T.periscopeZoom===1?32:8,label:T.periscopeZoom===1?'1.5×':'6×'};
+    const fov=Number(opt?.fov)||(T.periscopeZoom===1?32:8),bearing=normDeg(Number(T.periscopeBearing)||0);
+    const o=w2s(sub.position.xNm,sub.position.yNm);
+    if(!Number.isFinite(o.x)||!Number.isFinite(o.y)||o.x<-80*K||o.x>w+80*K||o.y<-80*K||o.y>h+80*K)return;
+
+    // Screen-space radius keeps this a quiet orientation aid at every MAP
+    // zoom level. The angular width and bearing are exact; the radius is not
+    // intended to imply a detection range.
+    const radius=clamp(2.6*this.zoom,64*K,Math.min(w,h)*.34);
+    const a0=degToRad(bearing-fov*.5-90),a1=degToRad(bearing+fov*.5-90),ac=degToRad(bearing-90);
+    const ex=o.x+Math.cos(ac)*radius,ey=o.y+Math.sin(ac)*radius;
+    ctx.save();
+    ctx.fillStyle='rgba(111,224,143,.025)';
+    ctx.strokeStyle='rgba(111,224,143,.20)';ctx.lineWidth=Math.max(.7,.9*K);
+    ctx.setLineDash([4*K,6*K]);
+    ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.arc(o.x,o.y,radius,a0,a1,false);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.setLineDash([]);ctx.strokeStyle='rgba(111,224,143,.34)';ctx.lineWidth=Math.max(.8,1.05*K);
+    ctx.beginPath();ctx.moveTo(o.x,o.y);ctx.lineTo(ex,ey);ctx.stroke();
+    if(radius>72*K){
+      const label=`SCOPE ${opt?.label||''} · ${Math.round(fov)}°`;
+      ctx.font=this.fnt(7.2,true);ctx.textAlign='center';ctx.fillStyle='rgba(155,224,181,.66)';
+      ctx.fillText(label,o.x+Math.cos(ac)*radius*.76,o.y+Math.sin(ac)*radius*.76-4*K);
+      ctx.textAlign='left';
+    }
+    ctx.restore();
+  }
+
   drawMapContacts(ctx,tracks,w2s,now,ownPos,selId,state=null){
     const K=this.k;this._mapLabelRects=[];const visible=Object.values(tracks).filter(q=>!q.sunk),dense=visible.length>=4;
     const contactById=state?new Map((state.world.contacts||[]).filter(c=>!c.sunk).map(c=>[c.id,c])):null;
@@ -826,7 +860,16 @@ class CanvasView extends CanvasViewSound {
       const compactType=this._mapCompactTypeLabel(tr.typeEstimate);
       const title=isSelected?`${tr.id} ${affiliation}${tr.typeEstimate}`:`${tr.id} ${dense?compactType:(affiliation+compactType)}`;
       const lines=[title.trim()];
-      if(isSelected)lines.push(`${tr.source} C${Math.round(conf*100)}% ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
+      if(isSelected&&liveVisual&&contact){
+        const visualRange=distNm(ownPos,contact.position),visualBearing=bearingBetween(ownPos,contact.position);
+        lines.push(`VISUAL · BRG ${fmtDeg(visualBearing)} · R ${visualRange.toFixed(1)} NM`);
+        // Tiny craft can be physically visible yet only a few pixels long in
+        // the 1.5× search optic. Give a restrained crew hint rather than
+        // pretending the contact is uncertain or invisible on MAP.
+        const lenM=shipVisualLengthM(contact,180);
+        const angularDeg=visualRange>.02?radToDeg(Math.atan2(lenM,visualRange*NM_M)):99;
+        if(lenM<=40&&angularDeg<1.2&&(state?.tactical?.periscopeZoom??1)===1)lines.push('SMALL CRAFT · 6× RECOMMENDED');
+      }else if(isSelected)lines.push(`${tr.source} C${Math.round(conf*100)}% ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
       else if(!dense&&!hasTruePos)lines.push(`${tr.source} C${Math.round(conf*100)}%`);
       if(isSelected&&tr.damageEstimate)lines.push(tr.damageEstimate);
       const fs=isSelected?10.2:8.2, lh=(isSelected?12:10)*K;

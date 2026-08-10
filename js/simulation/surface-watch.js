@@ -98,10 +98,12 @@ function crewCanSeeSurfaceHull(state,contact,opts={}){
 function scopeCanResolveHull(state,contact,opts={}){
   if(!state||!contact||!state.playerSub||!state.tactical)return false;
   const sub=state.playerSub,T=state.tactical;
-  if((sub.depthFeet||0)<8||(sub.depthFeet||0)>65)return false;
-  // Crew visual knowledge is 360 degrees at periscope depth, but what the
-  // player can physically see through the optic is still limited by where the
-  // scope is trained and by its current field of view.
+  if((sub.depthFeet||0)>65)return false;
+  // The optic remains usable while surfaced as well as at periscope depth.
+  // MAP/crew visual knowledge is 360 degrees, but what the player physically
+  // sees through SCOPE is still limited by the trained bearing and current FOV.
+  // Do not impose the bridge-only <8 ft split here: leaving SCOPE selectable
+  // while silently suppressing every hull at 0 ft made close contacts vanish.
   if(!crewCanSeeSurfaceHull(state,contact,{rangePad:Number.isFinite(opts.rangePad)?opts.rangePad:1.02}))return false;
   const zoom=Number(opts.zoom??T.periscopeZoom??1);
   const fov=(typeof SCOPE_OPTICS!=='undefined'&&Array.isArray(SCOPE_OPTICS))
