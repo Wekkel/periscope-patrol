@@ -9,8 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.17'; // Harden training objectives and unify 360 crew visual tracking
-
+const VERSION = '0.8.17'; // Polish training pacing, sandbox escort exercise and align deck-gun tracer
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
