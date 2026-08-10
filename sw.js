@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.17'; // Fix surfaced scope visibility and add MAP optic guidance
+const VERSION = '0.8.17'; // Polish gun impacts, torpedo cinematic and AAR replay controls
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
