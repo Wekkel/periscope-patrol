@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.16'; // critical fixes station selector
+const VERSION = '0.8.17'; // Stabilize training pacing, stylus waypoints, visual tracking and impact effects
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
