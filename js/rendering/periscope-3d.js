@@ -50,8 +50,13 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     // the warhead goes off.
     const targetFov=clamp(angular*1.72,2.5,72);
     const sourceFov=Math.min(Number(obs.originFov)||24,82);
-    const startFov=clamp(Math.max(targetFov*1.72,sourceFov),targetFov,82);
-    const zoomIn=phaseSmooth01(clamp(age/.85,0,1));
+    // Make the crash zoom a cut-plus-settle rather than a long optical pull.
+    // The old 0.85 s sweep magnified the already-static torpedo wake so quickly
+    // that it looked like a rocket streak racing into the target. Start already
+    // close, then settle the last small amount in ~0.3 s; the remaining pre-hit
+    // beat is stable and readable.
+    const startFov=clamp(Math.min(sourceFov,Math.max(targetFov*1.24,targetFov+.75)),targetFov,82);
+    const zoomIn=phaseSmooth01(clamp(age/.32,0,1));
     const fov=lerp(startFov,targetFov,zoomIn);
     const cx=w/2,cy=this.portrait?h*.46:h*.50,r=Math.max(w,h)*.72;
     const cinematicDepth=obs.originStation==='BRIDGE'?0:Math.min(Number(obs.viewerDepth)||55,55);
@@ -151,19 +156,40 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   }
 
   drawImpactTorpedoTrack(ctx,cam,obs,impactAge,dl,env){
-    if(!obs?.torpedoWakeVisible||!Number.isFinite(obs.torpedoHeading)||!obs.impactPosition||dl<.22)return;
+    if(!obs?.torpedoWakeVisible||!obs.impactPosition||dl<.22)return;
     const calm=clamp(1-clamp(env?.seaState||0,0,1)*1.45,0,1);if(calm<.08)return;
-    const runNm=clamp(Number(obs.torpedoWakeNm)||.28,.10,.48),hb=degToRad(obs.torpedoHeading),E=obs.impactPosition.xNm*NM_M,N=-obs.impactPosition.yNm*NM_M,run=runNm*NM_M;
-    const head=this.proj(cam,E,N,0),tail=this.proj(cam,E-Math.sin(hb)*run,N-Math.cos(hb)*run,0);if(!head||!tail)return;
-    // During the cinematic the wake is already laid in the water. It does not
-    // grow or race across the optic; only its brightness slowly decays after the
-    // detonation. This makes the 1.5-second anticipation beat read as real time
-    // even if the normal game had been running at 8x/16x/32x beforehand.
-    const postFade=impactAge<0?1:Math.exp(-impactAge/2.6),a=.26*calm*clamp(dl*1.35,0,1)*postFade;
-    const dx=tail.x-head.x,dy=tail.y-head.y,len=Math.hypot(dx,dy);if(len<3)return;const nx=-dy/len,ny=dx/len;
-    ctx.save();const g=ctx.createLinearGradient(head.x,head.y,tail.x,tail.y);g.addColorStop(0,`rgba(238,248,252,${a})`);g.addColorStop(.45,`rgba(228,242,249,${a*.58})`);g.addColorStop(1,'rgba(220,238,247,0)');
-    const hw0=Math.max(.8,1.8*this.k),hw1=Math.max(1.2,4.8*this.k);ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(head.x+nx*hw0,head.y+ny*hw0);ctx.lineTo(tail.x+nx*hw1,tail.y+ny*hw1);ctx.lineTo(tail.x-nx*hw1,tail.y-ny*hw1);ctx.lineTo(head.x-nx*hw0,head.y-ny*hw0);ctx.closePath();ctx.fill();
-    if(this.quality>.35){ctx.fillStyle=`rgba(242,250,253,${a*.62})`;for(let i=1;i<=8;i++){const u=i/9,j=(Math.sin(i*17.31+obs.impactPosition.xNm*9.1)*.5+.5),x=lerp(head.x,tail.x,u)+nx*(j-.5)*hw1*1.1,y=lerp(head.y,tail.y,u)+ny*(j-.5)*hw1*1.1,r=Math.max(.65,this.k*(.65+.45*(1-u)));ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}}
+    const postFade=impactAge<0?1:Math.exp(-impactAge/2.6),baseA=.26*calm*clamp(dl*1.35,0,1)*postFade;
+    const raw=Array.isArray(obs.torpedoWakePath)?obs.torpedoWakePath.filter(p=>Number.isFinite(p?.xNm)&&Number.isFinite(p?.yNm)):[];
+    let pts=[];
+    if(raw.length>=2){
+      pts=raw.map(p=>this.proj(cam,p.xNm*NM_M,-p.yNm*NM_M,0)).filter(Boolean);
+    }
+    if(pts.length<2&&Number.isFinite(obs.torpedoHeading)){
+      // Save compatibility for observations created before wake history existed.
+      const runNm=clamp(Number(obs.torpedoWakeNm)||.28,.10,.48),hb=degToRad(obs.torpedoHeading),E=obs.impactPosition.xNm*NM_M,N=-obs.impactPosition.yNm*NM_M,run=runNm*NM_M;
+      const tail=this.proj(cam,E-Math.sin(hb)*run,N-Math.cos(hb)*run,0),head=this.proj(cam,E,N,0);
+      if(tail&&head)pts=[tail,head];
+    }
+    if(pts.length<2)return;
+
+    // This is the actual sampled track already laid in the water before the
+    // cinematic begins. Nothing advances along it during the pre-impact beat.
+    // Segment opacity/width only describe older churn fading astern.
+    ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+    for(let i=1;i<pts.length;i++){
+      const u=i/(pts.length-1),a=baseA*(.30+.70*u),w=Math.max(.8,this.k*(1.0+2.1*u));
+      ctx.strokeStyle=`rgba(232,246,251,${a})`;ctx.lineWidth=w;
+      ctx.beginPath();ctx.moveTo(pts[i-1].x,pts[i-1].y);ctx.lineTo(pts[i].x,pts[i].y);ctx.stroke();
+    }
+    if(this.quality>.35){
+      ctx.fillStyle=`rgba(244,251,253,${baseA*.62})`;
+      const count=Math.min(12,Math.max(6,pts.length));
+      for(let i=1;i<count;i++){
+        const u=i/count,idx=u*(pts.length-1),j=Math.floor(idx),f=idx-j,a=pts[j],b=pts[Math.min(pts.length-1,j+1)];
+        const x=lerp(a.x,b.x,f),y=lerp(a.y,b.y,f),wig=Math.sin(i*17.31+obs.impactPosition.xNm*9.1)*this.k*1.3,r=Math.max(.6,this.k*(.55+.50*u));
+        ctx.beginPath();ctx.arc(x+wig,y,r,0,Math.PI*2);ctx.fill();
+      }
+    }
     ctx.restore();
   }
 

@@ -163,7 +163,7 @@ function applyTorpedoShipDamage(engine,c,impact){
 
 function applyDeckGunShipDamage(engine,c,hit){
   const D=ensureShipDamage(c),now=engine.state.time.elapsedSeconds||0;
-  const len=hit?.lenNm||((c.lengthYards||400)*0.9144/1852);
+  const len=hit?.lenNm||((c.lengthYards||400)*0.3048/1852);
   const frac=clamp((hit?.along||0)/(len||1),-.5,.5);
   const location=shipTorpedoHitLocation(frac);
   const heavy=/CARRIER|CRUISER/i.test(c.displayType||'');

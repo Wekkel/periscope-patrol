@@ -314,8 +314,18 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     const k=this.k,env=state.world.environment||{},sea=clamp(env.seaState||0,0,1),rain=clamp(env.precipitation||0,0,1);
     const p=this.proj(cam,sp.position.xNm*NM_M,-sp.position.yNm*NM_M,0);if(!p)return;
     const a=clamp(1-sp.age/4,0,1)*(1-rain*.38),rise=Math.sin(clamp(sp.age/1.4,0,1)*Math.PI)*22*k*(1+sea*.42);
+    const rangeM=state.playerSub?.position?distNm(state.playerSub.position,sp.position)*NM_M:p.d,beyondHorizon=rangeM>(cam.dHor||Infinity);
+    const canClip=beyondHorizon&&typeof ctx.save==='function'&&typeof ctx.clip==='function';
+    if(canClip)ctx.save();
+    // At long gun range the sea-surface base can be geometrically below the
+    // horizon while the upper spray column remains visible. Drawing the full
+    // water-ring there produced a flat/triangular horizon artifact. Clip only
+    // the far splash to the visible side of the horizon; near splashes keep
+    // their complete base and foam ring.
+    if(canClip){ctx.beginPath();ctx.rect(0,0,cam.viewW||ctx.canvas?.width||4096,(cam.horizonY||p.y)+2*k);ctx.clip();}
     ctx.fillStyle=`rgba(225,242,248,${a*.86})`;ctx.beginPath();ctx.ellipse(p.x,p.y-rise*0.45,(4*k+sp.age*2*k)*(1+sea*.18),Math.max(3*k,rise),0,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle=`rgba(230,245,250,${a*.65})`;ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.ellipse(p.x,p.y,(8*k+sp.age*5*k)*(1+sea*.22),2.5*k+sp.age*k,0,0,Math.PI*2);ctx.stroke();
+    if(!beyondHorizon){ctx.strokeStyle=`rgba(230,245,250,${a*.65})`;ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.ellipse(p.x,p.y,(8*k+sp.age*5*k)*(1+sea*.22),2.5*k+sp.age*k,0,0,Math.PI*2);ctx.stroke();}
+    if(canClip)ctx.restore();
   }
 
   drawGunSplashes3D(ctx,cam,state,behindShips){
@@ -326,11 +336,19 @@ class CanvasViewDeckGun extends CanvasViewTactical {
   }
 
   drawGunProjectiles3D(ctx,cam,state,includeSplashes=true){
-    const G=state.weapons.deckGun,k=this.k;
+    const G=state.weapons.deckGun,k=this.k,sub=state.playerSub;
     for(const sh of G?.shells||[]){
       const p=this.proj(cam,sh.xNm*NM_M,-sh.yNm*NM_M,sh.zM);if(!p)continue;
-      const a=clamp(1-sh.age/10,0.25,1);ctx.fillStyle=`rgba(255,235,155,${a})`;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(1.2,2.2*k),0,Math.PI*2);ctx.fill();
-      if(sh.prev){const q=this.proj(cam,sh.prev.xNm*NM_M,-sh.prev.yNm*NM_M,sh.prev.zM);if(q){ctx.strokeStyle=`rgba(255,210,120,${a*.42})`;ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(p.x,p.y);ctx.stroke();}}
+      const rangeNm=distNm(sub.position,{xNm:sh.xNm,yNm:sh.yNm});
+      // A 3-inch projectile is not a glowing tennis ball five miles away.
+      // Keep a short readable tracer near the muzzle, then let the player watch
+      // the actual fall of shot. This also removes the persistent horizon dot
+      // that could masquerade as a sea-surface rendering artifact.
+      if(rangeNm>2.15)continue;
+      const distanceFade=clamp((2.15-rangeNm)/.75,0,1),a=clamp(1-sh.age/10,.25,1)*distanceFade;
+      if(a<=.02)continue;
+      ctx.fillStyle=`rgba(255,235,155,${a})`;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.75,1.55*k),0,Math.PI*2);ctx.fill();
+      if(sh.prev&&rangeNm<1.75){const q=this.proj(cam,sh.prev.xNm*NM_M,-sh.prev.yNm*NM_M,sh.prev.zM);if(q){ctx.strokeStyle=`rgba(255,210,120,${a*.34})`;ctx.lineWidth=Math.max(.7,1.05*k);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(p.x,p.y);ctx.stroke();}}
     }
     // Backward-compatible helper contract for renderer tests/tools that call
     // this method directly; drawDeckGun passes false and depth-sorts splashes.

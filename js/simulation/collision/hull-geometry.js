@@ -3,6 +3,11 @@
 // gun uses the same oriented hull rectangle as physical vessel collisions.
 const HullGeometry=(()=>{
   const NM_PER_YARD=0.9144/1852;
+  // Historical contact schema calls the field `lengthYards`, but authored ship
+  // lengths are feet (destroyer ~350, merchant ~420, tanker ~520). Rendering
+  // already uses feet; collision geometry must use the same physical hull or
+  // weapons/collisions can register well outside the visible ship.
+  const NM_PER_FOOT=0.3048/1852;
   const SUB_LENGTH_YD=311.75/3; // Gato-class overall length
   const SUB_BEAM_YD=27.3/3;
 
@@ -41,7 +46,7 @@ const HullGeometry=(()=>{
   };
 
   function shipHull(c,position=c.position,heading=c.heading){
-    const lenNm=(c.lengthYards||400)*NM_PER_YARD;
+    const lenNm=(c.lengthYards||400)*NM_PER_FOOT;
     return{kind:'SHIP',id:c.id,position:{...position},heading:heading||0,
       halfLengthNm:lenNm*0.5,halfBeamNm:lenNm/beamRatio(c)*0.5,
       draftFeet:draftFeet(c),massTons:massTons(c),source:c};

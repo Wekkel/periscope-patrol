@@ -10,22 +10,23 @@ class SimEngineCore{
   impactObservationSnapshot(c,meta={}){
     if(!c?.position)return null;const sub=this.state.playerSub;
     const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
-    const T=this.state.tactical,originStation=T.activeStation;
-    const targetBearing=bearingBetween(sub.position,c.position);
+    const T=this.state.tactical,originStation=T.activeStation,targetPosition=meta.targetPosition||c.position;
+    const targetHeading=Number.isFinite(meta.targetHeading)?normDeg(meta.targetHeading):(c.heading||0);
+    const targetBearing=bearingBetween(sub.position,targetPosition);
     const viewBearing=originStation==='PERISCOPE'?(T.periscopeBearing??targetBearing):originStation==='BRIDGE'?(T.bridgeBearing??targetBearing):targetBearing;
     const originFov=originStation==='PERISCOPE'
       ?((typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[T.periscopeZoom===1?0:1]?.fov:null)||(T.periscopeZoom===1?32:8))
       :(originStation==='BRIDGE'&&typeof bridgeFovDeg==='function'?bridgeFovDeg(this.state):82);
     return{
       token:++this._impactSeq,contactId:c.id,name:c.name||c.id,type:c.type,displayType:c.displayType||c.type,
-      lengthYards:c.lengthYards,tonsFactor:c.tonsFactor||0,heading:c.heading||0,speedKnots:c.speedKnots||0,
-      position:{...c.position},shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,
+      lengthYards:c.lengthYards,tonsFactor:c.tonsFactor||0,heading:targetHeading,speedKnots:c.speedKnots||0,
+      position:{...targetPosition},shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,
       hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1,stationary:!!c.stationary,beforeShip:clone(meta.beforeShip||null),
       impactPosition:clone(meta.impactPosition||null),viewerPos:{...sub.position},viewerDepth:sub.depthFeet||0,viewerHeading:sub.heading||0,
       originStation,viewBearing,originFov,targetBearing,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
-      condition:meta.condition||null,rangeNm:distNm(sub.position,c.position),preImpactMs:1500,durationMs:9000,
+      condition:meta.condition||null,rangeNm:distNm(sub.position,targetPosition),preImpactMs:1500,durationMs:9000,
       torpedoHeading:Number.isFinite(meta.torpedoHeading)?normDeg(meta.torpedoHeading):null,
-      torpedoWakeNm:Number.isFinite(meta.torpedoWakeNm)?Math.max(0,meta.torpedoWakeNm):0,torpedoWakeVisible:!!meta.torpedoWakeVisible
+      torpedoWakePath:clone(meta.torpedoWakePath||[]),torpedoWakeNm:Number.isFinite(meta.torpedoWakeNm)?Math.max(0,meta.torpedoWakeNm):0,torpedoWakeVisible:!!meta.torpedoWakeVisible
     };
   }
   startImpactObservation(snapshot){

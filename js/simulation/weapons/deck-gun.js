@@ -4,12 +4,41 @@ class SimEngineDeckGun extends SimEngineAircraft {
     return id?this.state.world.contacts.find(c=>c.id===id&&!c.sunk):null;
   }
 
-  deckGunElevationFor(rangeM,v=820,y=2){
-    if(rangeM<20) return 0;
-    const g=9.80665,v2=v*v;
-    const disc=v2*v2-g*(g*rangeM*rangeM+2*y*v2);
-    if(disc<=0) return null;
-    return radToDeg(Math.atan((v2-Math.sqrt(disc))/(g*rangeM)));
+  deckGunBallisticSolution(rangeM,v=820,targetZM=3){
+    if(rangeM<20)return{elevation:0,timeSec:rangeM/Math.max(1,v)};
+    // LAY must use the same light-drag model as the live shell. The previous
+    // vacuum formula was increasingly short at long range (about 0.35 nm at
+    // 4.9 nm), so the sight could say LAY while every correctly aimed round
+    // fell well short. Solve the low-angle branch numerically; LAY is an
+    // occasional command, so this small calculation is cheap even on mobile.
+    const sample=elev=>{
+      const dt=.05,er=degToRad(elev),barrelM=5.6;
+      let x=0,z=5.6+Math.sin(er)*barrelM,vx=v*Math.cos(er),vz=v*Math.sin(er),t=0;
+      let px=x,pz=z;
+      while(t<26&&z>-120){
+        px=x;pz=z;
+        const drag=Math.exp(-dt*.012);vx*=drag;vz=vz*drag-9.80665*dt;
+        x+=vx*dt;z+=vz*dt;t+=dt;
+        if(x>=rangeM){
+          const f=clamp((rangeM-px)/Math.max(.001,x-px),0,1);
+          return{height:lerp(pz,z,f),timeSec:t-dt+dt*f};
+        }
+        if(z<0&&x<rangeM)return{height:-999,timeSec:t};
+      }
+      return{height:-999,timeSec:t};
+    };
+    const hiTest=sample(22);if(hiTest.height<targetZM)return null;
+    let lo=0,hi=22,mid=0,sol=hiTest;
+    for(let i=0;i<18;i++){
+      mid=(lo+hi)/2;const q=sample(mid);
+      if(q.height>=targetZM){hi=mid;sol=q;}else lo=mid;
+    }
+    const elevation=(lo+hi)/2,final=sample(elevation);
+    return{elevation,timeSec:final.timeSec};
+  }
+
+  deckGunElevationFor(rangeM,v=820,y=3){
+    return this.deckGunBallisticSolution(rangeM,v,y)?.elevation??null;
   }
 
   layDeckGun(){
@@ -20,16 +49,19 @@ class SimEngineDeckGun extends SimEngineAircraft {
     if(r0>Math.max(5,this.state.world.environment.visibilityNm*1.05)){this.notify('Target is beyond useful visual gun range.','warn');return;}
     // Iterate flight time and target motion. This is a crew estimate, not magic
     // aim assist: sea state and dispersion still have to be bracketed by eye.
-    let pred={...c.position}, tof=r0*NM_M/820;
+    let pred={...c.position},tof=r0*NM_M/820,ballistic=null;
     for(let i=0;i<3;i++){
-      const d=knotsNmSec(c.speedKnots||0)*tof, rr=degToRad(c.heading||0);
+      const d=knotsNmSec(c.speedKnots||0)*tof,rr=degToRad(c.heading||0);
       pred={xNm:c.position.xNm+Math.sin(rr)*d,yNm:c.position.yNm-Math.cos(rr)*d};
-      tof=distNm(sub.position,pred)*NM_M/820;
+      ballistic=this.deckGunBallisticSolution(distNm(sub.position,pred)*NM_M,820,3);
+      if(!ballistic)break;
+      tof=ballistic.timeSec;
     }
     const br=bearingBetween(sub.position,pred), rel=shortDelta(sub.heading,br);
     if(Math.abs(rel)>140){this.notify(`Target bears ${fmtDeg(br)} — outside the deck gun's training arc. Turn the boat.`,'warn');return;}
     const rangeM=distNm(sub.position,pred)*NM_M;
-    const el=this.deckGunElevationFor(rangeM,820,3);
+    ballistic=this.deckGunBallisticSolution(rangeM,820,3);
+    const el=ballistic?.elevation??null;
     if(el==null||el>22){this.notify('No practical deck-gun elevation solution at this range.','warn');return;}
     G.trainDeg=clamp(rel,-140,140);G.elevationDeg=clamp(el,0,22);
     this.notify(`Gun laid on ${c.id}: bearing ${fmtDeg(br)}, range ${r0.toFixed(1)} nm. Fire and watch the fall of shot.`,'ok');

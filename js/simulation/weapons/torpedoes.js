@@ -86,7 +86,11 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       willDud, dudRoll:Math.random(), glanceRoll:Math.random(),
       dudChance, isElectric:tdc.torpedoSpecKey==='mk18',
       acousticPenalty:spec.acousticPenalty,
-      runDepthFt:tdc.torpedoRunDepthFt??10
+      runDepthFt:tdc.torpedoRunDepthFt??10,
+      // Keep a short real world-space trail for cinematic presentation and
+      // diagnostics. It is sampled sparsely and capped, so even a full salvo is
+      // negligible compared with the rest of the simulation state.
+      wakeTrail:tdc.torpedoSpecKey==='mk18'?[]:[{...sub.position}]
     });
     this.aarTorpedoLaunch?.(W.activeTorpedoes[W.activeTorpedoes.length-1]);
     t.status='EMPTY'; t.flooded=false; t.reloadProgress=0;
@@ -130,6 +134,61 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       (ahead?' Aim further astern — you led her too much.':astern?' Aim further ahead — you did not lead her enough.':''),'warn');
   }
 
+
+  sampleTorpedoWake(t,force=false){
+    if(t.isElectric)return;
+    const trail=t.wakeTrail||(t.wakeTrail=[]),last=trail[trail.length-1];
+    if(force||!last||distNm(last,t.position)>=.012){
+      trail.push({...t.position});
+      if(trail.length>72)trail.splice(0,trail.length-72);
+    }
+  }
+
+  torpedoWakeForImpact(t,maxNm=.48){
+    if(t.isElectric)return[];
+    this.sampleTorpedoWake(t,true);
+    const src=t.wakeTrail||[];if(src.length<2)return src.map(p=>({...p}));
+    const out=[{...src[src.length-1]}];let acc=0;
+    for(let i=src.length-2;i>=0;i--){
+      acc+=distNm(src[i],src[i+1]);out.push({...src[i]});
+      if(acc>=maxNm)break;
+    }
+    return out.reverse();
+  }
+
+  torpedoShipSweepHit(t,prevPos,c){
+    const prev=c._collisionPrev||{},ship0=prev.position||c.position,ship1=c.position;
+    const h0=Number.isFinite(prev.heading)?prev.heading:(c.heading||0),h1=c.heading||h0;
+    const midH=normDeg(h0+shortDelta(h0,h1)*.5),H=shipHull(c,c.position,midH);
+    if(c.id===t.targetId){
+      const aq=clamp(((t.launchSolutionQuality??0)-.55)/.40,0,1),pad=.0022*aq;
+      H.halfLengthNm+=pad;H.halfBeamNm+=pad;
+    }
+    // Convert the fish's world segment into ship-relative motion. This catches
+    // a 46-knot torpedo crossing a narrow beam between one-second integration
+    // samples and keeps a hard-turning target's moving hull in the equation.
+    const a={xNm:c.position.xNm+(prevPos.xNm-ship0.xNm),yNm:c.position.yNm+(prevPos.yNm-ship0.yNm)};
+    const b={xNm:c.position.xNm+(t.position.xNm-ship1.xNm),yNm:c.position.yNm+(t.position.yNm-ship1.yNm)};
+    const hit=HullGeometry.segmentHullIntersection(a,b,H);if(!hit)return null;
+    const u=clamp(hit.u,0,1),shipPos={xNm:lerp(ship0.xNm,ship1.xNm,u),yNm:lerp(ship0.yNm,ship1.yNm,u)};
+    const shipHeading=normDeg(h0+shortDelta(h0,h1)*u),hr=degToRad(shipHeading),fx=Math.sin(hr),fy=-Math.cos(hr),px=-fy,py=fx;
+    const fish={xNm:lerp(prevPos.xNm,t.position.xNm,u),yNm:lerp(prevPos.yNm,t.position.yNm,u)};
+    let along=(fish.xNm-shipPos.xNm)*fx+(fish.yNm-shipPos.yNm)*fy;
+    let lateral=(fish.xNm-shipPos.xNm)*px+(fish.yNm-shipPos.yNm)*py;
+    const base=shipHull(c,shipPos,shipHeading),halfL=H.halfLengthNm,halfB=H.halfBeamNm;
+    // Snap the presentation point to the nearest physical plating boundary.
+    // Padding may have been used for a high-quality intended shot, but the
+    // visible detonation itself must still sit on the real hull, never metres
+    // ahead of the bow or clear of the beam.
+    along=clamp(along,-base.halfLengthNm,base.halfLengthNm);
+    lateral=clamp(lateral,-base.halfBeamNm,base.halfBeamNm);
+    const endGap=base.halfLengthNm-Math.abs(along),sideGap=base.halfBeamNm-Math.abs(lateral);
+    if(endGap<sideGap)along=(along<0?-1:1)*base.halfLengthNm;
+    else lateral=(lateral<0?-1:1)*base.halfBeamNm;
+    const impactPosition={xNm:shipPos.xNm+fx*along+px*lateral,yNm:shipPos.yNm+fy*along+py*lateral};
+    return{u,shipPosition:shipPos,shipHeading,impactPosition,along,lateral,lenNm:base.halfLengthNm*2,halfL,halfB};
+  }
+
   updateTorpedoes(dt){
     const W=this.state.weapons;
     for(const t of W.activeTorpedoes){
@@ -140,9 +199,10 @@ class SimEngineTorpedoes extends SimEngineHarbor {
         const lim=(t.turnRateDeg||5.4)*dt;
         t.heading=normDeg(t.heading+clamp(dd,-lim,lim));
       }
+      const prevPos={...t.position};
       const d=knotsNmSec(t.speedKnots)*dt; const r=degToRad(t.heading);
       t.position.xNm+=Math.sin(r)*d; t.position.yNm-=Math.cos(r)*d;
-      t.rangeRunNm+=d; t.ageSec+=dt;
+      t.rangeRunNm+=d; t.ageSec+=dt;this.sampleTorpedoWake(t);
       if(t.rangeRunNm>=t.maxRangeNm){t.status='EXPIRED';this.aarTorpedoFinish?.(t,'EXPIRED');this.reportMiss(t,true);continue;}
       if(t.rangeRunNm<t.armedAfterNm) continue;
       if(this.harborTorpedoNetHit(t.position)){
@@ -162,36 +222,22 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       let near=null;
       for(const c of this.state.world.contacts){
         if(c.sunk) continue;
-        const lenNm=(c.lengthYards||400)*0.9144/1852;
-        let halfL=lenNm*0.5, halfB=lenNm/(isSurfaceCombatant(c)?11:7.2)*0.5;
-        // A few metres of integration/fuze tolerance on the intended target
-        // prevents a mathematically excellent shot missing by one pixel-step
-        // or by the short post-launch gyro transient. It is intentionally far
-        // smaller than the ship's beam and applies only to a good TDC track.
-        if(c.id===t.targetId){
-          const aq=clamp(((t.launchSolutionQuality??0)-.55)/.40,0,1),pad=.0022*aq;
-          halfL+=pad;halfB+=pad;
-        }
-        const hRad=degToRad(c.heading);
-        const fx=Math.sin(hRad), fy=-Math.cos(hRad);          // ship forward unit
-        const px=-fy, py=fx;                                   // ship starboard unit
-        const dx=t.position.xNm-c.position.xNm, dy=t.position.yNm-c.position.yNm;
-        const along=dx*fx+dy*fy, lateral=dx*px+dy*py;
-        const gap=Math.hypot(Math.max(0,Math.abs(along)-halfL),
-                             Math.max(0,Math.abs(lateral)-halfB));
-        if(!near||gap<near.gap) near={c,gap,along,lateral,halfL,halfB,fx,fy,px,py,lenNm};
-        if(gap>0) continue;
+        const H=shipHull(c),hRad=degToRad(c.heading||0),fx=Math.sin(hRad),fy=-Math.cos(hRad),px=-fy,py=fx;
+        const dx=t.position.xNm-c.position.xNm,dy=t.position.yNm-c.position.yNm;
+        const alongNow=dx*fx+dy*fy,lateralNow=dx*px+dy*py;
+        const gap=Math.hypot(Math.max(0,Math.abs(alongNow)-H.halfLengthNm),Math.max(0,Math.abs(lateralNow)-H.halfBeamNm));
+        if(!near||gap<near.gap)near={c,gap,along:alongNow,lateral:lateralNow,halfL:H.halfLengthNm,halfB:H.halfBeamNm};
+        const swept=this.torpedoShipSweepHit(t,prevPos,c);if(!swept)continue;
         {
-          const hitPos={xNm:c.position.xNm+fx*along+px*Math.sign(lateral||1)*halfB,
-                        yNm:c.position.yNm+fy*along+py*Math.sign(lateral||1)*halfB};
-          t.position={...hitPos};
+          const {impactPosition,shipPosition,shipHeading,along,lateral,lenNm}=swept;
+          t.position={...impactPosition};this.sampleTorpedoWake(t,true);
           /* ── IMPACT MODEL ──────────────────────────────────────────────
              Where along the hull did she strike, and at what angle?
              The impact point is the torpedo position projected onto the
              ship's fore-and-aft line; the track angle decides whether the
              fish detonates, glances off, or crushes her own exploder.   */
           const hitFrac=clamp(along/lenNm,-0.5,0.5);        // -0.5 stern … +0.5 bow
-          const angOff=Math.abs(shortDelta(t.heading,c.heading));
+          const angOff=Math.abs(shortDelta(t.heading,shipHeading));
           const incidence=Math.min(angOff,180-angOff);      // 90° = square hit on the beam
           const where=hitFrac>0.22?'bow':hitFrac<-0.22?'stern':'amidships';
           if(c.harborTarget) this.noteHarborAttack?.(c);
@@ -229,7 +275,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             audio.playDud();
           } else {
             t.status='HIT';this.aarTorpedoFinish?.(t,'HIT',c.id);
-            const beforeShip=this.captureImpactShipState?.(c);
+            const beforeShip=this.captureImpactShipState?.(c);if(beforeShip)beforeShip.heading=shipHeading;
             c.hitFrac=hitFrac;c.hitSide=lateral>=0?1:-1;
             const dmg=applyTorpedoShipDamage(this,c,{hitFrac,hitSide:c.hitSide,incidence,
               warheadKg:spec.warheadKg||292,torpedoId:t.id,specKey:t.specKey});
@@ -246,9 +292,10 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             const condition=shipDamageCondition(c);
             this.aarRecordEvent?.('TORPEDO_HIT',`${t.id} hit ${c.name} ${dmg.location.toLowerCase()}.`,
               {torpedoId:t.id,contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,location:dmg.location,
-               incidenceDeg:Math.round(incidence),condition,weapon:'TORPEDO'},this.state.playerSub.position,c.position);
+               incidenceDeg:Math.round(incidence),condition,weapon:'TORPEDO'},this.state.playerSub.position,shipPosition);
             this.offerImpactObservation?.(c,{weapon:'TORPEDO',location:dmg.location,condition,beforeShip,impactPosition:{...t.position},
-              torpedoHeading:t.heading,torpedoWakeNm:Math.min(.48,Math.max(.10,t.rangeRunNm||0)),torpedoWakeVisible:!t.isElectric});
+              targetPosition:{...shipPosition},targetHeading:shipHeading,torpedoHeading:t.heading,
+              torpedoWakePath:this.torpedoWakeForImpact(t,.48),torpedoWakeNm:Math.min(.48,Math.max(.10,t.rangeRunNm||0)),torpedoWakeVisible:!t.isElectric});
             if(!c.sunk){
               const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));
               const sum=shipDamageSummary(c);
