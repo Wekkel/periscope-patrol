@@ -43,7 +43,12 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const range=Math.max(.05,Number(obs.rangeNm)||distNm(obs.viewerPos||state.playerSub.position,obs.position));
     const lenM=Math.max(35,(Number(obs.lengthYards)||300)*.9144);
     const angular=radToDeg(Math.atan2(lenM,range*NM_M));
-    const fov=clamp(angular*5.5,7,24);
+    // Crash-zoom into the casualty rather than merely changing to another wide
+    // optic. Typical targets occupy roughly a third to half of the frame.
+    const targetFov=clamp(angular*2.4,3.2,12.5);
+    const startFov=clamp(Math.max(targetFov*1.65,Math.min(Number(obs.originFov)||24,28)),targetFov,28);
+    const zoomIn=phaseSmooth01(clamp(age/.72,0,1));
+    const fov=lerp(startFov,targetFov,zoomIn);
     const cx=w/2,cy=this.portrait?h*.46:h*.50,r=Math.max(w,h)*.72;
     const cinematicDepth=obs.originStation==='BRIDGE'?0:Math.min(Number(obs.viewerDepth)||55,55);
     const sub={...state.playerSub,position:{...(obs.viewerPos||state.playerSub.position)},depthFeet:cinematicDepth,heading:obs.viewerHeading??state.playerSub.heading};
@@ -85,9 +90,22 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       ctx.save();ctx.globalCompositeOperation='screen';
       const g=ctx.createRadialGradient(ip.x,ip.y,0,ip.x,ip.y,rr);g.addColorStop(0,`rgba(255,244,188,${a})`);g.addColorStop(.22,`rgba(255,178,72,${a*.58})`);g.addColorStop(1,'rgba(255,122,38,0)');
       ctx.fillStyle=g;ctx.fillRect(ip.x-rr,ip.y-rr,rr*2,rr*2);
-      const ey=Math.min(h,ip.y+Math.max(70*k,(h-ip.y)*.82)),half=clamp((ey-ip.y)*.14,18*k,w*.16);
-      const rg=ctx.createLinearGradient(ip.x,ip.y,w/2,ey);rg.addColorStop(0,`rgba(255,207,116,${a*.32})`);rg.addColorStop(1,'rgba(255,140,54,0)');ctx.fillStyle=rg;
-      ctx.beginPath();ctx.moveTo(ip.x-3*k,ip.y);ctx.lineTo(w/2-half,ey);ctx.lineTo(w/2+half,ey);ctx.lineTo(ip.x+3*k,ip.y);ctx.closePath();ctx.fill();ctx.restore();
+      // Broad ambient bloom plus a wide sea reflection. The hot source stays at
+      // the actual impact point, but the flash illuminates much more than one
+      // narrow line towards the observer.
+      const broadR=Math.max(rr*2.4,Math.hypot(w,h)*.48);
+      const bg=ctx.createRadialGradient(ip.x,ip.y,rr*.10,ip.x,ip.y,broadR);
+      bg.addColorStop(0,`rgba(255,211,128,${a*.20})`);bg.addColorStop(.48,`rgba(255,150,70,${a*.07})`);bg.addColorStop(1,'rgba(255,115,40,0)');
+      ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+      const ey=Math.min(h,ip.y+Math.max(80*k,(h-ip.y)*.86)),dy=ey-ip.y;
+      const rg=ctx.createLinearGradient(ip.x,ip.y,w/2,ey);rg.addColorStop(0,`rgba(255,215,132,${a*.26})`);rg.addColorStop(.48,`rgba(255,163,78,${a*.12})`);rg.addColorStop(1,'rgba(255,132,50,0)');ctx.fillStyle=rg;
+      for(const pass of [{near:7*k,half:clamp(dy*.25,28*k,w*.30),alpha:1},{near:16*k,half:clamp(dy*.43,48*k,w*.45),alpha:.35}]){
+        ctx.globalAlpha=pass.alpha;ctx.beginPath();ctx.moveTo(ip.x-pass.near,ip.y);
+        ctx.quadraticCurveTo(lerp(ip.x,w/2,.50)-pass.half*.30,lerp(ip.y,ey,.55),w/2-pass.half,ey);
+        ctx.lineTo(w/2+pass.half,ey);
+        ctx.quadraticCurveTo(lerp(ip.x,w/2,.50)+pass.half*.30,lerp(ip.y,ey,.55),ip.x+pass.near,ip.y);ctx.closePath();ctx.fill();
+      }
+      ctx.globalAlpha=1;ctx.restore();
     }
 
     const bw=Math.min(w-18*k,430*k),bh=44*k,x=(w-bw)/2,y=10*k;
@@ -95,7 +113,27 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     ctx.fillStyle='rgba(245,198,92,.96)';ctx.font=this.fnt(9,true);ctx.textAlign='center';
     ctx.fillText(`IMPACT OBSERVATION · ${String(obs.weapon||'TORPEDO').replace(/_/g,' ')} HIT`,w/2,y+16*k);
     ctx.fillStyle='rgba(220,238,229,.92)';ctx.font=this.fnt(8.5);ctx.fillText(`${obs.name||obs.contactId||'TARGET'} · ${range.toFixed(2)} nm${obs.location?` · ${String(obs.location).toUpperCase()}`:''}`,w/2,y+31*k);ctx.textAlign='left';
-    const fade=clamp((duration-age)/.45,0,1);if(fade<1){ctx.fillStyle=`rgba(2,7,9,${1-fade})`;ctx.fillRect(0,0,w,h);}
+
+    // Make the tactical consequence legible in the cinematic itself. MAP can
+    // still carry the detailed labels afterwards, but the player should not
+    // have to leave the impact view to discover whether the ship is merely
+    // damaged, crippled, foundering or already sinking.
+    if(age>.55){
+      const D=obs.shipDamage||target.shipDamage||{},condition=String(obs.sunk?'SINKING':(obs.condition||'DAMAGED')).toUpperCase();
+      const severe=/SINKING|FOUNDERING|ABANDONED/.test(condition),crippled=/CRIPPLED|DEAD IN WATER|BURNING/.test(condition);
+      const items=[];
+      if((D.flotation||0)>.15)items.push(`FLOT ${Math.round((D.flotation||0)*100)}%`);
+      if((D.propulsion||0)>.15)items.push(`PROP ${Math.round((D.propulsion||0)*100)}%`);
+      if((D.fire||0)>.15)items.push(`FIRE ${Math.round((D.fire||0)*100)}%`);
+      if((D.steering||0)>.22)items.push(`STEER ${Math.round((D.steering||0)*100)}%`);
+      const ow=Math.min(w-20*k,390*k),oh=items.length?43*k:29*k,ox=(w-ow)/2,oy=h-oh-14*k;
+      ctx.fillStyle='rgba(3,10,12,.84)';this.rr(ctx,ox,oy,ow,oh,6*k);ctx.fill();
+      ctx.textAlign='center';ctx.font=this.fnt(10,true);ctx.fillStyle=severe?'#ff8b68':crippled?'#f5c65c':'#a9e7bd';
+      ctx.fillText(`DAMAGE ASSESSMENT · ${condition}`,w/2,oy+17*k);
+      if(items.length){ctx.font=this.fnt(8);ctx.fillStyle='rgba(220,238,229,.88)';ctx.fillText(items.slice(0,3).join(' · '),w/2,oy+33*k);}
+      ctx.textAlign='left';
+    }
+    const fade=clamp((duration-age)/.55,0,1);if(fade<1){ctx.fillStyle=`rgba(2,7,9,${1-fade})`;ctx.fillRect(0,0,w,h);}
     ctx.restore();
   }
 

@@ -159,18 +159,51 @@ class CanvasViewCore{
     }
     if(!hit||fade<=0)return;
     const p=this.proj(cam,hit.xNm*NM_M,-hit.yNm*NM_M,zM);if(!p)return;
-    const rr=clamp((32+7600/Math.max(90,p.d))*k,30*k,130*k),a=clamp(fade*power,0,1);
+    const rr=clamp((36+8200/Math.max(90,p.d))*k,34*k,145*k),a=clamp(fade*power,0,1);
     ctx.save();ctx.globalCompositeOperation='screen';
-    const glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
-    glow.addColorStop(0,`rgba(255,247,198,${a*.72})`);glow.addColorStop(.2,`rgba(255,190,82,${a*.48})`);glow.addColorStop(1,'rgba(255,128,38,0)');
+
+    // Hot local source at the shell impact. This is intentionally compact; the
+    // much broader atmospheric bloom below is what makes the whole scene react
+    // to a nearby gun blast instead of drawing a luminous tube at the viewer.
+    let glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
+    glow.addColorStop(0,`rgba(255,250,214,${a*.78})`);
+    glow.addColorStop(.16,`rgba(255,197,92,${a*.52})`);
+    glow.addColorStop(.55,`rgba(255,128,42,${a*.16})`);
+    glow.addColorStop(1,'rgba(255,104,28,0)');
     ctx.fillStyle=glow;ctx.fillRect(p.x-rr,p.y-rr,rr*2,rr*2);
-    // Perspective reflection: narrow at the impact, widening toward the boat.
-    // This illuminates the intervening water instead of tinting the whole UI.
-    const ey=Math.min(h,p.y+Math.max(70*k,(h-p.y)*.76)),half=clamp((ey-p.y)*.13,14*k,w*.14);
+
+    // A blast is a point light radiating in every direction. Let a weak, very
+    // broad bloom lift the sky/sea around the target so the effect reads as an
+    // explosion in the world, not a spotlight aimed only at the submarine.
+    const broadR=Math.max(rr*2.7,Math.hypot(w,h)*.62);
+    glow=ctx.createRadialGradient(p.x,p.y,rr*.12,p.x,p.y,broadR);
+    glow.addColorStop(0,`rgba(255,210,126,${a*.22})`);
+    glow.addColorStop(.30,`rgba(255,159,72,${a*.12})`);
+    glow.addColorStop(.68,`rgba(255,120,46,${a*.045})`);
+    glow.addColorStop(1,'rgba(255,105,35,0)');
+    ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
+
+    // Water still reflects preferentially along the observer/impact line, but
+    // as a broad feathered fan rather than the former narrow triangular tube.
+    const ey=Math.min(h,p.y+Math.max(90*k,(h-p.y)*.84));
     if(ey>p.y+8*k){
-      const rg=ctx.createLinearGradient(p.x,p.y,w/2,ey);
-      rg.addColorStop(0,`rgba(255,210,124,${a*.25})`);rg.addColorStop(1,'rgba(255,142,48,0)');ctx.fillStyle=rg;
-      ctx.beginPath();ctx.moveTo(p.x-3*k,p.y);ctx.lineTo(w/2-half,ey);ctx.lineTo(w/2+half,ey);ctx.lineTo(p.x+3*k,p.y);ctx.closePath();ctx.fill();
+      const dy=ey-p.y,rg=ctx.createLinearGradient(p.x,p.y,w/2,ey);
+      rg.addColorStop(0,`rgba(255,222,148,${a*.24})`);
+      rg.addColorStop(.42,`rgba(255,168,82,${a*.13})`);
+      rg.addColorStop(1,'rgba(255,126,46,0)');
+      for(const pass of [
+        {near:8*k,half:clamp(dy*.24,28*k,w*.28),alpha:1},
+        {near:15*k,half:clamp(dy*.38,44*k,w*.40),alpha:.52},
+        {near:24*k,half:clamp(dy*.52,60*k,w*.48),alpha:.24}
+      ]){
+        ctx.globalAlpha=pass.alpha;ctx.fillStyle=rg;ctx.beginPath();
+        ctx.moveTo(p.x-pass.near,p.y);
+        ctx.quadraticCurveTo(lerp(p.x,w/2,.48)-pass.half*.34,lerp(p.y,ey,.54),w/2-pass.half,ey);
+        ctx.lineTo(w/2+pass.half,ey);
+        ctx.quadraticCurveTo(lerp(p.x,w/2,.48)+pass.half*.34,lerp(p.y,ey,.54),p.x+pass.near,p.y);
+        ctx.closePath();ctx.fill();
+      }
+      ctx.globalAlpha=1;
     }
     ctx.restore();
   }

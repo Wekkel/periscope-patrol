@@ -106,7 +106,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     const hr=degToRad(c.heading||0),fx=Math.sin(hr),fy=-Math.cos(hr),sx=Math.cos(hr),sy=Math.sin(hr);
     const impactPos={xNm:c.position.xNm+fx*(hit.along||0)+sx*(hit.lateral||0),yNm:c.position.yNm+fy*(hit.along||0)+sy*(hit.lateral||0)};
     const impactZ=Math.max(.2,hit.z||3.5),now=this.state.time.elapsedSeconds;
-    G.impactFlash={position:{...impactPos},zM:impactZ,startedAt:now,until:now+.90,power:1};
+    G.impactFlash={position:{...impactPos},zM:impactZ,startedAt:now,until:now+1.15,power:1};
     this.state.weapons.explosions.push({position:{...impactPos},zM:impactZ,ageSec:0,maxAgeSec:5,label:'GUN HIT'});
     particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);audio.playHit?.();
     this.alertEscorts('SHIP_HIT',{...c.position},1);
