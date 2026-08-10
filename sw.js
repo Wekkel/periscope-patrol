@@ -93,12 +93,35 @@ const SHELL = [
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
-    // addAll is all-or-nothing; add one at a time so a single missing
-    // icon cannot stop the whole install.
-    await Promise.all(SHELL.map(url =>
-      cache.add(new Request(url, { cache: 'reload' })).catch(() => {})
-    ));
+
+    // Runtime/app-shell files are mandatory. If one of these cannot be
+    // cached, installation of this service worker must fail rather than
+    // activating an incomplete offline version.
+    const OPTIONAL_SHELL = new Set([
+      './icon-192.png',
+      './icon-512.png',
+      './icon-maskable-512.png',
+      './apple-touch-icon.png'
+    ]);
+
+    const required = SHELL.filter(url => !OPTIONAL_SHELL.has(url));
+    const optional = SHELL.filter(url => OPTIONAL_SHELL.has(url));
+
+    await Promise.all(
+      required.map(url =>
+        cache.add(new Request(url, { cache: 'reload' }))
+      )
+    );
+
+    // Icons are non-critical: failure to cache one should not prevent
+    // installation of an otherwise complete game.
+    await Promise.all(
+      optional.map(url =>
+        cache.add(new Request(url, { cache: 'reload' })).catch(() => {})
+      )
+    );
   })());
+
   // Do NOT skipWaiting here. A boat halfway through a patrol should not have
   // the deck swapped under her; the new worker waits until the player agrees
   // to reload (see the SKIP_WAITING message below) or closes every tab.
