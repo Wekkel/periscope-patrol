@@ -12,6 +12,7 @@ function _aarPush(a,v,max){a.push(v);if(a.length>max)a.splice(0,a.length-max);}
 function _aarTimelinePush(a,v,max){a.push(v);if(a.length>max){const q=a.filter((_,i)=>i%2===0||i===a.length-1);a.splice(0,a.length,...q);}}
 function _aarPos(p){return p&&Number.isFinite(p.xNm)&&Number.isFinite(p.yNm)?{xNm:+p.xNm,yNm:+p.yNm}:null;}
 function _aarSourceCode(src){src=String(src||'').toUpperCase();return src==='VISUAL'?1:src.includes('SJ')||src.includes('RADAR')?2:src.includes('QC')||src.includes('ECHO')?3:src.includes('TRIANG')?4:src.includes('SOUND')||src.includes('HYDRO')?5:0;}
+function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c.type);}
 
 (function installAfterActionRecorder(){
   if(typeof SimEngine==='undefined')return;
@@ -27,8 +28,27 @@ function _aarSourceCode(src){src=String(src||'').toUpperCase();return src==='VIS
 
     aarRecordEvent(type,text,data={},position=null,targetPosition=null){
       const A=this.ensureAfterActionReport(),s=this.state,t=s.time.elapsedSeconds||0;
-      const p=_aarPos(position)||_aarPos(s.playerSub?.position),tp=_aarPos(targetPosition);
-      const ev={t,type:String(type||'EVENT'),text:String(text||type||'Event'),position:p,targetPosition:tp,data:_aarClone(data||{})};
+      const p=_aarPos(position)||_aarPos(s.playerSub?.position),tp=_aarPos(targetPosition),d=_aarClone(data||{});
+      // Preserve a small tactical snapshot on combat events. The AAR no longer
+      // needs a fragile animated replay, but these values make a useful static
+      // debrief possible: range, target speed/size, weather and nearby escorts.
+      const cid=d.contactId||d.targetId,target=cid?(s.world.contacts||[]).find(c=>c?.id===cid):null;
+      if(target){
+        const q=tp||_aarPos(target.position),env=s.world.environment||{};
+        if(!Number.isFinite(d.rangeNm)&&p&&q)d.rangeNm=+distNm(p,q).toFixed(3);
+        if(!Number.isFinite(d.targetSpeedKnots))d.targetSpeedKnots=+(target.speedKnots||0).toFixed(1);
+        if(!Number.isFinite(d.targetHeading))d.targetHeading=+(target.heading||0).toFixed(1);
+        if(!Number.isFinite(d.lengthFeet))d.lengthFeet=Number(target.lengthYards)||0; // legacy field is authored in feet
+        if(!Number.isFinite(d.tons))d.tons=Number(target.tonsFactor)||0;
+        if(d.targetType==null)d.targetType=target.displayType||target.type||'SHIP';
+        if(d.targetAlerted==null)d.targetAlerted=!!(target.scattering||target.alertedAt&&(t-target.alertedAt)<300);
+        if(d.targetCombatant==null)d.targetCombatant=_aarCombatant(target);
+        if(!Number.isFinite(d.seaState))d.seaState=+(env.seaState||0).toFixed(2);
+        if(!Number.isFinite(d.visibilityNm))d.visibilityNm=+(env.visibilityNm||0).toFixed(1);
+        if(!Number.isFinite(d.daylight))d.daylight=+(env.daylight??1).toFixed(2);
+        if(!Number.isFinite(d.escortThreat)&&q)d.escortThreat=(s.world.contacts||[]).filter(x=>x?.id!==target.id&&_aarCombatant(x)&&x.position&&distNm(x.position,q)<=4.5).length;
+      }
+      const ev={t,type:String(type||'EVENT'),text:String(text||type||'Event'),position:p,targetPosition:tp,data:d};
       const k=data?.aarKey||data?.key;if(k&&A.events.some(x=>x.key===k))return null;if(k)ev.key=k;
       _aarPush(A.events,ev,AAR_MAX_EVENTS);return ev;
     },

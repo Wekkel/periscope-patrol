@@ -92,6 +92,11 @@ class SimEngineCore{
       this.updateSub(sdt);
       this.state.time.elapsedSeconds+=sdt;
       this.state.campaign.patrolDuration+=sdt;
+      // A cinematic impact freezes time from the hit onward. At high time
+      // compression `steps` was calculated before the hit, so without this
+      // guard the engine could still execute several already-scheduled slices
+      // after startImpactObservation() had set timeScale to zero.
+      if(this.state.tactical?.impactObservation&&this.state.time.timeScale===0)break;
     }
     if(this.state.campaign.missionStatus==='LOST')this.finalizePatrol?.('LOST',{reason:'boat lost'});
   }

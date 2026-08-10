@@ -217,31 +217,18 @@
     </div>
     <div id="aarStats" class="aar-stats"></div>
     <div class="aar-main">
-      <div class="aar-map-wrap">
-        <canvas id="aarCanvas"></canvas>
-        <div class="aar-controls">
-          <button id="aarPlay">▶ PLAY</button>
-          <button id="aarPrevAction">◀ PREV ACTION</button>
-          <input id="aarTimeline" type="range" min="0" max="1" step="1" value="1">
-          <span id="aarTime">T+00:00</span>
-          <button id="aarNextAction">NEXT ACTION ▶</button>
-          <button id="aarIntel">SHOW INTELLIGENCE PICTURE</button>
+      <section class="aar-debrief">
+        <div id="aarMission" class="aar-mission"></div>
+        <div class="aar-section-head">
+          <div><span>ENGAGEMENT RECORD</span><small>Swipe or use the arrows to review damaged and sunk ships.</small></div>
+          <div class="aar-engagement-nav"><button id="aarEngagementPrev" aria-label="Previous engagement">‹</button><b id="aarEngagementCounter">0 / 0</b><button id="aarEngagementNext" aria-label="Next engagement">›</button></div>
         </div>
-        <div class="aar-camera-controls">
-          <button id="aarZoomOut">− ZOOM</button>
-          <button id="aarAutoCam" class="on">AUTO CAMERA</button>
-          <button id="aarZoomIn">+ ZOOM</button>
-          <button id="aarFit">FIT PATROL</button>
-          <span class="aar-cam-note">PLAY follows the boat and crash-zooms key moments</span>
-        </div>
-        <div class="aar-legend">
-          <span>— own route</span><span>◇ contact plot / uncertain track</span><span>↗ torpedo or gun attack</span><span>✕ sinking / kill</span><span>✺ damage / depth-charge event</span><span>△ aircraft event</span><span id="aarIntelLegend" style="display:none">— true enemy tracks</span>
-        </div>
-        <div id="aarNow" class="aar-now">Move the timeline or press PLAY to review the patrol. Event summaries appear here.</div>
-      </div>
-      <div class="aar-log"><h3>CAPTAIN'S LOG</h3><div id="aarCaptainLog"></div></div>
+        <div id="aarEngagementPanel" class="aar-engagement-panel"><div id="aarEngagements"></div></div>
+        <div id="aarPatrolHonors" class="aar-honors"></div>
+      </section>
+      <aside class="aar-log"><h3>CAPTAIN'S LOG</h3><div id="aarCaptainLog"></div></aside>
     </div>
-    <div class="aar-foot"><button id="aarContinue">CONTINUE TO WAR RECORD</button></div>
+    <div class="aar-foot"><span>Static debrief · no replay simulation</span><button id="aarContinue">CONTINUE TO WAR RECORD</button></div>
   </div>
 </div>
 

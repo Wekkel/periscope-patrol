@@ -21,6 +21,75 @@ function _careerPatrolId(c){
   return `legacy:${c.patrolNumber||1}:${c.patrolArea||'UNKNOWN'}:${c.scenarioSeed||1}:${c.startDate||'1943-08-17'}`;
 }
 
+function _careerRarity(c){
+  const id=String(c?.displayType||c?.type||'SHIP').toUpperCase();
+  let score=25;
+  if(/FLEET CARRIER/.test(id))score=98;
+  else if(/LIGHT CARRIER|CARRIER/.test(id))score=92;
+  else if(/CRUISER|BATTLESHIP/.test(id))score=87;
+  else if(/TROOP TRANSPORT|FLEET OILER/.test(id))score=78;
+  else if(['ESCORT','WARSHIP'].includes(c?.type))score=66;
+  else if(c?.type==='TANKER'||/TANKER|OILER/.test(id))score=55;
+  else if(c?.type==='PATROL_CRAFT')score=40;
+  else if(/SAMPAN|JUNK|FISHING|RAFT/.test(id))score=15;
+  if(c?.harborTarget)score=Math.min(99,score+8);
+  if(c?.missionRole==='HIGH_VALUE_TARGET')score=Math.min(99,score+8);
+  const label=score>=92?'VERY RARE':score>=76?'RARE':score>=48?'UNCOMMON':'COMMON';
+  return{score,label};
+}
+function _careerDifficultyLabel(score){return score>=88?'EXCEPTIONAL':score>=73?'VERY DIFFICULT':score>=55?'DIFFICULT':score>=36?'CHALLENGING':'ROUTINE';}
+function _careerAttackDifficulty(c,e){
+  const d=e?.data||{},weapon=String(d.weapon||e?.type||'TORPEDO').toUpperCase();
+  const own=e?.position,target=e?.targetPosition;
+  const range=Number.isFinite(d.rangeNm)?d.rangeNm:(own&&target?distNm(own,target):1.5);
+  const speed=Number.isFinite(d.targetSpeedKnots)?d.targetSpeedKnots:Number(c?.baseSpeed??c?.speedKnots)||0;
+  const len=Math.max(60,Number(d.lengthFeet)||Number(c?.lengthYards)||400);
+  const sea=clamp(Number(d.seaState)||0,0,1),vis=Math.max(.5,Number(d.visibilityNm)||12),day=Number.isFinite(d.daylight)?d.daylight:1;
+  const escorts=Math.max(0,Number(d.escortThreat)||0),alerted=!!(d.targetAlerted||c?.scattering),combatant=d.targetCombatant!=null?!!d.targetCombatant:['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c?.type);
+  const rangeTerm=(weapon.includes('DECK'))?clamp((range-.7)/4.5,0,1)*25:clamp((range-.55)/3.4,0,1)*25;
+  const speedTerm=clamp(speed/20,0,1)*18;
+  const sizeTerm=(1-clamp((len-100)/650,0,1))*14;
+  const alertTerm=alerted?10:0,combatantTerm=combatant?8:0,escortTerm=Math.min(15,escorts*5);
+  const weatherTerm=clamp((sea-.15)/.7,0,1)*7+clamp((9-vis)/7,0,1)*6+(day<.28?5:0);
+  const score=Math.round(clamp(10+rangeTerm+speedTerm+sizeTerm+alertTerm+combatantTerm+escortTerm+weatherTerm,8,98));
+  return{score,label:_careerDifficultyLabel(score),rangeNm:range,targetSpeedKnots:speed,lengthFeet:len,seaState:sea,visibilityNm:vis,daylight:day,escortThreat:escorts,targetAlerted:alerted,targetCombatant:combatant};
+}
+function _careerEngagements(state){
+  const A=state.campaign?.afterAction||{},events=A.events||[],contacts=state.world?.contacts||[];
+  const hitEvents=events.filter(e=>['TORPEDO_HIT','DECK_GUN_HIT'].includes(e?.type)&&e?.data?.contactId);
+  const engagedIds=new Set(hitEvents.map(e=>e.data.contactId));
+  for(const c of contacts){if(c&&(!c.side||c.side==='ENEMY')&&(c.sunk||shipDamageSeverity(c)>.05||(c.gunDamage||0)>.001))engagedIds.add(c.id);}
+  const out=[];
+  for(const id of engagedIds){
+    const c=contacts.find(x=>x?.id===id);if(!c||c.side&&c.side!=='ENEMY')continue;
+    const hits=hitEvents.filter(e=>e.data.contactId===id),D=ensureShipDamage(c),rarity=_careerRarity(c);
+    const evaluated=hits.map(e=>({event:e,..._careerAttackDifficulty(c,e)}));
+    const hardest=evaluated.sort((a,b)=>b.score-a.score)[0]||{event:null,..._careerAttackDifficulty(c,null)};
+    const weapons=[...new Set(hits.map(e=>String(e.data?.weapon||e.type||'').replace(/_HIT$/,'').replace(/_/g,' ')).filter(Boolean))];
+    const torpHits=hits.filter(e=>e.type==='TORPEDO_HIT').length,gunHits=hits.filter(e=>e.type==='DECK_GUN_HIT').length;
+    const torps=(A.torpedoes||[]).filter(t=>t.targetId===id||t.contactId===id),torpsFired=torps.length;
+    const status=c.sunk?'SUNK':shipDamageCondition(c),damage={flotation:D.flotation,propulsion:D.propulsion,steering:D.steering,fire:D.fire};
+    const badges=[],hd=hardest;
+    if((String(hd.event?.data?.weapon||'').includes('DECK')&&hd.rangeNm>=4)||(String(hd.event?.data?.weapon||'').includes('TORPEDO')&&hd.rangeNm>=3))badges.push('LONG SHOT');
+    if(hd.targetSpeedKnots>=14)badges.push('FAST TARGET');
+    if(hd.lengthFeet<180)badges.push('SMALL TARGET');
+    if(hd.targetAlerted)badges.push('MANOEUVRING');
+    if(hd.targetCombatant)badges.push('SURFACE COMBATANT');
+    if(hd.escortThreat>0)badges.push('ESCORTED');
+    if(hd.daylight<.28)badges.push('NIGHT ATTACK');
+    if(hd.seaState>.52)badges.push('HEAVY SEA');
+    if(rarity.score>=76)badges.push('RARE CONTACT');
+    if(c.sunk&&hits.length===1)badges.push('ONE-HIT SINKING');
+    const ev=hardest.event,torpId=ev?.data?.torpedoId,torp=(A.torpedoes||[]).find(t=>t.id===torpId)||(torps.length?torps[0]:null);
+    const attackMap=ev?{own:_careerClone(ev.position||torp?.start||null),launch:_careerClone(torp?.start||ev.position||null),target:_careerClone(ev.targetPosition||torp?.end||c.position||null),impact:_careerClone(torp?.end||ev.targetPosition||c.position||null),weapon:ev.data?.weapon||ev.type}:null;
+    out.push({id:c.id,name:c.name||c.id,type:c.displayType||c.type||'SHIP',role:c.type||'SHIP',tons:Number(c.tonsFactor)||0,lengthFeet:Number(c.lengthYards)||0,
+      maxSpeedKnots:Number(c.baseSpeed??c.speedKnots)||0,status,damage,points:Number(D.killPoints)||0,hits:hits.length,torpedoHits:torpHits,deckGunHits:gunHits,torpedoesFired:torpsFired,weapons,
+      rarityLabel:rarity.label,rarityScore:rarity.score,difficultyScore:hardest.score,difficultyLabel:hardest.label,attackRangeNm:hardest.rangeNm,targetSpeedKnots:hardest.targetSpeedKnots,
+      escortThreat:hardest.escortThreat,badges,attackMap,firstHitT:hits.length?Math.min(...hits.map(e=>e.t||0)):null,lastHitT:hits.length?Math.max(...hits.map(e=>e.t||0)):null});
+  }
+  return out.sort((a,b)=>(b.status==='SUNK')-(a.status==='SUNK')||b.rarityScore-a.rarityScore||b.difficultyScore-a.difficultyScore||b.tons-a.tons);
+}
+
 class SimEngineCareer extends SimEngineDamage {
   ensureCareerPatrolState(){
     const c=this.state.campaign;
@@ -65,6 +134,7 @@ class SimEngineCareer extends SimEngineDamage {
         weapon:D.lastWeapon||((x.gunDamage||0)>0?'DECK_GUN':'OTHER')};
     });
     const torpHits=(W.hits||[]).filter(h=>h.weapon!=='DECK_GUN').length;
+    const engagements=_careerEngagements(s);
     const I=s.world.harborIntel;
     const opts=(c.optionalObjectives||[]).map(o=>({text:o.text,done:!!o.done,failed:!!o.failed,result:o.result||null}));
     return Object.freeze({
@@ -87,6 +157,9 @@ class SimEngineCareer extends SimEngineDamage {
       hullAtEnd:Number(meta.hullAtEnd!==undefined?meta.hullAtEnd:s.playerSub.damage.hullIntegrity),
       aircraftEvaded:Number(c.afterAction?.aircraftEvaded)||0,
       importantEvents:_careerClone(c.importantEvents),
+      engagements:_careerClone(engagements),
+      // Keep the compact recorder payload for save compatibility and for the
+      // static per-engagement mini maps. The AAR UI no longer runs an animated replay.
       replay:this.buildAfterActionReplay?.()||null,
       returnPort:meta.portName||null
     });
