@@ -27,8 +27,8 @@ const CanvasView=vm.runInContext('CanvasView',ctx);
 const fakeCtx={setTransform:nop,setLineDash:nop,fillRect:nop,beginPath:nop,moveTo:nop,lineTo:nop,stroke:nop,fill:nop,arc:nop,ellipse:nop,arcTo:nop,closePath:nop,quadraticCurveTo:nop,fillText:nop,save:nop,restore:nop,clip:nop,translate:nop,rotate:nop,scale:nop,drawImage:nop,clearRect:nop,strokeRect:nop,measureText:()=>({width:20}),createLinearGradient:()=>({addColorStop:nop}),createRadialGradient:()=>({addColorStop:nop}),textAlign:'left',textBaseline:'alphabetic',globalAlpha:1,filter:'none'};
 const canvas={width:844,height:390,clientWidth:844,clientHeight:390,getContext:()=>fakeCtx,getBoundingClientRect:()=>({left:0,top:0,width:844,height:390}),addEventListener:nop,setPointerCapture:nop};const cv=new CanvasView(canvas);
 const sMesh=vm.runInContext("(()=>{const s=createState('Java Sea');s.playerSub.depthFeet=0;s.playerSub.heading=90;s.tactical.activeStation='BRIDGE';return s})()",ctx);
-let minFaces=999,abeam=[];for(let b=0;b<360;b+=5){sMesh.tactical.bridgeBearing=b;const cam=cv.setupBridgeCam(sMesh,82,844,390),n=cv.ownshipSurfaceMesh(cam,sMesh).length;minFaces=Math.min(minFaces,n);if(b===0||b===90||b===180||b===270)abeam.push([b,n]);}
-assert('continuous ownship mesh survives a full 360-degree bridge look with no disappearing sector',minFaces>=20,{minFaces,cardinals:abeam});
+let maxOutside=0,cardinals=[];for(let b=0;b<360;b+=5){sMesh.tactical.bridgeBearing=b;const cam=cv.setupBridgeCam(sMesh,72,844,390),faces=cv.ownshipSurfaceMesh(cam,sMesh,{bridge:true});for(const f of faces)for(const p of f.pts)maxOutside=Math.max(maxOutside,Math.max(0,-p.x,p.x-844,-p.y,p.y-390));if(b===0||b===90||b===180||b===270)cardinals.push([b,faces.length]);}
+assert('ownship mesh uses proper view-frustum clipping throughout a full 360-degree bridge look',maxOutside<.01&&cardinals.some(x=>x[1]>0),{maxOutside,cardinals});
 
 let hulls=0,uncertain=0;const w2s=(x,y)=>({x:200+x*20,y:160+y*20});cv.zoom=20;cv.k=1;cv.shipIcon=()=>{hulls++};cv.courseVector=nop;cv.turnCue=nop;cv.drawContactUncertaintyGlyph=()=>{uncertain++};
 cv.drawMapContacts(fakeCtx,{H:{id:'H',confidence:1,positionConfidence:.98,positionSource:'HYDROPHONE',source:'HYDROPHONE',bearing:45,rangeEstimateNm:4,courseEstimate:90,speedEstimateKnots:9,plotPosition:{xNm:2,yNm:-2},staleSeconds:0,lastUpdated:100,positionFixAt:100,contactType:'MERCHANT',typeEstimate:'SURFACE SHIP'}},w2s,100,{xNm:0,yNm:0},null);
@@ -48,6 +48,6 @@ let crewOps=0;const crewCtx={...fakeCtx,arc(){crewOps++},ellipse(){crewOps++},li
 assert('bridge dive sequence actually draws hatch/crew animation primitives',crewOps>12,{crewOps});
 
 const deckSource=fs.readFileSync(path.join(root,'js/rendering/deck-gun-3d.js'),'utf8'),mapSource=fs.readFileSync(path.join(root,'js/rendering/map.js'),'utf8');
-assert('ownship continuity uses near-plane polygon clipping and has no old 82–98 degree hole',deckSource.includes('clipOwnshipPolygon')&&!deckSource.includes('rel>82&&rel<98'),{});
+assert('ownship continuity uses full frustum polygon clipping rather than bearing-specific holes',deckSource.includes('clipOwnshipPolygon')&&deckSource.includes('ownshipFrustumPlanes')&&!deckSource.includes('rel>82&&rel<98'),{});
 assert('refinement adds no new WebGL/offscreen/canvas render engine',!deckSource.match(/WebGL|OffscreenCanvas|createElement\s*\(\s*['\"]canvas/)&&!mapSource.match(/WebGL|OffscreenCanvas/),{});
 if(failed){console.error(`PRE-PATCH-7 REFINEMENT CONTRACT: FAIL (${failed})`);process.exit(1)}console.log('PRE-PATCH-7 REFINEMENT CONTRACT: PASS');

@@ -90,7 +90,7 @@ const proto=CanvasViewBridge.prototype;
 const fakeView={portrait:false,lowSpec:true,quality:1,k:1,setupBridgeCam:function(state,fov,w,h){return proto.setupBridgeCam.call(this,state,fov,w,h)},
  drawSky3D(){qSeen=this.quality;sceneCalls.push('sky')},drawSea3D(){sceneCalls.push('sea')},drawTerrain3D(){sceneCalls.push('terrain')},drawDistantBridgeSmoke(){sceneCalls.push('smoke')},drawOwnWake(){sceneCalls.push('wake')},drawWakes3D(){},drawFleet3D(){sceneCalls.push('fleet')},drawExplosions3D(){},drawSplashes3D(){},drawRain(){},drawScopeSpray(){},drawNightOverlay(){sceneCalls.push('night')},drawBridgeForedeck(){sceneCalls.push('foredeck')},drawBridgeHud(_c,_w,_h,_s,cam){hudFov=cam.fovDeg}};
 proto.drawBridge.call(fakeView,fakeCtx,844,390,sRender);
-assert('wide bridge render path uses 82-degree full-screen camera and shared world scene',hudFov===82&&sceneCalls.includes('sky')&&sceneCalls.includes('sea')&&sceneCalls.includes('fleet')&&sceneCalls.includes('foredeck'),{fov:hudFov,sceneCalls});
+assert('wide bridge render path uses 72-degree full-screen camera and shared world scene',hudFov===72&&sceneCalls.includes('sky')&&sceneCalls.includes('sea')&&sceneCalls.includes('fleet')&&sceneCalls.includes('foredeck'),{fov:hudFov,sceneCalls});
 assert('low-spec bridge effects are capped without permanently lowering adaptive quality',qSeen<=.58&&fakeView.quality===1,{during:qSeen,after:fakeView.quality});
 sRender.tactical.bridgeBinoculars=true;hudFov=null;proto.drawBridge.call(fakeView,fakeCtx,844,390,sRender);
 assert('binocular mode narrows bridge FOV to 24 degrees',hudFov===24,{fov:hudFov});

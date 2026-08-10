@@ -47,7 +47,7 @@ class CanvasView extends CanvasViewSound {
     }
 
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
-    if(state.map.weatherOverlay)this.drawMapWeatherOverlay(ctx,state,w2s,w,h);
+    this.drawMapWeather(ctx,state,w2s,w,h);
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
     this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds);
@@ -58,7 +58,7 @@ class CanvasView extends CanvasViewSound {
     this.drawMapDCs(ctx,state.world.depthCharges,w2s);
     this.drawMapTorps(ctx,state.weapons.activeTorpedoes,w2s);
     this.drawMapExplosions(ctx,state.weapons.explosions,w2s);
-    this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId,state);
+    this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId);
     this.drawUltra(ctx,state,w2s);
     this.drawMapAircraft(ctx,state.world.aircraft||[],w2s,sub);
     particles.draw(ctx,w2s);
@@ -78,7 +78,7 @@ class CanvasView extends CanvasViewSound {
     ctx.fillStyle=map.autoFollowPlot&&wp?'#6fe08f':'rgba(140,175,160,.9)';
     ctx.fillText(navTxt,pad,Math.round(40*k));
     ctx.fillStyle='rgba(140,175,160,.9)';
-    {const ts=torpedoStoresStatus(state);ctx.fillText(`TRACKS ${Object.keys(state.world.contactTracks).length} · TORPS ${ts.total} (${ts.loadShort}) · READY ${ts.ready} · MAP ${this.follow?'LOCKED':'FREE'}`,pad,Math.round(51*k));}
+    {const ts=torpedoStoresStatus(state);ctx.fillText(`TRACKS ${Object.keys(state.world.contactTracks).length} · TORPS ${ts.total} (${ts.loadShort}) · WX ${state.world.environment.weather||'CLEAR'} · MAP ${this.follow?'LOCKED':'FREE'}`,pad,Math.round(51*k));}
     if(sub.inShallowWater||(sub.keelClearanceFeet??3000)<35){
       ctx.fillStyle=(sub.keelClearanceFeet??3000)<15?'#ef6a58':'#f5c65c';ctx.font=this.fnt(9,true);
       const clr=sub.keelClearanceFeet??3000;
@@ -110,26 +110,32 @@ class CanvasView extends CanvasViewSound {
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
   }
 
-  drawMapWeatherOverlay(ctx,state,w2s,w,h){
-    const K=this.k,sys=state.world.weatherSystem,cells=sys?.cells||[];ctx.save();
-    // At most three slowly moving circles exist in the simulation. Rendering
-    // them as two translucent rings each is effectively free even on the G88
-    // and avoids a sampled heat-map or per-pixel weather texture.
-    for(const cell of cells){
-      if(!cell?.center)continue;const p=w2s(cell.center.xNm,cell.center.yNm),r=Math.max(8,(cell.radiusNm||5)*this.zoom);
-      if(p.x+r<0||p.x-r>w||p.y+r<0||p.y-r>h)continue;
-      ctx.fillStyle='rgba(118,155,164,.055)';ctx.strokeStyle='rgba(146,185,191,.34)';ctx.lineWidth=Math.max(.7,1*K);ctx.setLineDash([5*K,6*K]);
-      ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
-      ctx.fillStyle='rgba(118,155,164,.075)';ctx.strokeStyle='rgba(146,185,191,.22)';ctx.setLineDash([3*K,7*K]);
-      ctx.beginPath();ctx.arc(p.x,p.y,r*.58,0,Math.PI*2);ctx.fill();ctx.stroke();
-      const hd=degToRad(cell.heading||0),L=Math.min(r*.62,42*K);ctx.setLineDash([]);ctx.strokeStyle='rgba(174,204,207,.38)';
-      ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+Math.sin(hd)*L,p.y-Math.cos(hd)*L);ctx.stroke();
-      if(this.zoom>18){ctx.fillStyle='rgba(174,204,207,.68)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';ctx.fillText('SQUALL CELL',p.x,p.y-r-4*K);}
+  drawMapWeather(ctx,state,w2s,w,h){
+    const cells=state.world.weatherSystem?.cells||[];if(!cells.length)return;
+    const own=state.playerSub.position,K=this.k,zoom=this.zoom;
+    ctx.save();
+    for(const c of cells){
+      const rng=distNm(own,c.center),rNm=Math.max(.8,c.radiusNm||5);
+      // The chart is not an omniscient meteorological radar. Plot only cloud
+      // masses close enough to be apparent to the surfaced/periscope watch or
+      // currently affecting the boat. Max three cells exist in simulation.
+      const influence=_weatherCellInfluence(c,own);
+      if(rng>30&&influence<.02)continue;
+      const p=w2s(c.center.xNm,c.center.yNm),rp=Math.max(8,rNm*zoom);
+      if(p.x+rp<-20||p.x-rp>w+20||p.y+rp<-20||p.y-rp>h+20)continue;
+      const local=weatherAtPosition(state,c.center),heavy=local.precipitation>.55;
+      ctx.fillStyle=heavy?'rgba(105,126,139,.085)':'rgba(112,133,142,.052)';
+      ctx.strokeStyle=heavy?'rgba(166,190,199,.42)':'rgba(153,181,190,.28)';
+      ctx.lineWidth=Math.max(.8,1.05*K);ctx.setLineDash([5*K,6*K]);
+      ctx.beginPath();ctx.arc(p.x,p.y,rp,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.setLineDash([]);
+      // A coarse movement arrow is useful without pretending to give an exact
+      // storm track. It comes from the same slow cell model as the 3-D horizon.
+      const a=degToRad(c.heading||0),L=clamp(rp*.42,12*K,48*K),ex=p.x+Math.sin(a)*L,ey=p.y-Math.cos(a)*L;
+      ctx.strokeStyle='rgba(160,190,198,.34)';ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(ex,ey);ctx.stroke();
+      ctx.fillStyle='rgba(172,198,205,.70)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';
+      ctx.fillText(heavy?'HEAVY WEATHER':'SQUALL / CLOUD',p.x,p.y-rp-5*K);
     }
-    const q=weatherAtPosition(state,state.playerSub.position),label=`WX ${q.stage} · LOCAL VIS ${q.visibilityNm.toFixed(1)} NM`;
-    ctx.setLineDash([]);ctx.font=this.fnt(8.2,true);const tw=(ctx.measureText?.(label).width||label.length*6*K)+16*K,bh=22*K,bx=clamp(w/2-tw/2,6,w-tw-6),by=h-48*K;
-    ctx.fillStyle='rgba(5,17,21,.82)';this.rr(ctx,bx,by,tw,bh,6*K);ctx.fill();ctx.strokeStyle='rgba(146,185,191,.38)';ctx.stroke();
-    ctx.fillStyle='rgba(196,222,220,.9)';ctx.textAlign='center';ctx.fillText(label,bx+tw/2,by+14.5*K);ctx.textAlign='left';ctx.restore();
+    ctx.textAlign='left';ctx.restore();
   }
 
   drawMissionOverlay(ctx,state,w2s){
@@ -434,8 +440,8 @@ class CanvasView extends CanvasViewSound {
     const finalReturn=camp.missionStatus==='RETURN TO BASE';
     ctx.fillText(`SAFE SERVICE WATER`,p.x,p.y+r+10*K);
     ctx.fillText(finalReturn
-      ? `FINAL RETURN · SURFACE · STOP TO COMPLETE PATROL`
-      : `SERVICE · SURFACE · STOP FOR SERVICE`,p.x,p.y+r+20*K);
+      ? `FINAL RETURN · SURFACE · HARBOR ≤3 KN · HOLD 0:30`
+      : `SERVICE · SURFACE · HARBOR ≤3 KN · HOLD 0:15`,p.x,p.y+r+20*K);
     ctx.textAlign='left';ctx.restore();
   }
 
@@ -710,7 +716,7 @@ class CanvasView extends CanvasViewSound {
     occupied.push(fallback);return fallback;
   }
 
-  drawMapContacts(ctx,tracks,w2s,now,ownPos,selId,state=null){
+  drawMapContacts(ctx,tracks,w2s,now,ownPos,selId){
     const K=this.k;this._mapLabelRects=[];const visible=Object.values(tracks).filter(q=>!q.sunk),dense=visible.length>=4;
     const ordered=[...Object.values(tracks)].sort((a,b)=>((b.id===selId)-(a.id===selId))||((b.visualHullConfirmed?1:0)-(a.visualHullConfirmed?1:0))||((b.confidence||0)-(a.confidence||0))||String(a.id).localeCompare(String(b.id)));
     for(const tr of ordered){
@@ -751,11 +757,7 @@ class CanvasView extends CanvasViewSound {
          chart-memory window; the kinematic plot continues to age underneath
          and reverts to an uncertainty glyph once that visual fix is genuinely
          stale. */
-      /* A chart symbol represents what the crew KNOWS, not whether the player is
-         still staring through the same eight-degree cone this exact frame. A
-         recent visual hull fix therefore remains a solid ship for a short
-         plotting-memory window and dead-reckons from that fix. */
-      const hasTruePos=visualFlag&&(state?hasFreshVisualFix(state,tr):(fixAge<=VISUAL_FIX_MEMORY_SEC));
+      const hasTruePos=visualFlag&&fixAge<18&&(tr.staleSeconds||0)<24;
       const pt=hasTruePos?pe:null;
 
       const sensorUncPx=Number.isFinite(tr.positionUncertaintyNm)?tr.positionUncertaintyNm*this.zoom:0;
@@ -801,8 +803,8 @@ class CanvasView extends CanvasViewSound {
       const compactType=this._mapCompactTypeLabel(tr.typeEstimate);
       const title=isSelected?`${tr.id} ${affiliation}${tr.typeEstimate}`:`${tr.id} ${dense?compactType:(affiliation+compactType)}`;
       const lines=[title.trim()];
-      if(isSelected)lines.push(hasTruePos?`VISUAL FIX · ${Math.max(0,Math.round(fixAge))}s · ${tr.rangeEstimateNm.toFixed(1)}nm`:`${tr.source} · PLOT ${Math.round(conf*100)}% · ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
-      else if(!dense&&!hasTruePos)lines.push(`${tr.source} · PLOT ${Math.round(conf*100)}%`);
+      if(isSelected)lines.push(`${tr.source} C${Math.round(conf*100)}% ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
+      else if(!dense&&!hasTruePos)lines.push(`${tr.source} C${Math.round(conf*100)}%`);
       if(isSelected&&tr.damageEstimate)lines.push(tr.damageEstimate);
       const fs=isSelected?10.2:8.2, lh=(isSelected?12:10)*K;
       ctx.font=this.fnt(fs,true);

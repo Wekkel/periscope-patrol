@@ -4,7 +4,7 @@
 // it does not create a second world model or an omniscient contact list.
 const BRIDGE_VIEW={
   maxDepthFt:12,
-  normalFovDeg:82,
+  normalFovDeg:72,
   binocularFovDeg:24,
   cameraHeightM:7.2
 };
@@ -48,49 +48,6 @@ function bridgeVisualLimitNm(state,contact){
   if((sub.depthFeet||0)<=65)return vis*.86;
   return 0;
 }
-
-
-function scopeOpticalFovDeg(state){
-  const T=state?.tactical||{};
-  if(typeof SCOPE_OPTICS!=='undefined'){
-    const o=SCOPE_OPTICS[T.periscopeZoom===1?0:1];if(o&&Number.isFinite(o.fov))return o.fov;
-  }
-  return T.periscopeZoom===1?32:8;
-}
-
-// A visual fix is chart/fire-control knowledge, not a render-frame side effect.
-// Once the skipper has actually resolved a hull, lower-grade sensors may add
-// information but they may not replace that fix immediately. Forty-five seconds
-// is long enough to swap SCOPE -> MAP / TDC without flicker, short enough that a
-// ship which disappears in rain or behind the horizon soon reverts to a paper plot.
-const VISUAL_FIX_MEMORY_SEC=45;
-function visualFixAgeSec(state,tr){
-  const now=state?.time?.elapsedSeconds||0,at=Number.isFinite(tr?.visualLastSeenAt)?tr.visualLastSeenAt:(Number.isFinite(tr?.hullConfirmedAt)?tr.hullConfirmedAt:-9999);
-  return Math.max(0,now-at);
-}
-function hasFreshVisualFix(state,tr,maxAgeSec=VISUAL_FIX_MEMORY_SEC){
-  return !!tr?.visualHullConfirmed&&visualFixAgeSec(state,tr)<=maxAgeSec;
-}
-
-/* One definition of a visually resolvable periscope hull, shared by sensor
-   acquisition and the optical renderer. It also returns a quality estimate so
-   the TDC gets the same answer as the picture rather than an unrelated generic
-   confidence percentage. */
-function scopeHullObservation(state,contact,requireStation=true){
-  const sub=state?.playerSub,T=state?.tactical;
-  const out={visible:false,quality:0,rangeNm:Infinity,limitNm:0,bearing:0,offsetDeg:180,fovDeg:scopeOpticalFovDeg(state)};
-  if(!sub||!T||!contact||contact.sunk)return out;
-  if(requireStation&&T.activeStation!=='PERISCOPE')return out;
-  if((sub.depthFeet||0)<8||(sub.depthFeet||0)>65)return out;
-  const rng=distNm(sub.position,contact.position),limit=Math.max(.05,bridgeVisualLimitNm(state,contact));
-  const bear=bearingBetween(sub.position,contact.position),off=Math.abs(shortDelta(T.periscopeBearing,bear)),fov=out.fovDeg;
-  out.rangeNm=rng;out.limitNm=limit;out.bearing=bear;out.offsetDeg=off;
-  if(rng>limit*1.02||off>fov*.52)return out;
-  const rangeQ=clamp(1-rng/(limit*1.08),0,1),centreQ=clamp(1-off/Math.max(.1,fov*.55),0,1),high=T.periscopeZoom===1?0:1;
-  out.quality=clamp(.86+rangeQ*.08+centreQ*.03+high*.02,.86,.99);out.visible=true;
-  return out;
-}
-function scopeCanResolveHull(state,contact,requireStation=true){return scopeHullObservation(state,contact,requireStation).visible;}
 
 function _bridgeHashUnit(seed,text,tag=0){
   let h=(Number(seed)||1)*2654435761+tag*2246822519;

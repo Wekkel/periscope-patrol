@@ -8,7 +8,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     const brg=degToRad(tact.bridgeBearing);
     return{
       E:state.playerSub.position.xNm*NM_M,N:-state.playerSub.position.yNm*NM_M,
-      h:camH,f,cx,cy,r:Math.max(w,h)*.72,fovDeg,bearingDeg:tact.bridgeBearing,
+      h:camH,f,cx,cy,r:Math.max(w,h)*.72,fovDeg,bearingDeg:tact.bridgeBearing,viewW:w,viewH:h,
       sin:Math.sin(brg),cos:Math.cos(brg),dip:Math.sqrt(2*camH/EARTH_R),
       horizonY:cy+f*Math.sqrt(2*camH/EARTH_R),dHor:Math.sqrt(2*EARTH_R*camH),
       halfFov:degToRad(fovDeg)/2,kind:'BRIDGE'

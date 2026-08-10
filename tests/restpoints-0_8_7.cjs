@@ -52,9 +52,9 @@ const mapResult=vm.runInContext(`(()=>{
 })()`,ctx);
 assert('low-spec wide bathymetry reuses one cached chart layer instead of per-frame cells',mapResult.images===2&&mapResult.mainFills===0&&mapResult.reused,mapResult);
 
-const bridgeMesh=vm.runInContext(`(()=>{const s=createState('Java Sea');s.playerSub.depthFeet=0;s.playerSub.mode='SURFACED';s.playerSub.heading=300;const v=Object.create(CanvasView.prototype);v.k=1;let min=999;for(let b=0;b<360;b+=5){s.tactical.bridgeBearing=b;const cam=v.setupBridgeCam(s,82,1280,800);min=Math.min(min,v.ownshipSurfaceMesh(cam,s,{bridge:true}).length);}return min;})()`,ctx);
+const bridgeMesh=vm.runInContext(`(()=>{const s=createState('Java Sea');s.playerSub.depthFeet=0;s.playerSub.mode='SURFACED';s.playerSub.heading=300;const v=Object.create(CanvasView.prototype);v.k=1;let out=0,fore=0,aft=0;for(let b=0;b<360;b+=5){s.tactical.bridgeBearing=b;const cam=v.setupBridgeCam(s,72,1280,800),faces=v.ownshipSurfaceMesh(cam,s,{bridge:true});if(b===300)fore=faces.length;if(b===120)aft=faces.length;for(const f of faces)for(const p of f.pts)out=Math.max(out,Math.max(0,-p.x,p.x-1280,-p.y,p.y-800));}return{out,fore,aft};})()`,ctx);
 const deck=fs.readFileSync(path.join(root,'js/rendering/deck-gun-3d.js'),'utf8'),wake=fs.readFileSync(path.join(root,'js/rendering/periscope-3d.js'),'utf8'),sw=fs.readFileSync(path.join(root,'sw.js'),'utf8');
-assert('ownship renderer uses a closed layered deck and keeps geometry through a full bridge sweep',bridgeMesh>=20&&deck.includes("add('DECK_PORT'")&&deck.includes("add('DECK_STARBOARD'")&&deck.includes("add('HULL_PORT'")&&deck.includes('3-inch/50 deck gun'),{minFaces:bridgeMesh});
+assert('ownship renderer is a closed station-local mesh with proper frustum clipping',bridgeMesh.out<.01&&bridgeMesh.fore>0&&bridgeMesh.aft>0&&deck.includes('ownshipFrustumPlanes')&&deck.includes("add('DECK_PORT'")&&deck.includes("add('DECK_STARBOARD'")&&deck.includes('early-war 3-inch mount'),bridgeMesh);
 assert('wake is speed-scaled and includes subtle Kelvin divergent-wave geometry',wake.includes('speedN=clamp')&&wake.includes('19.47')&&wake.includes('Broken shoulder crests'),{});
 assert('service worker version was bumped for GitHub/PWA deployment',sw.includes("const VERSION = '0.8.7'")&&sw.includes("'./js/simulation/historical-campaign.js'"),{});
 
