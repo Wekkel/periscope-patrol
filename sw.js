@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.17'; // Improve impact crash zoom, damage feedback and blast lighting
+const VERSION = '0.8.17'; // Rebalance submerged battery endurance and add torpedo impact pre-roll and updated canon hit amimation
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
