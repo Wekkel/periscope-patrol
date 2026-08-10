@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.17'; // Fix ship hitbox units, long-range gun ballistics and torpedo impact geometry
+const VERSION = '0.9.0'; // Replace AAR replay with patrol debrief and stabilize torpedo impact cinematic
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
