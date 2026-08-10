@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.0'; // Polish TAC mobile overlay layout and fix rotating land horizon in BRG/GUN
+const VERSION = '0.9.0'; // Polish mobile TAC safe areas and fix world-anchored terrain views
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
