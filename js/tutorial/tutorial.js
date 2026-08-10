@@ -1,53 +1,57 @@
 // ═══════════════════════════════════════════════════ TUTORIAL / TRAINING PATROL
+const TUT_OBJECTIVE={ACK:'ACK',FRESH:'FRESH_ACTION',STATE:'STATE'};
 const TUT_STEPS=[
   {id:'welcome',title:'Welcome aboard',
    body:'You are the skipper of USS Silversides on a <b>training patrol</b> off Java. Calm sea, clear sky, one unescorted merchant somewhere ahead — and torpedoes that always explode.<br><br>Four tabs at the bottom: <b>View</b> (the big picture), <b>Helm</b> (steering, depth, systems), <b>Attack</b> (torpedoes) and <b>Status</b> (damage &amp; log). The strip just above them is your permanent read-out.',
-   goal:'Tap NEXT when you have had a look around'},
+   goal:'Tap NEXT when you have had a look around', objective:TUT_OBJECTIVE.ACK},
 
   {id:'stations',title:'Six stations',
    body:'Top right of the picture you can switch between six stations:<br>• <b>TAC</b> — compass, depth column, stealth meters<br>• <b>BRG</b> — the surface bridge watch; wide view, binoculars and visual marks while surfaced or awash<br>• <b>SND</b> — optional sound room; train the hydrophones for a sharper bearing, or view SJ radar when fitted<br>• <b>SCOPE</b> — what the periscope sees<br>• <b>MAP</b> — the navigation plot<br>• <b>GUN</b> — the 3-inch deck-gun sight; entering it while surfaced automatically sends the crew topside<br><br>Open the map now.',
-   goal:'Switch to the MAP station', hl:'ovlStations',
+   goal:'Switch to the MAP station', hl:'ovlStations', objective:TUT_OBJECTIVE.FRESH,
+   enter:T=>T.prepareStationsLesson(),
    check:s=>s.tactical.activeStation==='MAP'},
 
   {id:'map',title:'The navigation plot',
    body:'Drag to pan, pinch to zoom, <b>◎</b> re-centres on the boat, <b>✕</b> clears your plot. The amber dashed lane is a known convoy route; contacts are what your crew has actually plotted, not omniscient truth.<br><br>Tap open water to drop a waypoint — the autopilot then steers to it. Tap a waypoint again to delete it, and the moment you touch the helm yourself the autopilot lets go.<br><br>The <b>☁ WX</b> button overlays only the moving squall cells and your local visual range; toggle it briefly when visibility does not match what you expected.',
-   goal:'Plot a waypoint on the map', hl:'ovlLeft',
+   goal:'Plot a waypoint on the map', hl:'ovlLeft', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareMapLesson(),
    check:s=>s.map.plottedCourse.length>0},
 
   {id:'helm',title:'Steering',
    body:'On the <b>TAC</b> station you can drag the compass rose to steer. In the <b>Helm</b> tab you get a slider, ±10° buttons and four cardinal presets.<br><br>The green needle is your real heading, the amber marker is what you ordered — a submarine turns slowly, so they differ during a turn. Steering by hand switches the autopilot off automatically.',
-   goal:'Come to course 040 (±10°)', sta:'TACTICAL', pane:'paneHelm', hl:'mHdg',
+   goal:'Come to course 040 (±10°)', sta:'TACTICAL', pane:'paneHelm', hl:'mHdg', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareHelmLesson(),
    check:s=>Math.abs(shortDelta(s.playerSub.orderedHeading,40))<12},
 
   {id:'speed',title:'Engines and noise',
    body:'On the roof you run on <b>diesels</b> (up to ~18 kn). For playability the induction is treated as usable while the boat is only awash: diesels remain on to about 12 ft and come back by about 8 ft. Deeper than that you answer on the <b>electric</b> motors — about 8.5 kn flat out, and the battery drains fast. This boat still has <b>no snorkel</b>: periscope depth is battery-only.<br><br>Charging is slow and the screws have first call on the engines: she charges fastest <b>loafing at low revs</b> and barely at all at flank. From flat, reckon on three or four hours on the roof — dangerous hours. Run on the surface at night, dive by day.<br><br>Speed is noise. Flank speed can be heard from far away; that is the trade-off in every attack.',
-   goal:'Order Standard speed (250 rpm)', pane:'paneHelm', hl:'mRpm',
-   check:s=>s.playerSub.propulsion.orderedRpm>=200},
+   goal:'Order Standard speed (250 rpm)', pane:'paneHelm', hl:'mRpm', objective:TUT_OBJECTIVE.FRESH,
+   enter:T=>T.prepareSpeedLesson(),
+   check:s=>s.playerSub.propulsion.orderedRpm>=225&&s.playerSub.propulsion.orderedRpm<=300},
 
   {id:'depth',title:'Depth control',
    body:'Depth presets: <b>Surface</b>, <b>55 ft</b> (periscope depth), <b>100 ft</b>, <b>200 ft</b>. You can also drag the water column on the TAC station.<br><br>The amber triangle on the right is the ordered depth, the dashed red band is crush depth. Deeper is quieter and safer from depth charges — but the periscope only works above ~70 ft.',
-   goal:'Go to periscope depth, 55 ft', pane:'paneHelm', hl:'mPeriscope',
-   check:s=>s.playerSub.orderedDepthFeet<=60&&Math.abs(s.playerSub.depthFeet-55)<12},
+   goal:'Go to periscope depth, 55 ft', pane:'paneHelm', hl:'mPeriscope', objective:TUT_OBJECTIVE.FRESH,
+   enter:T=>T.prepareDepthLesson(),
+   check:s=>s.playerSub.orderedDepthFeet>=45&&s.playerSub.orderedDepthFeet<=65&&Math.abs(s.playerSub.depthFeet-55)<12},
 
   {id:'sensors',title:'Finding the enemy',
    body:'You hunt first with two dependable senses:<br>• <b>Visual</b> — bridge lookouts when surfaced, periscope down to ~65 ft. Range depends on daylight, weather and sea state.<br>• <b>Hydrophone</b> — passive sonar, works at any depth. Loud, fast ships are heard from further away, and your <i>own</i> noise deafens you.<br><br><b>SJ surface-search radar</b> becomes available only on patrol dates when your boat has the fit. The enemy has active sonar too: if you hear a ping, they are searching for <i>you</i>.<br><br>Be patient and watch the map — a contact will build up.',
-   goal:'Study the two sensor sources, then tap NEXT'},
+   goal:'Study the two sensor sources, then tap NEXT', objective:TUT_OBJECTIVE.ACK},
 
   {id:'sound',title:'Work the hydrophones',
    body:'Open <b>SND</b>. The passive hydrophones are directional: use <b>◀ Train / Train ▶</b> (or drag) until the screw noise is centred, then press <b>✚ Mark Bearing</b>. One mark is a line of bearing, not a magic range; after you move the boat, a second mark can triangulate a much better plot.<br><br><b>◉ Echo Range</b> sends an active QC ping and can give a short-range range fix — but every escort can hear the transmission. <b>SJ Radar</b> switches this station to surface-search radar only on patrol dates when the set is fitted. Slow or stop if your own screws are masking contacts.',
-   goal:'Centre the screws and make one SOUND bearing mark', sta:'SOUND', hl:'soundControls',
+   goal:'Centre the screws and make one SOUND bearing mark', sta:'SOUND', hl:'soundControls', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareSoundLesson(),
    check:(s,T)=>T.soundMarkCount(s)>T._soundMarks0},
 
   {id:'track',title:'Reading a contact',
    body:'Each contact is a <b>track</b>, not a certainty:<br>• dashed circle = estimated position, the circle shrinks as you get surer<br>• solid arrow = confirmed position and course<br>• <b>C%</b> = confidence, <b>VISUAL</b> or <b>HYDROPHONE</b> = how you are seeing it, and the seconds since the last update<br><br>Keep watching it — confidence grows the longer you hold contact. In this lesson, take a moment to read the symbols before moving on; the crew may already have improved the track while you were working the sound bearing.',
-   goal:'Study the contact symbols, then tap NEXT'},
+   goal:'Study the contact symbols, then tap NEXT', objective:TUT_OBJECTIVE.ACK},
 
   {id:'scope',title:'The periscope',
    body:'Switch to <b>SCOPE</b> and drag left/right to train it. The number tape across the top is the bearing you are looking at, double-tap switches between the historically appropriate <b>1.5×</b> and <b>6×</b> powers.<br><br>Put the ship near the crosshair. The horizontal ladder on the vertical wire is a stadimeter scale — bigger ship in the optic means closer.',
-   goal:'Train the scope onto the ship (within 10°)', sta:'PERISCOPE', hl:'ovlStations',
+   goal:'Train the scope onto the ship (within 10°)', sta:'PERISCOPE', hl:'ovlStations', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareScopeLesson(),
    check:(s,T)=>{
      const c=T.target(s); if(!c) return false;
@@ -55,58 +59,58 @@ const TUT_STEPS=[
 
   {id:'lock',title:'Feeding the TDC',
    body:'The <b>Torpedo Data Computer</b> needs four numbers: bearing, range, the target\'s course and its speed.<br><br>Tap the ship in the optic — or use the <b>🎯 LOCK</b> button — and the current track is handed to the TDC automatically. On the map a tap on a contact does the same.',
-   goal:'Lock the ship into the TDC', hl:'oLock',
+   goal:'Lock the ship into the TDC', hl:'oLock', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareLockLesson(),
    check:s=>!!s.tdc.targetId},
 
   {id:'tdc',title:'Reading the solution',
    body:'The TDC now shows:<br>• <b>GYRO</b> — how far the torpedo turns after launch. Small angles are best; ±90° shots rarely work.<br>• <b>AoB</b> — angle on the bow, how much side of the target you can see. Near 90° is the fat broadside shot.<br>• <b>RUN</b> — seconds until impact.<br>• <b>SOL %</b> — overall quality, from contact confidence, range and gyro angle. Below 25% the crew refuses to shoot.<br><br>Hold the contact, close the range, and keep the gyro angle small.',
-   goal:'Read the solution values, then tap NEXT', pane:'paneAttack'},
+   goal:'Read the solution values, then tap NEXT', pane:'paneAttack', objective:TUT_OBJECTIVE.ACK},
 
   {id:'flood',title:'Flooding tubes',
    body:'A torpedo cannot leave a dry tube. In the <b>Attack</b> tab, tap a tube tile to flood it (blue = flooded and ready). Tubes 1–4 fire forward, 5–6 fire aft.<br><br>Flooding makes the tube ready; a selected live TDC track continues to update the firing solution until the instant you shoot.',
-   goal:'Flood a tube', pane:'paneAttack', hl:'mTubes',
+   goal:'Flood a tube', pane:'paneAttack', hl:'mTubes', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareFloodLesson(),
    check:s=>s.weapons.tubes.some(t=>t.status==='READY')},
 
   {id:'fire',title:'Shoot',
    body:'Tap a ready tube again to fire it, use <b>Fwd Spread</b> for everything at once, or hit the big <b>FIRE</b> button on the picture — it fires the first ready tube and shows the solution percentage. FIRE never floods a tube for you: if none is ready, it tells you to return here and flood one first.<br><br>Flood several tubes if you want several quick shots. A spread of two or three covers errors in the target\'s speed. Torpedoes reload in about two minutes.',
-   goal:'Fire a torpedo', hl:'btnFire',
+   goal:'Fire a torpedo', hl:'btnFire', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareFireLesson(),
    check:(s,T)=>T.fireLessonSatisfied(s)},
 
   {id:'impact',title:'The run',
    body:'Watch the torpedo on the map — the white line is its wake, which the enemy can spot too. A Mark 14 runs at 46 kn, so a 2 nm shot takes about 2½ minutes. Use the time-scale button if you are impatient.<br><br>Historically about a quarter of Mark 14s were duds; training has that switched off, but in a real patrol you can choose the dud rate in the Attack tab.',
-   goal:'Score a hit',
+   goal:'Score a hit', objective:TUT_OBJECTIVE.STATE,
    check:(s,T)=>s.weapons.hits.length>T._fireHits0},
 
   {id:'deckgun',title:'The 3-inch deck gun',
    body:'The deck gun is for a surfaced boat and is best used against a small or already-crippled target — not while an escort is bearing down on you. Training has put a harmless hulk ahead.<br><br>Enter <b>GUN</b>; the crew mans it automatically. Drag left/right for quick training. Vertical drag is deliberately coarse. Press <b>🎯 LAY</b> for the crew&apos;s range lay, then use the right-hand <b>ELEV slider</b> or ELEV+/− for tenths of a degree before firing. The sight ring moves vertically with the actual gun elevation.',
-   goal:'Lay the deck gun and fire one practice round', sta:'DECK_GUN', hl:'gunElevPanel',
+   goal:'Lay the deck gun and fire one practice round', sta:'DECK_GUN', hl:'gunElevPanel', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareGunLesson(),
    check:(s,T)=>(s.weapons.deckGun?.shots||0)>T._gunShots0},
 
   {id:'escortbrief',title:'Next exercise: evade an escort',
    body:'Your practice round is complete. <b>No escort is attacking yet.</b> Use this pause to find the depth and silent-running controls before you continue.<br><br>When you tap NEXT, an escort will be vectored onto your last known position and will begin searching with active sonar. Your first priorities will be: <b>silent running</b>, reduce speed, get <b>below 150 ft</b> (preferably under the thermal layer), and alter course after she loses contact.',
-   goal:'Tap NEXT only when you are ready to start the escort exercise', sta:'TACTICAL', pane:'paneHelm'},
+   goal:'Tap NEXT only when you are ready to start the escort exercise', sta:'TACTICAL', pane:'paneHelm', objective:TUT_OBJECTIVE.ACK},
 
   {id:'evade',title:'Now they know',
    body:'An escort has been vectored onto your launch point and is pinging. Four things save you, and they all work:<br>• <b>🔇 Silent running</b> and <b>slow</b> — she hunts noise<br>• <b>Get under the thermal layer</b> — the dashed blue line on the depth column. Below it her echoes go weak<br>• <b>Alter course</b> — her plot is built from successive echoes; every turn breaks it, and a hard turn leaves a knuckle of churned water that takes the echo instead of you<br>• <b>Wait her out</b> — she carries a finite number of charges, and her own explosions leave her deaf for half a minute<br><br>Watch the header: <b>SONAR: THEY HOLD YOU</b> means she has a firm echo. When it says <b>CONTACT LOST</b>, change depth and course before she finds you again.',
-   goal:'Silent running on and below 150 ft', sta:'TACTICAL', pane:'paneHelm', hl:'oSilent',
+   goal:'Silent running on and below 150 ft', sta:'TACTICAL', pane:'paneHelm', hl:'oSilent', objective:TUT_OBJECTIVE.STATE,
    enter:T=>T.spawnEscort(),
    check:s=>s.playerSub.stealth.silentRunning&&s.playerSub.depthFeet>140},
 
   {id:'air',title:'Aircraft, and the gun',
    body:'Aeroplanes are the thing that kills submarines. A boat on the surface is visible from the air for miles, and the only real answer is <b>dive</b> — depth is what saves you. The crew now handles SD air-search radar automatically while it can be used.<br><br>The <b>20 mm</b> is an automatic last-ditch fallback, not another switch for the skipper. If an attack gets close while you are still surfaced, the crew mans it and tries to spoil the pilot\'s aim. Order a dive at any time: the crew clears the deck automatically, but the boat may be held for a few tense seconds until the hatch is shut.<br><br>Your decision is simply the important one: <b>stay and fight, or dive</b>.',
-   goal:'Tap NEXT — you will not want to practise this one'},
+   goal:'Tap NEXT — you will not want to practise this one', objective:TUT_OBJECTIVE.ACK},
 
   {id:'systems',title:'Status, damage and radio',
    body:'The <b>Status</b> tab is where you check hull, flooding, battery, fuel, stores, mission objectives, radio traffic and the Captain&apos;s Log. Damage-control parties work automatically, but you can choose their repair priority; pumps help flooding at the cost of extra noise.<br><br>Not every patrol uses every system. Historical refits decide whether SJ radar is fitted, mission orders can be convoy attack, reconnaissance, lifeguard, transport or minelaying, and the green friendly rendezvous is your place to service the boat or end a successful patrol.',
-   goal:'Tap NEXT when you know where to check the boat and your orders'},
+   goal:'Tap NEXT when you know where to check the boat and your orders', objective:TUT_OBJECTIVE.ACK},
 
   {id:'done',title:'Qualified',
    body:'That is the whole loop: <b>find</b> with sonar and periscope, <b>build</b> a track, <b>feed</b> the TDC, <b>flood</b>, <b>shoot</b>, then <b>disappear</b>.<br><br>When the patrol changes to <b>RETURN TO BASE</b>, head for the green friendly rendezvous. Enter its 0.30 nm ring <b>surfaced</b> and order <b>Stop</b>; service or final return happens immediately once the boat is stopped in the harbor ring.<br><br>Good hunting, skipper.',
-   goal:'Tap FINISH to pick a real patrol'}
+   goal:'Tap FINISH to pick a real patrol', objective:TUT_OBJECTIVE.ACK}
 ];
 
 class Tutorial{
@@ -236,6 +240,29 @@ class Tutorial{
     const marks=s?.world?.sound?.bearingMarks||{};return Object.values(marks).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);
   }
 
+  objectiveKind(st){return st?.objective||(st?.check?TUT_OBJECTIVE.STATE:TUT_OBJECTIVE.ACK);}
+
+  rawObjectiveSatisfied(st,state){
+    if(!st?.check)return false;
+    try{return !!st.check(state,this);}catch(e){return false;}
+  }
+
+  armObjective(st){
+    this._freshArmed=true;
+    if(this.objectiveKind(st)!==TUT_OBJECTIVE.FRESH)return;
+    // Fresh-action lessons are deliberately entered in an unmet state. This
+    // latch is a final guard against a future refactor accidentally making a
+    // new lesson arrive already green: it then has to become false once before
+    // it is allowed to complete.
+    const initiallyDone=this.rawObjectiveSatisfied(st,this.game.getSnapshot());
+    this._freshArmed=!initiallyDone;
+    if(initiallyDone&&typeof console!=='undefined')console.warn(`Training fresh-action objective entered pre-satisfied: ${st.id}`);
+  }
+
+  prepareStationsLesson(){
+    this.game.dispatch({type:'SET_ACTIVE_STATION',station:'TACTICAL'});
+  }
+
   prepareMapLesson(){
     const s=this.game.getSnapshot();s.map.plottedCourse=[];s.map.autoFollowPlot=false;
   }
@@ -244,6 +271,23 @@ class Tutorial{
     const s=this.game.getSnapshot(),sub=s.playerSub;
     s.map.autoFollowPlot=false;sub.orderedHeading=20;
     this.tc?.setHeadingSlider?.(20);
+  }
+
+  prepareSpeedLesson(){
+    const s=this.game.getSnapshot(),sub=s.playerSub;
+    sub.propulsion.orderedRpm=0;
+    const m=document.getElementById('mRpm'),d=document.getElementById('rpmInput');
+    if(m)m.value=0;if(d)d.value=0;
+  }
+
+  prepareDepthLesson(){
+    const s=this.game.getSnapshot(),sub=s.playerSub;
+    // Do not teleport the boat. Only reset the order so the skipper must issue
+    // the 55 ft command during this lesson; if already near 55 ft, pressing the
+    // control is still a real fresh action and may complete immediately.
+    sub.orderedDepthFeet=0;
+    const m=document.getElementById('mDpt'),d=document.getElementById('depthInput');
+    if(m)m.value=0;if(d)d.value=0;
   }
 
   prepareSoundLesson(){
@@ -333,6 +377,7 @@ class Tutorial{
   start(){
     this.setupScenario();
     this.active=true;this.idx=0;this.doneAt=0;
+    this._freshArmed=true;
     this.userMin=null;this._readDone=-1;clearTimeout(this._minT);
     document.getElementById('briefingOverlay').style.display='none';
     document.getElementById('coach')?.classList.add('on');
@@ -359,6 +404,7 @@ class Tutorial{
     if(st.sta) this.game.dispatch({type:'SET_ACTIVE_STATION',station:st.sta});
     if(st.pane&&this.tc.touch) this.tc.setPane(st.pane);
     if(st.enter) st.enter(this);
+    this.armObjective(st);
     this.applyHl(st.hl);
     this.render(true);
     /* A new step always opens: you have to be able to read it. Then, if it
@@ -392,9 +438,16 @@ class Tutorial{
   update(state){
     if(!this.active) return;
     const st=TUT_STEPS[this.idx];
-    let ok=true;
+    const kind=this.objectiveKind(st);
+    let ok=false;
     if(st.check){
-      try{ok=!!st.check(state,this);}catch(e){ok=false;}
+      const raw=this.rawObjectiveSatisfied(st,state);
+      if(kind===TUT_OBJECTIVE.FRESH){
+        if(!this._freshArmed){
+          if(!raw)this._freshArmed=true;
+          ok=false;
+        }else ok=raw;
+      }else ok=raw;
     }
     if(ok&&st.check&&!this.doneAt){
       this.doneAt=performance.now();

@@ -86,11 +86,12 @@ function crewCanSeeSurfaceHull(state,contact,opts={}){
   if(contact.sunk&&(contact.sinkingProgress??0)>=1)return false;
   const sub=state.playerSub,depth=Number(sub.depthFeet)||0;
   if(depth>65)return false;
-  const localVis=Math.max(.5,weatherVisibilityBetween(state,sub.position,contact.position));
-  let limit=0;
-  if(contact.type==='RAFT')limit=depth<8?Math.min(3.2,localVis*.30):Math.min(1.8,localVis*.17);
-  else limit=depth<8?localVis*1.02:localVis*.86;
-  const pad=Number.isFinite(opts.rangePad)?opts.rangePad:1;
+  // MAP uses the same physical visibility envelope as the bridge/periscope
+  // renderers, but assumes the watch crew scans the full 360 degrees. In
+  // particular, surface smoke/profile bonuses must not let BRG show a hull
+  // while MAP simultaneously downgrades that same ship to an uncertain plot.
+  const limit=bridgeVisualLimitNm(state,contact);
+  const pad=Number.isFinite(opts.rangePad)?opts.rangePad:1.02;
   return distNm(sub.position,contact.position)<=limit*pad;
 }
 
