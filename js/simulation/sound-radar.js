@@ -180,7 +180,12 @@ class SimEngineSoundRadar extends SimEngineSensors{
     tr.soundBearingMarks=arr.slice(-4);tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.18)+.07,0,.92);tr.lastSensorSource='SOUND BEARING';
     const tri=triangulateSoundMarks(arr.filter(m=>now-m.t<420));
     if(tri&&arr.length>=2){
-      tr.plotPosition={...tri.position};tr.lastFixPosition={...tri.position};tr.lastFixTime=now;tr.plotUpdatedAt=now;tr.positionFixAt=now;tr.rangeEstimateNm=distNm(s.playerSub.position,tri.position);tr.bearing=bearingBetween(s.playerSub.position,tri.position);tr.soundUncertaintyNm=clamp(.12+tri.spreadNm,.12,3);tr.positionUncertaintyNm=tr.soundUncertaintyNm;tr.positionConfidence=clamp(.72-tr.soundUncertaintyNm*.08,.48,.72);tr.positionSource='SOUND TRIANGULATION';tr.source='SOUND TRIANGULATION';tr.confidence=clamp(tr.confidence+.08*Math.min(3,arr.length-1),0,.94);
+      tr.soundUncertaintyNm=clamp(.12+tri.spreadNm,.12,3);tr.confidence=clamp(tr.confidence+.08*Math.min(3,arr.length-1),0,.94);
+      if(!hasFreshVisualFix(s,tr)){
+        tr.plotPosition={...tri.position};tr.lastFixPosition={...tri.position};tr.lastFixTime=now;tr.plotUpdatedAt=now;tr.positionFixAt=now;
+        tr.rangeEstimateNm=distNm(s.playerSub.position,tri.position);tr.bearing=bearingBetween(s.playerSub.position,tri.position);
+        tr.positionUncertaintyNm=tr.soundUncertaintyNm;tr.positionConfidence=clamp(.72-tr.soundUncertaintyNm*.08,.48,.72);tr.positionSource='SOUND TRIANGULATION';tr.source='SOUND TRIANGULATION';
+      }
     }
     this.log(`SOUND mark ${arr.length} — ${fmtDeg(bearing)}${tri?` · plot cross ${tr.rangeEstimateNm.toFixed(1)} nm`:''}.`);
     return tr;
@@ -199,7 +204,8 @@ class SimEngineSoundRadar extends SimEngineSensors{
     const bearing=normDeg(s.tactical.soundBearing+clamp(shortDelta(s.tactical.soundBearing,bearingBetween(s.playerSub.position,c.position)),-4,4));
     const br=degToRad(bearing),pos={xNm:s.playerSub.position.xNm+Math.sin(br)*rangeNm,yNm:s.playerSub.position.yNm-Math.cos(br)*rangeNm};
     let tr=W.contactTracks[c.id]||{id:c.id,typeEstimate:'UNKNOWN',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards};
-    Object.assign(tr,{bearing,rangeEstimateNm:rangeNm,plotPosition:pos,lastFixPosition:{...pos},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,positionSource:'QC ECHO',positionConfidence:.92,positionUncertaintyNm:.03,lastUpdated:now,staleSeconds:0,confidence:clamp(Math.max(tr.confidence||0,.72),0,1),source:'QC ECHO'});
+    tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.72),0,1);tr.lastSensorSource='QC ECHO';
+    updateStableContactPlot(s,tr,pos,'QC ECHO',.95,.1);
     W.contactTracks[c.id]=tr;this.notify(`QC — ECHO RANGE ${rangeNm.toFixed(2)} nm on ${fmtDeg(bearing)}. Transmission heard by the enemy.`,'bad');return tr;
   }
 

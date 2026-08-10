@@ -22,7 +22,8 @@ function updateStableContactPlot(state,tr,measurement,source,quality,dt){
   const now=state.time?.elapsedSeconds||0,q=clamp(Number(quality)||0,.02,1),incoming=contactPlotProfile(source);
   const oldSource=tr.positionSource||tr.source||source,old=contactPlotProfile(oldSource);
   const oldFixAt=Number.isFinite(tr.positionFixAt)?tr.positionFixAt:(Number.isFinite(tr.lastFixTime)?tr.lastFixTime:-999);
-  const lowerSourceHeld=!!tr.plotPosition&&incoming.rank<old.rank&&(now-oldFixAt)<old.holdSec;
+  const visualOwnsPlot=source!=='VISUAL'&&hasFreshVisualFix(state,tr);
+  const lowerSourceHeld=visualOwnsPlot||(!!tr.plotPosition&&incoming.rank<old.rank&&(now-oldFixAt)<old.holdSec);
   let pos=contactPlotPredicted(tr,now)||{...measurement};
   tr.rawObservationPosition={...measurement};tr.rawObservationAt=now;tr.lastSensorSource=source;
 

@@ -2,6 +2,11 @@
 class SimEngineCore{
   constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactSeq=0;}
 
+  captureImpactShipState(c){
+    if(!c)return null;const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+    return{heading:c.heading||0,speedKnots:c.speedKnots||0,shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,
+      sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1};
+  }
   impactObservationSnapshot(c,meta={}){
     if(!c?.position)return null;const sub=this.state.playerSub;
     const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
@@ -9,10 +14,10 @@ class SimEngineCore{
       token:++this._impactSeq,contactId:c.id,name:c.name||c.id,type:c.type,displayType:c.displayType||c.type,
       lengthYards:c.lengthYards,tonsFactor:c.tonsFactor||0,heading:c.heading||0,speedKnots:c.speedKnots||0,
       position:{...c.position},shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,
-      hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1,stationary:!!c.stationary,
-      viewerPos:{...sub.position},viewerDepth:sub.depthFeet||0,viewerHeading:sub.heading||0,
+      hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1,stationary:!!c.stationary,beforeShip:clone(meta.beforeShip||null),
+      impactPosition:clone(meta.impactPosition||null),viewerPos:{...sub.position},viewerDepth:sub.depthFeet||0,viewerHeading:sub.heading||0,
       originStation:this.state.tactical.activeStation,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
-      condition:meta.condition||null,rangeNm:distNm(sub.position,c.position),durationMs:2350
+      condition:meta.condition||null,rangeNm:distNm(sub.position,c.position),durationMs:5000
     };
   }
   startImpactObservation(snapshot){
@@ -33,7 +38,8 @@ class SimEngineCore{
     const station=this.state.tactical.activeStation;
     if(station==='PERISCOPE'||station==='BRIDGE')return this.startImpactObservation(snap);
     const msg=`${String(meta.weapon||'TORPEDO').replace(/_/g,' ')} HIT — ${c.name||c.id}${meta.location?` ${String(meta.location).toLowerCase()}`:''}.`;
-    if(typeof Toast!=='undefined'&&Toast.action){Toast.action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),7000,'ok');return true;}
+    if(typeof Toast!=='undefined'&&Toast.impactAction){Toast.impactAction(msg,()=>this.startImpactObservation(snap));return true;}
+    if(typeof Toast!=='undefined'&&Toast.action){Toast.action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),18000,'ok');return true;}
     return false;
   }
 
@@ -328,6 +334,7 @@ class SimEngineCore{
         this.state.time.timeScale=opts[(i+1)%opts.length];
         this.log(this.state.time.timeScale===0?'Simulation paused.':`Time scale: ${this.state.time.timeScale}x.`); break;}
       case'SET_ACTIVE_STATION':{
+        if(this.state.tactical.activeStation==='PERISCOPE'&&cmd.station!=='PERISCOPE')this.refreshScopeVisualContacts?.();
         if(cmd.station==='DECK_GUN'){
           if(this.tryAutoManDeckGun()) this.state.tactical.activeStation='DECK_GUN';
           break;
@@ -347,6 +354,7 @@ class SimEngineCore{
           const sid=this.state.tactical.selectedTrackId||this.state.tdc.targetId;
           const tr=sid?this.state.world.contactTracks[sid]:null;
           this.state.tactical.periscopeBearing=tr&&Number.isFinite(tr.bearing)?tr.bearing:sub.heading;
+          this.refreshScopeVisualContacts?.();
         }
         if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.ensureSoundRadarState?.();}
         break;}
@@ -366,8 +374,8 @@ class SimEngineCore{
       case'BRIDGE_MARK_CONTACT': this.markBridgeContact(cmd.trackId||null,false); break;
       case'BRIDGE_TARGET_CENTER': this.markBridgeContact(null,true); break;
       case'BRIDGE_TARGET_CONTACT': this.markBridgeContact(cmd.trackId||null,true); break;
-      case'ROTATE_PERISCOPE': this.state.tactical.periscopeBearing=normDeg(this.state.tactical.periscopeBearing+cmd.deltaDeg); break;
-      case'TOGGLE_PERISCOPE_ZOOM': this.state.tactical.periscopeZoom=this.state.tactical.periscopeZoom===1?2.5:1; break;
+      case'ROTATE_PERISCOPE': this.state.tactical.periscopeBearing=normDeg(this.state.tactical.periscopeBearing+cmd.deltaDeg);this.refreshScopeVisualContacts?.(); break;
+      case'TOGGLE_PERISCOPE_ZOOM': this.state.tactical.periscopeZoom=this.state.tactical.periscopeZoom===1?2.5:1;this.refreshScopeVisualContacts?.(); break;
       case'PERISCOPE_SELECT_CENTER_CONTACT': this.selectScopeContact(); break;
       case'DESELECT_TRACK':
         this.state.tactical.selectedTrackId=null;this.state.tdc.targetId=null;
@@ -376,7 +384,10 @@ class SimEngineCore{
       case'SELECT_TRACK':{
         const tr=this.state.world.contactTracks[cmd.trackId];
         if(tr&&tr.sunk){this.log(`${tr.id} is already on the bottom.`,'warn');break;}
-        if(tr){this.state.tactical.selectedTrackId=tr.id;this.state.tdc.targetId=tr.id;this.state.tdc.autoTrack=true;this.state.tdc.trackSource='PLOT';
+        if(tr){
+          const same=this.state.tdc.targetId===tr.id,oldSource=this.state.tdc.trackSource;
+          this.state.tactical.selectedTrackId=tr.id;this.state.tdc.targetId=tr.id;this.state.tdc.autoTrack=true;
+          this.state.tdc.trackSource=(same&&oldSource==='SCOPE')?'SCOPE':(hasFreshVisualFix(this.state,tr)?'VISUAL':'PLOT');
           this.updateTdc();this.log(`Selected ${tr.id} for TDC tracking.`);}
         else this.log('Track lost.','warn');
         break;}

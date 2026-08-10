@@ -229,6 +229,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             audio.playDud();
           } else {
             t.status='HIT';this.aarTorpedoFinish?.(t,'HIT',c.id);
+            const beforeShip=this.captureImpactShipState?.(c);
             c.hitFrac=hitFrac;c.hitSide=lateral>=0?1:-1;
             const dmg=applyTorpedoShipDamage(this,c,{hitFrac,hitSide:c.hitSide,incidence,
               warheadKg:spec.warheadKg||292,torpedoId:t.id,specKey:t.specKey});
@@ -246,7 +247,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             this.aarRecordEvent?.('TORPEDO_HIT',`${t.id} hit ${c.name} ${dmg.location.toLowerCase()}.`,
               {torpedoId:t.id,contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,location:dmg.location,
                incidenceDeg:Math.round(incidence),condition,weapon:'TORPEDO'},this.state.playerSub.position,c.position);
-            this.offerImpactObservation?.(c,{weapon:'TORPEDO',location:dmg.location,condition});
+            this.offerImpactObservation?.(c,{weapon:'TORPEDO',location:dmg.location,condition,beforeShip,impactPosition:{...t.position}});
             if(!c.sunk){
               const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));
               const sum=shipDamageSummary(c);

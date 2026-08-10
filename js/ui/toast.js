@@ -57,6 +57,13 @@ const Toast = {
     div.appendChild(b);div.style.setProperty('--toast-hold',Math.max(.35,(duration-300)/1000)+'s');c.appendChild(div);
     setTimeout(()=>div.remove(),duration+60);return div;
   },
+  impactAction(msg,fn){
+    const c=document.getElementById('toastContainer');if(!c)return null;
+    c.querySelector?.('.impact-action-toast')?.remove?.();
+    const div=this.action(msg,'VIEW IMPACT',fn,18000,'ok');
+    if(div){div.classList.add('impact-action-toast');div.dataset.role='impact-action';}
+    return div;
+  },
   clear(){ document.getElementById('toastContainer')?.replaceChildren(); },
   stop(msg,type='bad'){
     // Stop reasons own the toast lane, but long reasons are allowed the time

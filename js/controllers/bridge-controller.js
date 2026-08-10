@@ -111,8 +111,7 @@ class BridgeController{
       const id=this.cv.pickTrack(s,e.clientX,e.clientY);
       if(id){
         if(id===s.tactical.selectedTrackId)this.game.dispatch({type:'DESELECT_TRACK'});
-        else {this.game.dispatch({type:'SELECT_TRACK',trackId:id});
-              this.game.dispatch({type:'TDC_SEND_SCOPE_OBSERVATION'});}
+        else {this.game.dispatch({type:'SELECT_TRACK',trackId:id});}
         return;
       }
       const w=this.cv.screenToWorldMap(e.clientX,e.clientY);

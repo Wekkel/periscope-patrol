@@ -751,18 +751,11 @@ class CanvasView extends CanvasViewSound {
          chart-memory window; the kinematic plot continues to age underneath
          and reverts to an uncertainty glyph once that visual fix is genuinely
          stale. */
-      let visuallyResolvable=false;
-      if(visualFlag&&state){
-        const c=(state.world.contacts||[]).find(q=>q.id===tr.id&&!q.sunk);
-        if(c){
-          const sub=state.playerSub,r=distNm(sub.position,c.position);
-          visuallyResolvable=(sub.depthFeet||0)<8?r<=bridgeVisualLimitNm(state,c):scopeCanResolveHull(state,c,false);
-        }
-      }
-      /* Solid chart hull and optical hull now obey the same visibility test.
-         Confidence may be 96% because the track is excellent, but confidence
-         alone never decides whether the physical hull is currently visible. */
-      const hasTruePos=visualFlag&&(state?visuallyResolvable:(fixAge<18&&(tr.staleSeconds||0)<24));
+      /* A chart symbol represents what the crew KNOWS, not whether the player is
+         still staring through the same eight-degree cone this exact frame. A
+         recent visual hull fix therefore remains a solid ship for a short
+         plotting-memory window and dead-reckons from that fix. */
+      const hasTruePos=visualFlag&&(state?hasFreshVisualFix(state,tr):(fixAge<=VISUAL_FIX_MEMORY_SEC));
       const pt=hasTruePos?pe:null;
 
       const sensorUncPx=Number.isFinite(tr.positionUncertaintyNm)?tr.positionUncertaintyNm*this.zoom:0;
@@ -808,8 +801,8 @@ class CanvasView extends CanvasViewSound {
       const compactType=this._mapCompactTypeLabel(tr.typeEstimate);
       const title=isSelected?`${tr.id} ${affiliation}${tr.typeEstimate}`:`${tr.id} ${dense?compactType:(affiliation+compactType)}`;
       const lines=[title.trim()];
-      if(isSelected)lines.push(`${tr.source} C${Math.round(conf*100)}% ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
-      else if(!dense&&!hasTruePos)lines.push(`${tr.source} C${Math.round(conf*100)}%`);
+      if(isSelected)lines.push(hasTruePos?`VISUAL FIX · ${Math.max(0,Math.round(fixAge))}s · ${tr.rangeEstimateNm.toFixed(1)}nm`:`${tr.source} · PLOT ${Math.round(conf*100)}% · ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
+      else if(!dense&&!hasTruePos)lines.push(`${tr.source} · PLOT ${Math.round(conf*100)}%`);
       if(isSelected&&tr.damageEstimate)lines.push(tr.damageEstimate);
       const fs=isSelected?10.2:8.2, lh=(isSelected?12:10)*K;
       ctx.font=this.fnt(fs,true);

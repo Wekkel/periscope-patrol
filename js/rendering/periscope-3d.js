@@ -793,20 +793,35 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
   }
 
-  /* ══════════ SHORT IMPACT OBSERVATION ══════════
-     A two-second freeze-frame after a torpedo hit. It uses the same one-ship
-     vector model as the scope, but an automatically tightened field of view so
-     the target fills the frame. This is intentionally not another render loop. */
+  /* ══════════ CINEMATIC IMPACT OBSERVATION ══════════
+     Five seconds of wall-clock animation. Simulation time is paused by the
+     engine, but the normal canvas RAF keeps painting: the torpedo closes the
+     last few yards, the flash blossoms, water and smoke rise, and the post-hit
+     list/trim settles in. The camera is fitted to the full ship rather than
+     cropping the bow/stern, so the result remains readable on a phone. */
   drawImpactObservation(ctx,w,h,state){
     const O=state.tactical.impactObservation;if(!O?.position||!O?.viewerPos)return;
+    const nowWall=(typeof performance!=='undefined'?performance.now():Date.now()),dur=Math.max(1000,O.durationMs||5000);
+    const frac=clamp((nowWall-(O.startedWall||nowWall))/dur,0,1),hitAt=.18;
+    const before=O.beforeShip||{},afterDamage=O.shipDamage||null,beforeDamage=before.shipDamage||null;
+    const mixDamage=(a,b,p)=>{
+      if(!a&&!b)return null;const out={},keys=new Set([...Object.keys(a||{}),...Object.keys(b||{})]);
+      for(const k of keys){const av=a?.[k],bv=b?.[k];if(Number.isFinite(av)||Number.isFinite(bv))out[k]=lerp(Number.isFinite(av)?av:0,Number.isFinite(bv)?bv:0,p);else out[k]=p>.55?bv:av;}
+      return out;
+    };
+    const damageP=clamp((frac-hitAt)/.55,0,1);
     const c={
       id:O.contactId,name:O.name,type:O.type,displayType:O.displayType,lengthYards:O.lengthYards,tonsFactor:O.tonsFactor,
-      heading:O.heading||0,speedKnots:O.speedKnots||0,position:{...O.position},shipDamage:O.shipDamage?JSON.parse(JSON.stringify(O.shipDamage)):null,
-      sunk:!!O.sunk,sinkingProgress:O.sinkingProgress||0,sinkStyle:O.sinkStyle||0,hitFrac:O.hitFrac||0,hitSide:O.hitSide||1,stationary:!!O.stationary
+      heading:lerpAngle(before.heading??O.heading??0,O.heading||0,damageP),speedKnots:lerp(before.speedKnots??O.speedKnots??0,O.speedKnots||0,damageP),
+      position:{...O.position},shipDamage:mixDamage(beforeDamage,afterDamage,damageP),
+      sunk:damageP>.65?!!O.sunk:!!before.sunk,sinkingProgress:lerp(before.sinkingProgress||0,O.sinkingProgress||0,damageP),
+      sinkStyle:O.sinkStyle||before.sinkStyle||0,hitFrac:Number.isFinite(O.hitFrac)?O.hitFrac:0,hitSide:O.hitSide||1,stationary:!!O.stationary
     };
     const dNm=Math.max(.05,distNm(O.viewerPos,c.position)),dM=dNm*NM_M,realLen=shipVisualLengthM(c,400);
-    const angular=radToDeg(2*Math.atan(realLen/(2*dM))),fov=clamp(angular*.78,1.1,7.0);
-    const cx=w*.5,cy=h*.53,r=Math.min(w*.52,h*.58),cam=this.setupCam(state,fov,cx,cy,r);
+    const angular=radToDeg(2*Math.atan(realLen/(2*dM))),fov=clamp(angular*1.28,1.25,15.0);
+    const shock=(frac>=hitAt&&frac<hitAt+.25)?Math.sin((frac-hitAt)/.25*Math.PI):0;
+    const jx=Math.sin(frac*95)*shock*4*this.k,jy=Math.cos(frac*81)*shock*2.5*this.k;
+    const cx=w*.5+jx,cy=h*.52+jy,r=Math.min(w*.52,h*.58),cam=this.setupCam(state,fov,cx,cy,r);
     const br=bearingBetween(O.viewerPos,c.position),brR=degToRad(br);
     cam.E=O.viewerPos.xNm*NM_M;cam.N=-O.viewerPos.yNm*NM_M;cam.h=2.05;cam.bearingDeg=br;cam.sin=Math.sin(brR);cam.cos=Math.cos(brR);cam.kind='IMPACT';
     cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);
@@ -814,26 +829,37 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const env=state.world.environment,dl=env.daylight,t=state.time.elapsedSeconds,wx=env.weather||'CLEAR';
     const light=(()=>{const tod=((t/DayNightCycle.CYCLE_SECONDS)%1+1)%1,az=degToRad(normDeg(90+tod*360)),el=degToRad(6+58*Math.sin(Math.PI*clamp(dl,0,1)));return{E:Math.sin(az)*Math.cos(el),N:Math.cos(az)*Math.cos(el),Y:Math.sin(el)+.25};})();
 
-    ctx.save();ctx.fillStyle='rgba(0,0,0,.88)';ctx.fillRect(0,0,w,h);
+    ctx.save();ctx.fillStyle='rgba(0,0,0,.90)';ctx.fillRect(0,0,w,h);
     const inset=Math.max(6,8*this.k);ctx.save();this.rr(ctx,inset,inset,w-inset*2,h-inset*2,8*this.k);ctx.clip();
     this.drawSky3D(ctx,w,h,cam,state,dl,wx,t);this.drawSea3D(ctx,w,h,cam,dl,env.seaState,wx,t);this.drawTerrain3D(ctx,cam,state,dl);
     this.drawShip3D(ctx,cam,it,state,dl,light,Math.max(env.visibilityNm||1,dNm*1.25),t);
 
-    // Localised impact flash/spray at the recorded side and longitudinal hit.
     const model=SHIP_MODELS[typeof shipVisualModelKey==='function'?shipVisualModelKey(c):c.type]||SHIP_MODELS.MERCHANT,S=realLen/model.len,hb=degToRad(c.heading),cosH=Math.cos(hb),sinH=Math.sin(hb);
     const hp=V0(this,cam,it,cosH,sinH,S,(O.hitSide||1)*model.beam*.42,model.fb*.42,(O.hitFrac||0)*model.len);
     if(hp){
-      const rr=Math.max(24*this.k,Math.min(w,h)*.085),g=ctx.createRadialGradient(hp.x,hp.y,1,hp.x,hp.y,rr);g.addColorStop(0,'rgba(255,250,214,1)');g.addColorStop(.18,'rgba(255,180,64,.98)');g.addColorStop(.55,'rgba(220,70,28,.72)');g.addColorStop(1,'rgba(130,30,20,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(hp.x,hp.y,rr,0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='rgba(225,242,244,.88)';ctx.lineWidth=Math.max(2,3*this.k);for(const q of [-.7,-.25,.25,.7]){ctx.beginPath();ctx.moveTo(hp.x,hp.y+rr*.22);ctx.quadraticCurveTo(hp.x+q*rr*.45,hp.y-rr*.5,hp.x+q*rr*.28,hp.y-rr*1.15);ctx.stroke();}
-      ctx.fillStyle='rgba(35,33,31,.58)';for(let i=0;i<4;i++){ctx.beginPath();ctx.arc(hp.x+rr*(.05+i*.16),hp.y-rr*(.8+i*.18),rr*(.22+i*.04),0,Math.PI*2);ctx.fill();}
+      if(frac<hitAt){
+        const run=clamp(frac/hitAt,0,1),sx=w*.50,sy=h*.90,tx=lerp(sx,hp.x,run),ty=lerp(sy,hp.y,run);
+        ctx.strokeStyle=`rgba(235,249,250,${.28+.50*run})`;ctx.lineWidth=Math.max(2,3*this.k);ctx.beginPath();ctx.moveTo(sx,sy);ctx.lineTo(tx,ty);ctx.stroke();
+        ctx.fillStyle='rgba(38,45,43,.95)';ctx.beginPath();ctx.ellipse(tx,ty,4*this.k,1.7*this.k,Math.atan2(hp.y-sy,hp.x-sx),0,Math.PI*2);ctx.fill();
+      }
+      if(frac>=hitAt){
+        const base=Math.max(22*this.k,Math.min(w,h)*.070),grow=clamp((frac-hitAt)/.17,0,1),fade=1-clamp((frac-.42)/.36,0,1),rr=base*(.35+1.75*Math.sqrt(grow));
+        const g=ctx.createRadialGradient(hp.x,hp.y,1,hp.x,hp.y,rr);g.addColorStop(0,`rgba(255,252,225,${fade})`);g.addColorStop(.18,`rgba(255,185,62,${.96*fade})`);g.addColorStop(.55,`rgba(224,72,28,${.70*fade})`);g.addColorStop(1,'rgba(120,25,18,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(hp.x,hp.y,rr,0,Math.PI*2);ctx.fill();
+        const sprayT=clamp((frac-hitAt)/.48,0,1),sprayFade=1-clamp((frac-.62)/.30,0,1);ctx.strokeStyle=`rgba(228,246,247,${.92*sprayFade})`;ctx.lineWidth=Math.max(1.5,2.6*this.k);
+        for(let i=0;i<9;i++){const q=(i-4)/4,top=base*(1.0+1.55*sprayT)*(1-.16*Math.abs(q));ctx.beginPath();ctx.moveTo(hp.x+q*base*.55,hp.y+base*.16);ctx.quadraticCurveTo(hp.x+q*base*.8,hp.y-top*.55,hp.x+q*base*.48,hp.y-top);ctx.stroke();}
+        const smokeT=clamp((frac-.27)/.73,0,1);if(smokeT>0){
+          for(let i=0;i<7;i++){const age=clamp(smokeT-i*.055,0,1);if(age<=0)continue;const drift=(i-3)*base*.11+Math.sin(i*2.7)*base*.06,rad=base*(.22+.34*age+i*.018);ctx.fillStyle=`rgba(38,38,36,${.18+.34*(1-age)})`;ctx.beginPath();ctx.arc(hp.x+drift,hp.y-base*(.55+age*1.9)-i*base*.07,rad,0,Math.PI*2);ctx.fill();}
+          const fire=1-clamp((frac-.72)/.28,0,1);if(fire>0){ctx.fillStyle=`rgba(255,142,38,${.55*fire*(.75+.25*Math.sin(frac*80))})`;ctx.beginPath();ctx.arc(hp.x,hp.y-base*.25,base*.32,0,Math.PI*2);ctx.fill();}
+        }
+      }
     }
     ctx.restore();
 
-    ctx.fillStyle='rgba(4,16,20,.94)';this.rr(ctx,inset+6*this.k,inset+6*this.k,Math.min(w-inset*2-12*this.k,390*this.k),46*this.k,6*this.k);ctx.fill();ctx.strokeStyle='rgba(245,198,92,.78)';ctx.lineWidth=1;ctx.stroke();
-    ctx.fillStyle='#f5c65c';ctx.font=this.fnt(10,true);ctx.fillText('IMPACT OBSERVATION',inset+14*this.k,inset+23*this.k);
-    ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(8.2);const facts=[O.contactId||O.name,O.displayType,O.tonsFactor?`${Number(O.tonsFactor).toLocaleString()} tons`:null,O.location].filter(Boolean).join(' · ');ctx.fillText(facts,inset+14*this.k,inset+38*this.k);
-    const now=(typeof performance!=='undefined'?performance.now():Date.now()),frac=clamp((now-(O.startedWall||now))/(O.durationMs||2350),0,1),bw=Math.min(w*.36,230*this.k),bx=w-inset-bw,by=h-inset-10*this.k;
-    ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(bx,by,bw,3*this.k);ctx.fillStyle='#f5c65c';ctx.fillRect(bx,by,bw*(1-frac),3*this.k);ctx.restore();
+    const stage=frac<hitAt?'TORPEDO RUN':frac<.38?'IMPACT':frac<.70?'BLAST & SPRAY':'DAMAGE OBSERVATION';
+    ctx.fillStyle='rgba(4,16,20,.94)';this.rr(ctx,inset+6*this.k,inset+6*this.k,Math.min(w-inset*2-12*this.k,420*this.k),50*this.k,6*this.k);ctx.fill();ctx.strokeStyle='rgba(245,198,92,.78)';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#f5c65c';ctx.font=this.fnt(10,true);ctx.fillText(`IMPACT OBSERVATION — ${stage}`,inset+14*this.k,inset+23*this.k);
+    ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(8.2);const facts=[O.contactId||O.name,O.displayType,O.tonsFactor?`${Number(O.tonsFactor).toLocaleString()} tons`:null,O.location,O.condition].filter(Boolean).join(' · ');ctx.fillText(facts,inset+14*this.k,inset+40*this.k);
+    const bw=Math.min(w*.36,230*this.k),bx=w-inset-bw,by=h-inset-10*this.k;ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(bx,by,bw,3*this.k);ctx.fillStyle='#f5c65c';ctx.fillRect(bx,by,bw*(1-frac),3*this.k);ctx.restore();
   }
 
   /* ══════════ 3D SHIPS ══════════ */

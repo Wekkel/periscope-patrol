@@ -361,6 +361,7 @@
     .toast.warn{border-color:var(--alert);color:var(--alert);}
     .toast.bad{border-color:var(--danger);color:var(--danger);}
     .action-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;text-align:left;}
+    .impact-action-toast{order:-20;border-width:2px;box-shadow:0 5px 22px rgba(0,0,0,.78),0 0 0 1px rgba(245,198,92,.14) inset;}
     .action-toast span{flex:1;min-width:0;}
     .toast-action-btn{width:auto!important;min-width:86px;margin:0!important;padding:7px 10px!important;border-color:currentColor!important;color:inherit!important;background:rgba(0,0,0,.22)!important;font-size:9.5px!important;white-space:nowrap;}
     @keyframes toastIn{from{opacity:0;transform:translateY(-10px) scale(.96);}to{opacity:1;transform:none;}}

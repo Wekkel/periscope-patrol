@@ -535,7 +535,7 @@ class TouchCtrl{
       const id=this.cv.pickTrack(s,e.clientX,e.clientY);
       if(id){
         if(id===s.tactical.selectedTrackId){D({type:'DESELECT_TRACK'});Toast.ok('Contact selection cleared');}
-        else {D({type:'SELECT_TRACK',trackId:id});D({type:'TDC_SEND_SCOPE_OBSERVATION'});}
+        else {D({type:'SELECT_TRACK',trackId:id});}
         buzz(14);return;
       }
       const w=this.cv.screenToWorldMap(e.clientX,e.clientY);
