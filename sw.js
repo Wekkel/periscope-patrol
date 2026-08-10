@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.17'; // Polish gun impacts, torpedo cinematic and AAR replay controls
+const VERSION = '0.8.17'; // Fix ship hitbox units, long-range gun ballistics and torpedo impact geometry
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
