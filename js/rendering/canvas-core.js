@@ -51,34 +51,59 @@ class CanvasViewCore{
   revealScopeLabel(id,ms=3200){this.scopeLabelId=id;this.scopeLabelUntil=performance.now()+ms;}
 
   render(state){
-    const ctx=this.ctx,w=this.w,h=this.h;
-    // the whole view jolts when something goes off nearby
-    const mag=clamp(state.world.shakeMag||0,0,9);
-    let sx=0,sy=0;
-    if(mag>0.05){
-      const t=state.time.elapsedSeconds*47;
-      const amp=mag*this.k*0.9;
-      sx=(Math.sin(t*1.7)+Math.sin(t*3.1)*0.5)*amp;
-      sy=(Math.cos(t*2.3)+Math.sin(t*4.7)*0.5)*amp*0.8;
-    }
-    ctx.setTransform(this.dpr,0,0,this.dpr,sx*this.dpr,sy*this.dpr);
-    ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.globalAlpha=1;ctx.setLineDash([]);
-    if(state.tactical.activeStation==='MAP') this.drawMap(ctx,w,h,state);
-    else if(state.tactical.activeStation==='PERISCOPE') this.drawPeriscope(ctx,w,h,state);
-    else if(state.tactical.activeStation==='BRIDGE') this.drawBridge(ctx,w,h,state);
-    else if(state.tactical.activeStation==='SOUND') this.drawSound(ctx,w,h,state);
-    else if(state.tactical.activeStation==='DECK_GUN') this.drawDeckGun(ctx,w,h,state);
-    else this.drawTactical(ctx,w,h,state);
-    ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
-    this.drawHitFlash(ctx,w,h,state);
-    if(state.tactical.impactObservation&&this.drawImpactObservation)this.drawImpactObservation(ctx,w,h,state);
-    else{
-      this.drawAirAlarm(ctx,w,h,state);
-      this.drawSoundCallout(ctx,w,h,state);
-    }
-    if(mag>1.6&&!state.tactical.impactObservation){ // dust and flakes shaken loose
-      ctx.fillStyle=`rgba(255,235,200,${clamp(mag/26,0,0.10)})`;
-      ctx.fillRect(0,0,w,h);
+    const ctx=this.ctx,w=this.w,h=this.h,station=state?.tactical?.activeStation||'TACTICAL';
+    this._lastRenderError=null;
+    try{
+      // the whole view jolts when something goes off nearby
+      const mag=clamp(state.world.shakeMag||0,0,9);
+      let sx=0,sy=0;
+      if(mag>0.05){
+        const t=state.time.elapsedSeconds*47;
+        const amp=mag*this.k*0.9;
+        sx=(Math.sin(t*1.7)+Math.sin(t*3.1)*0.5)*amp;
+        sy=(Math.cos(t*2.3)+Math.sin(t*4.7)*0.5)*amp*0.8;
+      }
+      ctx.setTransform(this.dpr,0,0,this.dpr,sx*this.dpr,sy*this.dpr);
+      ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.globalAlpha=1;ctx.setLineDash([]);
+      if(station==='MAP') this.drawMap(ctx,w,h,state);
+      else if(station==='PERISCOPE') this.drawPeriscope(ctx,w,h,state);
+      else if(station==='BRIDGE') this.drawBridge(ctx,w,h,state);
+      else if(station==='SOUND') this.drawSound(ctx,w,h,state);
+      else if(station==='DECK_GUN') this.drawDeckGun(ctx,w,h,state);
+      else this.drawTactical(ctx,w,h,state);
+      ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
+      this.drawHitFlash(ctx,w,h,state);
+      if(state.tactical.impactObservation&&this.drawImpactObservation)this.drawImpactObservation(ctx,w,h,state);
+      else{
+        this.drawAirAlarm(ctx,w,h,state);
+        this.drawSoundCallout(ctx,w,h,state);
+      }
+      if(mag>1.6&&!state.tactical.impactObservation){ // dust and flakes shaken loose
+        ctx.fillStyle=`rgba(255,235,200,${clamp(mag/26,0,0.10)})`;
+        ctx.fillRect(0,0,w,h);
+      }
+      this._lastRenderErrorKey=null;
+      return true;
+    }catch(err){
+      const e=err instanceof Error?err:new Error(String(err||'unknown render error'));
+      this._lastRenderError=e;
+      const key=`${station}:${e.message}`;
+      if(this._lastRenderErrorKey!==key){
+        this._lastRenderErrorKey=key;
+        console.error(`[RENDER] ${station} display failed — station navigation kept alive`,e);
+      }
+      /* A display failure is local to this frame/station. Do not mutate game
+         state or stop the loop: the skipper must still be able to switch away
+         from a broken view, especially on memory-constrained touch devices. */
+      try{
+        ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);
+        ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
+        ctx.fillStyle='rgba(239,106,88,.95)';ctx.font=this.fnt(11,true);ctx.textAlign='center';
+        ctx.fillText(`${station} DISPLAY FAULT`,w/2,h*.46);
+        ctx.fillStyle='rgba(210,226,220,.86)';ctx.font=this.fnt(8.5);ctx.fillText(e.message.slice(0,72),w/2,h*.51);
+        ctx.fillText('Switch station or start/load a patrol.',w/2,h*.56);ctx.textAlign='left';
+      }catch(_){ }
+      return false;
     }
   }
 

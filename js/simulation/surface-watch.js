@@ -101,6 +101,22 @@ function scopeCanResolveHull(state,contact,opts={}){
   return rng<=limit*pad&&off<=fov*fovPad;
 }
 
+function hasFreshVisualFix(state,tr,maxAgeSec=24){
+  if(!state||!tr)return false;
+  const now=Number(state.time?.elapsedSeconds)||0;
+  const visualFlag=tr.visualHullConfirmed===undefined
+    ?(tr.positionSource==='VISUAL'||tr.source==='VISUAL')
+    :!!tr.visualHullConfirmed;
+  if(!visualFlag)return false;
+  const at=Number.isFinite(tr.hullConfirmedAt)?tr.hullConfirmedAt
+    :Number.isFinite(tr.visualLastSeenAt)?tr.visualLastSeenAt
+    :Number.isFinite(tr.positionFixAt)?tr.positionFixAt
+    :Number.isFinite(tr.lastUpdated)?tr.lastUpdated:null;
+  if(!Number.isFinite(at))return false;
+  const age=Math.max(0,now-at),limit=Math.max(0,Number(maxAgeSec)||24);
+  return age<=limit&&(Number(tr.staleSeconds)||0)<=limit;
+}
+
 function scopeHullObservation(state,contact,opts={}){
   if(!scopeCanResolveHull(state,contact,opts))return null;
   const sub=state.playerSub,T=state.tactical;

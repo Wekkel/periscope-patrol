@@ -157,6 +157,7 @@ class TouchCtrl{
     btn('oZoomOut',()=>this.cv.zoomAt(1/1.35,innerWidth/2,innerHeight/2));
     btn('oCenter', ()=>{this.cv.recenter(this.game.getSnapshot().playerSub);Toast.ok('Map centred on ownship');});
     btn('oClear',  ()=>D({type:'MAP_CLEAR_PLOT'}));
+    btn('oWeather',()=>{D({type:'TOGGLE_MAP_WEATHER'});buzz(8);});
     btn('oScopeL', ()=>D({type:'ROTATE_PERISCOPE',deltaDeg:-5}));
     btn('oScopeR', ()=>D({type:'ROTATE_PERISCOPE',deltaDeg:5}));
     btn('oScopeZ', ()=>D({type:'TOGGLE_PERISCOPE_ZOOM'}));
@@ -680,6 +681,7 @@ class TouchCtrl{
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
     const sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
     cls('oSilent','on',sub.stealth.silentRunning);
+    cls('oWeather','on',!!state.map.weatherOverlay);
     cls('oGunFire','ready',!!state.weapons.deckGun?.manned&&state.weapons.deckGun.ammo>0);
 
     // fire button + TDC chip

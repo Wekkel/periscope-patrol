@@ -111,15 +111,26 @@ class CanvasView extends CanvasViewSound {
   }
 
   drawMapWeather(ctx,state,w2s,w,h){
+    if(!state?.map?.weatherOverlay)return;
     /* Read-only weather plotting.  This deliberately does not call back into
        the weather simulation: MAP must remain a pure consumer of state so a
        display bug can never change or stall the simulation.  Cells are broad
        cloud/squall areas, not radar-quality truth. */
-    const cells=state?.world?.weatherSystem?.cells;
-    if(!Array.isArray(cells)||!cells.length)return;
-    const own=state.playerSub?.position,K=this.k,z=this.zoom;
+    const own=state.playerSub?.position,K=this.k,z=this.zoom,env=state.world?.environment||{};
     if(!own||!Number.isFinite(z)||z<=0)return;
     ctx.save();
+    // Always show a compact chart cue when the layer is enabled. A nearby
+    // weather cell can be outside the current pan/zoom, and without this cue
+    // the player cannot tell a working overlay from a dead button.
+    const wx=String(env.weather||'CLEAR').replace(/_/g,' '),vis=Number(env.visibilityNm);
+    const label=`WX OVERLAY ON · ${wx}${Number.isFinite(vis)?` · VIS ${vis.toFixed(1)} NM`:''}`;
+    ctx.font=this.fnt(7.5,true);ctx.textAlign='right';
+    const tw=ctx.measureText(label).width+14*K,tx=w-8*K,ty=8*K;
+    ctx.fillStyle='rgba(4,15,18,.78)';this.rr(ctx,tx-tw,ty,tw,19*K,4*K);ctx.fill();
+    ctx.strokeStyle='rgba(177,204,211,.34)';ctx.lineWidth=Math.max(.8,K);ctx.stroke();
+    ctx.fillStyle='rgba(190,220,218,.88)';ctx.fillText(label,tx-7*K,ty+13*K);ctx.textAlign='left';
+    const cells=state?.world?.weatherSystem?.cells;
+    if(!Array.isArray(cells)||!cells.length){ctx.restore();return;}
     for(const c of cells.slice(0,3)){
       const center=c?.center;
       if(!center||!Number.isFinite(center.xNm)||!Number.isFinite(center.yNm))continue;
