@@ -23,7 +23,9 @@ class SimEngineCore{
       hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1,stationary:!!c.stationary,beforeShip:clone(meta.beforeShip||null),
       impactPosition:clone(meta.impactPosition||null),viewerPos:{...sub.position},viewerDepth:sub.depthFeet||0,viewerHeading:sub.heading||0,
       originStation,viewBearing,originFov,targetBearing,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
-      condition:meta.condition||null,rangeNm:distNm(sub.position,c.position),preImpactMs:1500,durationMs:9000
+      condition:meta.condition||null,rangeNm:distNm(sub.position,c.position),preImpactMs:1500,durationMs:9000,
+      torpedoHeading:Number.isFinite(meta.torpedoHeading)?normDeg(meta.torpedoHeading):null,
+      torpedoWakeNm:Number.isFinite(meta.torpedoWakeNm)?Math.max(0,meta.torpedoWakeNm):0,torpedoWakeVisible:!!meta.torpedoWakeVisible
     };
   }
   startImpactObservation(snapshot){

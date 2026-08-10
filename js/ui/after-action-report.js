@@ -5,23 +5,29 @@
 class AfterActionReport{
   constructor(game){
     this.game=game;this.record=null;this.intel=false;this.playTimer=null;this._preScale=null;this.completedOpen=false;
-    this._playHoldTicks=0;this._playMoment=null;this.cameraMode='AUTO';this.cameraZoom=1;this.camera=null;
+    this._playHoldTicks=0;this._playMoment=null;this.cameraMode='AUTO';this.cameraZoom=1;this.camera=null;this._cameraMomentKey=null;this._pan=null;
     this.overlay=document.getElementById('aarOverlay');this.canvas=document.getElementById('aarCanvas');this.ctx=this.canvas?.getContext?.('2d')||null;
     document.getElementById('aarClose')?.addEventListener('click',()=>this.close(false));
     document.getElementById('aarContinue')?.addEventListener('click',()=>this.close(true));
     document.getElementById('aarIntel')?.addEventListener('click',()=>{this.intel=!this.intel;this.refreshIntelLabel();this.draw();});
-    document.getElementById('aarTimeline')?.addEventListener('input',()=>{this._playMoment=null;this.draw();});
+    document.getElementById('aarTimeline')?.addEventListener('input',()=>{this._playMoment=null;this._cameraMomentKey=null;if(this.cameraMode==='AUTO')this.camera=null;this.draw();});
     document.getElementById('aarPlay')?.addEventListener('click',()=>this.togglePlay());
-    document.getElementById('aarZoomIn')?.addEventListener('click',()=>{this.cameraZoom=Math.min(4,this.cameraZoom*1.35);this.camera=null;this.draw();});
-    document.getElementById('aarZoomOut')?.addEventListener('click',()=>{this.cameraZoom=Math.max(.45,this.cameraZoom/1.35);this.camera=null;this.draw();});
-    document.getElementById('aarFit')?.addEventListener('click',()=>{this.cameraMode='FIT';this.cameraZoom=1;this.camera=null;this.refreshCameraButtons();this.draw();});
-    document.getElementById('aarAutoCam')?.addEventListener('click',()=>{this.cameraMode='AUTO';this.camera=null;this.refreshCameraButtons();this.draw();});
+    document.getElementById('aarPrevAction')?.addEventListener('click',()=>this.jumpKeyMoment(-1));
+    document.getElementById('aarNextAction')?.addEventListener('click',()=>this.jumpKeyMoment(1));
+    document.getElementById('aarZoomIn')?.addEventListener('click',()=>this.zoomCamera(1.35));
+    document.getElementById('aarZoomOut')?.addEventListener('click',()=>this.zoomCamera(1/1.35));
+    document.getElementById('aarFit')?.addEventListener('click',()=>{this.cameraMode='FIT';this.cameraZoom=1;this.camera=null;this._cameraMomentKey=null;this.refreshCameraButtons();this.draw();});
+    document.getElementById('aarAutoCam')?.addEventListener('click',()=>{this.cameraMode='AUTO';this.camera=null;this._cameraMomentKey=null;this.refreshCameraButtons();this.draw();});
+    this.canvas?.addEventListener?.('pointerdown',e=>this.beginPan(e));
+    this.canvas?.addEventListener?.('pointermove',e=>this.movePan(e));
+    this.canvas?.addEventListener?.('pointerup',e=>this.endPan(e));
+    this.canvas?.addEventListener?.('pointercancel',e=>this.endPan(e));
     window.addEventListener?.('resize',()=>{if(this.overlay?.classList.contains('open')){this.camera=null;this.draw();}},{passive:true});
   }
 
   open(record,opts={}){
     if(!record)return;this.stopPlay();this.record=JSON.parse(JSON.stringify(record));this.intel=false;this.completedOpen=!!opts.completed;
-    this._playHoldTicks=0;this._playMoment=null;this.cameraMode='AUTO';this.cameraZoom=1;this.camera=null;
+    this._playHoldTicks=0;this._playMoment=null;this.cameraMode='AUTO';this.cameraZoom=1;this.camera=null;this._cameraMomentKey=null;this._pan=null;
     const s=this.game?.getSnapshot?.();if(s?.time){this._preScale=s.time.timeScale;s.time.timeScale=0;}
     this.renderHeader();this.renderStats();this.renderLog();
     const slider=document.getElementById('aarTimeline'),dur=Math.max(1,Math.round(this.record.durationSeconds||this.record.replay?.route?.at?.(-1)?.[0]||1));
@@ -73,21 +79,53 @@ class AfterActionReport{
     document.getElementById('aarAutoCam')?.classList.toggle('on',this.cameraMode==='AUTO');
     document.getElementById('aarFit')?.classList.toggle('on',this.cameraMode==='FIT');
   }
+  zoomCamera(mult){
+    const old=this.cameraZoom;this.cameraZoom=clamp(this.cameraZoom*mult,.45,4);const ratio=this.cameraZoom/Math.max(.01,old);
+    if(this.cameraMode==='MANUAL'&&this.camera)this.camera.span=clamp(this.camera.span/ratio,.35,320);else{this.camera=null;this._cameraMomentKey=null;}
+    this.draw();
+  }
+  beginPan(e){
+    if(!this.record||e?.button>0)return;this.stopPlay();if(!this.camera)this.draw();if(!this.camera)return;
+    this.cameraMode='MANUAL';this._cameraMomentKey=null;this.refreshCameraButtons();
+    this._pan={id:e.pointerId,x:e.clientX,y:e.clientY,cx:this.camera.cx,cy:this.camera.cy,span:this.camera.span};
+    try{this.canvas?.setPointerCapture?.(e.pointerId);}catch(_){ }e.preventDefault?.();
+  }
+  movePan(e){
+    const p=this._pan;if(!p||p.id!==e.pointerId||!this.camera)return;const box=this.canvas?.getBoundingClientRect?.()||{width:900};const px=Math.max(120,(box.width||900)-40),nmPerPx=p.span/px;
+    this.camera.cx=p.cx-(e.clientX-p.x)*nmPerPx;this.camera.cy=p.cy+(e.clientY-p.y)*nmPerPx;this.draw();e.preventDefault?.();
+  }
+  endPan(e){
+    if(!this._pan||this._pan.id!==e.pointerId)return;try{this.canvas?.releasePointerCapture?.(e.pointerId);}catch(_){ }this._pan=null;e.preventDefault?.();
+  }
   _events(){return (this.record?.replay?.events||[]).slice().sort((a,b)=>(a.t||0)-(b.t||0));}
   _isKeyMoment(e){return !!e&&/SHIP_SUNK|TORPEDO_HIT|DECK_GUN_HIT|DEPTH_CHARGE_ATTACK|AIRCRAFT_ATTACK|DAMAGE|MINE_STRUCK|TRUK_PENETRATION|MISSION_COMPLETED|MISSION_FAILED|RETURNED_TO_PORT|BOAT_LOST/i.test(String(e.type||''));}
   _holdTicksFor(e){const ty=String(e?.type||'');if(/SHIP_SUNK|BOAT_LOST/.test(ty))return 10;if(/TORPEDO_HIT|DECK_GUN_HIT|DEPTH_CHARGE_ATTACK|AIRCRAFT_ATTACK|DAMAGE|MINE_STRUCK/.test(ty))return 7;return this._isKeyMoment(e)?5:2;}
 
   togglePlay(){
-    if(this.playTimer){this.stopPlay();return;}const s=document.getElementById('aarTimeline');if(!s)return;
-    if(+s.value>=+s.max){s.value='0';this.camera=null;}
-    const step=Math.max(4,Math.round((+s.max||1)/150)),events=this._events();const b=document.getElementById('aarPlay');if(b)b.textContent='Ⅱ PAUSE';
+    const b=document.getElementById('aarPlay');
+    if(this.playTimer){
+      // A key moment is an intentional hold, not a dead end. If the player taps
+      // the play control during that hold, continue immediately instead of
+      // interpreting the tap as a request to stop the replay altogether.
+      if(this._playHoldTicks>0){this._playHoldTicks=0;if(b)b.textContent='Ⅱ PAUSE';return;}
+      this.stopPlay();return;
+    }
+    const s=document.getElementById('aarTimeline');if(!s)return;
+    if(+s.value>=+s.max){s.value='0';this.camera=null;this._cameraMomentKey=null;}
+    if(this.cameraMode==='MANUAL'){this.cameraMode='AUTO';this.camera=null;this._cameraMomentKey=null;this.refreshCameraButtons();}
+    const step=Math.max(4,Math.round((+s.max||1)/150)),events=this._events();if(b)b.textContent='Ⅱ PAUSE';
     this.playTimer=setInterval(()=>{
-      if(this._playHoldTicks>0){this._playHoldTicks--;this.draw();return;}
+      if(this._playHoldTicks>0){this._playHoldTicks--;if(this._playHoldTicks===0&&b)b.textContent='Ⅱ PAUSE';this.draw();return;}
       const cur=+s.value,max=+s.max;let n=Math.min(max,cur+step),moment=null;
       const next=events.find(e=>(e.t||0)>cur+.25&&(e.t||0)<=cur+step*1.8);
-      if(next){n=Math.min(max,+next.t||0);moment=next;this._playHoldTicks=this._holdTicksFor(next);}
-      this._playMoment=moment;s.value=String(n);this.draw();if(n>=max)this.stopPlay();
+      if(next){n=Math.min(max,+next.t||0);moment=next;this._playHoldTicks=this._holdTicksFor(next);if(b)b.textContent='▶ CONTINUE';}
+      this._playMoment=moment;s.value=String(n);this.draw();if(n>=max&&!moment)this.stopPlay();
     },180);
+  }
+  jumpKeyMoment(dir){
+    const s=document.getElementById('aarTimeline');if(!s)return;this.stopPlay();const cur=+s.value,keys=this._events().filter(e=>this._isKeyMoment(e));if(!keys.length)return;
+    let moment=null;if(dir>0)moment=keys.find(e=>(e.t||0)>cur+.35)||null;else moment=[...keys].reverse().find(e=>(e.t||0)<cur-.35)||null;if(!moment)return;
+    s.value=String(clamp(Number(moment.t)||0,0,+s.max||0));this._playMoment=moment;this.cameraMode='AUTO';this.camera=null;this._cameraMomentKey=null;this.refreshCameraButtons();this.draw();
   }
   stopPlay(){if(this.playTimer){clearInterval(this.playTimer);this.playTimer=null;}this._playHoldTicks=0;const b=document.getElementById('aarPlay');if(b)b.textContent='▶ PLAY';}
   fmtT(sec){sec=Math.max(0,Math.round(Number(sec)||0));const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return h?`T+${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`:`T+${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;}
@@ -131,14 +169,25 @@ class AfterActionReport{
   }
   autoCamera(R,tracks,t,w,h,moment){
     const own=this.routeAt(R.route||[],t),pts=[];if(own)pts.push(own);
-    if(moment){if(moment.position)pts.push(moment.position);if(moment.targetPosition)pts.push(moment.targetPosition);const ty=String(moment.type||'');const min=/SHIP_SUNK|TORPEDO_HIT|DECK_GUN_HIT/.test(ty)?2.2:/DEPTH_CHARGE|DAMAGE/.test(ty)?3.2:/AIRCRAFT/.test(ty)?5:6;const b=this.bounds(pts,w,h,min);b.span=Math.min(14,Math.max(min,b.span))/this.cameraZoom;return b;}
+    if(moment){
+      if(moment.position)pts.push(moment.position);if(moment.targetPosition)pts.push(moment.targetPosition);
+      const d=moment.data||{},ids=[d.contactId,d.targetId,d.escortId].filter(Boolean);
+      for(const g of tracks){if(!ids.includes(g.id))continue;const q=this.trackAt(g,t);if(q)pts.push(q);}
+      if(d.torpedoId){const tp=(R.torpedoes||[]).find(q=>q.id===d.torpedoId);if(tp?.end)pts.push(tp.end);}
+      const ty=String(moment.type||''),min=/SHIP_SUNK|TORPEDO_HIT|DECK_GUN_HIT/.test(ty)?2.2:/DEPTH_CHARGE|DAMAGE/.test(ty)?3.2:/AIRCRAFT/.test(ty)?5:6;
+      const b=this.bounds(pts,w,h,min);b.span=Math.min(18,Math.max(min,b.span*1.10))/this.cameraZoom;return b;
+    }
     if(own)for(const g of tracks){const p=this.trackAt(g,t);if(p&&Math.hypot(p.xNm-own.xNm,p.yNm-own.yNm)<=11)pts.push(p);}
     const b=this.bounds(pts,w,h,8);b.span=Math.min(20,Math.max(8,b.span))/this.cameraZoom;return b;
   }
   cameraFor(R,tracks,t,w,h,moment){
-    const target=this.cameraMode==='FIT'?this.fullActivityCamera(R,tracks,w,h):this.autoCamera(R,tracks,t,w,h,moment);
-    if(!this.camera||this.cameraMode==='FIT'){this.camera={...target};return this.camera;}
-    const a=(moment&&(moment.targetPosition||moment.position)) ? .52 : .20;
+    if(this.cameraMode==='MANUAL'&&this.camera)return this.camera;
+    const target=this.cameraMode==='FIT'?this.fullActivityCamera(R,tracks,w,h):this.autoCamera(R,tracks,t,w,h,moment),key=moment?`${moment.type||'EVENT'}:${Number(moment.t)||0}`:null;
+    // Key moments should be framed correctly on the first held frame. The old
+    // 52% interpolation often left the action at the lower edge until several
+    // redraws later, which looked like AUTO had zoomed to the wrong place.
+    if(!this.camera||this.cameraMode==='FIT'||(this.cameraMode==='AUTO'&&key&&key!==this._cameraMomentKey)){this.camera={...target};this._cameraMomentKey=key;return this.camera;}
+    this._cameraMomentKey=key;const a=(moment&&(moment.targetPosition||moment.position)) ? .62 : .20;
     this.camera.cx+=((target.cx-this.camera.cx)*a);this.camera.cy+=((target.cy-this.camera.cy)*a);this.camera.span+=((target.span-this.camera.span)*a);return this.camera;
   }
 

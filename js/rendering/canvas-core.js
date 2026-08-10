@@ -159,62 +159,58 @@ class CanvasViewCore{
     }
     if(!hit||fade<=0)return;
     const p=this.proj(cam,hit.xNm*NM_M,-hit.yNm*NM_M,zM);if(!p)return;
-    const rr=clamp((36+8200/Math.max(90,p.d))*k,34*k,145*k),a=clamp(fade*power,0,1);
+    const rr=clamp((48+10200/Math.max(90,p.d))*k,42*k,175*k),a=clamp(fade*power,0,1);
     ctx.save();ctx.globalCompositeOperation='screen';
 
-    // Hot local source at the shell impact. This is intentionally compact; the
-    // much broader atmospheric bloom below is what makes the whole scene react
-    // to a nearby gun blast instead of drawing a luminous tube at the viewer.
-    let glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
-    glow.addColorStop(0,`rgba(255,250,214,${a*.78})`);
-    glow.addColorStop(.16,`rgba(255,197,92,${a*.52})`);
-    glow.addColorStop(.55,`rgba(255,128,42,${a*.16})`);
-    glow.addColorStop(1,'rgba(255,104,28,0)');
-    ctx.fillStyle=glow;ctx.fillRect(p.x-rr,p.y-rr,rr*2,rr*2);
+    // A shell burst is a broader, softer patch of light than the old pin-point
+    // flare. Several low-alpha lobes overlap around the real strike point so the
+    // source flickers irregularly without wandering away from the hull hit.
+    let glow;
+    for(let i=0;i<4;i++){
+      const phase=(now-(gf?.startedAt??now))*13+i*1.71,ox=Math.sin(phase*1.9+i)*rr*(.035+.014*i),oy=Math.cos(phase*1.35+i*.8)*rr*(.025+.010*i);
+      const rri=rr*(.72+i*.12),g=ctx.createRadialGradient(p.x+ox,p.y+oy,0,p.x+ox,p.y+oy,rri);
+      g.addColorStop(0,`rgba(255,244,202,${a*(.34-i*.035)})`);
+      g.addColorStop(.24,`rgba(255,188,92,${a*(.24-i*.024)})`);
+      g.addColorStop(.64,`rgba(255,128,48,${a*(.075-i*.008)})`);
+      g.addColorStop(1,'rgba(255,104,28,0)');ctx.fillStyle=g;ctx.fillRect(p.x-rri*1.2,p.y-rri*1.2,rri*2.4,rri*2.4);
+    }
 
-    // A blast is a point light radiating in every direction. Let a weak, very
-    // broad bloom lift the sky/sea around the target so the effect reads as an
-    // explosion in the world, not a spotlight aimed only at the submarine.
-    const broadR=Math.max(rr*2.7,Math.hypot(w,h)*.62);
-    glow=ctx.createRadialGradient(p.x,p.y,rr*.12,p.x,p.y,broadR);
-    glow.addColorStop(0,`rgba(255,210,126,${a*.22})`);
-    glow.addColorStop(.30,`rgba(255,159,72,${a*.12})`);
-    glow.addColorStop(.68,`rgba(255,120,46,${a*.045})`);
+    // A blast is a point light radiating in every direction. Keep the ambient
+    // bloom broad but restrained so it reads as a local hull explosion rather
+    // than a full-screen exposure pulse.
+    const broadR=Math.max(rr*2.9,Math.hypot(w,h)*.66);
+    glow=ctx.createRadialGradient(p.x,p.y,rr*.16,p.x,p.y,broadR);
+    glow.addColorStop(0,`rgba(255,210,126,${a*.18})`);
+    glow.addColorStop(.32,`rgba(255,159,72,${a*.095})`);
+    glow.addColorStop(.70,`rgba(255,120,46,${a*.032})`);
     glow.addColorStop(1,'rgba(255,105,35,0)');
     ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
 
-    // Water still reflects preferentially along the observer/impact line, but
-    // it must read as a wide sheet of illuminated sea rather than a searchlight
-    // cone.  The outer passes flare almost immediately and can extend beyond
-    // the viewport; their low alpha keeps the edge soft and atmospheric.
-    const ey=Math.min(h,p.y+Math.max(90*k,(h-p.y)*.88));
+    // Water reflects along the observer/impact axis, but the visible boundaries
+    // are now straight and heavily overlapped. That removes the bowed 'light
+    // tunnel' look while the diffuse wash below blends the passes into one soft
+    // sheet of reflected light.
+    const ey=Math.min(h,p.y+Math.max(92*k,(h-p.y)*.90));
     if(ey>p.y+8*k){
-      const dy=ey-p.y,rg=ctx.createLinearGradient(p.x,p.y,w/2,ey);
-      rg.addColorStop(0,`rgba(255,226,158,${a*.25})`);
-      rg.addColorStop(.34,`rgba(255,174,88,${a*.14})`);
-      rg.addColorStop(.76,`rgba(255,132,54,${a*.055})`);
+      const dy=ey-p.y,endX=w/2,rg=ctx.createLinearGradient(p.x,p.y,endX,ey);
+      rg.addColorStop(0,`rgba(255,226,158,${a*.20})`);
+      rg.addColorStop(.34,`rgba(255,174,88,${a*.105})`);
+      rg.addColorStop(.78,`rgba(255,132,54,${a*.040})`);
       rg.addColorStop(1,'rgba(255,118,42,0)');
       for(const pass of [
-        {near:Math.max(14*k,rr*.16),half:clamp(dy*.48,58*k,w*.44),alpha:.92,flare:.62},
-        {near:Math.max(26*k,rr*.27),half:clamp(dy*.74,92*k,w*.64),alpha:.42,flare:.72},
-        {near:Math.max(40*k,rr*.40),half:clamp(dy*.98,132*k,w*.82),alpha:.16,flare:.80}
+        {near:Math.max(18*k,rr*.20),half:clamp(dy*.56,72*k,w*.52),alpha:.72},
+        {near:Math.max(30*k,rr*.32),half:clamp(dy*.82,110*k,w*.70),alpha:.34},
+        {near:Math.max(46*k,rr*.46),half:clamp(dy*1.10,150*k,w*.88),alpha:.15},
+        {near:Math.max(62*k,rr*.58),half:Math.max(w*.98,dy*1.32),alpha:.055}
       ]){
-        const shoulderY=lerp(p.y,ey,.34),shoulderX=lerp(p.x,w/2,.32);
         ctx.globalAlpha=pass.alpha;ctx.fillStyle=rg;ctx.beginPath();
-        ctx.moveTo(p.x-pass.near,p.y);
-        ctx.quadraticCurveTo(shoulderX-pass.half*pass.flare,shoulderY,w/2-pass.half,ey);
-        ctx.lineTo(w/2+pass.half,ey);
-        ctx.quadraticCurveTo(shoulderX+pass.half*pass.flare,shoulderY,p.x+pass.near,p.y);
-        ctx.closePath();ctx.fill();
+        ctx.moveTo(p.x-pass.near,p.y);ctx.lineTo(endX-pass.half,ey);ctx.lineTo(endX+pass.half,ey);ctx.lineTo(p.x+pass.near,p.y);ctx.closePath();ctx.fill();
       }
 
-      // A very diffuse pool of reflected light breaks up the last hint of a
-      // geometric triangle and lets the sea around the reflection participate.
-      const washX=lerp(p.x,w/2,.58),washY=lerp(p.y,ey,.58);
-      const washR=Math.max(w*.48,dy*.78);
+      const washX=lerp(p.x,endX,.58),washY=lerp(p.y,ey,.56),washR=Math.max(w*.58,dy*.92);
       glow=ctx.createRadialGradient(washX,washY,0,washX,washY,washR);
-      glow.addColorStop(0,`rgba(255,176,92,${a*.075})`);
-      glow.addColorStop(.52,`rgba(255,142,62,${a*.032})`);
+      glow.addColorStop(0,`rgba(255,176,92,${a*.070})`);
+      glow.addColorStop(.55,`rgba(255,142,62,${a*.028})`);
       glow.addColorStop(1,'rgba(255,120,46,0)');
       ctx.globalAlpha=1;ctx.fillStyle=glow;ctx.fillRect(0,p.y,w,h-p.y);
 

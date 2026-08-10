@@ -247,7 +247,8 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             this.aarRecordEvent?.('TORPEDO_HIT',`${t.id} hit ${c.name} ${dmg.location.toLowerCase()}.`,
               {torpedoId:t.id,contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,location:dmg.location,
                incidenceDeg:Math.round(incidence),condition,weapon:'TORPEDO'},this.state.playerSub.position,c.position);
-            this.offerImpactObservation?.(c,{weapon:'TORPEDO',location:dmg.location,condition,beforeShip,impactPosition:{...t.position}});
+            this.offerImpactObservation?.(c,{weapon:'TORPEDO',location:dmg.location,condition,beforeShip,impactPosition:{...t.position},
+              torpedoHeading:t.heading,torpedoWakeNm:Math.min(.48,Math.max(.10,t.rangeRunNm||0)),torpedoWakeVisible:!t.isElectric});
             if(!c.sunk){
               const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));
               const sum=shipDamageSummary(c);

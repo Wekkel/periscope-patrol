@@ -85,6 +85,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     this.drawSky3D(ctx,w,h,cam,viewState,dl,wx,t);
     this.drawSea3D(ctx,w,h,cam,dl,env.seaState,wx,t);
     this.drawTerrain3D(ctx,cam,viewState,dl);
+    this.drawImpactTorpedoTrack(ctx,cam,obs,impactAge,dl,env);
     this.drawWeatherCells3D?.(ctx,cam,viewState,dl,t);
     this.drawBattleAtmosphereBack?.(ctx,cam,viewState,dl,t);
     this.drawFleet3D(ctx,cam,viewState,dl,env,t);
@@ -146,6 +147,23 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       ctx.textAlign='left';
     }
     const fade=clamp((duration-age)/.55,0,1);if(fade<1){ctx.fillStyle=`rgba(2,7,9,${1-fade})`;ctx.fillRect(0,0,w,h);}
+    ctx.restore();
+  }
+
+  drawImpactTorpedoTrack(ctx,cam,obs,impactAge,dl,env){
+    if(!obs?.torpedoWakeVisible||!Number.isFinite(obs.torpedoHeading)||!obs.impactPosition||dl<.22)return;
+    const calm=clamp(1-clamp(env?.seaState||0,0,1)*1.45,0,1);if(calm<.08)return;
+    const runNm=clamp(Number(obs.torpedoWakeNm)||.28,.10,.48),hb=degToRad(obs.torpedoHeading),E=obs.impactPosition.xNm*NM_M,N=-obs.impactPosition.yNm*NM_M,run=runNm*NM_M;
+    const head=this.proj(cam,E,N,0),tail=this.proj(cam,E-Math.sin(hb)*run,N-Math.cos(hb)*run,0);if(!head||!tail)return;
+    // During the cinematic the wake is already laid in the water. It does not
+    // grow or race across the optic; only its brightness slowly decays after the
+    // detonation. This makes the 1.5-second anticipation beat read as real time
+    // even if the normal game had been running at 8x/16x/32x beforehand.
+    const postFade=impactAge<0?1:Math.exp(-impactAge/2.6),a=.26*calm*clamp(dl*1.35,0,1)*postFade;
+    const dx=tail.x-head.x,dy=tail.y-head.y,len=Math.hypot(dx,dy);if(len<3)return;const nx=-dy/len,ny=dx/len;
+    ctx.save();const g=ctx.createLinearGradient(head.x,head.y,tail.x,tail.y);g.addColorStop(0,`rgba(238,248,252,${a})`);g.addColorStop(.45,`rgba(228,242,249,${a*.58})`);g.addColorStop(1,'rgba(220,238,247,0)');
+    const hw0=Math.max(.8,1.8*this.k),hw1=Math.max(1.2,4.8*this.k);ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(head.x+nx*hw0,head.y+ny*hw0);ctx.lineTo(tail.x+nx*hw1,tail.y+ny*hw1);ctx.lineTo(tail.x-nx*hw1,tail.y-ny*hw1);ctx.lineTo(head.x-nx*hw0,head.y-ny*hw0);ctx.closePath();ctx.fill();
+    if(this.quality>.35){ctx.fillStyle=`rgba(242,250,253,${a*.62})`;for(let i=1;i<=8;i++){const u=i/9,j=(Math.sin(i*17.31+obs.impactPosition.xNm*9.1)*.5+.5),x=lerp(head.x,tail.x,u)+nx*(j-.5)*hw1*1.1,y=lerp(head.y,tail.y,u)+ny*(j-.5)*hw1*1.1,r=Math.max(.65,this.k*(.65+.45*(1-u)));ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}}
     ctx.restore();
   }
 
@@ -1656,7 +1674,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
      pure function of the explosion's age, so the picture is stable.      */
   drawExplosions3D(ctx,cam,state,dl){
     for(const e of state.weapons.explosions){
-      const p=this.proj(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,0);
+      const gunHit=/GUN HIT/.test(e.label||'');
+      const p=this.proj(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,gunHit?Math.max(.5,Number(e.zM)||3.5):0);
       if(!p) continue;
       const sc=cam.f/p.d;                                   // pixels per metre
       const dud=e.kind==='dud'||/DUD|GLANCED/.test(e.label||'');
@@ -1664,6 +1683,42 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const big=e.big?1.35:1;
       const hs=(i,s)=>{const v=Math.sin(i*127.1+s*311.7+(e.position.xNm*13.3))*43758.5453;return v-Math.floor(v);};
       ctx.save();
+      if(gunHit&&!dud){
+        // A 3-inch shell strike is a compact hull/deck explosion, not a miniature
+        // torpedo water column. Keep it above the waterline, make the hot area a
+        // little broader and less brilliant, and let deterministic overlapping
+        // lobes/sparks make the source look irregular rather than pinned to one
+        // glowing pixel.
+        const a0=clamp(1-age/1.15,0,1),baseR=Math.max(4*this.k,(22+age*10)*sc);
+        if(age<1.15){
+          ctx.save();ctx.globalCompositeOperation='screen';
+          for(let i=0;i<5;i++){
+            const wobX=(hs(i,11)-.5)*baseR*.72+Math.sin(age*(15+i*1.7)+i)*baseR*.10;
+            const wobY=(hs(i,12)-.5)*baseR*.44-Math.sin(age*(8+i)+i*.7)*baseR*.08;
+            const rr=baseR*(.72+hs(i,13)*.62),g=ctx.createRadialGradient(p.x+wobX,p.y+wobY,0,p.x+wobX,p.y+wobY,rr);
+            g.addColorStop(0,`rgba(255,238,184,${a0*(.38-i*.025)})`);g.addColorStop(.30,`rgba(255,157,60,${a0*(.30-i*.025)})`);g.addColorStop(1,'rgba(170,50,18,0)');
+            ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x+wobX,p.y+wobY,rr,0,Math.PI*2);ctx.fill();
+          }
+          ctx.restore();
+        }
+        if(age<2.5){
+          const f=age/2.5,a=Math.pow(1-f,1.4);
+          for(let i=0;i<4;i++){
+            const ox=(hs(i,14)-.5)*(18+age*9)*sc,oy=(9+age*(15+hs(i,15)*9))*sc,rr=Math.max(2,(9+age*10)*(0.75+hs(i,16)*.42)*sc);
+            const g=ctx.createRadialGradient(p.x+ox,p.y-oy,0,p.x+ox,p.y-oy,rr);g.addColorStop(0,`rgba(255,193,96,${a*.48})`);g.addColorStop(.55,`rgba(192,67,24,${a*.36})`);g.addColorStop(1,'rgba(100,30,18,0)');
+            ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x+ox,p.y-oy,rr,0,Math.PI*2);ctx.fill();
+          }
+        }
+        if(age<1.3&&this.quality>.35){
+          ctx.strokeStyle=`rgba(255,190,92,${clamp(1-age/1.3,0,1)*.62})`;ctx.lineWidth=Math.max(1,.9*this.k);
+          for(let i=0;i<9;i++){const ang=(-1.18+hs(i,17)*2.36),len=(8+hs(i,18)*24)*sc*(.6+age);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+Math.cos(ang)*len,p.y-Math.abs(Math.sin(ang))*len);ctx.stroke();}
+        }
+        if(age>.25&&age<5&&this.quality>.35){
+          const sa=clamp(1-age/5,0,1)*.44;for(let i=0;i<6;i++){const f=(i+1)/6,rr=Math.max(2,(7+age*5)*sc*f),dr=(hs(i,19)-.5)*(14+age*4)*sc;ctx.fillStyle=`rgba(${55+i*3},${49+i*2},${44+i*2},${sa*(1-f*.35)})`;ctx.beginPath();ctx.arc(p.x+dr,p.y-(10+age*13)*sc*f,rr,0,Math.PI*2);ctx.fill();}
+        }
+        if(age<2.8&&e.label){ctx.fillStyle=`rgba(255,206,126,${clamp(1-age/2.8,0,1)*.72})`;ctx.font=this.fnt(10,true);ctx.textAlign='center';ctx.fillText(e.label,p.x,p.y-Math.max(22,68*sc));ctx.textAlign='left';}
+        ctx.restore();continue;
+      }
       if(!dud){
         /* Low-light blast illumination. Because ships and sea are already on
            the canvas, SCREEN blending gives us a convincing local flash and
