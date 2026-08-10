@@ -60,6 +60,27 @@ class TouchCtrl{
     return{tabsBottom:Math.round(r.bottom),viewport:vh,overflow:off,blockedBy:blocked};
   }
 
+  syncTacticalSafeAreas(){
+    if(!this.touch||!this.cv?.canvas){this.cv.touchSafeTactical=null;return null;}
+    const sta=this.game?.getSnapshot?.()?.tactical?.activeStation||'TACTICAL';
+    if(sta!=='TACTICAL'){this.cv.touchSafeTactical=null;return null;}
+    const canvas=this.cv.canvas,nav=document.getElementById('ovlStations'),right=document.getElementById('ovlRight');
+    if(!nav||!right)return null;
+    const cr=canvas.getBoundingClientRect(),nr=nav.getBoundingClientRect(),rr=right.getBoundingClientRect();
+    if(cr.width<40||cr.height<40)return null;
+    /* Real DOM geometry, in the same CSS-pixel coordinate system as CanvasView.
+       This keeps TAC correct on a narrow phone, a large Android tablet and
+       unusual browser zoom/DPR values without maintaining device breakpoints. */
+    const safe={
+      top:clamp(nr.bottom-cr.top+6,0,Math.min(92,cr.height*.18)),
+      navLeft:clamp(nr.left-cr.left,0,cr.width),
+      rightStart:clamp(rr.left-cr.left,cr.width*.52,cr.width),
+      chipWidth:clamp(nr.left-cr.left-16,58,Math.min(330,cr.width*.62))
+    };
+    this.cv.touchSafeTactical=safe;
+    return safe;
+  }
+
   applyLayout(first){
     this.syncViewport();
     const want=this.isTouchLayout();
@@ -693,6 +714,7 @@ class TouchCtrl{
       const lock=g('oLock'),fire=g('btnFire');if(lock)lock.style.display=(gun||bridge||sound)?'none':'';if(fire)fire.style.display=(gun||bridge||sound)?'none':'';
       g('bridgeControls')?.classList.toggle('on',bridge);g('soundControls')?.classList.toggle('on',sound);
     }
+    const tactSafe=this.syncTacticalSafeAreas();
     const bz=bridgeZoomAmount(state);cls('bridgeBino','on',bz>.05);
     const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
@@ -707,13 +729,25 @@ class TouchCtrl{
     cls('btnFire','ready',canFire);
     set('fireSol',tdc.targetId?`${sq}%`:'--');
     // the periscope draws its own solution bar, so the chip is for the other stations
-    const chipOn=!!tdc.targetId&&sta==='TACTICAL';
+    const chipOn=!!tdc.targetId&&sta==='TACTICAL',chip=g('tdcChip');
     cls('tdcChip','on',chipOn);
+    if(chip){
+      chip.style.maxWidth=(chipOn&&tactSafe)?`${Math.floor(tactSafe.chipWidth)}px`:'';
+      chip.classList.toggle('compact',!!(chipOn&&tactSafe&&tactSafe.chipWidth<175));
+      chip.classList.toggle('micro',!!(chipOn&&tactSafe&&tactSafe.chipWidth<108));
+    }
     if(chipOn){
-      const tti=tdc.timeToImpactSec?`${tdc.timeToImpactSec.toFixed(0)}s`:'--';
-      html('tdcChip',`<b>${tdc.targetId}</b> · sol <b style="color:${sq>70?'#6fe08f':sq>40?'#f5c65c':'#ef6a58'}">${sq}%</b><br>`+
-        `gyro <b>${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(0)+'°':'--'}</b> · run <b>${tti}</b><br>`+
-        `${tdc.rangeNm?tdc.rangeNm.toFixed(1)+'nm':'--'} · ${tdc.torpedoType}`);
+      const tti=tdc.timeToImpactSec?`${tdc.timeToImpactSec.toFixed(0)}s`:'--',
+            rng=tdc.rangeNm?tdc.rangeNm.toFixed(1)+'nm':'--',
+            sol=`<b style="color:${sq>70?'#6fe08f':sq>40?'#f5c65c':'#ef6a58'}">${sq}%</b>`,
+            micro=!!(tactSafe&&tactSafe.chipWidth<108),compact=!!(tactSafe&&tactSafe.chipWidth<175);
+      html('tdcChip',micro
+        ? `<b>${tdc.targetId}</b> · ${sol}<br>${rng}`
+        : compact
+        ? `<b>${tdc.targetId}</b> · ${sol}<br>${rng} · ${tti}`
+        : `<b>${tdc.targetId}</b> · sol ${sol}<br>`+
+          `gyro <b>${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(0)+'°':'--'}</b> · run <b>${tti}</b><br>`+
+          `${rng} · ${tdc.torpedoType}`);
     }
 
     // badges
