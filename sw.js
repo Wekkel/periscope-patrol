@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.15'; // station-switch critical fix
+const VERSION = '0.8.16'; // station-switch critical fix
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
