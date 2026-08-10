@@ -18,17 +18,20 @@ class CanvasViewTactical extends CanvasViewCore {
     for(let y=gs;y<h;y+=gs){ctx.moveTo(0,y+.5);ctx.lineTo(w,y+.5);}
     ctx.stroke();
 
-    const pad=Math.round(10*k);
+    const pad=Math.round(10*k),safe=(this.portrait&&this.touchSafeTactical)||null;
+    // Touch navigation is a real DOM overlay. Reserve its measured height in
+    // the tactical canvas instead of painting useful information underneath it.
+    const sceneTop=safe?Math.round(safe.top):0;
     const bannerH=(alertState==='ATTACKING'||alertState==='SEARCHING')?Math.round(21*k):0;
     const headerH=Math.round(46*k)+bannerH;
     const barsH=Math.round(60*k)+(silent?Math.round(22*k):0);
-    const bodyTop=headerH, bodyBot=h-barsH;
+    const bodyTop=sceneTop+headerH, bodyBot=h-barsH;
 
     // Header (pushed down when a threat banner is showing)
     ctx.fillStyle=silent?'#e8b7b1':'#8fb8a8';ctx.font=this.fnt(11.5,true);
-    ctx.fillText('TACTICAL STATUS',pad,bannerH+Math.round(18*k));
+    ctx.fillText('TACTICAL STATUS',pad,sceneTop+bannerH+Math.round(18*k));
     ctx.font=this.fnt(9.5);ctx.fillStyle='rgba(140,175,160,.9)';
-    ctx.fillText(`${sub.position.xNm.toFixed(1)}E / ${(-sub.position.yNm).toFixed(1)}N nm — ${state.campaign.patrolArea}`,pad,bannerH+Math.round(32*k));
+    ctx.fillText(`${sub.position.xNm.toFixed(1)}E / ${(-sub.position.yNm).toFixed(1)}N nm — ${state.campaign.patrolArea}`,pad,sceneTop+bannerH+Math.round(32*k));
     const en=state.world.enemy;
     let sonarTxt='';
     if(alertState!=='UNAWARE'){
@@ -38,7 +41,7 @@ class CanvasViewTactical extends CanvasViewCore {
     }
     const envTxt=`${sub.inShallowWater?'⚠ SHALLOW':'DEEP WATER'} · ENEMY ${alertState}${sonarTxt}`;
     ctx.fillStyle=en.contactHeld?'#ef6a58':sub.inShallowWater?'#f5c65c':'rgba(140,175,160,.75)';
-    ctx.fillText(envTxt,pad,bannerH+Math.round(43*k));
+    ctx.fillText(envTxt,pad,sceneTop+bannerH+Math.round(43*k));
 
     // Layout
     let comp,col;
@@ -73,14 +76,14 @@ class CanvasViewTactical extends CanvasViewCore {
     if(alertState==='ATTACKING'){
       const pulse=0.65+0.35*Math.sin(t*6);
       const bh2=Math.round(21*k);
-      ctx.fillStyle=`rgba(178,38,38,${pulse*0.92})`;ctx.fillRect(0,0,w,bh2);
+      ctx.fillStyle=`rgba(178,38,38,${pulse*0.92})`;ctx.fillRect(0,sceneTop,w,bh2);
       ctx.fillStyle='#ffe6e2';ctx.font=this.fnt(10.5,true);ctx.textAlign='center';
-      ctx.fillText('⚠ DEPTH CHARGE ATTACK — EVADE',w/2,bh2*0.72);ctx.textAlign='left';
+      ctx.fillText('⚠ DEPTH CHARGE ATTACK — EVADE',w/2,sceneTop+bh2*0.72);ctx.textAlign='left';
     }else if(alertState==='SEARCHING'){
       const bh2=Math.round(21*k);
-      ctx.fillStyle='rgba(120,80,0,0.72)';ctx.fillRect(0,0,w,bh2);
+      ctx.fillStyle='rgba(120,80,0,0.72)';ctx.fillRect(0,sceneTop,w,bh2);
       ctx.fillStyle='#f5c65c';ctx.font=this.fnt(10.5,true);ctx.textAlign='center';
-      ctx.fillText('⚠ ESCORTS SEARCHING — GO SILENT',w/2,bh2*0.72);ctx.textAlign='left';
+      ctx.fillText('⚠ ESCORTS SEARCHING — GO SILENT',w/2,sceneTop+bh2*0.72);ctx.textAlign='left';
     }
   }
 
@@ -187,7 +190,7 @@ class CanvasViewTactical extends CanvasViewCore {
 
   /* ── Depth column (water cross-section) ── */
   drawDepthColumn(ctx,R,sub,state){
-    const k=this.k, maxD=300;
+    const k=this.k, maxD=300,safe=(this.portrait&&this.touchSafeTactical)||null;
     const x=R.x,y=R.y,cw=R.w,chh=R.h;
     const lab=Math.round(34*k);                 // left label gutter
     const top=y+Math.round(14*k), bot=y+chh-Math.round(6*k);
@@ -302,15 +305,23 @@ class CanvasViewTactical extends CanvasViewCore {
       }
     }
 
-    // readouts
+    // readouts. On touch TAC the right-side action cluster floats over the
+    // depth plot. Use its measured LEFT edge as a hard safe boundary, so the
+    // actual depth can sit closer to the boat rather than disappear under a
+    // SILENT/LOCK/FIRE button. On tablets this normally leaves the old x-pos.
+    const normalReadX=wx+ww-Math.round(6*k),safeRight=safe?.rightStart;
+    const minReadX=bx+bl*.58;
+    const readX=Number.isFinite(safeRight)
+      ? clamp(Math.min(normalReadX,safeRight-Math.round(10*k)),minReadX,normalReadX)
+      : normalReadX;
     ctx.font=this.fnt(17,true);ctx.fillStyle=hullCol;ctx.textAlign='right';
-    ctx.fillText(`${sub.depthFeet.toFixed(0)} ft`,wx+ww-Math.round(6*k),top+Math.round(17*k));
+    ctx.fillText(`${sub.depthFeet.toFixed(0)} ft`,readX,top+Math.round(17*k));
     ctx.font=this.fnt(8.5);ctx.fillStyle='#82a89a';
-    ctx.fillText(`${sub.mode.replace(/_/g,' ')} → ${sub.orderedDepthFeet.toFixed(0)}ft`,wx+ww-Math.round(6*k),top+Math.round(28*k));
+    ctx.fillText(`${sub.mode.replace(/_/g,' ')} → ${sub.orderedDepthFeet.toFixed(0)}ft`,readX,top+Math.round(28*k));
     const vs=sub.verticalSpeedFps;
     if(Math.abs(vs)>0.15){
       ctx.fillStyle=vs>0?'#54b6ff':'#f5c65c';
-      ctx.fillText(`${vs>0?'▼':'▲'} ${Math.abs(vs).toFixed(1)} ft/s`,wx+ww-Math.round(6*k),top+Math.round(38*k));
+      ctx.fillText(`${vs>0?'▼':'▲'} ${Math.abs(vs).toFixed(1)} ft/s`,readX,top+Math.round(38*k));
     }
     ctx.textAlign='left';
   }
