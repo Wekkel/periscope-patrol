@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.17'; // Polish training pacing, sandbox escort exercise and align deck-gun tracer
+const VERSION = '0.8.17'; // Improve impact crash zoom, damage feedback and blast lighting
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
