@@ -35,6 +35,70 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     this.drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,prof,tooDeep);
   }
 
+  drawImpactObservation(ctx,w,h,state){
+    const obs=state.tactical?.impactObservation;if(!obs?.position)return;
+    const wallNow=typeof performance!=='undefined'?performance.now():Date.now();
+    const age=Math.max(0,(wallNow-(obs.startedWall||wallNow))/1000);
+    const duration=Math.max(.5,(obs.durationMs||5000)/1000),k=this.k;
+    const range=Math.max(.05,Number(obs.rangeNm)||distNm(obs.viewerPos||state.playerSub.position,obs.position));
+    const lenM=Math.max(35,(Number(obs.lengthYards)||300)*.9144);
+    const angular=radToDeg(Math.atan2(lenM,range*NM_M));
+    const fov=clamp(angular*5.5,7,24);
+    const cx=w/2,cy=this.portrait?h*.46:h*.50,r=Math.max(w,h)*.72;
+    const cinematicDepth=obs.originStation==='BRIDGE'?0:Math.min(Number(obs.viewerDepth)||55,55);
+    const sub={...state.playerSub,position:{...(obs.viewerPos||state.playerSub.position)},depthFeet:cinematicDepth,heading:obs.viewerHeading??state.playerSub.heading};
+    const tact={...state.tactical,periscopeBearing:obs.targetBearing??bearingBetween(sub.position,obs.position)};
+    const live=(state.world.contacts||[]).find(c=>c.id===obs.contactId);
+    const target={...(live||{}),id:obs.contactId,name:obs.name||obs.contactId,type:obs.type||'MERCHANT',displayType:obs.displayType||obs.type,
+      lengthYards:obs.lengthYards||live?.lengthYards||300,tonsFactor:obs.tonsFactor||live?.tonsFactor||0,heading:obs.heading||0,speedKnots:obs.speedKnots||0,
+      position:{...obs.position},shipDamage:obs.shipDamage||live?.shipDamage||null,sunk:!!obs.sunk,sinkingProgress:obs.sinkingProgress||0,sinkStyle:obs.sinkStyle||0,
+      hitFrac:Number.isFinite(obs.hitFrac)?obs.hitFrac:0,hitSide:obs.hitSide||1,stationary:!!obs.stationary,side:live?.side||'ENEMY'};
+    const impactPos=obs.impactPosition||obs.position;
+    const env={...state.world.environment,visibilityNm:Math.max(Number(state.world.environment?.visibilityNm)||.5,range*1.35)};
+    const viewState={...state,playerSub:sub,tactical:tact,
+      time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+age},
+      world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
+      weapons:{...state.weapons,activeTorpedoes:[],explosions:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:age,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`}]}};
+    const cam=this.setupCam(viewState,fov,cx,cy,r);cam.kind='IMPACT';cam.bearingDeg=tact.periscopeBearing;cam.viewW=w;cam.viewH=h;
+    const br=degToRad(cam.bearingDeg);cam.sin=Math.sin(br);cam.cos=Math.cos(br);this.impactCam=cam;
+
+    ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);
+    ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
+    const t=viewState.time.elapsedSeconds,dl=env.daylight,wx=env.weather||'CLEAR';
+    this.drawSky3D(ctx,w,h,cam,viewState,dl,wx,t);
+    this.drawSea3D(ctx,w,h,cam,dl,env.seaState,wx,t);
+    this.drawTerrain3D(ctx,cam,viewState,dl);
+    this.drawWeatherCells3D?.(ctx,cam,viewState,dl,t);
+    this.drawBattleAtmosphereBack?.(ctx,cam,viewState,dl,t);
+    this.drawFleet3D(ctx,cam,viewState,dl,env,t);
+    this.drawExplosions3D(ctx,cam,viewState,dl);
+    this.drawBattleAtmosphereFront?.(ctx,cam,viewState,dl,t);
+    if((env.precipitation||0)>.04||weatherIsWet(wx))this.drawRain(ctx,w,h,env.seaState,t,wx,env.precipitation||.25);
+    if(dl<.32)this.drawNightOverlay(ctx,w,h,dl);
+
+    // Film-style exposure remains local to the impact. It blooms outward from
+    // the projected hit and lays a narrow reflection over the intervening sea,
+    // rather than washing the entire display white.
+    const ip=this.proj(cam,impactPos.xNm*NM_M,-impactPos.yNm*NM_M,Math.max(.4,Number(obs.impactPosition?.zM)||3));
+    if(ip&&age<1.1){
+      const a=(1-age/1.1)*.72,rr=clamp(30*k+7000/Math.max(100,ip.d)*k,32*k,125*k);
+      ctx.save();ctx.globalCompositeOperation='screen';
+      const g=ctx.createRadialGradient(ip.x,ip.y,0,ip.x,ip.y,rr);g.addColorStop(0,`rgba(255,244,188,${a})`);g.addColorStop(.22,`rgba(255,178,72,${a*.58})`);g.addColorStop(1,'rgba(255,122,38,0)');
+      ctx.fillStyle=g;ctx.fillRect(ip.x-rr,ip.y-rr,rr*2,rr*2);
+      const ey=Math.min(h,ip.y+Math.max(70*k,(h-ip.y)*.82)),half=clamp((ey-ip.y)*.14,18*k,w*.16);
+      const rg=ctx.createLinearGradient(ip.x,ip.y,w/2,ey);rg.addColorStop(0,`rgba(255,207,116,${a*.32})`);rg.addColorStop(1,'rgba(255,140,54,0)');ctx.fillStyle=rg;
+      ctx.beginPath();ctx.moveTo(ip.x-3*k,ip.y);ctx.lineTo(w/2-half,ey);ctx.lineTo(w/2+half,ey);ctx.lineTo(ip.x+3*k,ip.y);ctx.closePath();ctx.fill();ctx.restore();
+    }
+
+    const bw=Math.min(w-18*k,430*k),bh=44*k,x=(w-bw)/2,y=10*k;
+    ctx.fillStyle='rgba(3,13,16,.82)';this.rr(ctx,x,y,bw,bh,6*k);ctx.fill();
+    ctx.fillStyle='rgba(245,198,92,.96)';ctx.font=this.fnt(9,true);ctx.textAlign='center';
+    ctx.fillText(`IMPACT OBSERVATION · ${String(obs.weapon||'TORPEDO').replace(/_/g,' ')} HIT`,w/2,y+16*k);
+    ctx.fillStyle='rgba(220,238,229,.92)';ctx.font=this.fnt(8.5);ctx.fillText(`${obs.name||obs.contactId||'TARGET'} · ${range.toFixed(2)} nm${obs.location?` · ${String(obs.location).toUpperCase()}`:''}`,w/2,y+31*k);ctx.textAlign='left';
+    const fade=clamp((duration-age)/.45,0,1);if(fade<1){ctx.fillStyle=`rgba(2,7,9,${1-fade})`;ctx.fillRect(0,0,w,h);}
+    ctx.restore();
+  }
+
   drawScopeScene(ctx,w,h,cam,state,opt,env){
     const t=state.time.elapsedSeconds;
     const dl=env.daylight, sea=env.seaState;

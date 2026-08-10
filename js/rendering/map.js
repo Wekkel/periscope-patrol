@@ -58,7 +58,7 @@ class CanvasView extends CanvasViewSound {
     this.drawMapDCs(ctx,state.world.depthCharges,w2s);
     this.drawMapTorps(ctx,state.weapons.activeTorpedoes,w2s);
     this.drawMapExplosions(ctx,state.weapons.explosions,w2s);
-    this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId);
+    this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId,state);
     this.drawUltra(ctx,state,w2s);
     this.drawMapAircraft(ctx,state.world.aircraft||[],w2s,sub);
     particles.draw(ctx,w2s);
@@ -743,8 +743,9 @@ class CanvasView extends CanvasViewSound {
     occupied.push(fallback);return fallback;
   }
 
-  drawMapContacts(ctx,tracks,w2s,now,ownPos,selId){
+  drawMapContacts(ctx,tracks,w2s,now,ownPos,selId,state=null){
     const K=this.k;this._mapLabelRects=[];const visible=Object.values(tracks).filter(q=>!q.sunk),dense=visible.length>=4;
+    const contactById=state?new Map((state.world.contacts||[]).filter(c=>!c.sunk).map(c=>[c.id,c])):null;
     const ordered=[...Object.values(tracks)].sort((a,b)=>((b.id===selId)-(a.id===selId))||((b.visualHullConfirmed?1:0)-(a.visualHullConfirmed?1:0))||((b.confidence||0)-(a.confidence||0))||String(a.id).localeCompare(String(b.id)));
     for(const tr of ordered){
       if(tr.sunk){                                   // a wreck: fixed, silent, no solution
@@ -768,23 +769,18 @@ class CanvasView extends CanvasViewSound {
       // Absolute paper-plot position. If this is a stale contact it has been
       // dead-reckoned from the LAST FIX; it never moves merely because ownship moved.
       const bRad=degToRad(tr.bearing);
-      const est=tr.plotPosition||{xNm:ownPos.xNm+Math.sin(bRad)*tr.rangeEstimateNm,
-                 yNm:ownPos.yNm-Math.cos(bRad)*tr.rangeEstimateNm};
+      const contact=contactById?.get(tr.id)||null;
+      const fallbackVisual=tr.visualHullConfirmed===undefined?(tr.positionSource==='VISUAL'||tr.source==='VISUAL'):!!tr.visualHullConfirmed;
+      const liveVisual=!!(state&&typeof crewCanSeeSurfaceHull==='function'&&contact&&crewCanSeeSurfaceHull(state,contact));
+      const hasTruePos=state?liveVisual:fallbackVisual;
+      // While the crew can resolve the hull, draw the actual world position —
+      // no remembered acoustic/radar plot is allowed to displace a ship that is
+      // plainly visible. The moment visual range is lost, fall back to the paper
+      // plot and its uncertainty glyph. Direct legacy renderer tests that do not
+      // pass full state keep the old plot-position contract.
+      const est=liveVisual?contact.position:(tr.plotPosition||{xNm:ownPos.xNm+Math.sin(bRad)*tr.rangeEstimateNm,
+                 yNm:ownPos.yNm-Math.cos(bRad)*tr.rangeEstimateNm});
       const pe=w2s(est.xNm,est.yNm);
-
-      /* Only a genuinely seen hull is drawn as a ship. Positional confidence
-         from SOUND/SJ/QC is useful knowledge, but it is still a plot solution;
-         drawing a crisp hull while that solution converges makes the vessel
-         appear to move sideways. Uncertain sources therefore get an explicitly
-         uncertain glyph, even at high confidence. */
-      const fixAge=now-(Number.isFinite(tr.hullConfirmedAt)?tr.hullConfirmedAt:(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated||0));
-      const visualFlag=tr.visualHullConfirmed===undefined?(tr.positionSource==='VISUAL'||tr.source==='VISUAL'):!!tr.visualHullConfirmed;
-      /* A resolved periscope hull should still look like a ship when the player
-         immediately flips to MAP. Keep the visual silhouette for a short
-         chart-memory window; the kinematic plot continues to age underneath
-         and reverts to an uncertainty glyph once that visual fix is genuinely
-         stale. */
-      const hasTruePos=visualFlag&&fixAge<18&&(tr.staleSeconds||0)<24;
       const pt=hasTruePos?pe:null;
 
       const sensorUncPx=Number.isFinite(tr.positionUncertaintyNm)?tr.positionUncertaintyNm*this.zoom:0;

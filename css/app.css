@@ -562,9 +562,9 @@
       /* Once an action step has been read, collapse the coach into a true
          corner chip. A full-width "minimised" card still covered the very
          controls a phone player was asked to operate. Tap the chip to reopen. */
-      html[data-lay="touch"] #coach.min{left:6px;right:auto;top:calc(var(--sat) + 58px);bottom:auto;
+      html[data-lay="touch"] #coach.min{left:6px;right:auto;top:calc(var(--sat) + 118px);bottom:auto;
         width:min(72vw,270px);padding:7px 9px 8px;border-radius:9px;}
-      html[data-lay="touch"] #coach.min.up{top:calc(var(--sat) + 58px);bottom:auto;}
+      html[data-lay="touch"] #coach.min.up{top:calc(var(--sat) + 118px);bottom:auto;}
       html[data-lay="touch"] #coach.min h4{font-size:10.5px;gap:6px;white-space:nowrap;overflow:hidden;}
       html[data-lay="touch"] #coach.min h4 #tutTitle{overflow:hidden;text-overflow:ellipsis;}
       html[data-lay="touch"] #coach.min #tutGoal{max-width:250px;font-size:9.5px;margin-top:4px;padding-top:4px;}

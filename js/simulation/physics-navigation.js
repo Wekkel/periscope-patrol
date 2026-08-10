@@ -418,9 +418,13 @@ class SimEngine extends SimEngineCareer {
          renderer can show ships near the visibility limit; give those weak but
          real visual observations a floor instead of letting the plot decay. */
       const T=this.state.tactical;
-      const surfacedVisual=sub.depthFeet<8&&rng<=bridgeVisualLimitNm(this.state,c);
+      // Arcade-readable visual doctrine: at the surface/periscope depth the
+      // watch is assumed to scan 360°. MAP therefore knows a hull whenever the
+      // same visibility/range rules say that hull could be resolved through the
+      // periscope, regardless of which station the player currently occupies.
+      const crewVisual=crewCanSeeSurfaceHull(this.state,c);
       const scopeVisual=T.activeStation==='PERISCOPE'&&scopeCanResolveHull(this.state,c);
-      const visualHeld=surfacedVisual||scopeVisual;
+      const visualHeld=crewVisual;
       const acousticHeld=aco.score>0.12;
       const held=visualHeld||acousticHeld;
       const sc=visualHeld?Math.max(Number.isFinite(vis.score)?vis.score:0,Number.isFinite(aco.score)?aco.score:0,0.18):(Number.isFinite(aco.score)?aco.score:0);
@@ -433,6 +437,9 @@ class SimEngine extends SimEngineCareer {
       ex=ex||{id:key,typeEstimate:'UNKNOWN',bearing:obsBear,rangeEstimateNm:obsRng,
         courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,source:src,
         lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards};
+      // Never carry a crisp-hull flag past the instant the crew can actually
+      // resolve the hull. The stale paper plot may persist, but it is uncertain.
+      if(!crewVisual) ex.visualHullConfirmed=false;
 
       if(held){
         ex.confidence=clamp(ex.confidence+clamp((sc-0.10)*dt*0.34,0.006,0.12),0,1);
@@ -460,14 +467,12 @@ class SimEngine extends SimEngineCareer {
         const observedTurn=shortDelta(prevCourseEstimate,ex.courseEstimate)/Math.max(dt,.1);
         ex.turnRateEstimateDegSec=lerp(ex.turnRateEstimateDegSec||0,observedTurn,clamp(.18+ex.confidence*.22,.18,.4));
         const knownType=c.displayType||c.type;
-        const smokeOnly=sub.depthFeet<8&&rng>weatherVisibilityBetween(this.state,sub.position,c.position)*1.02;
-        /* A fresh hydrophone sample must not erase a visual identification the
-           instant the skipper leaves SCOPE for MAP. `visualHullConfirmed` is
-           the remembered fact that a hull was resolved; `hullConfirmedAt`
-           carries freshness. It expires naturally after a short visual-memory
-           window instead of flickering with the active station. */
-        if(src==='VISUAL'&&!smokeOnly){ex.visualHullConfirmed=true;ex.hullConfirmedAt=now;}
-        else if(ex.visualHullConfirmed&&now-(Number.isFinite(ex.hullConfirmedAt)?ex.hullConfirmedAt:-999)>24)ex.visualHullConfirmed=false;
+        const smokeOnly=false;
+        /* Hard visual split: a hull is either currently resolvable by the crew
+           and therefore exact on MAP, or it is not and must use the uncertain
+           sensor plot. There is deliberately no visual-memory grace period. */
+        if(crewVisual){ex.visualHullConfirmed=true;ex.hullConfirmedAt=now;}
+        else ex.visualHullConfirmed=false;
         // The Truk heavy unit is deliberately reported only as HEAVY UNIT.
         // Hydrophones may build a good positional track, but they do not hand
         // the player a magical carrier/cruiser classification. Exact identity

@@ -247,9 +247,21 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     ctx.strokeStyle='rgba(72,82,77,.98)';ctx.lineWidth=Math.max(7,9*k);ctx.lineCap='round';
     ctx.beginPath();ctx.moveTo(cx,gunY-8*k);ctx.lineTo(cx,Math.max(aimY+28*k,gunY-92*k));ctx.stroke();ctx.lineCap='butt';
     if(G&&G.flashUntil>t){
-      const a=clamp((G.flashUntil-t)/0.16,0,1),fy=Math.max(aimY+26*k,gunY-92*k);
-      const gg=ctx.createRadialGradient(cx,fy,0,cx,fy,30*k);gg.addColorStop(0,`rgba(255,246,188,${a})`);gg.addColorStop(1,'rgba(255,128,30,0)');
-      ctx.fillStyle=gg;ctx.fillRect(cx-34*k,fy-34*k,68*k,68*k);
+      const age=Math.max(0,t-(G.flashStartedAt??t)),life=Math.max(.08,G.flashUntil-(G.flashStartedAt??t));
+      const a=clamp(1-age/life,0,1),fy=Math.max(aimY+26*k,gunY-92*k);
+      ctx.save();ctx.globalCompositeOperation='screen';
+      // Nearby blast light can wash the sight a little, but the visible flame is
+      // directional: it leaves the muzzle and stretches forward along the bore.
+      const gg=ctx.createRadialGradient(cx,fy,0,cx,fy,54*k);gg.addColorStop(0,`rgba(255,238,170,${a*.34})`);gg.addColorStop(1,'rgba(255,132,34,0)');
+      ctx.fillStyle=gg;ctx.fillRect(cx-58*k,fy-58*k,116*k,116*k);
+      const len=(52+28*(1-a))*k,wide=(10+6*a)*k,wob=Math.sin(age*91)*3*k;
+      ctx.fillStyle=`rgba(255,126,35,${a*.78})`;ctx.beginPath();ctx.moveTo(cx-wide*.70,fy+2*k);ctx.quadraticCurveTo(cx+wob,fy-len*.48,cx+wob*.4,fy-len);ctx.quadraticCurveTo(cx-wob*.35,fy-len*.43,cx+wide*.70,fy+2*k);ctx.closePath();ctx.fill();
+      ctx.fillStyle=`rgba(255,246,196,${a*.96})`;ctx.beginPath();ctx.moveTo(cx-wide*.32,fy);ctx.quadraticCurveTo(cx+wob*.35,fy-len*.30,cx+wob*.15,fy-len*.64);ctx.quadraticCurveTo(cx-wob*.20,fy-len*.28,cx+wide*.32,fy);ctx.closePath();ctx.fill();
+      // A few fast incandescent grains make the burst read as propellant flame,
+      // not a static glowing sprite.
+      ctx.strokeStyle=`rgba(255,211,116,${a*.70})`;ctx.lineWidth=Math.max(1,1.2*k);
+      for(let i=-2;i<=2;i++){const sx=cx+i*3.2*k,sl=(24+Math.abs(i)*8)*k;ctx.beginPath();ctx.moveTo(sx,fy-7*k);ctx.lineTo(sx+i*1.6*k,fy-sl);ctx.stroke();}
+      ctx.restore();
     }
 
     // Optical ring / crosshair.

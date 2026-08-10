@@ -369,7 +369,7 @@ class TouchCtrl{
   bindGestures(){
     const c=this.cv.canvas, cv=this.cv, D=cmd=>this.game.dispatch(cmd);
     const pts=new Map();
-    let mode=null, moved=0, startT=0, last=null, lastDist=0, lastTap=0;
+    let mode=null, moved=0, startT=0, last=null, lastDist=0, lastTap=0, primaryPointerType='touch';
     /* A waypoint is a deliberate act. It used to fall out of a pinch: the
        second finger lifts, the first follows a moment later, and because
        pinch moves never accumulated into `moved` the release looked exactly
@@ -400,7 +400,7 @@ class TouchCtrl{
       pts.set(e.pointerId,{x:e.clientX,y:e.clientY,t:now});
       if(pts.size===1){
         moved=0;startT=performance.now();last={x:e.clientX,y:e.clientY};
-        multiUsed=false;
+        primaryPointerType=e.pointerType||'touch';multiUsed=false;
         mode=this.beginDrag(e);
       }else if(pts.size===2){
         mode='pinch';lastDist=dist();multiUsed=true;
@@ -465,8 +465,12 @@ class TouchCtrl{
       if(pts.size===0){
         mode=null;last=null;
         const now=performance.now();
-        const settled=(now-gestureEnd)>260;      // let the hand come to rest
-        const still=m<7&&dt<300;                 // a real tap is short and still
+        const pen=primaryPointerType==='pen'||e.pointerType==='pen';
+        const settled=pen||(now-gestureEnd)>260; // pen hover does not need finger settle time
+        const still=pen?(m<16&&dt<700):(m<7&&dt<300);
+        // Keep the proven finger gesture thresholds exactly as they were. A
+        // stylus reports tiny pressure/hover motion even during an intentional
+        // tap, so it needs a slightly larger stillness/time envelope.
         if(still&&!multiUsed&&settled){
           const dbl=(now-lastTap)<300;lastTap=now;
           this.handleTap(e,dbl);
@@ -537,7 +541,13 @@ class TouchCtrl{
     if(sta==='MAP'){
       if(dbl){this.cv.zoomAt(1.6,e.clientX,e.clientY);return;}
       const wi=this.cv.pickWaypoint(s,e.clientX,e.clientY);
-      if(wi>=0){D({type:'MAP_REMOVE_WAYPOINT',index:wi});Toast.ok(`Waypoint ${wi+1} removed`);buzz(12);return;}
+      if(wi>=0){
+        const n0=s.map.plottedCourse.length;
+        D({type:'MAP_REMOVE_WAYPOINT',index:wi});this.game.update(0);
+        const n1=this.game.getSnapshot().map.plottedCourse.length;
+        if(n1<n0){Toast.ok(`Waypoint ${wi+1} removed`);buzz(12);}
+        return;
+      }
       const id=this.cv.pickTrack(s,e.clientX,e.clientY);
       if(id){
         if(id===s.tactical.selectedTrackId){D({type:'DESELECT_TRACK'});Toast.ok('Contact selection cleared');}
@@ -549,8 +559,15 @@ class TouchCtrl{
       const snap=this.cv.zoom>120?0.05:this.cv.zoom>40?0.1:0.25;
       const n0=s.map.plottedCourse.length;
       D({type:'MAP_ADD_WAYPOINT',xNm:Math.round(w.xNm/snap)*snap,yNm:Math.round(w.yNm/snap)*snap});
-      D({type:'MAP_STEER_TO_NEXT_WAYPOINT'});buzz([10,30,10]);
-      Toast.ok(`Waypoint ${n0+1} plotted — autopilot steering`);
+      D({type:'MAP_STEER_TO_NEXT_WAYPOINT'});
+      // MAP tap feedback must describe committed state, not merely a queued
+      // command. This removes the old "waypoint set" toast while the chart was
+      // still (or no longer) showing the corresponding point.
+      this.game.update(0);
+      const after=this.game.getSnapshot();
+      if(after.map.plottedCourse.length>n0){
+        buzz([10,30,10]);Toast.ok(`Waypoint ${after.map.plottedCourse.length} plotted — autopilot steering`);
+      }
     }else if(sta==='PERISCOPE'){
       const zp=this.cv.zoomPill;
       if(zp){

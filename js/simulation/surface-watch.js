@@ -81,40 +81,45 @@ function bridgeObservation(state,contact,binoculars=false){
    prevents a mixed/stale PWA cache from turning SCOPE into a ReferenceError
    and gives rendering + MAP acquisition exactly the same definition of a
    resolved hull. */
+function crewCanSeeSurfaceHull(state,contact,opts={}){
+  if(!state||!contact||!state.playerSub||!contact.position)return false;
+  if(contact.sunk&&(contact.sinkingProgress??0)>=1)return false;
+  const sub=state.playerSub,depth=Number(sub.depthFeet)||0;
+  if(depth>65)return false;
+  const localVis=Math.max(.5,weatherVisibilityBetween(state,sub.position,contact.position));
+  let limit=0;
+  if(contact.type==='RAFT')limit=depth<8?Math.min(3.2,localVis*.30):Math.min(1.8,localVis*.17);
+  else limit=depth<8?localVis*1.02:localVis*.86;
+  const pad=Number.isFinite(opts.rangePad)?opts.rangePad:1;
+  return distNm(sub.position,contact.position)<=limit*pad;
+}
+
 function scopeCanResolveHull(state,contact,opts={}){
   if(!state||!contact||!state.playerSub||!state.tactical)return false;
-  if(contact.sunk&&(contact.sinkingProgress??0)>=1)return false;
   const sub=state.playerSub,T=state.tactical;
   if((sub.depthFeet||0)<8||(sub.depthFeet||0)>65)return false;
+  // Crew visual knowledge is 360 degrees at periscope depth, but what the
+  // player can physically see through the optic is still limited by where the
+  // scope is trained and by its current field of view.
+  if(!crewCanSeeSurfaceHull(state,contact,{rangePad:Number.isFinite(opts.rangePad)?opts.rangePad:1.02}))return false;
   const zoom=Number(opts.zoom??T.periscopeZoom??1);
   const fov=(typeof SCOPE_OPTICS!=='undefined'&&Array.isArray(SCOPE_OPTICS))
     ?(SCOPE_OPTICS[zoom===1?0:1]?.fov??(zoom===1?32:8))
     :(zoom===1?32:8);
-  const rng=distNm(sub.position,contact.position);
   const bear=bearingBetween(sub.position,contact.position);
   const off=Math.abs(shortDelta(T.periscopeBearing??sub.heading??0,bear));
-  const limit=typeof bridgeVisualLimitNm==='function'
-    ?bridgeVisualLimitNm(state,contact)
-    :Math.max(.5,Number(state.world?.environment?.visibilityNm)||.5)*.86;
-  const pad=Number.isFinite(opts.rangePad)?opts.rangePad:1.02;
   const fovPad=Number.isFinite(opts.fovPad)?opts.fovPad:.52;
-  return rng<=limit*pad&&off<=fov*fovPad;
+  return off<=fov*fovPad;
 }
 
 function hasFreshVisualFix(state,tr,maxAgeSec=24){
   if(!state||!tr)return false;
-  const now=Number(state.time?.elapsedSeconds)||0;
-  const visualFlag=tr.visualHullConfirmed===undefined
-    ?(tr.positionSource==='VISUAL'||tr.source==='VISUAL')
-    :!!tr.visualHullConfirmed;
-  if(!visualFlag)return false;
-  const at=Number.isFinite(tr.hullConfirmedAt)?tr.hullConfirmedAt
-    :Number.isFinite(tr.visualLastSeenAt)?tr.visualLastSeenAt
-    :Number.isFinite(tr.positionFixAt)?tr.positionFixAt
-    :Number.isFinite(tr.lastUpdated)?tr.lastUpdated:null;
-  if(!Number.isFinite(at))return false;
-  const age=Math.max(0,now-at),limit=Math.max(0,Number(maxAgeSec)||24);
-  return age<=limit&&(Number(tr.staleSeconds)||0)<=limit;
+  const c=(state.world?.contacts||[]).find(q=>q.id===tr.id);
+  // "Fresh visual" is intentionally literal now: while the crew can resolve
+  // the hull, visual truth owns the plot; the instant the hull is no longer
+  // visible, MAP is free to fall back to an uncertain sensor solution. This
+  // removes the old 18–24 s memory window that could disagree with SCOPE.
+  return !!c&&crewCanSeeSurfaceHull(state,c);
 }
 
 function scopeHullObservation(state,contact,opts={}){

@@ -48,10 +48,16 @@ class SimEngineDeckGun extends SimEngineAircraft {
     const sig=(0.055+sea*0.12+fatigue*0.05)*wx.deckGunDispersionFactor; // rain + deck motion widen the pattern
     const bearing=normDeg(sub.heading+(G.trainDeg||0)+(Math.random()-0.5)*sig*2);
     const elev=clamp((G.elevationDeg||0)+(Math.random()-0.5)*sig*1.5,0,22);
-    const v=820, er=degToRad(elev), br=degToRad(bearing);
+    const v=820, er=degToRad(elev), br=degToRad(bearing),hr=degToRad(sub.heading);
     const vh=v*Math.cos(er);
+    // Start at the physical forward mount and then at the end of the barrel,
+    // rather than at the submarine origin. The first tracer frame now emerges
+    // from the muzzle the player just saw flash.
+    const mountForwardM=12,barrelM=5.6;
+    const mx=sub.position.xNm+(Math.sin(hr)*mountForwardM+Math.sin(br)*barrelM)/NM_M;
+    const my=sub.position.yNm+(-Math.cos(hr)*mountForwardM-Math.cos(br)*barrelM)/NM_M;
     G.shells.push({
-      id:`DG-${++G.shots}`,xNm:sub.position.xNm,yNm:sub.position.yNm,zM:5.6,
+      id:`DG-${++G.shots}`,xNm:mx,yNm:my,zM:5.6+Math.sin(er)*barrelM,
       vxM:Math.sin(br)*vh,vyM:-Math.cos(br)*vh,vzM:v*Math.sin(er),
       age:0,bearing,elevation:elev,prev:null
     });

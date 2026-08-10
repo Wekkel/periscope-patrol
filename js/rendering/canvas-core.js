@@ -142,16 +142,37 @@ class CanvasViewCore{
   }
 
   drawHitFlash(ctx,w,h,state){
-    let f=0;
-    for(const e of state.weapons.explosions){
-      if(e.ageSec<0.55&&/HIT/.test(e.label)) f=Math.max(f,1-e.ageSec/0.55);
+    const station=state.tactical.activeStation;
+    if(!['DECK_GUN','PERISCOPE','BRIDGE'].includes(station)||typeof this.proj!=='function')return;
+    const cam=station==='DECK_GUN'?this.gunCam:station==='BRIDGE'?this.bridgeCam:this.cam;
+    if(!cam)return;
+    const now=state.time.elapsedSeconds,k=this.k;
+    let hit=null,fade=0,power=1,zM=2.5;
+    const gf=state.weapons.deckGun?.impactFlash;
+    if(station==='DECK_GUN'&&gf?.position&&gf.until>now){
+      hit=gf.position;zM=Number(gf.zM)||2.5;power=Number(gf.power)||1;
+      fade=clamp((gf.until-now)/Math.max(.1,(gf.until-(gf.startedAt??now))),0,1);
     }
-    if(f<=0) return;
-    ctx.fillStyle=`rgba(255,226,170,${f*0.30})`;ctx.fillRect(0,0,w,h);
-    const g=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2,w/2,h/2,Math.max(w,h)*0.7);
-    g.addColorStop(0,'rgba(255,180,60,0)');
-    g.addColorStop(1,`rgba(255,140,40,${f*0.35})`);
-    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+    for(const e of state.weapons.explosions||[]){
+      if(!e?.position||e.ageSec>=.8||!/HIT/.test(e.label||''))continue;
+      const f=1-e.ageSec/.8;if(f>fade){hit=e.position;fade=f;power=/GUN/.test(e.label||'')?.9:1.15;zM=Math.max(.5,Number(e.zM)||3);}
+    }
+    if(!hit||fade<=0)return;
+    const p=this.proj(cam,hit.xNm*NM_M,-hit.yNm*NM_M,zM);if(!p)return;
+    const rr=clamp((32+7600/Math.max(90,p.d))*k,30*k,130*k),a=clamp(fade*power,0,1);
+    ctx.save();ctx.globalCompositeOperation='screen';
+    const glow=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
+    glow.addColorStop(0,`rgba(255,247,198,${a*.72})`);glow.addColorStop(.2,`rgba(255,190,82,${a*.48})`);glow.addColorStop(1,'rgba(255,128,38,0)');
+    ctx.fillStyle=glow;ctx.fillRect(p.x-rr,p.y-rr,rr*2,rr*2);
+    // Perspective reflection: narrow at the impact, widening toward the boat.
+    // This illuminates the intervening water instead of tinting the whole UI.
+    const ey=Math.min(h,p.y+Math.max(70*k,(h-p.y)*.76)),half=clamp((ey-p.y)*.13,14*k,w*.14);
+    if(ey>p.y+8*k){
+      const rg=ctx.createLinearGradient(p.x,p.y,w/2,ey);
+      rg.addColorStop(0,`rgba(255,210,124,${a*.25})`);rg.addColorStop(1,'rgba(255,142,48,0)');ctx.fillStyle=rg;
+      ctx.beginPath();ctx.moveTo(p.x-3*k,p.y);ctx.lineTo(w/2-half,ey);ctx.lineTo(w/2+half,ey);ctx.lineTo(p.x+3*k,p.y);ctx.closePath();ctx.fill();
+    }
+    ctx.restore();
   }
 
   // ═══════════════════ TACTICAL — fully responsive ═══════════════════
