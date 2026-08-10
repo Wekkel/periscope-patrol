@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.0'; // Replace AAR replay with patrol debrief and stabilize torpedo impact cinematic
+const VERSION = '0.9.0'; // Polish TAC mobile overlay layout and fix rotating land horizon in BRG/GUN
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
