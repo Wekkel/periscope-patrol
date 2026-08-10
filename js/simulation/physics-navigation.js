@@ -408,7 +408,17 @@ class SimEngine extends SimEngineCareer {
           tr.sunk=true;tr.speedEstimateKnots=0;tr.staleSeconds+=dt;
           tr.lastFixPosition={...c.position};tr.plotPosition={...c.position};tr.lastFixTime=now;
           delete tr.truePosition;
-          if((c.sinkingProgress??0)>=1&&tr.staleSeconds>90) delete W.contactTracks[c.id];
+          if((c.sinkingProgress??0)>=1){
+            // Once the hull has disappeared below the surface it is a wreck,
+            // not a live fire-control target. Keep the chart wreck briefly, but
+            // drop active MAP/TDC selection so no green target label/solution
+            // can survive on a ship that is physically gone.
+            if(this.state.tactical.selectedTrackId===c.id)this.state.tactical.selectedTrackId=null;
+            if(this.state.tdc.targetId===c.id){
+              Object.assign(this.state.tdc,{targetId:null,autoTrack:false,trackSource:'MANUAL',bearing:null,rangeNm:null,targetCourse:null,targetSpeedKnots:null,gyroAngle:null,angleOnBow:null,timeToImpactSec:null,solutionQuality:0,status:'NO TARGET'});
+            }
+            if(tr.staleSeconds>90) delete W.contactTracks[c.id];
+          }
         }
         continue;
       }

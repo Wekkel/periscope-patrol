@@ -132,25 +132,31 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       for(let i=0;i<secs.length-1;i++){const a=secs[i],b=secs[i+1];if(fwd>=a.f&&fwd<=b.f){const u=(fwd-a.f)/(b.f-a.f);return{w:lerp(a.w,b.w,u),z:lerp(a.z,b.z,u)};}}return{w:3,z:1};
     };
 
-    /* The camera is standing ON this deck. Near-plane clipping is necessary
-       to stop the closest polygon exploding into a giant plate, but clipping
-       also used to leave a physically impossible patch of sea at the bottom
-       of BRG/GUN — as if the centre of the submarine had been sawn away.
-       Close that camera-space gap with one bounded foreground apron. It starts
-       exactly at the clipped deck edge and only fills toward the bottom of the
-       viewport, so it cannot protrude above/beyond the projected hull. */
+    /* The observer is physically standing on this deck. Near-plane clipping
+       keeps a polygon from exploding across the whole screen, but it must never
+       create a hole through the middle of the submarine when the view is a few
+       degrees off the bow. Build the foreground from the ACTUAL clipped deck
+       envelope already on screen, rather than guessing a fore/aft body slice.
+       This works continuously through oblique BRG/GUN bearings and cannot jump
+       to the wrong side as the camera rotates. */
     if(opts.bridge||opts.gun){
-      const rel=degToRad(shortDelta(cam.bearingDeg??sub.heading,sub.heading)),along=Math.cos(rel);
-      if(Math.abs(along)>.48){
-        const dir=along>=0?1:-1,fwd=dir*Math.min(48,near+0.35),sh=shapeAt(fwd),z=sh.z+.105;
-        const q0=this.ownshipCamVertex(cam,sub,fwd,-sh.w*.72,z),q1=this.ownshipCamVertex(cam,sub,fwd,sh.w*.72,z);
-        const p0=this.projectOwnshipLocal(cam,q0,near),p1=this.projectOwnshipLocal(cam,q1,near);
-        const W=this.w||cam.cx*2,H=this.h||cam.cy*2;
-        if(p0&&p1){
-          const L=p0.x<p1.x?p0:p1,R=p0.x<p1.x?p1:p0,ey=clamp(Math.max(L.y,R.y),H*.48,H*.88);
-          ctx.fillStyle='rgba(49,58,54,.995)';ctx.beginPath();ctx.moveTo(clamp(L.x,0,W),ey);ctx.lineTo(clamp(R.x,0,W),ey);
-          ctx.lineTo(W*.985,H+2);ctx.lineTo(W*.015,H+2);ctx.closePath();ctx.fill();
-          ctx.strokeStyle='rgba(122,139,131,.42)';ctx.lineWidth=Math.max(.65,.8*k);ctx.beginPath();ctx.moveTo(clamp(L.x,0,W),ey);ctx.lineTo(clamp(R.x,0,W),ey);ctx.stroke();
+      const W=this.w||cam.cx*2,H=this.h||cam.cy*2;
+      const deckPts=faces.filter(f=>f.kind==='DECK_PORT'||f.kind==='DECK_STARBOARD'||f.kind.includes('SHOULDER'))
+        .flatMap(f=>f.pts).filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.y>H*.22&&p.y<H*1.35);
+      if(deckPts.length>=4){
+        const maxY=Math.max(...deckPts.map(p=>p.y)),band=deckPts.filter(p=>p.y>=maxY-H*.12);
+        if(band.length>=2){
+          let minX=Math.min(...band.map(p=>p.x)),maxX=Math.max(...band.map(p=>p.x));
+          let span=clamp(maxX-minX,W*.20,W*.78),mid=clamp((minX+maxX)*.5,span*.5,W-span*.5);
+          const topL=mid-span*.5,topR=mid+span*.5,topY=clamp(maxY,H*.46,H*.89);
+          const bottomSpan=clamp(span*1.42,W*.34,W*.96),bottomMid=clamp(mid,W*.08,W*.92),botL=clamp(bottomMid-bottomSpan*.5,W*.015,W*.985),botR=clamp(bottomMid+bottomSpan*.5,W*.015,W*.985);
+          ctx.fillStyle='rgba(49,58,54,.998)';ctx.beginPath();ctx.moveTo(topL,topY);ctx.lineTo(topR,topY);ctx.lineTo(botR,H+2);ctx.lineTo(botL,H+2);ctx.closePath();ctx.fill();
+          ctx.strokeStyle='rgba(122,139,131,.48)';ctx.lineWidth=Math.max(.65,.8*k);ctx.beginPath();ctx.moveTo(topL,topY);ctx.lineTo(topR,topY);ctx.stroke();
+          // A few converging seams keep this foreground reading as continuous
+          // submarine decking, not a blank trapezoid laid over the sea.
+          ctx.strokeStyle='rgba(23,30,28,.30)';ctx.lineWidth=Math.max(.55,.62*k);
+          for(const u of [.18,.36,.64,.82]){ctx.beginPath();ctx.moveTo(lerp(topL,topR,u),topY);ctx.lineTo(lerp(botL,botR,u),H+2);ctx.stroke();}
+          ctx.strokeStyle='rgba(166,179,171,.22)';for(const q of [.28,.52,.76]){const y=lerp(topY,H,q);ctx.beginPath();ctx.moveTo(lerp(topL,botL,q),y);ctx.lineTo(lerp(topR,botR,q),y);ctx.stroke();}
         }
       }
     }
@@ -226,6 +232,22 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     return faces.length;
   }
 
+  drawDeckGunImpactLight(ctx,cam,state,t){
+    const F=state.weapons.deckGun?.impactFlash;if(!F?.position||t>=(F.until??-1))return;
+    const p=this.proj(cam,F.position.xNm*NM_M,-F.position.yNm*NM_M,F.zM||3.5);if(!p)return;
+    const start=F.startedAt??(F.until-.9),dur=Math.max(.25,(F.until??t)-start),u=clamp((t-start)/dur,0,1);
+    const rise=phaseSmooth01(clamp(u/.16,0,1)),fade=1-phaseSmooth01(clamp((u-.16)/.84,0,1)),pulse=rise*fade*(F.power||1);
+    if(pulse<=.01)return;
+    const sc=cam.f/Math.max(8,p.d),rr=clamp((18+92*Math.sqrt(u))*sc,26*this.k,230*this.k);
+    ctx.save();ctx.globalCompositeOperation='screen';
+    const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
+    g.addColorStop(0,`rgba(255,251,225,${.48*pulse})`);g.addColorStop(.16,`rgba(255,205,105,${.35*pulse})`);g.addColorStop(.48,`rgba(255,126,42,${.19*pulse})`);g.addColorStop(1,'rgba(255,80,20,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,rr,0,Math.PI*2);ctx.fill();
+    const rg=ctx.createRadialGradient(p.x,p.y+rr*.10,0,p.x,p.y+rr*.10,rr*1.35);
+    rg.addColorStop(0,`rgba(255,210,126,${.18*pulse})`);rg.addColorStop(1,'rgba(255,105,28,0)');ctx.fillStyle=rg;ctx.beginPath();ctx.ellipse(p.x,p.y+rr*.16,rr*1.35,rr*.30,0,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  }
+
   drawDeckGun(ctx,w,h,state){
     const sub=state.playerSub,G=state.weapons.deckGun,env=state.world.environment,t=state.time.elapsedSeconds;
     const bearing=normDeg(sub.heading+(G?.trainDeg||0));
@@ -246,6 +268,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     this.drawGunSplashes3D(ctx,cam,state,true);
     this.drawFleet3D(ctx,cam,state,env.daylight,env,t);
     this.drawExplosions3D(ctx,cam,state,env.daylight);
+    this.drawDeckGunImpactLight(ctx,cam,state,t);
     this.drawGunProjectiles3D(ctx,cam,state,false);
     this.drawGunSplashes3D(ctx,cam,state,false);
     this.drawBattleAtmosphereFront?.(ctx,cam,state,env.daylight,t);
@@ -266,9 +289,18 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     ctx.strokeStyle='rgba(72,82,77,.98)';ctx.lineWidth=Math.max(7,9*k);ctx.lineCap='round';
     ctx.beginPath();ctx.moveTo(cx,gunY-8*k);ctx.lineTo(cx,Math.max(aimY+28*k,gunY-92*k));ctx.stroke();ctx.lineCap='butt';
     if(G&&G.flashUntil>t){
-      const a=clamp((G.flashUntil-t)/0.16,0,1),fy=Math.max(aimY+26*k,gunY-92*k);
-      const gg=ctx.createRadialGradient(cx,fy,0,cx,fy,30*k);gg.addColorStop(0,`rgba(255,246,188,${a})`);gg.addColorStop(1,'rgba(255,128,30,0)');
-      ctx.fillStyle=gg;ctx.fillRect(cx-34*k,fy-34*k,68*k,68*k);
+      const start=G.flashStartedAt??(G.flashUntil-.30),u=clamp((t-start)/Math.max(.05,G.flashUntil-start),0,1),a=1-phaseSmooth01(u);
+      const fy=Math.max(aimY+26*k,gunY-92*k),recoil=Math.sin(Math.PI*clamp(u/.72,0,1))*7*k;
+      // Muzzle blast grows out of the barrel axis rather than flashing a square
+      // patch of screen. A short hot core leads a wider orange cone, followed by
+      // translucent smoke; all are anchored to the projected muzzle position.
+      ctx.save();ctx.translate(0,recoil);
+      const flameLen=(34+32*(1-u))*k,flameW=(9+15*(1-u))*k;
+      const halo=ctx.createRadialGradient(cx,fy,0,cx,fy,34*k);halo.addColorStop(0,`rgba(255,250,218,${.72*a})`);halo.addColorStop(.35,`rgba(255,173,54,${.42*a})`);halo.addColorStop(1,'rgba(255,95,18,0)');ctx.fillStyle=halo;ctx.beginPath();ctx.arc(cx,fy,34*k,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle=`rgba(255,162,42,${.72*a})`;ctx.beginPath();ctx.moveTo(cx-flameW*.48,fy+3*k);ctx.quadraticCurveTo(cx-flameW*.20,fy-flameLen*.58,cx,fy-flameLen);ctx.quadraticCurveTo(cx+flameW*.20,fy-flameLen*.58,cx+flameW*.48,fy+3*k);ctx.closePath();ctx.fill();
+      ctx.fillStyle=`rgba(255,252,222,${.88*a})`;ctx.beginPath();ctx.moveTo(cx-flameW*.18,fy);ctx.lineTo(cx,fy-flameLen*.68);ctx.lineTo(cx+flameW*.18,fy);ctx.closePath();ctx.fill();
+      if(u>.22){const sm=clamp((u-.22)/.78,0,1);ctx.fillStyle=`rgba(120,124,116,${.16*(1-sm)})`;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(cx+(i-1)*7*k,fy-flameLen*(.55+.14*i)-sm*12*k,(7+sm*7+i*2)*k,0,Math.PI*2);ctx.fill();}}
+      ctx.restore();
     }
 
     // Optical ring / crosshair.

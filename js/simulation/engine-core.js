@@ -10,13 +10,19 @@ class SimEngineCore{
   impactObservationSnapshot(c,meta={}){
     if(!c?.position)return null;const sub=this.state.playerSub;
     const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+    const T=this.state.tactical,originStation=T.activeStation;
+    const targetBearing=bearingBetween(sub.position,c.position);
+    const viewBearing=originStation==='PERISCOPE'?(T.periscopeBearing??targetBearing):originStation==='BRIDGE'?(T.bridgeBearing??targetBearing):targetBearing;
+    const originFov=originStation==='PERISCOPE'
+      ?((typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[T.periscopeZoom===1?0:1]?.fov:null)||(T.periscopeZoom===1?32:8))
+      :(originStation==='BRIDGE'&&typeof bridgeFovDeg==='function'?bridgeFovDeg(this.state):82);
     return{
       token:++this._impactSeq,contactId:c.id,name:c.name||c.id,type:c.type,displayType:c.displayType||c.type,
       lengthYards:c.lengthYards,tonsFactor:c.tonsFactor||0,heading:c.heading||0,speedKnots:c.speedKnots||0,
       position:{...c.position},shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,
       hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1,stationary:!!c.stationary,beforeShip:clone(meta.beforeShip||null),
       impactPosition:clone(meta.impactPosition||null),viewerPos:{...sub.position},viewerDepth:sub.depthFeet||0,viewerHeading:sub.heading||0,
-      originStation:this.state.tactical.activeStation,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
+      originStation,viewBearing,originFov,targetBearing,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
       condition:meta.condition||null,rangeNm:distNm(sub.position,c.position),durationMs:5000
     };
   }

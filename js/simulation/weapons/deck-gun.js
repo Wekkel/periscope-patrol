@@ -55,7 +55,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
       vxM:Math.sin(br)*vh,vyM:-Math.cos(br)*vh,vzM:v*Math.sin(er),
       age:0,bearing,elevation:elev,prev:null
     });
-    G.ammo--;G.lastFireAt=now;G.flashUntil=now+0.16;G.lastFall=null;
+    G.ammo--;G.lastFireAt=now;G.flashStartedAt=now;G.flashUntil=now+0.30;G.lastFall=null;
     if(now-(G._aarLastAttackAt??-999)>45){G._aarLastAttackAt=now;this.aarRecordEvent?.('DECK_GUN_ATTACK','Deck-gun engagement opened.',{},sub.position); }
     sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.16,0,1.5);
     this.alertEscorts('DECK_GUN',{...sub.position},0.88);
@@ -93,8 +93,16 @@ class SimEngineDeckGun extends SimEngineAircraft {
     G.hits++;
     W.hits.push({weapon:'DECK_GUN',contactId:c.id,t:this.state.time.elapsedSeconds,location:dmg.location});
     G.lastFall={text:`HIT — ${c.id} · ${dmg.location} · ${shipDamageCondition(c)}`,until:this.state.time.elapsedSeconds+4};
-    this.state.weapons.explosions.push({position:{...c.position},ageSec:0,maxAgeSec:5,label:'GUN HIT'});
-    particles.spawnExplosion(c.position.xNm,c.position.yNm,0.38,false);audio.playHit?.();
+    // Preserve the actual shell/hull intersection for perspective-correct light.
+    // The old effect always exploded at the ship centre/waterline, which made a
+    // close hit look like a flat full-screen flash rather than light blooming
+    // outward from the point the player had just struck.
+    const hr=degToRad(c.heading||0),fx=Math.sin(hr),fy=-Math.cos(hr),sx=Math.cos(hr),sy=Math.sin(hr);
+    const impactPos={xNm:c.position.xNm+fx*(hit.along||0)+sx*(hit.lateral||0),yNm:c.position.yNm+fy*(hit.along||0)+sy*(hit.lateral||0)};
+    const impactZ=Math.max(.2,hit.z||3.5),now=this.state.time.elapsedSeconds;
+    G.impactFlash={position:{...impactPos},zM:impactZ,startedAt:now,until:now+.90,power:1};
+    this.state.weapons.explosions.push({position:{...impactPos},zM:impactZ,ageSec:0,maxAgeSec:5,label:'GUN HIT'});
+    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);audio.playHit?.();
     this.alertEscorts('SHIP_HIT',{...c.position},1);
     updateShipDamage(this,c,0);
     const condition=shipDamageCondition(c);

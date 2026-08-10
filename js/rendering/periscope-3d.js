@@ -810,20 +810,29 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       return out;
     };
     const damageP=clamp((frac-hitAt)/.55,0,1);
+    const cinematicSink=O.sunk?Math.max(O.sinkingProgress||0,clamp((frac-.56)/.44,0,1)*.34):(O.sinkingProgress||0);
     const c={
       id:O.contactId,name:O.name,type:O.type,displayType:O.displayType,lengthYards:O.lengthYards,tonsFactor:O.tonsFactor,
       heading:lerpAngle(before.heading??O.heading??0,O.heading||0,damageP),speedKnots:lerp(before.speedKnots??O.speedKnots??0,O.speedKnots||0,damageP),
       position:{...O.position},shipDamage:mixDamage(beforeDamage,afterDamage,damageP),
-      sunk:damageP>.65?!!O.sunk:!!before.sunk,sinkingProgress:lerp(before.sinkingProgress||0,O.sinkingProgress||0,damageP),
+      sunk:damageP>.58?!!O.sunk:!!before.sunk,sinkingProgress:lerp(before.sinkingProgress||0,cinematicSink,damageP),
       sinkStyle:O.sinkStyle||before.sinkStyle||0,hitFrac:Number.isFinite(O.hitFrac)?O.hitFrac:0,hitSide:O.hitSide||1,stationary:!!O.stationary
     };
     const dNm=Math.max(.05,distNm(O.viewerPos,c.position)),dM=dNm*NM_M,realLen=shipVisualLengthM(c,400);
-    const angular=radToDeg(2*Math.atan(realLen/(2*dM))),fov=clamp(angular*1.28,1.25,15.0);
+    const angular=radToDeg(2*Math.atan(realLen/(2*dM)));
+    /* This is a cinematic continuation of the player's optical sightline, not
+       another historical periscope power. Start at the real SCOPE/BRG field,
+       then crash-zoom along the same line of sight until the target fills the
+       frame. The virtual cinematic lens may therefore be far stronger than 6x,
+       while the actual playable periscope remains historically 1.5x/6x. */
+    const targetFov=clamp(angular*.88,.45,3.2),zoomP=phaseSmooth01(clamp(frac/.14,0,1));
+    const startFov=clamp(Number(O.originFov)||8,targetFov,82),fov=lerp(startFov,targetFov,zoomP);
+    const targetBearing=bearingBetween(O.viewerPos,c.position),startBearing=Number.isFinite(O.viewBearing)?O.viewBearing:targetBearing;
+    const panP=phaseSmooth01(clamp(frac/.10,0,1)),br=normDeg(startBearing+shortDelta(startBearing,targetBearing)*panP),brR=degToRad(br);
     const shock=(frac>=hitAt&&frac<hitAt+.25)?Math.sin((frac-hitAt)/.25*Math.PI):0;
     const jx=Math.sin(frac*95)*shock*4*this.k,jy=Math.cos(frac*81)*shock*2.5*this.k;
     const cx=w*.5+jx,cy=h*.52+jy,r=Math.min(w*.52,h*.58),cam=this.setupCam(state,fov,cx,cy,r);
-    const br=bearingBetween(O.viewerPos,c.position),brR=degToRad(br);
-    cam.E=O.viewerPos.xNm*NM_M;cam.N=-O.viewerPos.yNm*NM_M;cam.h=2.05;cam.bearingDeg=br;cam.sin=Math.sin(brR);cam.cos=Math.cos(brR);cam.kind='IMPACT';
+    cam.E=O.viewerPos.xNm*NM_M;cam.N=-O.viewerPos.yNm*NM_M;cam.h=O.originStation==='BRIDGE'?6.5:2.05;cam.bearingDeg=br;cam.sin=Math.sin(brR);cam.cos=Math.cos(brR);cam.kind='IMPACT';
     cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);
     const E=c.position.xNm*NM_M,N=-c.position.yNm*NM_M,it={c,E,N,d:dM,bd:0};
     const env=state.world.environment,dl=env.daylight,t=state.time.elapsedSeconds,wx=env.weather||'CLEAR';
@@ -1611,7 +1620,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
      pure function of the explosion's age, so the picture is stable.      */
   drawExplosions3D(ctx,cam,state,dl){
     for(const e of state.weapons.explosions){
-      const p=this.proj(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,0);
+      const p=this.proj(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,e.zM||0);
       if(!p) continue;
       const sc=cam.f/p.d;                                   // pixels per metre
       const dud=e.kind==='dud'||/DUD|GLANCED/.test(e.label||'');
