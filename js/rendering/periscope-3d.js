@@ -40,30 +40,42 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const wallNow=typeof performance!=='undefined'?performance.now():Date.now();
     const age=Math.max(0,(wallNow-(obs.startedWall||wallNow))/1000);
     const duration=Math.max(.5,(obs.durationMs||5000)/1000),k=this.k;
+    const preImpactSec=Math.max(0,(obs.preImpactMs||0)/1000),impactAge=age-preImpactSec,beforeImpact=impactAge<0;
     const range=Math.max(.05,Number(obs.rangeNm)||distNm(obs.viewerPos||state.playerSub.position,obs.position));
     const lenM=Math.max(35,(Number(obs.lengthYards)||300)*.9144);
     const angular=radToDeg(Math.atan2(lenM,range*NM_M));
-    // Crash-zoom into the casualty rather than merely changing to another wide
-    // optic. Typical targets occupy roughly a third to half of the frame.
-    const targetFov=clamp(angular*2.4,3.2,12.5);
-    const startFov=clamp(Math.max(targetFov*1.65,Math.min(Number(obs.originFov)||24,28)),targetFov,28);
-    const zoomIn=phaseSmooth01(clamp(age/.72,0,1));
+    // Crash-zoom close enough to read the casualty, but keep the complete hull
+    // and a strip of sea on both sides. The zoom settles before the scripted
+    // 1.5-second pre-impact beat ends, so the player can find the ship before
+    // the warhead goes off.
+    const targetFov=clamp(angular*1.72,2.5,72);
+    const sourceFov=Math.min(Number(obs.originFov)||24,82);
+    const startFov=clamp(Math.max(targetFov*1.72,sourceFov),targetFov,82);
+    const zoomIn=phaseSmooth01(clamp(age/.85,0,1));
     const fov=lerp(startFov,targetFov,zoomIn);
     const cx=w/2,cy=this.portrait?h*.46:h*.50,r=Math.max(w,h)*.72;
     const cinematicDepth=obs.originStation==='BRIDGE'?0:Math.min(Number(obs.viewerDepth)||55,55);
     const sub={...state.playerSub,position:{...(obs.viewerPos||state.playerSub.position)},depthFeet:cinematicDepth,heading:obs.viewerHeading??state.playerSub.heading};
     const tact={...state.tactical,periscopeBearing:obs.targetBearing??bearingBetween(sub.position,obs.position)};
     const live=(state.world.contacts||[]).find(c=>c.id===obs.contactId);
+    // The hit is resolved before the next display frame. Replay the captured
+    // pre-hit ship for the opening beat, then switch to the resolved casualty
+    // state exactly when the visual explosion begins. This avoids fragile
+    // predictive collision logic while still giving the player a 1.5-second
+    // anticipation beat to settle into the crash zoom before the visual hit.
+    const shipState=beforeImpact&&obs.beforeShip?obs.beforeShip:obs;
+    const remainingPre=Math.max(0,-impactAge),preTravelNm=(Number(shipState.speedKnots)||0)*remainingPre/3600,hr=degToRad(Number(shipState.heading)||0);
+    const displayPos=beforeImpact?{xNm:obs.position.xNm-Math.sin(hr)*preTravelNm,yNm:obs.position.yNm+Math.cos(hr)*preTravelNm}:{...obs.position};
     const target={...(live||{}),id:obs.contactId,name:obs.name||obs.contactId,type:obs.type||'MERCHANT',displayType:obs.displayType||obs.type,
-      lengthYards:obs.lengthYards||live?.lengthYards||300,tonsFactor:obs.tonsFactor||live?.tonsFactor||0,heading:obs.heading||0,speedKnots:obs.speedKnots||0,
-      position:{...obs.position},shipDamage:obs.shipDamage||live?.shipDamage||null,sunk:!!obs.sunk,sinkingProgress:obs.sinkingProgress||0,sinkStyle:obs.sinkStyle||0,
-      hitFrac:Number.isFinite(obs.hitFrac)?obs.hitFrac:0,hitSide:obs.hitSide||1,stationary:!!obs.stationary,side:live?.side||'ENEMY'};
+      lengthYards:obs.lengthYards||live?.lengthYards||300,tonsFactor:obs.tonsFactor||live?.tonsFactor||0,heading:shipState.heading||0,speedKnots:shipState.speedKnots||0,
+      position:displayPos,shipDamage:shipState.shipDamage||null,sunk:!!shipState.sunk,sinkingProgress:shipState.sinkingProgress||0,sinkStyle:shipState.sinkStyle||0,
+      hitFrac:Number.isFinite(shipState.hitFrac)?shipState.hitFrac:0,hitSide:shipState.hitSide||1,stationary:!!obs.stationary,side:live?.side||'ENEMY'};
     const impactPos=obs.impactPosition||obs.position;
     const env={...state.world.environment,visibilityNm:Math.max(Number(state.world.environment?.visibilityNm)||.5,range*1.35)};
     const viewState={...state,playerSub:sub,tactical:tact,
-      time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+age},
+      time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+impactAge},
       world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
-      weapons:{...state.weapons,activeTorpedoes:[],explosions:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:age,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`}]}};
+      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`}]}};
     const cam=this.setupCam(viewState,fov,cx,cy,r);cam.kind='IMPACT';cam.bearingDeg=tact.periscopeBearing;cam.viewW=w;cam.viewH=h;
     const br=degToRad(cam.bearingDeg);cam.sin=Math.sin(br);cam.cos=Math.cos(br);this.impactCam=cam;
 
@@ -85,8 +97,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     // the projected hit and lays a narrow reflection over the intervening sea,
     // rather than washing the entire display white.
     const ip=this.proj(cam,impactPos.xNm*NM_M,-impactPos.yNm*NM_M,Math.max(.4,Number(obs.impactPosition?.zM)||3));
-    if(ip&&age<1.1){
-      const a=(1-age/1.1)*.72,rr=clamp(30*k+7000/Math.max(100,ip.d)*k,32*k,125*k);
+    if(ip&&impactAge>=0&&impactAge<1.1){
+      const a=(1-impactAge/1.1)*.72,rr=clamp(30*k+7000/Math.max(100,ip.d)*k,32*k,125*k);
       ctx.save();ctx.globalCompositeOperation='screen';
       const g=ctx.createRadialGradient(ip.x,ip.y,0,ip.x,ip.y,rr);g.addColorStop(0,`rgba(255,244,188,${a})`);g.addColorStop(.22,`rgba(255,178,72,${a*.58})`);g.addColorStop(1,'rgba(255,122,38,0)');
       ctx.fillStyle=g;ctx.fillRect(ip.x-rr,ip.y-rr,rr*2,rr*2);
@@ -111,14 +123,14 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const bw=Math.min(w-18*k,430*k),bh=44*k,x=(w-bw)/2,y=10*k;
     ctx.fillStyle='rgba(3,13,16,.82)';this.rr(ctx,x,y,bw,bh,6*k);ctx.fill();
     ctx.fillStyle='rgba(245,198,92,.96)';ctx.font=this.fnt(9,true);ctx.textAlign='center';
-    ctx.fillText(`IMPACT OBSERVATION · ${String(obs.weapon||'TORPEDO').replace(/_/g,' ')} HIT`,w/2,y+16*k);
+    ctx.fillText(`IMPACT OBSERVATION · ${String(obs.weapon||'TORPEDO').replace(/_/g,' ')} ${beforeImpact?'RUN':'HIT'}`,w/2,y+16*k);
     ctx.fillStyle='rgba(220,238,229,.92)';ctx.font=this.fnt(8.5);ctx.fillText(`${obs.name||obs.contactId||'TARGET'} · ${range.toFixed(2)} nm${obs.location?` · ${String(obs.location).toUpperCase()}`:''}`,w/2,y+31*k);ctx.textAlign='left';
 
     // Make the tactical consequence legible in the cinematic itself. MAP can
     // still carry the detailed labels afterwards, but the player should not
     // have to leave the impact view to discover whether the ship is merely
     // damaged, crippled, foundering or already sinking.
-    if(age>.55){
+    if(impactAge>.55){
       const D=obs.shipDamage||target.shipDamage||{},condition=String(obs.sunk?'SINKING':(obs.condition||'DAMAGED')).toUpperCase();
       const severe=/SINKING|FOUNDERING|ABANDONED/.test(condition),crippled=/CRIPPLED|DEAD IN WATER|BURNING/.test(condition);
       const items=[];

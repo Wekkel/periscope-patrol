@@ -275,7 +275,29 @@ class SimEngine extends SimEngineCareer {
       p.chargeRate=chg;
       if(p.fuel<=0)p.speedKnots*=0.1;
     }
-    else{p.chargeRate=0;const bd=(0.015+rl*rl*0.12)*dt*(1+(dmg.electricalDamage||0)*.28);p.battery=clamp(p.battery-bd,0,100);if(p.battery<=0){p.speedKnots*=0.05;p.actualRpm*=0.1;}}
+    else{
+      p.chargeRate=0;
+      /* BATTERY ENDURANCE. Express every load as percentage-points per
+         simulated hour. The old per-second constants unintentionally made a
+         stopped boat consume 54% of a full battery each hour. Fleet boats
+         could remain submerged for many hours at very low power, while high
+         motor power exhausted the cells quickly. This curve preserves that
+         characteristic without making quiet waiting unplayable:
+             STOP                         ~80 h from full
+             120 rpm / ~4 kn              ~13 h
+             250 rpm / ~6.5 kn            ~3.3 h
+             450 rpm / ~8 kn              ~1 h
+         Silent running trims non-essential hotel load; dewatering pumps add a
+         small real electrical cost. Electrical casualties increase all load. */
+      const motorLoad=clamp(rl,0,1);
+      const hotelPerHour=sub.stealth.silentRunning?0.90:1.25;
+      const propulsionPerHour=98.75*Math.pow(motorLoad,2.06);
+      const pumpPerHour=(dmg.pumpActive&&!dmg.pumpTripped)?1.0:0;
+      const electricalFactor=1+(dmg.electricalDamage||0)*0.35;
+      const drainPerHour=(hotelPerHour+propulsionPerHour+pumpPerHour)*electricalFactor;
+      p.battery=clamp(p.battery-drainPerHour*dt/3600,0,100);
+      if(p.battery<=0){p.speedKnots*=0.05;p.actualRpm*=0.1;}
+    }
   }
 
   updatePosition(sub,dt){
