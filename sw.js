@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.17'; // Stabilize training pacing, stylus waypoints, visual tracking and impact effects
+const VERSION = '0.8.17'; // Harden training objectives and unify 360 crew visual tracking
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
