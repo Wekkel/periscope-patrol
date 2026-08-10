@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.8.12'; // Fix visual contact authority, TDC sensor degradation, and animate 5-second impact observations
+const VERSION = '0.8.13'; // Improve impact crash-zoom, deck-gun blast effects, ownship deck continuity, and sunk-target cleanup
 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
