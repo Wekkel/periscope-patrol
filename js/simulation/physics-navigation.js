@@ -12,11 +12,11 @@ class SimEngine extends SimEngineCareer {
       trackIds:ids,mainTrackIds,visualIds,visualMainIds,visualAswIds,aswBands,
       alert:s.world.enemy.alertState,
       hull:s.playerSub.damage.hullIntegrity,
-      air:(s.world.aircraft||[]).filter(a=>a.seenBySub).length,
+      air:(s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub).length,
       // Attack state is safety-critical even when the aeroplane was already
       // known before transit began (or the lookout/radar has not yet promoted
       // it to a fresh contact count). This is a deliberate arcade safety net.
-      airDanger:(s.world.aircraft||[]).filter(a=>!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length,
+      airDanger:(s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length,
       ultra:!!s.world.ultra,
       wp:s.map.plottedCourse.length,
       status:s.campaign.missionStatus,
@@ -91,8 +91,8 @@ class SimEngine extends SimEngineCareer {
     if(!(w.visualMainIds||[]).length&&visualMain.length) return 'convoy sighted';
     if(newVisual.some(id=>byId.get(id)?.convoyId!=='MAIN')) return 'contact now visual';
     for(const id of ids){const c=byId.get(id),tr=tracks[id];if(!c||!isASWCombatant(c)||!tr||tr.confidence<=.02)continue;const r=tr.rangeEstimateNm??99,band=r<=1.5?3:r<=3?2:r<=6?1:0;if(band>(w.aswBands?.[id]??band))return band>=3?'escort inside 1.5 nm':band>=2?'escort inside 3 nm':'escort inside 6 nm';}
-    if((s.world.aircraft||[]).filter(a=>a.seenBySub).length>w.air) return 'aircraft';
-    if((s.world.aircraft||[]).filter(a=>!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length>(w.airDanger||0)) return 'aircraft attack';
+    if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub).length>w.air) return 'aircraft';
+    if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length>(w.airDanger||0)) return 'aircraft attack';
     if(s.world.ultra&&!w.ultra) return 'an ULTRA intercept';
     if(s.map.plottedCourse.length<w.wp) return 'a waypoint reached';
     if(s.campaign.missionStatus!==w.status) return 'new orders';

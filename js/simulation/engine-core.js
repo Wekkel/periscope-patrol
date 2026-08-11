@@ -994,7 +994,7 @@ class SimEngineCore{
     s.world.terrain=terrain; s.world.ports=area.ports;
     s.world.convoyRoutes=area.convoyRoutes;
     s.world.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
-    s.world.environment={...area.environment};s.world.weatherSystem=null;s.world.traffic=null;
+    s.world.environment=makePatrolEnvironment(area.environment);s.world.weatherSystem=null;s.world.traffic=null;
     s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=true;s.map.weatherOverlay=false;
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
     // this sequence once, so a map that was panned/free on the previous patrol

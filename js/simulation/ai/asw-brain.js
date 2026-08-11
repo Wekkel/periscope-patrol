@@ -36,6 +36,7 @@ class SimEngineASWBrain extends SimEngineWeather{
     const W=this.state.world,e=W.enemy||(W.enemy={}),now=this.state.time.elapsedSeconds||0;
     const A=e.asw||(e.asw={});
     if(!Number.isFinite(A.generation))A.generation=0;
+    if(!Number.isFinite(A.cueGeneration))A.cueGeneration=0;
     if(!Number.isFinite(A.roleGeneration))A.roleGeneration=0;
     if(!Number.isFinite(A.lastFixAt))A.lastFixAt=-999;
     if(!Number.isFinite(A.lastRoleAssignAt))A.lastRoleAssignAt=-999;
@@ -107,7 +108,7 @@ class SimEngineASWBrain extends SimEngineWeather{
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.lastKnownConfidence=Math.max(e.lastKnownConfidence||0,conf||0);
     e.searchCenter={xNm:q.xNm,yNm:q.yNm};
     A.datum={xNm:q.xNm,yNm:q.yNm,errNm:q.errNm,source:reason};A.datumAt=now;A.searchStartedAt=now;
-    A.searchRadiusNm=clamp(.45+q.errNm*1.6,.45,1.4);A.lastCue=reason;
+    A.searchRadiusNm=clamp(.45+q.errNm*1.6,.45,1.4);A.lastCue=reason;A.cueGeneration++;
     this.assignASWRoles(null,true);
     return q;
   }

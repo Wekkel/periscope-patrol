@@ -214,6 +214,7 @@ class ScenarioSelector{
         this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty,missionType:h.missionType||'CONVOY_INTERDICTION'});
         const s=this.game.getSnapshot();
         Object.assign(s.world.environment,h.environment);
+        rerollPatrolThermalLayer(s.world.environment,h.environment?.layerDepthFt);
         s.world.weatherSystem=null;(this.game.engine||this.game).ensureWeatherSystem?.(true);
         s.campaign.patrolBonus=h.patrolBonus;
         s.campaign.missionName=h.name;

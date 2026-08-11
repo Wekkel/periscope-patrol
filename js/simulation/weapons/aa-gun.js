@@ -79,17 +79,21 @@ class SimEngineAAGun extends SimEngineDeckGun {
     }
   }
 
-  airDepthChargeAttack(a,sub){
+  airDepthChargeAttack(a,sub,aim=null){
     const W=this.state.world,rat=clamp(a.rattled||0,0,1),wx=weatherBetween(this.state,a.position,sub.position);
     /* Aerial ASW charges deliberately trade immediacy for warning. Their
        horizontal placement and depth setting are substantially rougher than a
        destroyer's sonar-led pattern, and their explosive weight is reduced in
        the damage solver below. That preserves the current gameplay rule that
        getting to ~100 ft is usually a very good answer to an aircraft attack. */
-    const err=(0.045+Math.random()*0.075+rat*0.055)/Math.max(.35,wx.aircraftAttackFactor);
-    const pos={xNm:sub.position.xNm+(Math.random()-0.5)*2*err,
-               yNm:sub.position.yNm+(Math.random()-0.5)*2*err};
-    let band=sub.depthFeet<45?70:sub.depthFeet<90?105:sub.depthFeet<150?145:185;
+    const err=(0.045+Math.random()*0.075+rat*0.055)/Math.max(.35,wx.aircraftAttackFactor),datum=aim||a.attackDatum||sub.position;
+    const pos={xNm:datum.xNm+(Math.random()-0.5)*2*err,
+               yNm:datum.yNm+(Math.random()-0.5)*2*err};
+    // The pilot cannot read actual submerged depth. Estimate it from how long
+    // ago the visual/wake datum was made; the physical damage solver later uses
+    // the boat's true position/depth. A prompt deep dive therefore matters.
+    const datumAge=Math.max(0,this.state.time.elapsedSeconds-(a.attackDatum?.at??this.state.time.elapsedSeconds));
+    let band=clamp(65+datumAge*1.55,60,190);
     const depthErr=(Math.random()-0.5)*180+(rat*50*(Math.random()<.5?-1:1));
     const guess=clamp(band+depthErr,45,280),sinkFps=8.5;
     const dc={id:`ADC-${W.nextDcId=(W.nextDcId||0)+1}`,ownerId:a.id,source:'AIR',position:pos,ageSec:0,
@@ -99,48 +103,26 @@ class SimEngineAAGun extends SimEngineDeckGun {
     audio.playShellSplash?.(.8);
     this.log(`${sub.depthFeet<12?'LOOKOUTS':'SOUND'} — AERIAL DEPTH CHARGE IN THE WATER, bearing ${fmtDeg(b)}. It is still sinking.`,'bad');
     this.aarRecordEvent?.('AIRCRAFT_DEPTH_CHARGE',`${a.name} dropped an aerial depth charge.`,{aircraftId:a.id,depthFt:guess},a.position,pos);
-    this.alertEscorts('AIR_ATTACK',{...sub.position},0.6);
+    this.alertEscorts('AIR_ATTACK',{...pos},0.6);
   }
 
-  airAttack(a,sub){
+  airAttack(a,sub,aim=null){
     const W=this.state.world;
     const ordnance=a.ordnance||(a.kind==='FLYING_BOAT'?'DEPTH_CHARGE':'BOMB');
-    if(ordnance==='DEPTH_CHARGE') return this.airDepthChargeAttack(a,sub);
-    // ordinary bombs are aimed at where she sees the boat; depth is everything
-    /* This is where the gun earns its keep. A pilot being hosed with 20 mm
-       does not fly a copybook run: he comes in higher, releases early and
-       jinks. The bombs go in the sea. Since damage falls off exponentially
-       with miss distance, a hundred yards of extra error is very nearly the
-       whole difference between a scratched hull and a lost boat. */
-    const rat=clamp(a.rattled||0,0,1),wx=weatherBetween(this.state,a.position,sub.position);
-    const err=(0.012+Math.random()*0.05+(sub.depthFeet>30?0.03:0)+rat*0.058)/wx.aircraftAttackFactor;
-    if(rat>0.25) this.log(`${a.name} is being hosed by the 20 mm — she drops high and wide.`,'warn');
-    const pos={xNm:sub.position.xNm+(Math.random()-0.5)*2*err,
-               yNm:sub.position.yNm+(Math.random()-0.5)*2*err};
-    const hNm=distNm(pos,sub.position);
-    let depthFactor;
-    if(sub.depthFeet<12)      depthFactor=1.0;              // caught on the surface
-    else if(sub.depthFeet<45) depthFactor=0.75;             // still going down
-    else if(sub.depthFeet<90) depthFactor=0.35;
-    else if(sub.depthFeet<150)depthFactor=0.10;
-    else                      depthFactor=0.02;
-    const dmg=52*Math.exp(-hNm/0.020)*depthFactor;
-    this.state.weapons.explosions.push({position:{...pos},ageSec:0,maxAgeSec:8,
-      label:dmg>4?`AIR BOMB -${Math.round(dmg)}`:'AIR BOMB'});
-    // Men standing at an open gun with bombs going off alongside.
-    if(W.aaManned&&sub.depthFeet<10&&hNm<0.035&&Math.random()<0.34){
-      this.aaCasualty('Bomb burst close aboard.');
-    }
-    if(dmg>1.5){
-      this.applyShock(dmg);
-      audio.playDepthCharge(clamp(1-dmg/52,0,1));
-      particles.spawnExplosion(pos.xNm,pos.yNm,0.9,false);
-      this.log(`AIR BOMB — ${dmg.toFixed(0)}% damage.${sub.depthFeet<45?' Get her down!':''}`,'bad');
-    }else{
-      audio.playDepthCharge(0.85);
-      this.log(`${a.name} dropped ordinary bombs — near miss.`,'warn');
-    }
-    this.alertEscorts('AIR_ATTACK',{...sub.position},0.6);
+    if(ordnance==='DEPTH_CHARGE') return this.airDepthChargeAttack(a,sub,aim);
+    // Ordinary bombs are surface weapons here. Once the hull is submerged they
+    // may burst spectacularly on the last visible datum, but they cannot acquire
+    // or damage an underwater boat; ASW-capable flying boats use depth charges.
+    const datum=aim||a.attackDatum||sub.position,rat=clamp(a.rattled||0,0,1),wx=weatherBetween(this.state,a.position,datum);
+    const err=(0.012+Math.random()*.05+rat*.058)/Math.max(.35,wx.aircraftAttackFactor);
+    if(rat>.25)this.log(`${a.name} is being hosed by the 20 mm — she drops high and wide.`,'warn');
+    const pos={xNm:datum.xNm+(Math.random()-.5)*2*err,yNm:datum.yNm+(Math.random()-.5)*2*err};
+    const submerged=sub.depthFeet>12,hNm=distNm(pos,sub.position),dmg=submerged?0:52*Math.exp(-hNm/.020);
+    this.state.weapons.explosions.push({position:{...pos},ageSec:0,maxAgeSec:8,label:dmg>4?`AIR BOMB -${Math.round(dmg)}`:'AIR BOMB'});
+    if(W.aaManned&&!submerged&&hNm<.035&&Math.random()<.34)this.aaCasualty('Bomb burst close aboard.');
+    if(dmg>1.5){this.applyShock(dmg);audio.playDepthCharge(clamp(1-dmg/52,0,1));particles.spawnExplosion(pos.xNm,pos.yNm,.9,false);this.log(`AIR BOMB — ${dmg.toFixed(0)}% damage. Get her down!`,'bad');}
+    else{audio.playDepthCharge(.85);particles.spawnExplosion(pos.xNm,pos.yNm,.55,false);this.log(submerged?`${a.name} bombs the last surface datum — the boat is already under.`:`${a.name} dropped ordinary bombs — near miss.`,'warn');}
+    this.alertEscorts('AIR_ATTACK',{...pos},0.6);
   }
 
   /* ══════════ RADIO ══════════

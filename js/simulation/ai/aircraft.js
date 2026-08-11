@@ -1,4 +1,54 @@
 class SimEngineAircraft extends SimEngineEnemyAI {
+  /* Aircraft must not become an omniscient anti-submarine sensor after the
+     bridge clears.  We keep one short-lived WORLD-space surface trace: wake,
+     foam and the last swirl left while the boat is diving.  Once the boat is
+     deep, a pilot can attack that datum but not the invisible current position.
+     This is also what makes an underwater turn away from the datum meaningful. */
+  updateAirSurfaceTrace(){
+    const W=this.state.world,sub=this.state.playerSub,env=W.environment,now=this.state.time.elapsedSeconds;
+    W.airThreat=W.airThreat||{};const air=W.airThreat;
+    const diving=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
+    if((sub.depthFeet||0)<14||(diving&&(sub.depthFeet||0)<48)){
+      air.surfaceTrace={position:{...sub.position},heading:sub.heading,speedKnots:sub.propulsion.speedKnots||0,
+        at:now,strength:clamp(.42+(sub.propulsion.speedKnots||0)/18*.48+(sub.depthFeet<10?.24:0),.30,1.15),depthAtTrace:sub.depthFeet};
+      return air.surfaceTrace;
+    }
+    const tr=air.surfaceTrace;if(!tr)return null;
+    if(this.airSurfaceTraceStrength(tr)<=.015){delete air.surfaceTrace;return null;}
+    return tr;
+  }
+
+  airSurfaceTraceStrength(tr){
+    if(!tr?.position)return 0;
+    const now=this.state.time.elapsedSeconds,age=Math.max(0,now-(tr.at||0)),wx=weatherAtPosition(this.state,tr.position);
+    // Calm clear water preserves a useful wake longest; rain and a rough sea
+    // erase it quickly.  This is visual persistence, not a magic submerged track.
+    const life=clamp(118*(1-clamp(wx.seaState||0,0,1)*.42)*(1-clamp(wx.precipitation||0,0,1)*.52)*clamp(.78+(wx.visibilityNm||8)/28,.72,1.18),42,145);
+    return clamp((tr.strength||.6)*Math.pow(clamp(1-age/life,0,1),1.35),0,1.2);
+  }
+
+  airAttackDatumPosition(a){
+    const D=a?.attackDatum;if(!D||!Number.isFinite(D.xNm)||!Number.isFinite(D.yNm))return null;
+    const age=clamp((this.state.time.elapsedSeconds-(D.at||0)),0,85),d=knotsNmSec(clamp(D.speedKnots||0,0,18))*age,r=degToRad(D.courseDeg||0);
+    return{xNm:D.xNm+Math.sin(r)*d,yNm:D.yNm-Math.cos(r)*d};
+  }
+
+  beginAircraftAttack(a,observed,source='VISUAL',motion=null){
+    const s=this.state,now=s.time.elapsedSeconds,src=source==='WAKE'?'WAKE':'VISUAL';
+    const unc=src==='WAKE'?clamp(.035+(1-(motion?.strength||.5))*.11,.035,.15):.012;
+    const aa=Math.random()*Math.PI*2,rr=Math.sqrt(Math.random())*unc;
+    a.attackDatum={xNm:observed.xNm+Math.cos(aa)*rr,yNm:observed.yNm+Math.sin(aa)*rr,
+      courseDeg:motion?.heading??s.playerSub.heading,speedKnots:motion?.speedKnots??s.playerSub.propulsion.speedKnots,at:now,source:src,uncertaintyNm:unc};
+    a.state='ATTACKING';a.spotted=true;a.runTimer=0;a.orbitAt={xNm:a.attackDatum.xNm,yNm:a.attackDatum.yNm};
+    // An attack run is never allowed to happen as an invisible 32x background
+    // event.  Even if the original patrol was not spotted, the attack warning is
+    // an intentional arcade hand-off of the conn to the player.
+    a.seenBySub=true;s.world.airThreat.alarmedAt=now;
+    const T=s.time;if((T.timeScale||1)>1||T.transitUntil){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
+    this.log(src==='WAKE'?`${a.name} has picked up the diving wake and is turning onto the last datum!`:`${a.name} has sighted the boat and is turning in!`,'bad');
+    audio.playAlarm();
+  }
+
   updateAircraft(dt){
     const W=this.state.world, sub=this.state.playerSub, env=W.environment;
     const now=this.state.time.elapsedSeconds;
@@ -36,8 +86,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       }else if(friendly&&friendly.rngNm<=6)chance*=.35;
       if(W.aircraft.filter(a=>a.side!=='FRIENDLY').length>=2) chance=0;
       if(Math.random()<chance){
-        const bear=Math.random()*360, rng=11+Math.random()*9;
-        const r=degToRad(bear);
+        const bear=Math.random()*360, rng=12+Math.random()*6;
+        const r=degToRad(bear),hunt=(W.enemy.alertState!=='UNAWARE'&&W.enemy.lastKnownSubPosition)?W.enemy.lastKnownSubPosition:sub.position;
         W.aircraft.push({
           id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,side:'ENEMY',
           ...(()=>{const r=Math.random();
@@ -49,7 +99,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
             return r<0.42?{name:'Type 97 flying boat',kind:'FLYING_BOAT',ordnance:'DEPTH_CHARGE'}
                  :r<0.72?{name:'Nakajima B5N',kind:'BOMBER',ordnance:'BOMB'}
                         :{name:'Aichi E13A',kind:'FLOATPLANE',ordnance:'BOMB'};})(),
-          position:{xNm:sub.position.xNm+Math.sin(r)*rng,yNm:sub.position.yNm-Math.cos(r)*rng},
+          position:{xNm:hunt.xNm+Math.sin(r)*rng,yNm:hunt.yNm-Math.cos(r)*rng},
           heading:normDeg(bear+180+(Math.random()-0.5)*40),
           speedKnots:115+Math.random()*70, state:'SEARCHING',
           bombs:2+Math.floor(Math.random()*3), runTimer:0, spotted:false, seenBySub:false,
@@ -82,6 +132,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         });
       }
     }
+
+    const surfaceTrace=this.updateAirSurfaceTrace();
 
     for(const a of W.aircraft){
       const rng=distNm(a.position,sub.position),friendly=nearestFriendly(a.position);
@@ -117,11 +169,27 @@ class SimEngineAircraft extends SimEngineEnemyAI {
             this.log(`FOX SCHEDULE — Allied patrol aircraft reports enemy warship roughly ${rr.toFixed(0)} nm on bearing ${fmtDeg(br)}.`,'ok');
           }
         }
-        a.legTimer=(a.legTimer||0)-dt;
-        if(a.legTimer<=0){a.legTimer=65+Math.random()*95;a.legSign=-(a.legSign||1);a.heading=normDeg(a.heading+a.legSign*(18+Math.random()*30));}
+        const friendlyAge=now-(a.bornAt||now);
+        if(a.state!=='DEPARTING'&&friendlyAge>350){a.state='DEPARTING';a.departBearing=bearingBetween(sub.position,a.position);a.departAt=now;}
+        if(a.state==='DEPARTING'){
+          const dh=shortDelta(a.heading,a.departBearing??bearingBetween(sub.position,a.position));a.heading=normDeg(a.heading+clamp(dh,-6*dt,6*dt));
+        }else{
+          a.legTimer=(a.legTimer||0)-dt;
+          if(a.legTimer<=0){a.legTimer=65+Math.random()*95;a.legSign=-(a.legSign||1);a.heading=normDeg(a.heading+a.legSign*(18+Math.random()*30));}
+        }
         const d=knotsNmSec(a.speedKnots)*dt,r=degToRad(a.heading);
         a.position.xNm+=Math.sin(r)*d;a.position.yNm-=Math.cos(r)*d;
         continue;
+      }
+      /* Migration/corrupt-state safety: every hostile attack state must already
+         have handed the conn to the player. Normal attacks enter through
+         beginAircraftAttack(), but an older save can contain ATTACKING with
+         seenBySub=false. Never let that legacy state deliver an invisible 32x
+         strike before the lookout/map warning is restored. */
+      if((a.state==='ATTACKING'||a.state==='STRAFING')&&!a.seenBySub){
+        a.seenBySub=true;air.alarmedAt=now;
+        const T=this.state.time;if(T.transitUntil||(T.timeScale||1)>1){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
+        if(!a._attackHandoffLogged){a._attackHandoffLogged=true;this.log(`⚠ AIR ALARM — ${a.name} is already on an attack run!`,'bad');audio.playAlarm();}
       }
       if(a.state==='SEARCHING'&&!a.spotted&&friendly&&friendly.rngNm<5.5){
         a.state='DEPARTING';a.departBearing=bearingBetween(friendly.port.pos,a.position);
@@ -130,24 +198,36 @@ class SimEngineAircraft extends SimEngineEnemyAI {
 
       // ── the aircraft looking for us ──
       if(a.state==='SEARCHING'){
-        // Each state has its own horizon: a surfaced boat trailing a white
-        // wake is visible for miles from the air, a boat at periscope depth
-        // only in clear water fairly close, and below a hundred feet not at all.
+        // Direct visual detection ends around periscope depth. Once deeper, the
+        // pilot may still find the recent surface trace, but never the boat's
+        // hidden present position. This closes the old 70–110 ft "shadow oracle".
         let p=0,maxR=0;
-        if(sub.depthFeet<10){p=0.55;maxR=11;}                // fully surfaced
-        else if(sub.depthFeet<45){p=0.34;maxR=4.0;}          // decks awash / diving
-        else if(sub.depthFeet<70){p=0.20;maxR=2.2;}          // scope up in clear water
-        else if(sub.depthFeet<110){p=0.10;maxR=0.8;}         // a shadow, straight below
-        if(sub.propulsion.speedKnots>10&&sub.depthFeet<20) maxR*=1.3;   // the wake
+        if(sub.depthFeet<10){p=.58;maxR=11;}
+        else if(sub.depthFeet<42){p=.34;maxR=3.8;}
+        else if(sub.depthFeet<66){p=.15;maxR=1.7;}
         const wx=weatherBetween(this.state,a.position,sub.position);
-        maxR=Math.min(maxR,Math.max(.55,wx.visibilityNm*1.15));
-        p*=clamp(wx.visibilityNm/12,0.12,1.4)*clamp(env.daylight*1.3+.10*wx.moonFactor,0.08,1.2);
-        p*=Math.pow(clamp(1-rng/Math.max(.1,maxR),0,1),1.7);
-        p*=(1-clamp(wx.seaState,0,1)*0.3)*wx.aircraftFactor;
-        if(Math.random()<p*dt*0.5){
-          a.state='ATTACKING'; a.spotted=true; a.runTimer=0;
-          this.log(`${a.name} has sighted the boat and is turning in!`,'bad');
-          audio.playAlarm();
+        if(sub.propulsion.speedKnots>10&&sub.depthFeet<20)maxR*=1.25;
+        maxR=Math.min(maxR,Math.max(.45,wx.visibilityNm*1.10));
+        p*=clamp(wx.visibilityNm/12,.12,1.35)*clamp(env.daylight*1.3+.10*wx.moonFactor,.08,1.2);
+        p*=maxR>0?Math.pow(clamp(1-rng/Math.max(.1,maxR),0,1),1.7):0;
+        p*=(1-clamp(wx.seaState,0,1)*.30)*wx.aircraftFactor;
+        if(p>0&&Math.random()<p*dt*.5){this.beginAircraftAttack(a,sub.position,'VISUAL');}
+        else if(surfaceTrace){
+          const strength=this.airSurfaceTraceStrength(surfaceTrace),trRng=distNm(a.position,surfaceTrace.position),trBear=bearingBetween(a.position,surfaceTrace.position);
+          const off=Math.abs(shortDelta(a.heading,trBear)),look=off<=55?1:off<=95?.42:.07;
+          const twx=weatherBetween(this.state,a.position,surfaceTrace.position),traceRange=Math.min(8.5,Math.max(.5,twx.visibilityNm*.76))*strength*Math.sqrt(look);
+          let tp=.31*strength*look*Math.pow(clamp(1-trRng/Math.max(.1,traceRange),0,1),1.35);
+          tp*=clamp(env.daylight*1.25+.08*twx.moonFactor,.06,1.1)*(1-clamp(twx.seaState,0,1)*.38)*twx.aircraftFactor;
+          if(traceRange>.2&&Math.random()<tp*dt*.52){
+            if(a.ordnance==='DEPTH_CHARGE')this.beginAircraftAttack(a,surfaceTrace.position,'WAKE',{heading:surfaceTrace.heading,speedKnots:surfaceTrace.speedKnots,strength});
+            else{
+              // Bomb-only aircraft can find the swirl but have no useful
+              // submerged weapon. They circle/report the datum instead of
+              // performing a theatrical zero-damage bombing run through water.
+              a.state='ORBIT';a.spotted=true;a.orbitAt={...surfaceTrace.position};a.orbitTimer=45+Math.random()*35;
+              if(a.seenBySub)this.log(`${a.name} has seen the diving wake but is circling without ASW ordnance.`,'warn');
+            }
+          }
         }
       }
 
@@ -186,6 +266,14 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         }
       }
 
+      // Routine search time is not a despawn timer. Start the homeward leg
+      // early enough to reach the outer tactical domain around the old lifetime;
+      // only remove the aircraft once it is actually near that edge.
+      const patrolAge=now-(a.bornAt||now);
+      if((a.state==='SEARCHING'||a.state==='ORBIT')&&!a.spotted&&patrolAge>310){
+        a.state='DEPARTING';a.departBearing=bearingBetween(sub.position,a.position);a.departAt=now;
+      }
+
       // ── flying ──
       // An aircraft flies a pattern: a creeping search with regular turns, a
       // straight run in to bomb, then a pull-off and a circuit to come round
@@ -194,37 +282,39 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       const TURN=6.0;
       let want=a.heading;
       if(a.state==='ATTACKING'){
-        const attackWx=weatherBetween(this.state,a.position,sub.position);
-        if(attackWx.precipitation>.62&&rng>Math.max(.75,attackWx.visibilityNm*.8)){
-          a.state='ORBIT';a.spotted=false;a.orbitAt={...sub.position};a.orbitTimer=75;
-          this.log(`${a.name} lost the boat in the rain — circling the last sighting.`,'warn');
+        // A shallow boat can still be visually tracked during the run. Once the
+        // dive hides her, freeze the datum; subsequent underwater manoeuvring can
+        // therefore move the boat away from the attack point.
+        if(sub.depthFeet<42){
+          const directWx=weatherBetween(this.state,a.position,sub.position),directR=distNm(a.position,sub.position);
+          if(directR<Math.max(.7,directWx.visibilityNm*.7)){
+            a.attackDatum={xNm:sub.position.xNm,yNm:sub.position.yNm,courseDeg:sub.heading,speedKnots:sub.propulsion.speedKnots,at:now,source:'VISUAL',uncertaintyNm:.012};
+          }
+        }
+        const attackPoint=this.airAttackDatumPosition(a)||a.orbitAt||sub.position,attackRng=distNm(a.position,attackPoint);
+        if(a.ordnance!=='DEPTH_CHARGE'&&sub.depthFeet>16&&a.runTimer<=0){
+          a.state='ORBIT';a.spotted=false;a.orbitAt={...attackPoint};a.orbitTimer=35+Math.random()*30;a.runTimer=Math.max(a.runTimer||0,2);
+          if(a.seenBySub)this.log(`${a.name} has lost a useful bomb target — circling the dive datum.`,'warn');
+        }
+        const attackWx=weatherBetween(this.state,a.position,attackPoint);
+        if(attackWx.precipitation>.62&&attackRng>Math.max(.75,attackWx.visibilityNm*.8)){
+          a.state='ORBIT';a.spotted=false;a.orbitAt={...attackPoint};a.orbitTimer=65;
+          this.log(`${a.name} lost the datum in the rain — circling the last sighting.`,'warn');
         }
         a.speedKnots=Math.min(a.speedKnots+dt*6,190);
         if(a.runTimer>0){
-          // pulling off after a drop: swing wide, then come round for another run
           a.orbitSign=a.orbitSign||(Math.random()<0.5?1:-1);
-          want=normDeg(bearingBetween(a.position,sub.position)+a.orbitSign*(rng<0.6?115:70));
-        }else{
-          want=bearingBetween(a.position,sub.position);
-        }
-        if(rng<0.35&&a.bombs>0&&a.runTimer<=0){
-          a.runTimer=30; a.bombs--;
-          this.airAttack(a,sub);
-          if(a.bombs<=0){
-            /* Empty of bombs, she can still strafe — and a submarine with
-               men standing at an open gun is exactly the target a pilot
-               will come back for. If the deck is clear she goes home. */
-            if(W.aaManned&&sub.depthFeet<10&&env.daylight>0.25&&(a.rattled||0)<0.7&&Math.random()<0.5){
-              a.state='STRAFING';a.passes=0;a.runTimer=18;
-              this.log(`${a.name} has no bombs left — she is coming back with her guns. CLEAR THE DECK!`,'bad');
-            }else{
-              a.state='DEPARTING';this.log(`${a.name} has expended her bombs and is turning away.`,'warn');
-            }
+          want=normDeg(bearingBetween(a.position,attackPoint)+a.orbitSign*(attackRng<.6?115:70));
+        }else want=bearingBetween(a.position,attackPoint);
+        if(attackRng<.35&&a.bombs>0&&a.runTimer<=0){
+          a.runTimer=30;a.bombs--;this.airAttack(a,sub,attackPoint);
+          // A submerged target is no longer visually tracked after the drop.
+          // Circle the datum rather than making a magical second run on truth.
+          if(sub.depthFeet>12&&a.bombs>0){a.state='ORBIT';a.spotted=false;a.orbitAt={...attackPoint};a.orbitTimer=45+Math.random()*30;}
+          else if(a.bombs<=0){
+            if(W.aaManned&&sub.depthFeet<10&&env.daylight>0.25&&(a.rattled||0)<.7&&Math.random()<.5){a.state='STRAFING';a.passes=0;a.runTimer=18;this.log(`${a.name} has no bombs left — she is coming back with her guns. CLEAR THE DECK!`,'bad');}
+            else{a.state='DEPARTING';a.departBearing=bearingBetween(sub.position,a.position);this.log(`${a.name} has expended her bombs and is turning away.`,'warn');}
           }
-        }
-        if(sub.depthFeet>120&&Math.random()<dt*0.10){
-          a.state='ORBIT'; a.spotted=false; a.orbitAt={...sub.position}; a.orbitTimer=120;
-          this.log(`${a.name} has lost you in the depths — she is circling the swirl.`,'warn');
         }
       }else if(a.state==='STRAFING'){
         a.speedKnots=Math.min(a.speedKnots+dt*6,200);
@@ -257,7 +347,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         if(a.orbitTimer<=0){a.state='SEARCHING';a.legTimer=0;}
       }else if(a.state==='DEPARTING'){
         a.speedKnots=Math.min(a.speedKnots+dt*4,170);
-        if(Number.isFinite(a.departBearing))want=a.departBearing;
+        want=Number.isFinite(a.departBearing)?a.departBearing:bearingBetween(sub.position,a.position);
       }else{                                       // SEARCHING — creeping line ahead
         a.legTimer=(a.legTimer||0)-dt;
         if(a.legTimer<=0){
@@ -274,12 +364,13 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       const d=knotsNmSec(a.speedKnots)*dt, r=degToRad(a.heading);
       a.position.xNm+=Math.sin(r)*d; a.position.yNm-=Math.cos(r)*d;
     }
-    // patrols go home
+    // Patrols leave through the edge of the local air domain rather than
+    // vanishing in the middle because an arbitrary lifetime expired. A hard
+    // ceiling remains only as a corrupt-state/performance safety valve.
     W.aircraft=W.aircraft.filter(a=>{
-      const life=a.side==='FRIENDLY'?480:a.state==='ATTACKING'||a.state==='STRAFING'?600:a.state==='ORBIT'?420:a.bombs<=0?150:420;
-      const gone=(now-a.bornAt>life)||distNm(a.position,sub.position)>18
-                 ||(a.state==='DEPARTING'&&distNm(a.position,sub.position)>6);
-      if(gone&&a.seenBySub&&!a.shotDown) this.log(`${a.name} has left the area.`);
+      const r=distNm(a.position,sub.position),age=now-(a.bornAt||now);
+      const gone=(a.state==='DEPARTING'&&r>=16.0)||r>20.5||age>680||a.shotDown;
+      if(gone&&a.seenBySub&&!a.shotDown)this.log(`${a.name} has left the area.`);
       return !gone;
     });
   }

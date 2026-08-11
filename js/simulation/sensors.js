@@ -133,8 +133,13 @@ class SimEngineSensors extends SimEngineIntel {
       A.pingEvents=A.pingEvents||[];A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN'});if(A.pingEvents.length>80)A.pingEvents.shift();
 
       const rng=distNm(esc.position,sub.position),dead=rng<SONAR.deadZoneNm;let p=0;
-      if(!blind&&!dead&&rng<SONAR.maxRangeNm){p=.88*clamp(1-(rng-SONAR.deadZoneNm)/(SONAR.maxRangeNm-SONAR.deadZoneNm),0,1)*(belowLayer?.26:1)
-        *(.5+.5*clamp(sub.propulsion.speedKnots/6,0,1))*(1-clamp(env.seaState,0,1)*.3)*(sub.stealth.silentRunning?.85:1);}
+      if(!blind&&!dead&&rng<SONAR.maxRangeNm){
+        const activeEcho=.82+.18*clamp(sub.propulsion.speedKnots/7,0,1); // stopping helps passive stealth far more than an active echo
+        const layerFactor=belowLayer?.21:1,ownship=escortSonarOwnshipFactor(esc,sub.position);
+        p=.94*clamp(1-(rng-SONAR.deadZoneNm)/(SONAR.maxRangeNm-SONAR.deadZoneNm),0,1)*layerFactor*activeEcho
+          *(1-clamp(env.seaState,0,1)*.30)*(sub.stealth.silentRunning?.96:1)*ownship;
+        esc.sonarBaffled=ownship<.42;
+      }else esc.sonarBaffled=false;
       p=clamp(p*(hist?.aswSkill||1),0,.98);
       const kn=(W.knuckles||[]).find(k=>{const kr=distNm(esc.position,k.pos);return kr<rng&&kr<SONAR.maxRangeNm&&Math.abs(shortDelta(bearingBetween(esc.position,k.pos),bearingBetween(esc.position,sub.position)))<14;});
       if(kn&&Math.random()<.5&&p>0){

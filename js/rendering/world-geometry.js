@@ -42,6 +42,17 @@ const SONAR={
   patternSize:7,         // charges per attack
   sinkFps:8.5            // depth-charge sink rate
 };
+/* A destroyer's sonar is not an all-round oracle. Propeller/wake noise and
+   hull geometry make the stern sector a poor listening/echo-ranging direction,
+   especially at pursuit speed. The factor is intentionally continuous so an
+   escort can regain contact by turning rather than crossing a magic boundary. */
+function escortSonarOwnshipFactor(esc,targetPos){
+  if(!esc?.position||!targetPos)return 1;
+  const rel=Math.abs(shortDelta(esc.heading||0,bearingBetween(esc.position,targetPos)));
+  const aft=rel<=112?1:rel>=168?.14:lerp(1,.14,(rel-112)/56);
+  const speedNoise=lerp(1,.68,clamp(((esc.speedKnots||0)-8)/16,0,1));
+  return clamp(aft*speedNoise,.09,1);
+}
 
 // Historic fleet-boat attack scope: 1.5× search power, 6× attack power.
 const SCOPE_OPTICS=[

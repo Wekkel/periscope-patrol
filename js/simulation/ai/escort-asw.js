@@ -29,9 +29,25 @@ class SimEngineASW extends SimEngineASWBrain {
     }
 
     if(e.alertState==='SEARCHING'){
-      const tgt=this.searchTarget(esc)||this.screenTarget(esc);
+      const A=this.ensureASWState(),now=this.state.time.elapsedSeconds,cueAge=now-(A.datumAt||-999);
+      const hotCue=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_DUD','DECK_GUN'].includes(A.lastCue);
+      const canSpeculate=role==='PROSECUTOR'&&hotCue&&cueAge<420&&(esc.dcRemaining===undefined||esc.dcRemaining>=SONAR.patternSize)
+        &&esc.speculativeCueGeneration!==A.cueGeneration;
+      const tgt=(canSpeculate?this.aswDatum(18):null)||this.searchTarget(esc)||this.screenTarget(esc);
       if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
-      esc.desiredSpeed=role==='PROSECUTOR'?10:role==='CONTAINMENT'?13:12;
+      esc.desiredSpeed=role==='PROSECUTOR'?(canSpeculate?17:11):role==='CONTAINMENT'?13:12;
+      if(canSpeculate&&tgt){
+        const rr=distNm(esc.position,tgt),prev=esc.lastSpecRange??Infinity,recent=W.depthCharges.some(dc=>dc.ownerId===esc.id&&dc.ageSec<14);
+        esc.lastSpecRange=rr;
+        if((rr<.08||(rr>prev-1e-7&&rr<.18))&&!recent){
+          // One deliberate "try the datum" decision per weapon cue. Above the
+          // layer it is common enough to make an escort on your tail frightening;
+          // below the layer it becomes an occasional, usually inaccurate pattern.
+          esc.speculativeCueGeneration=A.cueGeneration;
+          const below=sub.depthFeet>(W.environment.layerDepthFt||200)+15,pTry=below?.18:.46;
+          if(Math.random()<pTry)this.dropDC(esc,sub,{...esc.position},{speculative:true});
+        }
+      }else esc.lastSpecRange=undefined;
       this.surfaceAction(esc,e,sub,W,dt);
       return;
     }
@@ -103,10 +119,11 @@ class SimEngineASW extends SimEngineASWBrain {
   /* A depth-charge setting is made from the enemy solution. Actual ownship
      depth is consulted only later by updateDCs(), when the physical explosion
      is resolved. */
-  dropDC(esc,sub,aim){
+  dropDC(esc,sub,aim,opts={}){
     const W=this.state.world,e=W.enemy,env=W.environment,sol=e.solution&&!e.solution.decoy?e.solution:null;
-    const estDepth=clamp(sol?.depthFt??130,15,420);if(estDepth<25)return;
-    const layer=env.layerDepthFt||200,belowLayer=estDepth>layer+15,base=20+estDepth*.10+(belowLayer?58:0);
+    const speculative=!!opts.speculative;
+    const estDepth=clamp(sol?.depthFt??(70+(env.layerDepthFt||190)*.34),15,420);if(estDepth<25)return;
+    const layer=env.layerDepthFt||200,belowLayer=estDepth>layer+15,base=(20+estDepth*.10+(belowLayer?58:0))*(speculative?1.45:1);
     let skill=clamp(1-(esc.attacksMade||0)*.11,.45,1);if(e.contactHeld)skill*=.55;
     const hist=this.state.campaign?.historicalProfile||null,err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1);let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
     esc.attacksMade=(esc.attacksMade||0)+1;esc.dcRemaining=(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize;
@@ -119,7 +136,7 @@ class SimEngineASW extends SimEngineASWBrain {
     }
     e.sonarBlindUntil=this.state.time.elapsedSeconds+38+Math.random()*22;e.contactHeld=false;
     for(const x of W.contacts.filter(c=>isASWCombatant(c)))x.sonarContact=false;
-    this.log(`DEPTH CHARGES — ${esc.name} rolling ${SONAR.patternSize}, set for ${guess.toFixed(0)} ft.`,'bad');
+    this.log(speculative?`DEPTH CHARGES — ${esc.name} is trying the last datum, ${SONAR.patternSize} charges set around ${guess.toFixed(0)} ft.`:`DEPTH CHARGES — ${esc.name} rolling ${SONAR.patternSize}, set for ${guess.toFixed(0)} ft.`,'bad');
     this.aarRecordEvent?.('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,count:SONAR.patternSize,depthFt:guess},esc.position,aim||sub.position);
     this.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
     if(esc.dcRemaining<SONAR.patternSize){this.log(`${esc.name} has expended her depth charges and is falling back.`);this.assignASWRoles(null,true);}

@@ -44,16 +44,33 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const lenM=Math.max(20,(Number(obs.lengthYards)||300)*.3048);
     const angular=radToDeg(Math.atan2(lenM,range*NM_M));
     // The impact view is a deliberate cinematic cut, not a reconstructed replay.
-    // Start at the final crash-zoom framing on the very first frame so the
-    // already-laid torpedo wake cannot appear to race toward the target while
-    // the camera changes focal length. Keep the full hull plus some sea either
-    // side; note that the legacy `lengthYards` field is authored in FEET.
-    const targetFov=clamp(angular*1.58,2.35,72);
-    const fov=targetFov;
+    // IMPORTANT: setupCam() uses `r` as its focal-plane half-size. In portrait
+    // `r` is taller than the physical canvas width, so choosing FOV from angular
+    // hull length alone can make a close target wider than the screen. Derive a
+    // second FOV from the REAL viewport width and keep ~13% margin each side.
     const cx=w/2,cy=this.portrait?h*.46:h*.50,r=Math.max(w,h)*.72;
+    const nominalFov=angular*1.58;
+    const hullFootprint=lenM*1.22; // bow/stern projection + superstructure + anti-crop margin
+    const safeWidth=Math.max(80,w*.72),maxImpactFov=92;
+    const actualRangeM=range*NM_M;
+    /* A camera cannot fit a 250 m broadside carrier that is almost touching the
+       submarine merely by widening FOV forever.  The impact view is already a
+       cinematic cut, so if the real viewer is inside the minimum framing range
+       we pull the virtual camera straight back along the SAME bearing.  Bearing,
+       hit geometry and wake remain truthful; only cinematographic distance is
+       changed. This hard guarantee is preferable to cropping the bow/stern on
+       portrait phones. */
+    const minFrameRangeM=(hullFootprint*r)/(safeWidth*Math.tan(degToRad(maxImpactFov*.5)));
+    const frameRangeM=Math.max(actualRangeM,minFrameRangeM),frameRangeNm=frameRangeM/NM_M;
+    const fitFov=radToDeg(2*Math.atan((hullFootprint/frameRangeM)*r/safeWidth));
+    const fov=clamp(Math.max(nominalFov*(actualRangeM/frameRangeM),fitFov),2.35,maxImpactFov);
     const cinematicDepth=obs.originStation==='BRIDGE'?0:Math.min(Number(obs.viewerDepth)||55,55);
-    const sub={...state.playerSub,position:{...(obs.viewerPos||state.playerSub.position)},depthFeet:cinematicDepth,heading:obs.viewerHeading??state.playerSub.heading};
-    const tact={...state.tactical,periscopeBearing:obs.targetBearing??bearingBetween(sub.position,obs.position)};
+    const realViewer=obs.viewerPos||state.playerSub.position,targetBearing=obs.targetBearing??bearingBetween(realViewer,obs.position),tb=degToRad(targetBearing);
+    const frameViewer=frameRangeM>actualRangeM+1
+      ?{xNm:obs.position.xNm-Math.sin(tb)*frameRangeNm,yNm:obs.position.yNm+Math.cos(tb)*frameRangeNm}
+      :{...realViewer};
+    const sub={...state.playerSub,position:frameViewer,depthFeet:cinematicDepth,heading:obs.viewerHeading??state.playerSub.heading};
+    const tact={...state.tactical,periscopeBearing:targetBearing};
     const live=(state.world.contacts||[]).find(c=>c.id===obs.contactId);
     // The hit is already resolved internally before this cinematic starts.
     // For the 1.5-second anticipation beat, deliberately freeze the captured
@@ -73,7 +90,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       // cinematic effects may advance on wall-clock time while simulation stays paused.
       time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+Math.max(0,impactAge)},
       world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
-      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`}]}};
+      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`,targetLengthFeet:Number(target.lengthYards)||300}]}};
     const cam=this.setupCam(viewState,fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'IMPACT',viewW:w,viewH:h});this.impactCam=cam;
 
     ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);
@@ -1787,7 +1804,13 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         // 3 ─ water column with cap, then falling spray
         if(age<5){
           const up=clamp(age/1.6,0,1), a=clamp(1-(age-1.4)/3.4,0,1);
-          const colH=(28+up*86)*sc*big, colW=Math.max(1.5,(7+up*8)*sc*big);
+          const rawColumnM=(28+up*86)*big;
+          // A cinematic torpedo hit knows the target hull length. Cap the water
+          // column in WORLD metres before projection so a close/zoomed impact can
+          // never grow into a skyscraper above a small destroyer or merchant.
+          const targetLenM=Number.isFinite(Number(e.targetLengthFeet))?Math.max(20,Number(e.targetLengthFeet)*.3048):null;
+          const plumeCapM=targetLenM?clamp(targetLenM*.32,18,48):Infinity;
+          const colH=Math.min(rawColumnM,plumeCapM)*sc, colW=Math.max(1.5,(7+up*8)*sc*big);
           const cg=ctx.createLinearGradient(p.x,p.y,p.x,p.y-colH);
           cg.addColorStop(0,`rgba(240,250,255,${a*0.9})`);
           cg.addColorStop(0.75,`rgba(232,246,255,${a*0.5})`);

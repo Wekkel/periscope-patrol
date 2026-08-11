@@ -149,3 +149,81 @@ if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem('ss_hin
              flank: the last hundred revolutions buy almost no speed and a
              great deal of noise, and the noise is a sector on the rim.
 */
+
+/* ═══════════════════════════════════════════════════ RENDER DEBUG CAPTURE
+   Deliberately console-only: this is a reproducible visual test fixture, not a
+   gameplay control. It renders a CLONE of live state, captures mainCanvas, then
+   restores the real frame, so taking a screenshot cannot alter a patrol/save.
+
+   Examples:
+     PeriscopeDebug.downloadScenario('bridge-air-attack',{rangeNm:1.1});
+     PeriscopeDebug.downloadScenario('impact-framing',{type:'CARRIER',rangeNm:.08});
+     PeriscopeDebug.downloadScenario('map-labels',{strategy:'HYBRID'});
+     PeriscopeDebug.downloadCurrent();
+
+   MAP strategies kept for visual A/B testing: GREEDY, NEAREST, WIDE, OUTWARD,
+   LANES and the production default HYBRID.  Keeping these deterministic hooks
+   makes future label/layout changes reviewable without spending a patrol trying
+   to recreate a crowded convoy by hand. */
+(function installPeriscopeDebugCapture(){
+  const clone=x=>{try{return typeof structuredClone==='function'?structuredClone(x):JSON.parse(JSON.stringify(x));}catch(_){return JSON.parse(JSON.stringify(x));}};
+  const at=(origin,bearingDeg,rangeNm)=>{const r=degToRad(bearingDeg);return{xNm:origin.xNm+Math.sin(r)*rangeNm,yNm:origin.yNm-Math.cos(r)*rangeNm};};
+  const makeScenario=(name,opts={})=>{
+    const s=clone(game.getSnapshot()),sub=s.playerSub,now=s.time.elapsedSeconds||0;
+    s.time.timeScale=0;s.time.transitUntil=0;s.time.transitOpen=false;s.world.shakeMag=0;s.tactical.impactObservation=null;
+    if(name==='bridge-air-attack'){
+      const br=normDeg(Number(opts.bearingDeg??sub.heading)),range=clamp(Number(opts.rangeNm)||1.1,.18,8),kind=String(opts.kind||'BOMBER').toUpperCase();
+      sub.depthFeet=0;sub.orderedDepthFeet=0;sub.mode='SURFACED';s.tactical.activeStation='BRIDGE';s.tactical.bridgeBearing=br;s.tactical.bridgeZoom=Number(opts.zoom)||0;s.tactical.bridgeBinoculars=!!opts.binoculars;
+      Object.assign(s.world.environment,{daylight:Number(opts.daylight??.72),visibilityNm:Number(opts.visibilityNm??14),seaState:Number(opts.seaState??.32),weather:opts.weather||'PARTLY CLOUDY',precipitation:0});
+      const pos=at(sub.position,br,range),hdg=bearingBetween(pos,sub.position);
+      s.world.aircraft=[{id:'DBG-AIR',side:'ENEMY',name:kind==='FLYING_BOAT'?'Type 97 flying boat':kind==='FLOATPLANE'?'Aichi E13A':'Nakajima B5N',kind,ordnance:kind==='FLYING_BOAT'?'DEPTH_CHARGE':'BOMB',position:pos,heading:hdg,speedKnots:175,state:'ATTACKING',seenBySub:true,spotted:true,bombs:2,bornAt:now-90,runTimer:0}];
+      return s;
+    }
+    if(name==='impact-framing'){
+      const br=normDeg(Number(opts.bearingDeg??sub.heading)),range=clamp(Number(opts.rangeNm)||.12,.025,5),type=String(opts.type||'CARRIER').toUpperCase();
+      const lengths={CARRIER:820,HEAVY_CRUISER:660,DESTROYER:350,KAIBOKAN:255,MERCHANT:440},lengthFeet=Number(opts.lengthFeet)||lengths[type]||440;
+      const pos=at(sub.position,br,range),heading=normDeg(br+90),target={id:'DBG-HIT',name:`Debug ${type.replaceAll('_',' ')}`,type,displayType:type.replaceAll('_',' '),side:'ENEMY',position:pos,heading,speedKnots:10,lengthYards:lengthFeet,tonsFactor:type==='CARRIER'?26000:type==='HEAVY_CRUISER'?13000:6000,visualProfile:1,shipDamage:{flotation:.62,propulsion:.45,steering:.18,fire:.28},sunk:false,sinkingProgress:0,hitFrac:.12,hitSide:1};
+      sub.depthFeet=55;sub.orderedDepthFeet=55;sub.mode='SUBMERGED';s.world.contacts=[target];s.tactical.activeStation='PERISCOPE';s.tactical.periscopeBearing=br;
+      s.tactical.impactObservation={token:1,contactId:target.id,name:target.name,type:target.type,displayType:target.displayType,lengthYards:lengthFeet,tonsFactor:target.tonsFactor,heading,speedKnots:target.speedKnots,position:{...pos},shipDamage:{...target.shipDamage},sunk:false,sinkingProgress:0,sinkStyle:0,hitFrac:.12,hitSide:1,stationary:false,beforeShip:{heading,speedKnots:10,shipDamage:{flotation:0,propulsion:0,steering:0,fire:0},sunk:false,sinkingProgress:0,sinkStyle:0,hitFrac:0,hitSide:1},impactPosition:{...pos,zM:2.5},viewerPos:{...sub.position},viewerDepth:55,viewerHeading:sub.heading,originStation:'PERISCOPE',viewBearing:br,originFov:32,targetBearing:br,weapon:'TORPEDO',location:'MIDSHIPS',condition:'CRIPPLED',rangeNm:range,preImpactMs:1500,durationMs:9000,startedWall:performance.now()-2300,torpedoHeading:br,torpedoWakePath:[],torpedoWakeNm:.35,torpedoWakeVisible:true};
+      return s;
+    }
+    if(name==='map-labels'){
+      s.tactical.activeStation='MAP';sub.depthFeet=0;sub.mode='SURFACED';Object.assign(s.world.environment,{daylight:.72,visibilityNm:18,seaState:.28,weather:'CLEAR'});
+      const specs=[
+        ['T01','MERCHANT',18,.40,4,9,'ENEMY'],['T02','DESTROYER',42,.46,211,28,'ENEMY'],['T03','TANKER',68,.52,174,10,'ENEMY'],
+        ['T04','KAIBOKAN',96,.43,318,18,'ENEMY'],['T05','CARGO SHIP',126,.58,266,8,'ENEMY'],['T06','HEAVY CRUISER',154,.47,32,24,'ENEMY'],
+        ['T07','MERCHANT',202,.55,118,9,'FRIENDLY'],['T08','PATROL CRAFT',238,.42,63,15,'ENEMY'],['T09','MERCHANT',276,.50,342,7,'NEUTRAL'],
+        ['T10','CARRIER',318,.62,155,21,'ENEMY']
+      ];
+      s.world.contacts=[];s.world.contactTracks={};
+      for(const [id,type,bear,rng,course,kn,aff] of specs){
+        const pos=at(sub.position,bear,rng),display=type.replaceAll('_',' ');
+        s.world.contacts.push({id,name:`Debug ${display}`,type:type==='CARGO SHIP'?'MERCHANT':type,displayType:display,side:aff==='ENEMY'?'ENEMY':aff,position:pos,heading:course,speedKnots:kn,lengthYards:type==='DESTROYER'?350:type==='HEAVY CRUISER'?660:type==='CARRIER'?820:430,sunk:false});
+        s.world.contactTracks[id]={id,bearing:bear,rangeEstimateNm:rng,confidence:.96,positionConfidence:.97,plotPosition:{...pos},lastFixPosition:{...pos},positionFixAt:now,lastUpdated:now,visualHullConfirmed:true,hullConfirmedAt:now,positionSource:'VISUAL',source:'VISUAL',typeEstimate:display,contactType:type,courseEstimate:course,speedEstimateKnots:kn,affiliation:aff};
+      }
+      s.tactical.selectedTrackId='T02';return s;
+    }
+    throw new Error(`Unknown PeriscopeDebug scenario: ${name}`);
+  };
+  const capture=(state,{strategy=null,zoom=null,center=null}={})=>{
+    const old={strategy:canvasView.mapLabelStrategy,zoom:canvasView.zoom,center:{...canvasView.mapCenter},follow:canvasView.follow};
+    try{
+      if(strategy)canvasView.mapLabelStrategy=String(strategy).toUpperCase();
+      if(Number.isFinite(zoom))canvasView.zoom=zoom;
+      if(center)canvasView.mapCenter={...center};
+      canvasView.render(state);
+      return canvasView.canvas.toDataURL('image/png');
+    }finally{
+      canvasView.mapLabelStrategy=old.strategy;canvasView.zoom=old.zoom;canvasView.mapCenter=old.center;canvasView.follow=old.follow;
+      canvasView.render(game.getSnapshot());
+    }
+  };
+  const saveDataUrl=(url,name)=>{const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();return name;};
+  globalThis.PeriscopeDebug={
+    labelStrategies:['GREEDY','NEAREST','WIDE','OUTWARD','LANES','HYBRID'],
+    captureCurrentDataUrl(){canvasView.render(game.getSnapshot());return canvasView.canvas.toDataURL('image/png');},
+    downloadCurrent(filename='periscope-current.png'){return saveDataUrl(this.captureCurrentDataUrl(),filename);},
+    captureScenarioDataUrl(name,opts={}){const s=makeScenario(name,opts),map=name==='map-labels';return capture(s,{strategy:opts.strategy||null,zoom:map?(Number(opts.zoom)||72):null,center:map?{...s.playerSub.position}:null});},
+    downloadScenario(name,opts={}){const strategy=String(opts.strategy||'').toLowerCase(),suffix=strategy?`-${strategy}`:'';return saveDataUrl(this.captureScenarioDataUrl(name,opts),opts.filename||`periscope-${name}${suffix}.png`);}
+  };
+})();

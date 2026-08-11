@@ -58,7 +58,7 @@ function createState(areaKey){
       radar:null,weatherSystem:null,
       traffic:{version:2,enabled:false,groups:[],nextId:1,clock:0,generated:false},
       radio:{pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0},
-      environment:{...area.environment},
+      environment:makePatrolEnvironment(area.environment),
       enemy:{alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
         searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0},
       depthCharges:[],

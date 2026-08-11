@@ -740,28 +740,67 @@ class CanvasView extends CanvasViewSound {
   }
 
   _placeMapLabel(anchor,w,h,K,occupied,selected=false){
-    const vp=this._mapViewport||{w:1024,h:768};
-    const dirs=[[1,-1],[1,1],[-1,-1],[-1,1],[0,-1],[0,1],[1,0],[-1,0],[.55,-1],[-.55,-1],[.55,1],[-.55,1]];
-    const radii=selected?[12,20,30,42,56,72]:[12,20,30,42,56];
+    const vp=this._mapViewport||{w:1024,h:768},strategy=String(this.mapLabelStrategy||'HYBRID').toUpperCase();
+    const overlapFor=rect=>{let n=0;for(const o of occupied)n+=this._mapLabelOverlapArea(rect,o);return n;};
+    const overflowFor=rect=>Math.max(0,4-rect.x)+Math.max(0,4-rect.y)+Math.max(0,rect.x+rect.w-(vp.w-4))+Math.max(0,rect.y+rect.h-(vp.h-4));
+    const clampRect=rect=>{rect.x=clamp(rect.x,4,Math.max(4,vp.w-rect.w-4));rect.y=clamp(rect.y,4,Math.max(4,vp.h-rect.h-4));return rect;};
+
+    // Debug comparison strategy 3: two clean filing lanes. It is extremely
+    // legible but intentionally included as a comparison rather than default —
+    // leader lines become long when a convoy crosses the centre of the chart.
+    if(strategy==='LANES'){
+      const side=anchor.x<vp.w*.5?'L':'R',x=side==='L'?7:vp.w-w-7;
+      let y=clamp(anchor.y-h*.45,7,vp.h-h-7),dir=anchor.y<vp.h*.5?1:-1;
+      for(let n=0;n<24;n++){
+        const rect={x,y,w,h};if(overlapFor(rect)<1){occupied.push(rect);return rect;}
+        y=clamp(y+dir*(h+5*K),7,vp.h-h-7);if((y<=7||y>=vp.h-h-7)&&n>5)dir*=-1;
+      }
+      const rect=clampRect({x,y,w,h});occupied.push(rect);return rect;
+    }
+
+    const baseDirs=[[1,-1],[1,1],[-1,-1],[-1,1],[0,-1],[0,1],[1,0],[-1,0],[.55,-1],[-.55,-1],[.55,1],[-.55,1]];
+    const wideDirs=[[1,-.45],[1,.45],[-1,-.45],[-1,.45],[.28,-1],[-.28,-1],[.28,1],[-.28,1],...baseDirs];
+    let dirs=baseDirs,radii=selected?[12,20,30,42,56,72]:[12,20,30,42,56];
+    if(strategy==='WIDE'||strategy==='HYBRID'){dirs=wideDirs;radii=selected?[12,18,26,36,48,62,78,96]:[12,18,26,36,48,62,78];}
+    if(strategy==='HYBRID'&&this._mapLabelDense){
+      /* A ten-ship convoy simply cannot be made legible by keeping every label
+         within a few pixels of its hull. In dense plots HYBRID searches an
+         outer orbit as well. This is still local (unlike LANES at the screen
+         edges), but accepts longer hairlines rather than letting text overlap. */
+      dirs=[];for(let i=0;i<16;i++){const a=i*Math.PI/8;dirs.push([Math.cos(a),Math.sin(a)]);}
+      radii=selected?[24,40,58,80,108,140,176]:[54,74,98,128,162,198];
+    }
+    if(strategy==='OUTWARD'){
+      const sx=anchor.x<vp.w*.5?-1:1,sy=anchor.y<vp.h*.5?-1:1;
+      dirs=[[sx,sy],[sx,0],[sx,-sy],[0,sy],[-sx,sy],[0,-sy],[-sx,0],[-sx,-sy],...baseDirs];
+      radii=selected?[12,20,30,44,60,80]:[12,20,30,44,60];
+    }
+
     let best=null,bestScore=1e18;
-    for(const r of radii) for(const [dx,dy] of dirs){
-      const rect=this._mapLabelRectFor(anchor,w,h,dx,dy,r,K);
-      const right=rect.x+rect.w,bottom=rect.y+rect.h;
-      const overflow=Math.max(0,4-rect.x)+Math.max(0,4-rect.y)+Math.max(0,right-(vp.w-4))+Math.max(0,bottom-(vp.h-4));
-      let overlap=0;for(const o of occupied) overlap+=this._mapLabelOverlapArea(rect,o);
-      const midX=rect.x+rect.w*0.5,midY=rect.y+rect.h*0.5;
-      const dist=Math.hypot(midX-anchor.x,midY-anchor.y);
-      const score=overlap*15+overflow*280+dist+(dy>0?10:0)+(dx<0?3:0);
-      if(score<bestScore){bestScore=score;best=rect;if(!overlap&&!overflow&&dist<40*K) break;}
+    for(const r of radii)for(const [dx,dy] of dirs){
+      const rect=this._mapLabelRectFor(anchor,w,h,dx,dy,r,K),overflow=overflowFor(rect),overlap=overlapFor(rect);
+      const midX=rect.x+rect.w*.5,midY=rect.y+rect.h*.5,leader=Math.hypot(midX-anchor.x,midY-anchor.y);
+      let score=overlap*15+overflow*280+leader+(dy>0?10:0)+(dx<0?3:0);
+      if(strategy==='NEAREST')score=overlap*23+overflow*330+leader*1.55+(dy>0?7:0);
+      if(strategy==='OUTWARD'){
+        const outX=(anchor.x-vp.w*.5)*(midX-anchor.x),outY=(anchor.y-vp.h*.5)*(midY-anchor.y);
+        score=overlap*18+overflow*310+leader*.82-(outX+outY)*.012;
+      }
+      if(strategy==='HYBRID'){
+        // Production default: overlap dominates, but also reserve a small
+        // breathing moat around earlier labels and prefer short leaders that
+        // point away from the dense centre of the chart.
+        let moat=0;const ex={x:rect.x-4*K,y:rect.y-3*K,w:rect.w+8*K,h:rect.h+6*K};
+        for(const o of occupied)moat+=this._mapLabelOverlapArea(ex,o);
+        const out=(anchor.x-vp.w*.5)*(midX-anchor.x)+(anchor.y-vp.h*.5)*(midY-anchor.y);
+        const coversAnchor=anchor.x>=rect.x&&anchor.x<=rect.x+rect.w&&anchor.y>=rect.y&&anchor.y<=rect.y+rect.h;
+        const dense=this._mapLabelDense;
+        score=overlap*(dense?80:26)+moat*(dense?8:2.8)+overflow*420+leader*(dense?.34:.72)-(out*.010)+(coversAnchor?1200:0)+(dy>0?4:0);
+      }
+      if(score<bestScore){bestScore=score;best=rect;if(!overlap&&!overflow&&strategy!=='HYBRID'&&leader<38*K)break;}
     }
-    if(best){
-      best.x=clamp(best.x,4,vp.w-best.w-4);
-      best.y=clamp(best.y,4,vp.h-best.h-4);
-      occupied.push(best);
-      return best;
-    }
-    const fallback={x:clamp(anchor.x+12*K,4,vp.w-w-4),y:clamp(anchor.y-h-8*K,4,vp.h-h-4),w,h};
-    occupied.push(fallback);return fallback;
+    if(best){clampRect(best);occupied.push(best);return best;}
+    const fallback=clampRect({x:anchor.x+12*K,y:anchor.y-h-8*K,w,h});occupied.push(fallback);return fallback;
   }
 
   drawScopeFovCue(ctx,state,w2s,w,h){
@@ -798,8 +837,24 @@ class CanvasView extends CanvasViewSound {
   }
 
   drawMapContacts(ctx,tracks,w2s,now,ownPos,selId,state=null){
-    const K=this.k;this._mapLabelRects=[];const visible=Object.values(tracks).filter(q=>!q.sunk),dense=visible.length>=4;
+    const K=this.k;this.mapLabelStrategy=this.mapLabelStrategy||'HYBRID';
+    // Labels are allowed to move; fixed HUD text is not. Reserving the small
+    // navigation panel prevents the solver from finding a mathematically empty
+    // but visually unreadable slot underneath it.
+    this._mapLabelRects=[{x:0,y:0,w:Math.min(this._mapViewport?.w||220,214*K),h:70*K,reserved:true}];
+    const visible=Object.values(tracks).filter(q=>!q.sunk),dense=visible.length>=4;
+    this._mapLabelDense=visible.length>=6;
     const contactById=state?new Map((state.world.contacts||[]).filter(c=>!c.sunk).map(c=>[c.id,c])):null;
+    /* Hull symbols are also reserved space. A label that avoids every other
+       label can still be unreadable if it sits directly over three convoy
+       symbols; reserve a small box around every known plot before placement. */
+    if(this._mapLabelDense){
+      for(const tr of visible){
+        const c=contactById?.get(tr.id),live=!!(state&&c&&typeof crewCanSeeSurfaceHull==='function'&&crewCanSeeSurfaceHull(state,c));
+        const wp=live?c.position:(tr.plotPosition||tr.lastFixPosition);if(!wp)continue;
+        const p=w2s(wp.xNm,wp.yNm),q=9*K;this._mapLabelRects.push({x:p.x-q,y:p.y-q,w:q*2,h:q*2,reserved:true});
+      }
+    }
     const ordered=[...Object.values(tracks)].sort((a,b)=>((b.id===selId)-(a.id===selId))||((b.visualHullConfirmed?1:0)-(a.visualHullConfirmed?1:0))||((b.confidence||0)-(a.confidence||0))||String(a.id).localeCompare(String(b.id)));
     for(const tr of ordered){
       if(tr.sunk){                                   // a wreck: fixed, silent, no solution

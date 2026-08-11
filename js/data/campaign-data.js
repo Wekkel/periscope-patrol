@@ -3,6 +3,26 @@
    here: getPatrolTerrain() builds just the selected chart when a patrol starts.
    That lazy boundary matters on low-memory Android hardware as the Pacific map
    catalogue grows. */
+/* Thermal layers are patrol conditions, not permanent contour lines.  The
+   nominal depth belongs to an area profile; each NEW patrol perturbs it once
+   and then saves that value with the world.  Keeping the randomisation here
+   prevents TAC from becoming a memorised "always dive to 210 ft" answer. */
+function makePatrolEnvironment(base){
+  const env={...(base||{})},nominal=Number(env.layerDepthFt)||190;
+  const span=clamp(28+Math.abs(nominal-190)*.12,28,46);
+  // Triangular noise avoids putting every patrol at an extreme while still
+  // producing enough variation that the skipper must actually inspect TAC.
+  const jitter=((Math.random()+Math.random())-1)*span;
+  env.layerNominalDepthFt=nominal;
+  env.layerDepthFt=Math.round(clamp(nominal+jitter,90,290)/5)*5;
+  return env;
+}
+function rerollPatrolThermalLayer(env,nominalFt=null){
+  if(!env)return env;
+  const base={...env,layerDepthFt:Number(nominalFt)||Number(env.layerNominalDepthFt)||Number(env.layerDepthFt)||190};
+  const rolled=makePatrolEnvironment(base);env.layerNominalDepthFt=rolled.layerNominalDepthFt;env.layerDepthFt=rolled.layerDepthFt;return env;
+}
+
 const PATROL_AREAS={
   'Solomon Sea':{
     description:'Vital Japanese supply route to Guadalcanal. Heavy convoy traffic expected.',terrainKey:'Solomon Sea',

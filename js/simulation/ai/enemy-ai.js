@@ -11,7 +11,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       return false;
     }
     const newState=conf>.75?'ATTACKING':'SEARCHING';if(!(e.alertState==='ATTACKING'&&newState==='SEARCHING'))e.alertState=newState;
-    const timers={TORPEDO_LAUNCH:280,SHIP_HIT:480,EMERGENCY_BLOW:240,TORPEDO_DUD:160,COLLISION:300,DECK_GUN:260,AIR_ATTACK:220,NOISE:160,ACTIVE_QC:260};
+    const timers={TORPEDO_LAUNCH:360,SHIP_HIT:600,EMERGENCY_BLOW:260,TORPEDO_DUD:210,COLLISION:320,DECK_GUN:340,AIR_ATTACK:240,NOISE:180,ACTIVE_QC:280};
     e.alertTimerSec=Math.max(e.alertTimerSec,timers[reason]||200);
     const q=this.noteASWCue?this.noteASWCue(pos,conf,reason):{xNm:pos.xNm,yNm:pos.yNm};
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.searchCenter={xNm:q.xNm,yNm:q.yNm};
@@ -32,7 +32,10 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
   updateEnemyAI(dt){
     const W=this.state.world,e=W.enemy,sub=this.state.playerSub;this.ensureASWState?.();
     if(e.alertTimerSec>0){
-      let decay=dt;if(sub.stealth.silentRunning)decay+=dt*.5;if(sub.depthFeet>120)decay+=dt*.3;if(sub.depthFeet>(W.environment.layerDepthFt||200)+15)decay+=dt*.5;if(sub.propulsion.speedKnots<3)decay+=dt*.4;if(!e.contactHeld)decay+=dt*.3;
+      // Quiet/deep running reduces SENSOR quality; it should not make a destroyer
+      // forget a torpedo explosion twice as fast. Search persistence now decays
+      // mostly with time, with only a modest bonus when contact is truly lost.
+      let decay=dt;if(!e.contactHeld)decay+=dt*.08;if(!e.contactHeld&&sub.depthFeet>(W.environment.layerDepthFt||200)+15)decay+=dt*.10;
       e.alertTimerSec=Math.max(0,e.alertTimerSec-decay);
     }else if(e.alertState!=='UNAWARE'){
       e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;this.assignASWRoles?.(null,true);this.log('Escort search abandoned; convoy screen reforming.');
@@ -50,8 +53,9 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     // the enemy plot and it is not a firm active-sonar contact by itself.
     const layerD=W.environment.layerDepthFt||200;
     for(const esc of escorts){
-      const rng=distNm(esc.position,sub.position),depthMod=sub.depthFeet>layerD+15?.32:sub.depthFeet>100?.6:1,
-        det=clamp((sub.stealth.acousticSignature*1.4-.08)*depthMod/(1+rng*2.2),0,1);
+      const rng=distNm(esc.position,sub.position),depthMod=sub.depthFeet>layerD+15?.30:sub.depthFeet>100?.62:1,
+        ownship=escortSonarOwnshipFactor(esc,sub.position),
+        det=clamp((sub.stealth.acousticSignature*1.4-.08)*depthMod*ownship/(1+rng*2.2),0,1);
       if(det>.18&&e.alertState==='UNAWARE'||det>.35&&e.alertState!=='ATTACKING'){
         const trueBear=bearingBetween(esc.position,sub.position),bearErr=(Math.random()-.5)*(det>.35?10:22),rangeFactor=det>.35?.22:.38,
           estRng=clamp(rng*(1+(Math.random()-.5)*2*rangeFactor),.1,SONAR.maxRangeNm*1.25),br=degToRad(normDeg(trueBear+bearErr)),
