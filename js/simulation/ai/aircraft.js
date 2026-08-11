@@ -282,6 +282,22 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       const TURN=6.0;
       let want=a.heading;
       if(a.state==='ATTACKING'){
+        // After releasing ordnance the pilot continues through the attack line
+        // for a few seconds before breaking away. The old code turned instantly,
+        // so a nominal low pass often never crossed the submarine at all. Apart
+        // from looking wrong in BRIDGE/GUN it robbed the fly-by audio/geometry of
+        // the phase where the aircraft is actually overhead. This timer changes
+        // only steering presentation; it never grants another weapon release.
+        if((a.overflightTimer||0)>0){
+          a.overflightTimer=Math.max(0,a.overflightTimer-dt);
+          want=Number.isFinite(a.attackRunHeading)?a.attackRunHeading:a.heading;
+          if(a.overflightTimer<=0&&a.postAttackState){
+            a.state=a.postAttackState;a.postAttackState=null;
+            if(a.state==='ORBIT'){a.spotted=false;a.orbitTimer=a.postAttackOrbitTimer||55;a.postAttackOrbitTimer=null;}
+            if(a.state==='STRAFING')a.runTimer=18;
+            if(a.state==='DEPARTING'&&!Number.isFinite(a.departBearing))a.departBearing=bearingBetween(sub.position,a.position);
+          }
+        }else{
         // A shallow boat can still be visually tracked during the run. Once the
         // dive hides her, freeze the datum; subsequent underwater manoeuvring can
         // therefore move the boat away from the attack point.
@@ -308,14 +324,17 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         }else want=bearingBetween(a.position,attackPoint);
         if(attackRng<.35&&a.bombs>0&&a.runTimer<=0){
           a.runTimer=30;a.bombs--;this.airAttack(a,sub,attackPoint);
-          // A submerged target is no longer visually tracked after the drop.
-          // Circle the datum rather than making a magical second run on truth.
-          if(sub.depthFeet>12&&a.bombs>0){a.state='ORBIT';a.spotted=false;a.orbitAt={...attackPoint};a.orbitTimer=45+Math.random()*30;}
+          a.attackRunHeading=a.heading;a.overflightTimer=6;
+          // Decide what happens AFTER the straight-through pass. A submerged
+          // target is never magically reacquired; subsequent orbiting uses only
+          // the stale datum. Weapon state is already spent before this delay.
+          if(sub.depthFeet>12&&a.bombs>0){a.postAttackState='ORBIT';a.orbitAt={...attackPoint};a.postAttackOrbitTimer=45+Math.random()*30;}
           else if(a.bombs<=0){
-            if(W.aaManned&&sub.depthFeet<10&&env.daylight>0.25&&(a.rattled||0)<.7&&Math.random()<.5){a.state='STRAFING';a.passes=0;a.runTimer=18;this.log(`${a.name} has no bombs left — she is coming back with her guns. CLEAR THE DECK!`,'bad');}
-            else{a.state='DEPARTING';a.departBearing=bearingBetween(sub.position,a.position);this.log(`${a.name} has expended her bombs and is turning away.`,'warn');}
+            if(W.aaManned&&sub.depthFeet<10&&env.daylight>0.25&&(a.rattled||0)<.7&&Math.random()<.5){a.postAttackState='STRAFING';a.passes=0;this.log(`${a.name} has no bombs left — she will come round with her guns. CLEAR THE DECK!`,'bad');}
+            else{a.postAttackState='DEPARTING';a.departBearing=bearingBetween(sub.position,a.position);this.log(`${a.name} has expended her bombs and is continuing through before turning away.`,'warn');}
           }
         }
+        } // normal pre-release ATTACKING steering
       }else if(a.state==='STRAFING'){
         a.speedKnots=Math.min(a.speedKnots+dt*6,200);
         if(a.runTimer>0){

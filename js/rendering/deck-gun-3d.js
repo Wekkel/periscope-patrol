@@ -201,6 +201,116 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     return faces.length;
   }
 
+  /* ── AIRCRAFT PSEUDO-3D ─────────────────────────────────────────────
+     BRIDGE and GUN share this world-space renderer. Aircraft are deliberately
+     tiny parameterised meshes rather than station-specific icons or sprites:
+     camera bearing therefore determines front / belly / rear aspect naturally.
+     Keep this renderer cheap: a handful of projected polygons per visible
+     aircraft, no textures, no per-pixel work and no new animation loop. */
+  aircraftVisualProfile(a){
+    const name=String(a?.name||'').toUpperCase(),kind=String(a?.kind||'').toUpperCase();
+    if(name.includes('PBY')||name.includes('CATALINA'))return{key:'PBY',span:31.7,len:19.5,body:1.55,tail:8.8,engines:2,wingY:.05,float:false};
+    if(name.includes('TYPE 97')||name.includes('H6K'))return{key:'H6K',span:40.0,len:25.6,body:2.0,tail:11.2,engines:4,wingY:.01,float:true};
+    if(kind==='FLYING_BOAT')return{key:'FLYING_BOAT',span:34,len:22,body:1.8,tail:10,engines:4,wingY:.02,float:true};
+    if(kind==='FLOATPLANE'||name.includes('E13A'))return{key:'FLOATPLANE',span:14.5,len:11.3,body:.72,tail:4.7,engines:1,wingY:.07,float:true};
+    if(kind==='FIGHTER')return{key:'FIGHTER',span:11.0,len:9.0,body:.62,tail:3.7,engines:1,wingY:.05,float:false};
+    // B5N / ordinary single-engine carrier aircraft.
+    return{key:'B5N',span:15.5,len:10.3,body:.68,tail:5.0,engines:1,wingY:.06,float:false};
+  }
+
+  aircraftVisualAltitudeM(a,rng){
+    if(Number.isFinite(a?.visualAltitudeM))return a.visualAltitudeM;
+    if(a?.state==='ATTACKING'||a?.state==='STRAFING')return clamp(62+rng*50,78,250);
+    if(a?.state==='ORBIT')return 310;
+    if(a?.state==='DEPARTING')return 380;
+    return 430;
+  }
+
+  drawAircraftPseudo3D(ctx,cam,state,a,dl,t,opts={}){
+    const sub=state.playerSub,env=state.world.environment||{},rng=distNm(sub.position,a.position);
+    const wx=weatherBetween(state,sub.position,a.position),vis=Math.min(15,Math.max(1.2,wx.visibilityNm*1.18));
+    if(rng>vis)return false;
+    const bear=bearingBetween(sub.position,a.position),off=shortDelta(cam.bearingDeg,bear);
+    if(Math.abs(off)>cam.fovDeg*.56)return false;
+    const P=this.aircraftVisualProfile(a),alt=this.aircraftVisualAltitudeM(a,rng);
+    const h=degToRad(a.heading||0),fx=Math.sin(h),fy=-Math.cos(h),rx=Math.cos(h),ry=Math.sin(h);
+    // ATTACKING shows a restrained nose-down attitude; DEPARTING a slight climb.
+    // This is presentation only. Flight AI remains 2-D and therefore cannot leak
+    // a fake altitude state back into simulation or collision logic.
+    const pitchDeg=a.state==='ATTACKING'?-5.5:a.state==='DEPARTING'?5.0:a.state==='STRAFING'?-3:0;
+    const pitch=degToRad(pitchDeg),cp=Math.cos(pitch),sp=Math.sin(pitch);
+    const bankDeg=(a.state==='ORBIT'?clamp((a.orbitSign||1)*14,-18,18):a.state==='DEPARTING'?clamp((a.orbitSign||1)*8,-12,12):0);
+    const bank=degToRad(bankDeg),cb=Math.cos(bank),sb=Math.sin(bank);
+    const E0=a.position.xNm*NM_M,N0=-a.position.yNm*NM_M;
+    const world=(side,forward,up=0)=>{
+      // pitch rotates forward/up; bank rotates side/up. Applying these tiny
+      // rotations in local aircraft space is enough to suggest attitude while
+      // retaining the very cheap world projection used by ships.
+      const f2=forward*cp-up*sp,u2=forward*sp+up*cp;
+      const s2=side*cb-u2*sb,u3=side*sb+u2*cb;
+      return{E:E0+fx*f2+rx*s2,N:N0+fy*f2+ry*s2,Y:alt+u3};
+    };
+    const project=q=>{const p=this.proj(cam,q.E,q.N,q.Y);return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?p:null;};
+    const friendly=a.side==='FRIENDLY',attack=!friendly&&(a.state==='ATTACKING'||a.state==='STRAFING');
+    const haze=clamp(1-rng/Math.max(1,vis),.24,1),night=clamp(1-dl,0,1);
+    const base=friendly?[39,68,54]:attack?[53,45,35]:[45,52,51];
+    const shade=(mul,alpha=.96)=>`rgba(${Math.round(base[0]*mul)},${Math.round(base[1]*mul)},${Math.round(base[2]*mul)},${alpha*haze})`;
+    const edge=friendly?`rgba(111,224,143,${.68*haze})`:attack?`rgba(239,106,88,${.58*haze})`:`rgba(205,220,214,${.34*haze})`;
+    const L=P.len,S=P.span,B=P.body,tailY=-L*.38,wingY=L*P.wingY;
+    const pts={
+      nose:world(0,L*.52,0), noseU:world(0,L*.43,B*.42),
+      tail:world(0,-L*.48,0), tailU:world(0,-L*.40,B*.30),
+      wl:world(-S*.50,wingY,0), wr:world(S*.50,wingY,0),
+      wli:world(-B*.62,wingY-L*.03,0), wri:world(B*.62,wingY-L*.03,0),
+      tl:world(-P.tail*.50,tailY,0), tr:world(P.tail*.50,tailY,0),
+      tli:world(-B*.42,tailY-L*.02,0), tri:world(B*.42,tailY-L*.02,0),
+      fin:world(0,-L*.40,B*1.18), belly:world(0,0,-B*.38)
+    };
+    const pp={};for(const [k,q] of Object.entries(pts)){pp[k]=project(q);if(!pp[k]&&['nose','tail','wl','wr'].includes(k))return false;}
+    const faces=[];
+    const face=(keys,fill,stroke=edge,lw=.8)=>{const ps=keys.map(k=>pp[k]).filter(Boolean);if(ps.length<3)return;faces.push({ps,fill,stroke,lw,d:ps.reduce((n,p)=>n+p.d,0)/ps.length});};
+    // Far-to-near order gives adequate self-occlusion for these tiny meshes.
+    face(['wli','wl','tail','wri'],shade(.72));
+    face(['wri','wr','tail','wli'],shade(.79));
+    face(['nose','noseU','tailU','tail'],shade(.90));
+    face(['tli','tl','tail','tri'],shade(.67));
+    face(['tri','tr','tail','tli'],shade(.71));
+    face(['tailU','fin','tail'],shade(.62));
+    faces.sort((a,b)=>b.d-a.d);
+    for(const f of faces){ctx.beginPath();ctx.moveTo(f.ps[0].x,f.ps[0].y);for(let i=1;i<f.ps.length;i++)ctx.lineTo(f.ps[i].x,f.ps[i].y);ctx.closePath();ctx.fillStyle=f.fill;ctx.fill();ctx.strokeStyle=f.stroke;ctx.lineWidth=Math.max(.65*this.k,f.lw*this.k);ctx.stroke();}
+
+    // Engines/propeller disks. Draw only once the projection is large enough;
+    // tiny aircraft remain a clean silhouette. A translucent ellipse is cheap
+    // and, crucially, is seen edge-on/face-on according to the real aspect.
+    const approxPx=P.span*cam.f/Math.max(80,(pp.nose?.d||rng*NM_M));
+    if(approxPx>8*this.k){
+      const engSides=P.engines===1?[0]:P.engines===2?[-S*.18,S*.18]:[-S*.31,-S*.11,S*.11,S*.31];
+      // Camera in front of the aircraft? Only then should a propeller disk be a
+      // strong cue; from the rear the tail/fin must carry the aspect instead.
+      const toCamE=cam.E-E0,toCamN=cam.N-N0,toLen=Math.hypot(toCamE,toCamN)||1,front=(toCamE*fx+toCamN*fy)/toLen;
+      for(const es of engSides){
+        const hub=project(world(es,L*.09,B*.05));if(!hub)continue;
+        ctx.fillStyle=shade(.48,.95);ctx.beginPath();ctx.arc(hub.x,hub.y,Math.max(.8*this.k,approxPx*.028),0,Math.PI*2);ctx.fill();
+        if(front>.12){
+          const rad=clamp(approxPx*(P.engines===1?.105:.065),1.5*this.k,12*this.k);
+          ctx.strokeStyle=`rgba(210,224,216,${(.13+.11*dl)*haze})`;ctx.lineWidth=Math.max(.6,this.k*.7);ctx.beginPath();ctx.ellipse(hub.x,hub.y,rad,rad*.28,0,0,Math.PI*2);ctx.stroke();
+        }
+      }
+    }
+    // Float / flying-boat cue. One or two slim underside strokes are enough at
+    // medium LOD and keep E13A/PBY/H6K distinguishable without texture detail.
+    if(P.float&&approxPx>13*this.k){
+      const sides=P.engines>=2?[-S*.18,S*.18]:[-S*.12,S*.12];ctx.strokeStyle=`rgba(20,27,28,${.72*haze})`;ctx.lineWidth=Math.max(1,1.3*this.k);
+      for(const ss of sides){const q0=project(world(ss,-L*.02,-B*.42)),q1=project(world(ss,-L*.24,-B*.48));if(q0&&q1){ctx.beginPath();ctx.moveTo(q0.x,q0.y);ctx.lineTo(q1.x,q1.y);ctx.stroke();}}
+    }
+    if((attack||friendly)&&approxPx>5*this.k){const c=project(world(0,L*.10,B*.8));if(c){ctx.fillStyle=friendly?'rgba(111,224,143,.90)':'rgba(239,106,88,.84)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText(friendly?'FRIENDLY AIRCRAFT':'AIRCRAFT',c.x,c.y-7*this.k);ctx.textAlign='left';}}
+    return true;
+  }
+
+  drawWorldAircraft(ctx,cam,state,dl,t,opts={}){
+    for(const a of state.world.aircraft||[]){if(a.shotDown||!a.seenBySub||!a.position)continue;this.drawAircraftPseudo3D(ctx,cam,state,a,dl,t,opts);}
+  }
+
   drawDeckGun(ctx,w,h,state){
     const sub=state.playerSub,G=state.weapons.deckGun,env=state.world.environment,t=state.time.elapsedSeconds;
     const bearing=normDeg(sub.heading+(G?.trainDeg||0));
@@ -221,6 +331,9 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
     this.drawTerrain3D(ctx,cam,state,env.daylight);
     this.drawBattleAtmosphereBack?.(ctx,cam,state,env.daylight,t);
+    // Same world-space aircraft meshes as BRIDGE. GUN's different FOV changes
+    // apparent size naturally; no station-specific aircraft icon is needed.
+    this.drawWorldAircraft(ctx,cam,state,env.daylight,t,{station:'GUN'});
     this.drawWakes3D(ctx,cam,state,t,env.daylight);
     // Overshoots aligned with a target are painted BEFORE the nearer hull;
     // the ship therefore occludes the water column instead of a far splash

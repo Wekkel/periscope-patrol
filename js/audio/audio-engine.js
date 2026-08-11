@@ -2,7 +2,12 @@
 class AudioEngine{
   constructor(){this.ctx=null;this.enabled=true;this.masterGain=null;this.initialized=false;
     this.lastPing=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;
-    this.battleNoiseSource=null;this.seaGain=null;this.rainGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;}
+    this.battleNoiseSource=null;this.seaGain=null;this.rainGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;
+    // Aircraft fly-by is a deliberately tiny procedural engine. Only the nearest
+    // visible aircraft in BRIDGE/GUN gets voices; this avoids turning ambient
+    // sound into another sensor and keeps oscillator count bounded on G88-class
+    // hardware. Nodes are reused while the aircraft/family stays the same.
+    this.airFlyby=null;this.airFlybyLastUpdate=0;}
 
   init(){
     if(this.initialized)return;
@@ -161,6 +166,96 @@ class AudioEngine{
     const diesel=outside&&sub.propulsion?.engineMode==='DIESEL'&&sub.depthFeet<12;if(this.dieselGain)this.dieselGain.gain.setTargetAtTime(diesel?.006+clamp(sub.propulsion.actualRpm/450,0,1)*.018:0,now,.35);if(this.dieselOsc)this.dieselOsc.frequency.setTargetAtTime(28+clamp(sub.propulsion.actualRpm||0,0,450)*.045,now,.35);
     const wall=Date.now();if(sub.depthFeet>170&&wall-this.lastCreak>clamp(12000-sub.depthFeet*14,4500,10000)){this.lastCreak=wall;this.playCreak();}
     this._setTorpedoMonitor(state);
+  }
+
+
+  _aircraftAudioProfile(a){
+    const name=String(a?.name||'').toUpperCase(),kind=String(a?.kind||'').toUpperCase();
+    // The exact engine note is intentionally impressionistic: the useful cues
+    // are mass, propeller blade-pass and multiple engines beating against one
+    // another. Keeping profiles data-driven lets future aircraft reuse this
+    // engine without adding samples or bespoke audio code.
+    if(name.includes('PBY')||name.includes('CATALINA'))return{key:'PBY',engines:2,rpm:2050,blades:3,weight:1.10,dark:.88};
+    if(name.includes('TYPE 97')||name.includes('H6K'))return{key:'H6K',engines:4,rpm:2180,blades:3,weight:1.22,dark:.84};
+    if(kind==='FLYING_BOAT')return{key:'FLYING_BOAT',engines:4,rpm:2100,blades:3,weight:1.18,dark:.86};
+    if(kind==='FIGHTER')return{key:'FIGHTER',engines:1,rpm:2450,blades:3,weight:.90,dark:.96};
+    if(kind==='FLOATPLANE')return{key:'FLOATPLANE',engines:1,rpm:2250,blades:3,weight:.96,dark:.92};
+    return{key:'SINGLE_RADIAL',engines:1,rpm:2300,blades:3,weight:1.02,dark:.90};
+  }
+
+  _stopAircraftFlyby(){
+    const F=this.airFlyby;if(!F)return;
+    const now=this.ctx?.currentTime||0;
+    try{F.gain?.gain.setTargetAtTime(0,now,.08);}catch(_){}
+    // Let the short fade complete before stopping. Creating/stopping happens
+    // only on aircraft/family changes, never every render frame.
+    setTimeout(()=>{for(const o of F.oscs||[])try{o.stop();}catch(_){}},180);
+    this.airFlyby=null;
+  }
+
+  _startAircraftFlyby(a,profile){
+    if(!this.ctx||!this.masterGain)return null;
+    const ctx=this.ctx,out=ctx.createGain(),filter=ctx.createBiquadFilter();
+    filter.type='lowpass';filter.Q.value=.48;filter.frequency.value=650;
+    out.gain.value=0;filter.connect(out);
+    const pan=ctx.createStereoPanner?ctx.createStereoPanner():null;
+    if(pan){out.connect(pan);pan.connect(this.masterGain);}else out.connect(this.masterGain);
+    const oscs=[];
+    const add=(type,freq,gain)=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.value=freq;g.gain.value=gain;
+      o.connect(g);g.connect(filter);o.start();oscs.push(o);return o;
+    };
+    const rev=profile.rpm/60,blade=rev*profile.blades;
+    // Low radial-engine throb + blade-pass. Multi-engine aircraft get one cheap
+    // blade voice per engine with deliberately tiny RPM offsets. Their natural
+    // interference produces the characteristic slow beating without samples,
+    // convolution or an LFO network.
+    const rumble=add('sawtooth',rev*.78,.34*profile.weight);
+    const offsets=profile.engines===4?[-.010,-.0035,.004,.011]:profile.engines===2?[-.0075,.0075]:[0];
+    const props=offsets.map((d)=>add('triangle',blade*(1+d),(.32/Math.sqrt(profile.engines))*profile.weight));
+    const harmonic=add('sine',blade*2.02,.055*profile.weight);
+    const F={id:a.id,key:profile.key,profile,gain:out,filter,pan,oscs,rumble,props,harmonic,baseRev:rev,baseBlade:blade};
+    this.airFlyby=F;return F;
+  }
+
+  updateAircraftFlyby(state){
+    this.ensure();if(!this.ctx||!this.enabled||!state)return;
+    const ctx=this.ctx,now=ctx.currentTime;
+    // 10–12 control updates per second are ample because AudioParams interpolate
+    // smoothly. This avoids dozens of WebAudio parameter writes per render frame.
+    if(now-this.airFlybyLastUpdate<.085)return;this.airFlybyLastUpdate=now;
+    const sub=state.playerSub,sta=state.tactical?.activeStation||'TACTICAL';
+    const stationOK=(sta==='BRIDGE'||sta==='DECK_GUN')&&(sub.depthFeet||0)<10;
+    let best=null,bestR=Infinity;
+    if(stationOK){for(const a of state.world?.aircraft||[]){
+      if(a.shotDown||!a.seenBySub||a.state==='DEPARTING'||!a.position)continue;
+      const r=distNm(sub.position,a.position);if(r<bestR&&r<2.6){best=a;bestR=r;}
+    }}
+    if(!best){if(this.airFlyby){this.airFlyby.gain.gain.setTargetAtTime(0,now,.12);}return;}
+    const profile=this._aircraftAudioProfile(best);
+    let F=this.airFlyby;
+    if(!F||F.id!==best.id||F.key!==profile.key){this._stopAircraftFlyby();F=this._startAircraftFlyby(best,profile);}
+    if(!F)return;
+    const brg=bearingBetween(sub.position,best.position),rel=shortDelta(sub.heading||0,brg);
+    const pan=clamp(Math.sin(degToRad(rel)),-.92,.92);if(F.pan)F.pan.pan.setTargetAtTime(pan,now,.07);
+    // Radial velocity: positive while the aircraft is closing. A restrained
+    // acoustic Doppler factor is enough to sell the pass without cartoon pitch.
+    const hr=degToRad(best.heading||0),toSub=degToRad(normDeg(brg+180));
+    const aircraftMps=(best.speedKnots||150)*.514444;
+    const radial=aircraftMps*Math.cos(hr-toSub); // + = moving toward listener
+    const dop=clamp(343/(343-radial),.90,1.12);
+    const rev=F.baseRev*dop,blade=F.baseBlade*dop;
+    F.rumble.frequency.setTargetAtTime(rev*.78,now,.06);
+    const offsets=profile.engines===4?[-.010,-.0035,.004,.011]:profile.engines===2?[-.0075,.0075]:[0];
+    F.props.forEach((o,i)=>o.frequency.setTargetAtTime(blade*(1+(offsets[i]||0)),now,.055));
+    F.harmonic.frequency.setTargetAtTime(blade*2.02,now,.06);
+    const near=clamp(1-bestR/2.6,0,1),close=clamp(1-bestR/.65,0,1);
+    // V2 tonal balance: dark and comparatively smooth, but the close pass is
+    // lifted several dB over the original preview so a low aircraft has physical
+    // presence without competing with alarms, gunfire or depth-charge impacts.
+    const level=clamp((.006+near*near*.100+close*.105)*profile.weight,0,.225);
+    F.gain.gain.setTargetAtTime(level,now,.07);
+    F.filter.frequency.setTargetAtTime((390+near*720+close*850)*profile.dark,now,.10);
   }
 
   playCrashDive(){

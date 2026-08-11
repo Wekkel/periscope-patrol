@@ -91,49 +91,12 @@ class CanvasViewBridge extends CanvasViewPeriscope {
   }
 
   drawBridgeAircraft(ctx,cam,state,dl,t){
-    const sub=state.playerSub,env=state.world.environment||{},k=this.k;
-    for(const a of state.world.aircraft||[]){
-      if(a.shotDown||a.state==='DEPARTING'||!a.seenBySub)continue;
-      const rng=distNm(sub.position,a.position),wx=weatherBetween(state,sub.position,a.position);
-      if(rng>Math.min(12,Math.max(1.2,wx.visibilityNm*1.15)))continue;
-      const bear=bearingBetween(sub.position,a.position),off=shortDelta(cam.bearingDeg,bear);
-      if(Math.abs(off)>cam.fovDeg*.54)continue;
-      // The aircraft model has no flight-dynamics altitude state. Use a stable
-      // visual flight level keyed to its tactical state; range/heading remain
-      // the real simulated values.
-      const altitude=a.state==='ATTACKING'||a.state==='STRAFING'?clamp(70+rng*48,85,260)
-                    :a.state==='ORBIT'?310:430;
-      const p=this.proj(cam,a.position.xNm*NM_M,-a.position.yNm*NM_M,altitude);if(!p)continue;
-      const spanM=a.kind==='FLYING_BOAT'?28:a.kind==='BOMBER'?15:14;
-      const px=clamp(spanM*cam.f/Math.max(p.d,120),2.2*k,54*k);
-      const friendly=a.side==='FRIENDLY',attack=!friendly&&(a.state==='ATTACKING'||a.state==='STRAFING');
-      const haze=clamp(1-rng/Math.max(1,wx.visibilityNm*1.2),.28,1);
-      ctx.save();ctx.translate(p.x,p.y);
-      // Bank follows heading change enough to make an attacking turn readable,
-      // while remaining a very cheap vector silhouette on low-end hardware.
-      const relH=shortDelta(bear,a.heading),bank=clamp(relH/95,-.48,.48);
-      ctx.rotate(bank);
-      ctx.fillStyle=friendly?`rgba(36,58,48,${.90*haze})`:attack?`rgba(45,33,26,${.92*haze})`:`rgba(32,38,39,${.86*haze})`;
-      ctx.strokeStyle=friendly?`rgba(111,224,143,${.70*haze})`:attack?`rgba(239,106,88,${.62*haze})`:`rgba(200,216,211,${.36*haze})`;
-      ctx.lineWidth=Math.max(.8,k);
-      ctx.beginPath();
-      if(a.kind==='BOMBER'){
-        // Nakajima B5N: long fuselage with a broad, nearly unswept tapered
-        // carrier wing. The previous generic dart read like a small jet.
-        ctx.moveTo(0,-px*.52);ctx.lineTo(px*.07,-px*.10);ctx.lineTo(px*.50,-px*.025);
-        ctx.lineTo(px*.50,px*.055);ctx.lineTo(px*.08,px*.08);ctx.lineTo(px*.15,px*.40);
-        ctx.lineTo(px*.05,px*.34);ctx.lineTo(0,px*.48);ctx.lineTo(-px*.05,px*.34);
-        ctx.lineTo(-px*.15,px*.40);ctx.lineTo(-px*.08,px*.08);ctx.lineTo(-px*.50,px*.055);
-        ctx.lineTo(-px*.50,-px*.025);ctx.lineTo(-px*.07,-px*.10);
-      }else{
-        ctx.moveTo(0,-px*.48);ctx.lineTo(px*.10,-px*.08);ctx.lineTo(px*.50,px*.02);
-        ctx.lineTo(px*.12,px*.10);ctx.lineTo(px*.06,px*.46);ctx.lineTo(0,px*.28);
-        ctx.lineTo(-px*.06,px*.46);ctx.lineTo(-px*.12,px*.10);ctx.lineTo(-px*.50,px*.02);
-        ctx.lineTo(-px*.10,-px*.08);
-      }
-      ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
-      if((attack||friendly)&&px>5*k){ctx.fillStyle=friendly?'rgba(111,224,143,.88)':'rgba(239,106,88,.82)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText(friendly?'FRIENDLY AIRCRAFT':'AIRCRAFT',p.x,p.y-px*.75-3*k);ctx.textAlign='left';}
-    }
+    // Aircraft are world entities, not 2-D station icons. The shared renderer in
+    // CanvasViewDeckGun projects the same tiny mesh into BRIDGE and GUN, so an
+    // attacker naturally changes from nose/underside to belly to tail as it
+    // passes the camera. This is deliberately Canvas2D pseudo-3D, not a costly
+    // second 3-D engine.
+    this.drawWorldAircraft(ctx,cam,state,dl,t,{station:'BRIDGE'});
   }
 
   drawBridgeForedeck(ctx,w,h,cam,state,t){

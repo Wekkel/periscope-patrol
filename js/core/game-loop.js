@@ -162,6 +162,11 @@ class GameLoop{
 
     gyroIndicator.render(snap.tdc,snap.playerSub);
 
+    // Aircraft fly-by needs smooth bearing/range/Doppler updates, but the audio
+    // engine internally throttles these to ~12 Hz and only keeps one nearby
+    // BRIDGE/GUN aircraft alive. All heavier ambience remains on the 2 s tick.
+    audio.updateAircraftFlyby?.(snap);
+
     // ambient audio ~every 2 s
     this.ambT+=dt;
     if(this.ambT>2){this.ambT=0;audio.setAmbient(snap.playerSub.depthFeet,snap.playerSub.stealth.silentRunning);audio.setBattleAmbience?.(snap);}
