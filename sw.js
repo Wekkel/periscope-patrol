@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.5'; // pre relese version - Polish AAR ship silhouettes with subtler bow tips
+const VERSION = '0.9.6'; // pre relese version - Keep friendly rendezvous safely inside patrol area bounds
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
