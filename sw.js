@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.4'; // pre relese version - Refine aircraft attacks visuals and audio for bridge and canon view
+const VERSION = '0.9.5'; // pre relese version - Add pseudo-3D aircraft flybys, overflight passes and procedural prop audio
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
