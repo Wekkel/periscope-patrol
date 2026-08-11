@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.5'; // pre relese version - Add pseudo-3D aircraft flybys, overflight passes and procedural prop audio
+const VERSION = '0.9.5'; // pre relese version - Polish AAR ship silhouettes with subtler bow tips
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
