@@ -77,11 +77,30 @@ class AfterActionReport{
 
   moveEngagement(delta){const a=this.engagements();if(a.length<2)return;this.engagementIndex=(this.engagementIndex+delta+a.length)%a.length;this.renderEngagement();}
   shipSilhouette(e){
-    const q=String(e.type||e.role||'').toUpperCase(),war=/DESTROYER|KAIBOKAN|ESCORT|WARSHIP|PATROL|CRUISER/.test(q),carrier=/CARRIER/.test(q),small=/SAMPAN|JUNK|FISHING|RAFT/.test(q);
-    if(small)return `<svg viewBox="0 0 420 150" aria-hidden="true"><path class="hull" d="M70 93 L118 78 L300 79 L350 94 L320 110 L112 110 Z"/><path class="upper" d="M175 78 L190 55 L242 55 L263 79 Z"/><path class="line" d="M205 54 L205 32 M205 36 L238 50"/></svg>`;
-    if(carrier)return `<svg viewBox="0 0 420 150" aria-hidden="true"><path class="hull" d="M48 91 L90 77 L344 80 L382 94 L349 112 L92 112 Z"/><path class="upper" d="M72 67 L340 63 L355 78 L76 81 Z"/><path class="upper" d="M245 62 L256 40 L294 42 L306 64 Z"/><path class="line" d="M267 42 L267 24"/></svg>`;
-    if(war)return `<svg viewBox="0 0 420 150" aria-hidden="true"><path class="hull" d="M52 93 L104 73 L332 78 L382 94 L342 111 L98 111 Z"/><path class="upper" d="M153 74 L169 50 L248 50 L275 77 Z"/><path class="upper" d="M121 72 L141 63 L160 73 Z M286 78 L306 65 L326 80 Z"/><path class="line" d="M202 50 L202 26 M202 30 L238 45"/></svg>`;
-    return `<svg viewBox="0 0 420 150" aria-hidden="true"><path class="hull" d="M45 91 L91 73 L345 78 L388 94 L348 113 L91 113 Z"/><path class="upper" d="M154 76 L172 48 L258 48 L281 79 Z"/><path class="upper" d="M187 47 L196 30 L237 30 L248 49 Z"/><path class="line" d="M217 30 L217 18"/></svg>`;
+    const q=String(e.type||e.displayType||e.role||'').toUpperCase();
+    const isSmall=/SAMPAN|JUNK|FISHING|RAFT/.test(q);
+    const isCarrier=/CARRIER/.test(q);
+    const isCruiser=/HEAVY CRUISER|CRUISER/.test(q);
+    const isDestroyer=/DESTROYER|KAIBOKAN|ESCORT|WARSHIP/.test(q);
+    const isPatrol=/PATROL/.test(q);
+    const isTanker=/TANKER|OILER/.test(q);
+    const isSmallTanker=/SMALL TANKER/.test(q);
+    const isTransport=/TRANSPORT|FREIGHTER|MERCHANT|TROOP|CARGO/.test(q);
+    const svg=(body)=>`<svg viewBox="0 0 420 150" aria-hidden="true">${body}</svg>`;
+    /* Debrief silhouettes are simplified card art, but they should still read
+       as believable side profiles. The key correction here is that bow and
+       stern must no longer look like mirrored spear-points: most merchant and
+       tanker hulls get a fuller transom/cruiser stern, while warships keep a
+       sharper bow with a comparatively blunter aft run. */
+    if(isSmall)return svg(`<path class="hull" d="M72 112 L72 97 L104 94 L268 94 L298 93 L326 91 L338 89 L346 90 L334 100 L318 112 Z"/><path class="upper" d="M178 94 L192 74 L235 74 L248 94 Z"/><path class="line" d="M206 74 L206 42 M206 48 L231 59"/>`);
+    if(isCarrier)return svg(`<path class="hull" d="M58 112 L58 96 L88 94 L332 94 L362 93 L382 92 L392 93 L380 101 L370 112 Z"/><path class="upper" d="M78 82 L344 80 L358 94 L90 94 Z"/><path class="upper" d="M256 78 L270 52 L304 52 L316 83 Z"/><path class="line" d="M282 52 L282 30"/>`);
+    if(isCruiser)return svg(`<path class="hull" d="M60 112 L64 100 L110 96 L286 96 L318 95 L342 92 L356 84 L366 85 L348 101 L340 112 Z"/><path class="upper" d="M130 95 L148 78 L200 78 L224 88 L272 88 L292 96 L130 96 Z"/><path class="upper" d="M118 95 L130 89 L144 95 Z M300 96 L314 88 L328 96 Z"/><path class="upper" d="M246 78 L260 62 L278 62 L292 78 Z"/><path class="line" d="M188 78 L188 44 M188 50 L219 61"/>`);
+    if(isDestroyer)return svg(`<path class="hull" d="M62 112 L66 99 L114 95 L286 95 L316 93 L338 89 L352 80 L362 81 L344 100 L336 112 Z"/><path class="upper" d="M138 94 L154 75 L208 75 L226 86 L264 86 L284 95 L138 95 Z"/><path class="upper" d="M125 94 L136 88 L149 94 Z M290 95 L304 88 L317 95 Z"/><path class="line" d="M187 75 L187 42 M187 47 L214 58"/>`);
+    if(isPatrol)return svg(`<path class="hull" d="M70 112 L72 101 L112 97 L260 97 L292 95 L314 91 L324 85 L332 86 L318 101 L311 112 Z"/><path class="upper" d="M158 96 L174 78 L219 78 L238 96 Z"/><path class="upper" d="M146 96 L158 89 L170 96 Z"/><path class="line" d="M202 78 L202 48"/>`);
+    if(isSmallTanker)return svg(`<path class="hull" d="M62 112 L62 94 L118 91 L286 91 L314 90 L334 88 L348 84 L356 84 L340 100 L332 112 Z"/><path class="upper" d="M184 91 L198 67 L244 67 L258 91 Z"/><path class="upper" d="M212 67 L212 49 L226 49 L226 67 Z"/><path class="line" d="M219 49 L219 31"/><path class="line" d="M138 91 L304 91"/>`);
+    if(isTanker)return svg(`<path class="hull" d="M56 112 L56 92 L120 89 L302 89 L330 88 L350 86 L364 82 L372 83 L356 98 L348 112 Z"/><path class="upper" d="M108 89 L128 70 L160 70 L176 89 Z"/><path class="upper" d="M184 88 L302 88 L302 91 L184 91 Z"/><path class="line" d="M145 70 L145 44 M145 50 L168 60"/><path class="line" d="M236 88 L236 74 M268 88 L268 74"/>`);
+    if(isTransport)return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M128 91 L148 70 L216 70 L242 84 L286 84 L304 92 L128 92 Z"/><path class="upper" d="M190 70 L201 52 L236 52 L247 70 Z"/><path class="line" d="M219 52 L219 34"/>`);
+    return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M128 91 L148 70 L216 70 L242 84 L286 84 L304 92 L128 92 Z"/><path class="upper" d="M190 70 L201 52 L236 52 L247 70 Z"/><path class="line" d="M219 52 L219 34"/>`);
   }
 
   miniMap(e){
