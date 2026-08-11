@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.0'; // Polish mobile TAC safe areas and fix world-anchored terrain views
+const VERSION = '0.9.1'; // New icon
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
@@ -21,10 +21,10 @@ const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icon-192.png',
-  './icon-512.png',
-  './icon-maskable-512.png',
-  './apple-touch-icon.png',
+  './periscope-patrol-icon-192-v2.png',
+  './periscope-patrol-icon-512-v2.png',
+  './periscope-patrol-icon-maskable-512-v2.png',
+  './periscope-patrol-apple-touch-icon-v2.png',
   './css/app.css',
   './js/core/utilities.js',
   './js/data/torpedo-data.js',
