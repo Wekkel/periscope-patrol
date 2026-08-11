@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.2'; // pre relese version - Ship Mega Pacific expansion, TDC 2.0 and portable player profiles
+const VERSION = '0.9.3'; // pre relese version - Refine ASW pressure, aircraft attacks, impact framing and map labels
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
