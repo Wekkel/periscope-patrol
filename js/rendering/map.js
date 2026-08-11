@@ -856,9 +856,14 @@ class CanvasView extends CanvasViewSound {
       const labelPos=pt||pe;
       this._mapLabelRects=this._mapLabelRects||[];
       const stale=Math.floor(now-(Number.isFinite(tr.positionFixAt)?tr.positionFixAt:tr.lastUpdated));
-      const affiliation=tr.affiliation&&tr.affiliation!=='ENEMY'?tr.affiliation+' ':'';
-      const compactType=this._mapCompactTypeLabel(tr.typeEstimate);
-      const title=isSelected?`${tr.id} ${affiliation}${tr.typeEstimate}`:`${tr.id} ${dense?compactType:(affiliation+compactType)}`;
+      const aff=tr.affiliation&&tr.affiliation!=='ENEMY'?String(tr.affiliation).toUpperCase():'';
+      const rawType=String(tr.typeEstimate||'UNKNOWN'),compactType=this._mapCompactTypeLabel(rawType);
+      // Keep affiliation and vessel class separate. Older traffic definitions
+      // used displayType='FRIENDLY TRANSPORT', which produced the comic
+      // 'FRIENDLY FRIENDLY TRANSPORT' once the visual watch identified side.
+      const affPrefix=(aff&&!rawType.toUpperCase().startsWith(aff))?aff+' ':'';
+      const compactAff=(aff&&!String(compactType).toUpperCase().startsWith(aff))?aff+' ':'';
+      const title=isSelected?`${tr.id} ${affPrefix}${rawType}`:`${tr.id} ${dense?compactType:(compactAff+compactType)}`;
       const lines=[title.trim()];
       if(isSelected&&liveVisual&&contact){
         const visualRange=distNm(ownPos,contact.position),visualBearing=bearingBetween(ownPos,contact.position);

@@ -62,7 +62,7 @@ function _trafficManifest(group){
       mk('B','Task Group Escort','WARSHIP','ESCORT VESSEL',285,1250,enemy,{visualProfile:.65,acousticBase:.60,speedBias:3}),
       ...(H('transport')>.5?[mk('C','Fast Transport','MERCHANT','FAST TRANSPORT',360,3600,enemy,{speedBias:1})]:[])
     ];
-    case'FRIENDLY_TRAFFIC':return[mk('A','Allied Coastal Transport','MERCHANT','FRIENDLY TRANSPORT',280,2200,'FRIENDLY',{visualProfile:.75,acousticBase:.24})];
+    case'FRIENDLY_TRAFFIC':return[mk('A','Allied Coastal Transport','MERCHANT','ALLIED COASTAL TRANSPORT',280,2200,'FRIENDLY',{visualProfile:.75,acousticBase:.24})];
     default:return[];
   }
 }

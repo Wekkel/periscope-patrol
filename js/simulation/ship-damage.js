@@ -145,7 +145,7 @@ function applyTorpedoShipDamage(engine,c,impact){
   D.trim=clamp(D.trim+trim*p,-1,1);
   D.list=clamp(D.list+(impact.hitSide||1)*(.12+.18*f*p),-1,1);
   D.hitCount++;D.lastHitAt=now;D.lastHitLocation=location;D.lastHitFrac=impact.hitFrac;
-  D.lastWeapon='TORPEDO';D.lastWeaponId=impact.torpedoId||null;
+  D.lastWeapon='TORPEDO';D.lastWeaponId=impact.torpedoId||null;D.lastAttackerSide='PLAYER';D.lastAttackerId='PLAYER_SUB';
   if(D.steering>.62&&Math.abs(D.rudderBiasDeg)<1){
     const side=_shipHash01(`${c.id}:${impact.torpedoId}:rudder`)<.5?-1:1;
     D.rudderBiasDeg=side*(4+D.steering*9);
@@ -180,7 +180,12 @@ function applyDeckGunShipDamage(engine,c,hit){
   D.floodRate=Math.max(D.floodRate,(location==='BOW'||location==='MIDSHIPS'?.000025:.000010)*typeScale);
   D.fireRate=Math.max(D.fireRate,D.fire>.3?.000025:0);
   D.trim=clamp(D.trim+(location==='BOW'?.035:location==='STERN'?-.025:0)*typeScale,-1,1);
-  D.hitCount++;D.lastHitAt=now;D.lastHitLocation=location;D.lastHitFrac=frac;D.lastWeapon='DECK_GUN';D.lastWeaponId=`DG-${engine.state.weapons.deckGun?.hits||D.hitCount}`;
+  const npcSurface=hit?.source==='NPC_SURFACE_GUN';
+  D.hitCount++;D.lastHitAt=now;D.lastHitLocation=location;D.lastHitFrac=frac;
+  D.lastWeapon=npcSurface?'SURFACE_GUN':'DECK_GUN';
+  D.lastWeaponId=npcSurface?`SG-${hit?.attackerId||'NPC'}-${D.hitCount}`:`DG-${engine.state.weapons.deckGun?.hits||D.hitCount}`;
+  D.lastAttackerSide=npcSurface?(hit?.attackerSide||'ENEMY'):'PLAYER';
+  D.lastAttackerId=npcSurface?(hit?.attackerId||null):'PLAYER_SUB';
   if(D.steering>.68&&Math.abs(D.rudderBiasDeg)<1){
     const side=_shipHash01(`${c.id}:DG:${n}:rudder`)<.5?-1:1;D.rudderBiasDeg=side*(3+D.steering*7);
   }
@@ -214,10 +219,21 @@ function beginShipSinking(engine,c,reason='FLOODING'){
   if(!D.killCredited){
     const gun=D.lastWeapon==='DECK_GUN',side=c.side||'ENEMY';
     if(side==='FRIENDLY'||side==='NEUTRAL'){
-      const pts=side==='FRIENDLY'?-2500:-1000;camp.score+=pts;D.killCredited=true;D.killPoints=pts;
-      engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name}. ${pts.toLocaleString()} pts.`,'bad');
-      engine.log(`${c.name} is sinking — ${side.toLowerCase()} traffic hit. No enemy tonnage credited.`,'bad');
-      engine.captainLog?.(side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
+      const hostileNpc=D.lastAttackerSide==='ENEMY'&&D.lastAttackerId&&D.lastAttackerId!=='PLAYER_SUB';
+      if(hostileNpc){
+        D.killCredited=true;D.killPoints=0;
+        const tr=engine.state.world.contactTracks?.[c.id],known=!!(tr&&tr.confidence>.04)||distNm(engine.state.playerSub.position,c.position)<10;
+        if(known){
+          engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name} sunk by enemy surface gunfire.`,'warn');
+          engine.log(`${c.name} is sinking under enemy gunfire. No player penalty or enemy tonnage credited.`,'warn');
+          engine.captainLog?.('FRIENDLY_LOST_TO_ENEMY',`${c.name} lost to enemy surface gunfire.`,{contactId:c.id,type:c.displayType||c.type,attackerId:D.lastAttackerId},`friendly-enemy-loss:${c.id}`);
+        }
+      }else{
+        const pts=side==='FRIENDLY'?-2500:-1000;camp.score+=pts;D.killCredited=true;D.killPoints=pts;
+        engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name}. ${pts.toLocaleString()} pts.`,'bad');
+        engine.log(`${c.name} is sinking — ${side.toLowerCase()} traffic hit. No enemy tonnage credited.`,'bad');
+        engine.captainLog?.(side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
+      }
     }else{
       const pts=Math.round((c.harborValue||(c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT'?(gun?1800:2200):(gun?1000:1400)))*(gun ? .85 : 1));
       camp.score+=pts;camp.tonnageSunk+=(c.tonsFactor||3000);if(c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT')camp.escortsSunk++;

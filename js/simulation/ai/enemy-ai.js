@@ -42,6 +42,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     }
     e.searchPhase=(e.searchPhase||0)+dt;this.updateASWBrain?.(dt);this.updateSonar(dt);
     const escorts=W.contacts.filter(c=>isASWCombatant(c));escorts.forEach((esc,i)=>this.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
+    this.updateSurfaceTrafficCombat?.(dt);
     this.updateLookouts(dt);
 
     // Passive listening may wake the screen, but it creates a deliberately
@@ -62,6 +63,74 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       }
     }
     this.updateDCs(dt);
+  }
+
+  /* Local surface traffic combat. This is deliberately not a second naval
+     warfare simulator: only already-materialised ships inside the player's
+     tactical bubble participate. Friendly merchants run; enemy patrol craft,
+     escorts and warships may intercept and fire if they are not prosecuting a
+     firm submarine contact. Existing steering, damage and battle-atmosphere
+     systems do the rest. */
+  updateSurfaceTrafficCombat(dt){
+    const s=this.state,W=s.world,e=W.enemy,sub=s.playerSub,now=s.time.elapsedSeconds||0;
+    const friendlies=(W.contacts||[]).filter(c=>c&&!c.sunk&&!c.stationary&&c.side==='FRIENDLY'&&c.type!=='RAFT');
+    const hostiles=(W.contacts||[]).filter(c=>c&&!c.sunk&&!c.stationary&&(c.side||'ENEMY')==='ENEMY'&&isSurfaceCombatant(c));
+    if(!friendlies.length||!hostiles.length)return;
+
+    // Merchants do not knowingly steam through an enemy patrol. A visual
+    // threat makes them turn away and ring up emergency speed for a short run.
+    for(const f of friendlies){
+      let threat=null,best=Infinity;
+      for(const h of hostiles){
+        const rng=distNm(f.position,h.position),wx=weatherBetween(s,f.position,h.position),day=clamp(W.environment.daylight||0,0,1);
+        const visualRange=Math.min(7.5,Math.max(1.4,wx.visibilityNm*(.50+day*.24)));
+        if(rng<=visualRange&&rng<best){best=rng;threat=h;}
+      }
+      if(!threat)continue;
+      const away=bearingBetween(threat.position,f.position),jink=((f.id||'').split('').reduce((n,ch)=>n+ch.charCodeAt(0),0)%2?1:-1)*14;
+      f.alertedAt=now;f.scattering=true;f.scatterHeading=normDeg(away+jink);f.scatterSpeed=clamp(Math.max(f.baseSpeed||8,(f.baseSpeed||8)*1.38),6,13);
+      if(!f.surfaceThreatId||now-(f.surfaceThreatNotedAt||-999)>75){
+        f.surfaceThreatId=threat.id;f.surfaceThreatNotedAt=now;
+        const tr=W.contactTracks?.[f.id];if((tr&&tr.confidence>.04)||distNm(sub.position,f.position)<9)
+          this.log(`${f.name}: enemy ${String(threat.displayType||threat.type).toLowerCase()} sighted — turning away at emergency speed.`,'warn');
+      }
+    }
+
+    for(const h of hostiles){
+      // A destroyer with a firm submarine prosecution has the more dangerous
+      // job and does not abandon it to chase a merchant. A screen with no firm
+      // contact may engage nearby Allied traffic.
+      const aswBusy=e.alertState==='ATTACKING'&&(e.contactHeld||h.aswRole==='PROSECUTOR');
+      if(aswBusy){h.surfaceTrafficTargetId=null;h.surfaceTrafficGunTimer=0;continue;}
+      let target=null,best=Infinity;
+      for(const f of friendlies){
+        const rng=distNm(h.position,f.position),wx=weatherBetween(s,h.position,f.position),day=clamp(W.environment.daylight||0,0,1);
+        const visualRange=Math.min(7.5,Math.max(1.3,wx.visibilityNm*(.48+day*.26)));
+        if(rng<=visualRange&&rng<best){best=rng;target=f;}
+      }
+      if(!target){h.surfaceTrafficTargetId=null;h.surfaceTrafficGunTimer=0;continue;}
+      h.surfaceTrafficTargetId=target.id;
+      h.desiredHeading=bearingBetween(h.position,target.position);
+      h.desiredSpeed=clamp(Math.max(h.baseSpeed||h.speedKnots||12,15+best*.45),10,22);
+      const wx=weatherBetween(s,h.position,target.position),day=clamp(W.environment.daylight||0,0,1),gunRange=day>.28?3.8:2.2;
+      h.surfaceTrafficGunTimer=(h.surfaceTrafficGunTimer||0)+dt;
+      if(best>gunRange||h.surfaceTrafficGunTimer<8.5)continue;
+      h.surfaceTrafficGunTimer=0;
+      const size=clamp(shipVisualLengthM(target,280)/120,.55,1.35),sea=clamp(wx.seaState||0,0,1);
+      const pHit=Math.pow(clamp(1-best/gunRange,0,1),1.15)*(.34+.34*day)*size*(1-sea*.34)*clamp(wx.visibilityNm/8,.35,1.15);
+      const hit=Math.random()<clamp(pHit,.025,.62);
+      this.noteSurfaceGunfire?.(h,target,hit);
+      if(hit){
+        const lenNm=shipVisualLengthNm(target,280),along=(Math.random()-.5)*lenNm*.72;
+        const dmg=applyDeckGunShipDamage(this,target,{lenNm,along,lateral:0,z:3+Math.random()*8,source:'NPC_SURFACE_GUN',attackerId:h.id,attackerSide:'ENEMY'});
+        const hr=degToRad(target.heading||0),impact={xNm:target.position.xNm+Math.sin(hr)*along,yNm:target.position.yNm-Math.cos(hr)*along};
+        s.weapons.explosions.push({position:impact,zM:4+Math.random()*7,ageSec:0,maxAgeSec:4,label:'SURFACE GUN HIT'});
+        particles.spawnExplosion?.(impact.xNm,impact.yNm,.26,false);audio.playHit?.();
+        updateShipDamage(this,target,0);
+        const tr=W.contactTracks?.[target.id];if((tr&&tr.confidence>.04)||distNm(sub.position,target.position)<10)
+          this.log(`${h.name} hit ${target.name} — ${dmg.location.toLowerCase()}, ${shipDamageCondition(target).toLowerCase()}.`,'warn');
+      }
+    }
   }
 
   /* ══════════ AIR THREAT ══════════
