@@ -551,49 +551,90 @@ class CanvasView extends CanvasViewSound {
 
     // REPORTED / OBSERVED MINEFIELD: deliberately fuzzy knowledge, never the
     // physical mine points and never the exact truth radii from world.harbor.
+    // The hand-drawn irregularity is chart language, not hidden mine data: it
+    // keeps the harbour from looking like a perfect arcade target while still
+    // preserving the same approximate intelligence envelope on every frame.
     if(mine&&mine.level!=='NONE'){
       const observed=mine.level==='OBSERVED';
       const cc=w2s(H.center.xNm+(observed?0:mine.reportCenterDx||0),H.center.yNm+(observed?0:mine.reportCenterDy||0));
       const rin=(observed?mine.observedInnerNm:mine.reportedInnerNm)*this.zoom;
       const rout=(observed?mine.observedOuterNm:mine.reportedOuterNm)*this.zoom;
-      ctx.strokeStyle=observed?'rgba(227,107,93,.48)':'rgba(227,107,93,.30)';ctx.lineWidth=Math.max(1,1.25*K);ctx.setLineDash([7,7]);
-      ctx.beginPath();ctx.arc(cc.x,cc.y,rout,0,Math.PI*2);ctx.stroke();
-      ctx.beginPath();ctx.arc(cc.x,cc.y,rin,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-      // sparse chart hatching across the reported annulus; clipped only to the
-      // approximate report, so it cannot be reverse-engineered into mine truth.
-      ctx.save();ctx.beginPath();ctx.arc(cc.x,cc.y,rout,0,Math.PI*2);ctx.clip();
-      ctx.strokeStyle=observed?'rgba(227,107,93,.13)':'rgba(227,107,93,.09)';ctx.lineWidth=1;
-      const step=Math.max(11*K,18);
-      for(let x=cc.x-rout*1.4;x<cc.x+rout*1.4;x+=step){ctx.beginPath();ctx.moveTo(x,cc.y-rout);ctx.lineTo(x+rout*.75,cc.y+rout);ctx.stroke();}
-      ctx.restore();
+      const ring=(base,phase)=>{
+        const amp=Math.min(5*K,Math.max(1.4*K,base*.012));ctx.beginPath();
+        for(let i=0;i<=72;i++){
+          const a=i/72*Math.PI*2,w=(Math.sin(a*3+phase)*.54+Math.sin(a*7+phase*1.73)*.29+Math.sin(a*11-phase*.41)*.17)*amp;
+          const rr=base+w,x=cc.x+Math.cos(a)*rr,y=cc.y+Math.sin(a)*rr;
+          if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);
+        }
+        ctx.closePath();ctx.stroke();
+      };
+      ctx.strokeStyle=observed?'rgba(227,107,93,.48)':'rgba(227,107,93,.30)';ctx.lineWidth=Math.max(1,1.25*K);ctx.setLineDash(observed?[7*K,6*K]:[10*K,8*K]);
+      ring(rout,.7);ring(rin,2.1);ctx.setLineDash([]);
+      // Sparse radial hash marks communicate a dangerous belt without filling
+      // the whole harbour centre or implying knowledge of individual mines.
+      ctx.strokeStyle=observed?'rgba(227,107,93,.16)':'rgba(227,107,93,.10)';ctx.lineWidth=Math.max(.7,.85*K);
+      for(let i=0;i<24;i++){
+        const a=(i/24)*Math.PI*2+.11*Math.sin(i*1.7),mid=rin+(rout-rin)*(.34+.30*((i*7)%11)/10),len=Math.min((rout-rin)*.18,10*K);
+        const tang=a+.72,x1=cc.x+Math.cos(a)*mid-Math.cos(tang)*len*.5,y1=cc.y+Math.sin(a)*mid-Math.sin(tang)*len*.5,x2=x1+Math.cos(tang)*len,y2=y1+Math.sin(tang)*len;
+        ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+      }
       ctx.fillStyle=observed?'rgba(227,107,93,.72)':'rgba(227,107,93,.58)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';
-      ctx.fillText(observed?'OBSERVED MINEFIELD':'REPORTED MINEFIELDS',cc.x,cc.y-rout-7*K);
+      ctx.fillText(observed?'OBSERVED MINE BELT':'REPORTED MINE BELT',cc.x,cc.y-rout-8*K);
     }
 
-    // The radio gives only a broad approach corridor. Close reconnaissance
-    // tightens it, but there is still no exact net gate until the net is seen.
+    // A swept approach is intelligence, not a magic green safe rectangle. The
+    // dashed outer limits show uncertainty; the much narrower central ribbon
+    // is the skipper's best-estimate track. Arrowheads always point INBOUND so
+    // the chart immediately answers the practical question: where should I sail?
+    // Close reconnaissance tightens the plot, but never reveals the torpedo-net
+    // gate until the boat actually sees or contacts the net.
     if(ch&&ch.level!=='NONE'){
       const observed=ch.level==='OBSERVED',bearing=observed?ch.observedBearing:ch.reportedBearing;
       const half=observed?ch.observedHalfWidthNm:ch.reportedHalfWidthNm;
       const r=degToRad(bearing),sx=Math.cos(r),sy=Math.sin(r);
       const point=(along,side)=>({xNm:H.center.xNm+Math.sin(r)*along+sx*side,yNm:H.center.yNm-Math.cos(r)*along+sy*side});
       const inner=observed?1.15:.75,outer=(mine?.level!=='NONE'?(mine.level==='OBSERVED'?mine.observedOuterNm:mine.reportedOuterNm):5.4)+.55;
-      const toScreen=p=>w2s(p.xNm,p.yNm);
-      const a1=toScreen(point(inner,-half)),a2=toScreen(point(inner,half)),b2=toScreen(point(outer,half)),b1=toScreen(point(outer,-half));
-      ctx.fillStyle=observed?'rgba(111,224,143,.09)':'rgba(111,224,143,.055)';ctx.strokeStyle=observed?'rgba(111,224,143,.50)':'rgba(111,224,143,.28)';ctx.lineWidth=Math.max(1,1.4*K);ctx.setLineDash(observed?[6,5]:[10,8]);
-      ctx.beginPath();ctx.moveTo(a1.x,a1.y);ctx.lineTo(a2.x,a2.y);ctx.lineTo(b2.x,b2.y);ctx.lineTo(b1.x,b1.y);ctx.closePath();ctx.fill();ctx.stroke();ctx.setLineDash([]);
-      const lp=w2s(point(outer*.72,0).xNm,point(outer*.72,0).yNm);ctx.fillStyle=observed?'rgba(111,224,143,.78)':'rgba(111,224,143,.57)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';
-      ctx.fillText(observed?'OBSERVED CHANNEL':'REPORTED SWEPT CHANNEL',lp.x,lp.y-6*K);
+      const toScreen=p=>w2s(p.xNm,p.yNm),edgeHalf=t=>half*(observed?(.66+.34*t):(.60+.40*t)),coreHalf=t=>edgeHalf(t)*(observed?.48:.34);
+      const poly=(widthFn,fill,stroke,dash)=>{
+        const N=18,L=[],R=[];
+        for(let i=0;i<=N;i++){const t=i/N,a=inner+(outer-inner)*t,w=widthFn(t);L.push(toScreen(point(a,-w)));R.push(toScreen(point(a,w)));}
+        ctx.fillStyle=fill;ctx.strokeStyle=stroke;ctx.lineWidth=Math.max(1,1.25*K);ctx.setLineDash(dash);
+        ctx.beginPath();L.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));for(let i=R.length-1;i>=0;i--)ctx.lineTo(R[i].x,R[i].y);ctx.closePath();ctx.fill();ctx.stroke();ctx.setLineDash([]);
+      };
+      poly(edgeHalf,observed?'rgba(111,224,143,.025)':'rgba(111,224,143,.016)',observed?'rgba(111,224,143,.42)':'rgba(111,224,143,.24)',observed?[7*K,5*K]:[10*K,8*K]);
+      poly(coreHalf,observed?'rgba(111,224,143,.105)':'rgba(111,224,143,.045)',observed?'rgba(111,224,143,.26)':'rgba(111,224,143,.14)',[]);
+
+      // Best-estimate centerline. Small chevrons face towards decreasing
+      // 'along' distance (the harbour), so there is no ambiguity about travel.
+      const pOuter=toScreen(point(outer,0)),pInner=toScreen(point(inner,0));
+      ctx.strokeStyle=observed?'rgba(170,244,194,.74)':'rgba(170,244,194,.42)';ctx.lineWidth=Math.max(1,1.35*K);ctx.setLineDash([3*K,5*K]);ctx.beginPath();ctx.moveTo(pOuter.x,pOuter.y);ctx.lineTo(pInner.x,pInner.y);ctx.stroke();ctx.setLineDash([]);
+      for(const t of [.22,.42,.62,.82]){
+        const a=outer-(outer-inner)*t,tip=toScreen(point(a,0)),tail=toScreen(point(a+.22,0)),dx=tip.x-tail.x,dy=tip.y-tail.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,nx=-uy,ny=ux,back=5.5*K,wing=3.2*K;
+        ctx.beginPath();ctx.moveTo(tip.x,tip.y);ctx.lineTo(tip.x-ux*back+nx*wing,tip.y-uy*back+ny*wing);ctx.moveTo(tip.x,tip.y);ctx.lineTo(tip.x-ux*back-nx*wing,tip.y-uy*back-ny*wing);ctx.stroke();
+      }
+      const labelT=.60,lp=toScreen(point(inner+(outer-inner)*labelT,edgeHalf(labelT)*1.38));ctx.fillStyle=observed?'rgba(151,238,181,.90)':'rgba(151,238,181,.64)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';
+      ctx.fillText(observed?'OBSERVED SWEPT APPROACH':'REPORTED SWEPT APPROACH · APPROX',lp.x,lp.y-3*K);
+      ctx.font=this.fnt(6.4,true);ctx.fillStyle=observed?'rgba(190,246,207,.76)':'rgba(190,246,207,.48)';ctx.fillText('FOLLOW CENTERLINE INBOUND',lp.x,lp.y+7*K);
+      if(!I?.net?.known){
+        const noteT=.26,np=toScreen(point(inner+(outer-inner)*noteT,-edgeHalf(noteT)*1.72));ctx.fillStyle='rgba(245,198,92,.82)';ctx.font=this.fnt(6.7,true);ctx.textAlign='center';
+        ctx.fillText('NET / GATE NOT LOCATED',np.x,np.y);ctx.font=this.fnt(6.0);ctx.fillStyle='rgba(245,198,92,.62)';ctx.fillText('VISUAL RECON REQUIRED',np.x,np.y+9*K);
+      }
     }
 
     // Exact net geometry appears only after visual recognition or close contact.
+    // Once known, the opening itself gets a separate green gate marker: the net
+    // and the swept mine approach are two different navigation problems.
     if(I?.net?.known){
       const r=degToRad(H.channelBearing),sx=Math.cos(r),sy=Math.sin(r);
       const gate={xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};
       const at=d=>w2s(gate.xNm+sx*d,gate.yNm+sy*d),gp=w2s(gate.xNm,gate.yNm);
-      ctx.strokeStyle='rgba(245,198,92,.82)';ctx.lineWidth=Math.max(2,2.4*K);
+      ctx.strokeStyle='rgba(245,198,92,.84)';ctx.lineWidth=Math.max(2,2.35*K);
       for(const [a,b] of [[H.netGapHalfNm,H.netHalfSpanNm],[-H.netGapHalfNm,-H.netHalfSpanNm]]){const p1=at(a),p2=at(b);ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();}
-      ctx.fillStyle='rgba(245,198,92,.82)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText('OBSERVED TORPEDO NET',gp.x,gp.y-8*K);
+      const netLabel=at(H.netHalfSpanNm*.72);ctx.fillStyle='rgba(245,198,92,.78)';ctx.font=this.fnt(6.7,true);ctx.textAlign='center';ctx.fillText('OBSERVED TORPEDO NET',netLabel.x,netLabel.y-7*K);
+      const gapA=at(-H.netGapHalfNm),gapB=at(H.netGapHalfNm);ctx.strokeStyle='rgba(111,224,143,.94)';ctx.lineWidth=Math.max(1.5,2*K);
+      ctx.beginPath();ctx.arc(gp.x,gp.y,Math.max(4.5*K,5),0,Math.PI*2);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(gapA.x,gapA.y);ctx.lineTo(gp.x,gp.y);ctx.lineTo(gapB.x,gapB.y);ctx.stroke();
+      ctx.fillStyle='rgba(151,238,181,.95)';ctx.font=this.fnt(7.2,true);ctx.fillText('GATE',gp.x,gp.y+12*K);
     }
 
     // Battery positions are estimates created by observed fire, never truth

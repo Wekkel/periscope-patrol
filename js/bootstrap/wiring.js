@@ -159,6 +159,8 @@ if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem('ss_hin
      PeriscopeDebug.downloadScenario('bridge-air-attack',{rangeNm:1.1});
      PeriscopeDebug.downloadScenario('impact-framing',{type:'CARRIER',rangeNm:.08});
      PeriscopeDebug.downloadScenario('map-labels',{strategy:'HYBRID'});
+     PeriscopeDebug.downloadScenario('map-harbor-approach',{netKnown:false});
+     PeriscopeDebug.downloadScenario('map-harbor-approach',{netKnown:true});
      PeriscopeDebug.downloadCurrent();
 
    MAP strategies kept for visual A/B testing: GREEDY, NEAREST, WIDE, OUTWARD,
@@ -203,6 +205,14 @@ if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem('ss_hin
       }
       s.tactical.selectedTrackId='T02';return s;
     }
+    if(name==='map-harbor-approach'){
+      s.tactical.activeStation='MAP';sub.depthFeet=55;sub.orderedDepthFeet=55;sub.mode='SUBMERGED';Object.assign(s.world.environment,{daylight:.48,visibilityNm:11,seaState:.38,weather:'OVERCAST'});
+      const channelBearing=68,center=at(sub.position,normDeg(channelBearing+180),5.25);
+      s.world.harbor={name:'Truk Anchorage',center,outerRadiusNm:5.6,innerRadiusNm:1.25,channelBearing,channelHalfWidthNm:.42,mineInnerNm:2.15,mineOuterNm:4.75,netRangeNm:1.82,netHalfSpanNm:1.18,netGapHalfNm:.28,hydrophoneRangeNm:4.6,batteryRangeNm:5.1,suspicion:0,alert:0,entered:true,inside:false,mines:[]};
+      s.world.harborIntel={harborName:'Truk Anchorage',minefield:{level:opts.reported?'REPORTED':'OBSERVED',reportCenterDx:.18,reportCenterDy:-.12,reportedInnerNm:1.86,reportedOuterNm:5.62,observedInnerNm:2.10,observedOuterNm:4.78},channel:{level:opts.reported?'REPORTED':'OBSERVED',reportedBearing:74,reportedHalfWidthNm:1.12,observedBearing:69,observedHalfWidthNm:.60},net:{known:!!opts.netKnown,source:opts.netKnown?'VISUAL':null},batteries:[],heavyUnit:{reported:true,identified:false,identity:null},raid:{attempted:false,result:'not_attempted'}};
+      s.world.ports=[...(s.world.ports||[]).filter(p=>!/Truk/i.test(p.name||'')),{name:'Truk Anchorage',side:'ENEMY',pos:{...center}}];
+      s.world.contacts=[];s.world.contactTracks={};s.map.plottedCourse=[];s.map.autoFollowPlot=false;return s;
+    }
     throw new Error(`Unknown PeriscopeDebug scenario: ${name}`);
   };
   const capture=(state,{strategy=null,zoom=null,center=null}={})=>{
@@ -223,7 +233,7 @@ if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem('ss_hin
     labelStrategies:['GREEDY','NEAREST','WIDE','OUTWARD','LANES','HYBRID'],
     captureCurrentDataUrl(){canvasView.render(game.getSnapshot());return canvasView.canvas.toDataURL('image/png');},
     downloadCurrent(filename='periscope-current.png'){return saveDataUrl(this.captureCurrentDataUrl(),filename);},
-    captureScenarioDataUrl(name,opts={}){const s=makeScenario(name,opts),map=name==='map-labels';return capture(s,{strategy:opts.strategy||null,zoom:map?(Number(opts.zoom)||72):null,center:map?{...s.playerSub.position}:null});},
+    captureScenarioDataUrl(name,opts={}){const s=makeScenario(name,opts),map=name==='map-labels'||name==='map-harbor-approach',harbor=name==='map-harbor-approach',center=harbor?{xNm:(s.playerSub.position.xNm+s.world.harbor.center.xNm)/2,yNm:(s.playerSub.position.yNm+s.world.harbor.center.yNm)/2}:{...s.playerSub.position};return capture(s,{strategy:opts.strategy||null,zoom:map?(Number(opts.zoom)||(harbor?54:72)):null,center:map?center:null});},
     downloadScenario(name,opts={}){const strategy=String(opts.strategy||'').toLowerCase(),suffix=strategy?`-${strategy}`:'';return saveDataUrl(this.captureScenarioDataUrl(name,opts),opts.filename||`periscope-${name}${suffix}.png`);}
   };
 })();

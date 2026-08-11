@@ -143,13 +143,14 @@ class SimEngineHarbor extends SimEngineCore {
     if(I.channel.level==='NONE') I.channel.level='REPORTED';
     this.refreshHarborOptionalObjective();
     this.notify('OPTIONAL OBJECTIVE — Investigate Truk Anchorage. No penalty if you decline the raid.','warn');
+    this.notify('CHART UPDATED — Reported mine belt and swept approach plotted. The limits are approximate: keep near the centerline. Torpedo-net gate not yet located.','warn');
     return true;
   }
 
   revealHarborNet(source='VISUAL'){
     const I=this.ensureHarborIntel();if(!I||I.net.known) return false;
     I.net.known=true;I.net.discoveredAt=this.state.time.elapsedSeconds;I.net.source=source;
-    this.notify(`Torpedo net identified at the Truk entrance${source==='CONTACT'?' by close contact':''}.`,'warn');
+    this.notify(`MAP UPDATED — torpedo net identified at the Truk entrance${source==='CONTACT'?' by close contact':''}. The observed gate is now marked separately from the swept mine approach.`,'warn');
     return true;
   }
 
@@ -187,8 +188,9 @@ class SimEngineHarbor extends SimEngineCore {
       if(I.minefield.level==='NONE') I.minefield.level='OBSERVED';
       else if(I.minefield.level==='REPORTED') I.minefield.level='OBSERVED';
     }
-    if(visual&&rng<H.mineOuterNm+.45){
-      if(I.channel.level!=='OBSERVED') I.channel.level='OBSERVED';
+    if(visual&&rng<H.mineOuterNm+.45&&I.channel.level!=='OBSERVED'){
+      I.channel.level='OBSERVED';
+      this.notify(`CHART REFINED — swept approach observed. Follow the MAP best-estimate centerline toward ${H.name}; corridor limits remain approximate${I.net.known?', and the net gate is marked separately':'. Net/gate still requires visual reconnaissance'}.`,'warn');
     }
 
     const segs=this.harborNetSegments(H);
@@ -245,7 +247,7 @@ class SimEngineHarbor extends SimEngineCore {
       H.entered=true;
       const I=this.ensureHarborIntel();
       this.notify(I&&(I.minefield.level!=='NONE'||I.channel.level!=='NONE')
-        ?`ENEMY HARBOUR WATERS — ${H.name}. Reported defences ahead; work from the chart, slow and quiet.`
+        ?`ENEMY HARBOUR WATERS — ${H.name}. Work from the chart: keep near the swept-approach centerline, treat its limits as approximate, and do not assume the torpedo-net gate is known.`
         :`ENEMY HARBOUR WATERS — ${H.name}. Defences are not charted. Proceed carefully and build the picture yourself.`,'warn');
     }
     if(rng<H.innerRadiusNm&&!H.inside){
