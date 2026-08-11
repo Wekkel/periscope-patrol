@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.6'; // pre relese version - Keep friendly rendezvous safely inside patrol area bounds
+const VERSION = '0.9.7'; // pre relese version - Refine Truk minefield approach chart and harbor navigation cues
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
