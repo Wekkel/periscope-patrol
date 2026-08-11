@@ -37,7 +37,7 @@ const PATROL_AREAS={
   'Luzon Strait':{
     description:'Critical chokepoint between Formosa and Luzon. Fast, well-escorted traffic.',terrainKey:'Luzon Strait',
     convoyRoutes:[{from:{xNm:92,yNm:25},to:{xNm:-92,yNm:25},label:'FORMOSA–LUZON CONVOY LANE'}],start:{xNm:-5,yNm:25},
-    ports:[{name:'Basco',pos:{xNm:37.7,yNm:-9.0},side:'ENEMY'},{name:'Aparri',pos:{xNm:19.1,yNm:116.4},side:'ENEMY'},{name:'Submarine rendezvous',pos:{xNm:101.3,yNm:72.0},side:'FRIENDLY'}],
+    ports:[{name:'Basco',pos:{xNm:37.7,yNm:-9.0},side:'ENEMY'},{name:'Aparri',pos:{xNm:19.1,yNm:116.4},side:'ENEMY'},{name:'Submarine rendezvous',pos:{xNm:75.0,yNm:72.0},side:'FRIENDLY'}],
     environment:{daylight:.55,visibilityNm:10,seaState:.55,layerDepthFt:160,weather:'OVERCAST'},convoySpeedRange:[8,12],convoyCountRange:[3,6],difficulty:'HARD'},
   'Truk Approaches':{
     description:'Japanese Pacific fortress. Heavy patrol craft and a dangerous anchorage approach.',terrainKey:'Truk Approaches',
@@ -58,7 +58,7 @@ const PATROL_AREAS={
   'Kii Suido / Honshu Approaches':{
     description:'Japanese home waters off Kii Suido. Heavy coastal traffic, fishing craft and aggressive air patrols.',terrainKey:'Kii Suido / Honshu Approaches',
     convoyRoutes:[{from:{xNm:-118,yNm:94},to:{xNm:96,yNm:-112},label:'HONSHU COASTAL SHIPPING LANE'}],start:{xNm:66,yNm:128},
-    ports:[{name:'Wakayama',pos:{xNm:9,yNm:-38},side:'ENEMY'},{name:'Osaka approaches',pos:{xNm:25,yNm:-65},side:'ENEMY'},{name:'Submarine rendezvous',pos:{xNm:85,yNm:144},side:'FRIENDLY'}],
+    ports:[{name:'Wakayama',pos:{xNm:9,yNm:-38},side:'ENEMY'},{name:'Osaka approaches',pos:{xNm:25,yNm:-65},side:'ENEMY'},{name:'Submarine rendezvous',pos:{xNm:85,yNm:105},side:'FRIENDLY'}],
     environment:{daylight:.68,visibilityNm:12,seaState:.38,layerDepthFt:175,weather:'PARTLY CLOUDY',airThreat:.85},convoySpeedRange:[7,11],convoyCountRange:[4,7],difficulty:'HARD'},
   'East China Sea / Formosa Approaches':{
     description:'Wide shipping approaches between Formosa, China and the Ryukyus. Tankers, troop traffic and task groups.',terrainKey:'East China Sea / Formosa Approaches',

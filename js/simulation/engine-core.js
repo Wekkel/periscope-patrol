@@ -720,11 +720,31 @@ class SimEngineCore{
   }
 
   // ── CAMPAIGN ──
+  _friendlyRvInsideArea(pos,radiusNm=0.30,marginNm=6){
+    /* A FRIENDLY RV is part of the playable patrol area, not an off-chart exit.
+       Keep the entire service circle plus a navigation margin inside areaBounds.
+       This also protects future patrol definitions from accidentally placing a
+       rendezvous in the synthetic deep-water fallback beyond the bathymetry box. */
+    const A=this.areaBounds?.();
+    if(!A||!pos)return true;
+    const m=Math.max(0,marginNm)+Math.max(0,radiusNm);
+    return pos.xNm>=A.x0+m&&pos.xNm<=A.x1-m&&pos.yNm>=A.y0+m&&pos.yNm<=A.y1-m;
+  }
+
+  _friendlyRvAreaAnchor(pos,marginNm=8){
+    const A=this.areaBounds?.();if(!A||!pos)return pos;
+    const m=Math.max(0,marginNm),midX=(A.x0+A.x1)/2,midY=(A.y0+A.y1)/2;
+    const loX=A.x0+m,hiX=A.x1-m,loY=A.y0+m,hiY=A.y1-m;
+    return{xNm:loX<=hiX?clamp(pos.xNm,loX,hiX):midX,yNm:loY<=hiY?clamp(pos.yNm,loY,hiY):midY};
+  }
+
   _friendlyRvDiskSafe(pos,minFeet=70,radiusNm=0.30){
     /* Validate the whole service circle, not merely its centre. A centre point
        in deep water is not enough if a synthetic coastline/reef clips one edge
-       of the green ring. This runs only when a rendezvous is created or an old
-       cached one is revalidated. */
+       of the green ring. The chart boundary is part of the same contract: the
+       rendezvous must remain inside the playable patrol area, not in Bathy's
+       generous off-chart deep-water fallback. */
+    if(!this._friendlyRvInsideArea(pos,radiusNm,6))return{safe:false,minFeet:0};
     const rings=[0,radiusNm*.5,radiusNm];
     let minSeen=3000;
     for(const rr of rings){
@@ -762,11 +782,15 @@ class SimEngineCore{
     }
 
     const candidates=[];
+    /* Most friendly ports already sit inside the chart. If future data (or an
+       older save) puts one outside, start the safe-water search from an anchor
+       clamped well inside the patrol area rather than searching off-chart. */
+    const rvSeed=this._friendlyRvAreaAnchor(port.pos,8);
     const sample=(requireDeep)=>{
       for(let r=0.18;r<=3.0;r+=0.12){
         for(let a=0;a<360;a+=12){
-          const q={xNm:port.pos.xNm+Math.sin(degToRad(a))*r,
-                   yNm:port.pos.yNm-Math.cos(degToRad(a))*r};
+          const q={xNm:rvSeed.xNm+Math.sin(degToRad(a))*r,
+                   yNm:rvSeed.yNm-Math.cos(degToRad(a))*r};
           const safe=this._friendlyRvDiskSafe(q,Math.max(70,requireDeep),0.30);
           if(!safe.safe) continue;
           const sea=Bathy.feet(q.xNm,q.yNm);
@@ -787,8 +811,8 @@ class SimEngineCore{
       let deepest=null;
       for(let r=3.0;r<=6.0;r+=0.25){
         for(let a=0;a<360;a+=15){
-          const q={xNm:port.pos.xNm+Math.sin(degToRad(a))*r,
-                   yNm:port.pos.yNm-Math.cos(degToRad(a))*r};
+          const q={xNm:rvSeed.xNm+Math.sin(degToRad(a))*r,
+                   yNm:rvSeed.yNm-Math.cos(degToRad(a))*r};
           const safe=this._friendlyRvDiskSafe(q,55,0.30);
           if(!safe.safe) continue;
           const sea=Bathy.feet(q.xNm,q.yNm),cand={pos:q,seabedFeet:sea,safeDepthFeet:Math.max(90,safe.minFeet),r,score:r};
