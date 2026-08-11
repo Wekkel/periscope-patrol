@@ -131,7 +131,7 @@ class SimEngine extends SimEngineCareer {
     const anyConvoyHit=this.state.weapons.hits.some(h=>convoyIds.has(h.contactId));
     if(anyConvoyHit&&camp.objectives[1]) camp.objectives[1].done=true;
     // All merchants sunk → head home
-    const merchants=this.state.world.contacts.filter(c=>c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
+    const merchants=this.state.world.contacts.filter(c=>!isSurfaceCombatant(c)&&!c.sunk&&!c.harborTarget);
     if(merchants.length===0&&camp.missionStatus==='PATROL'){
       camp.missionStatus='RETURN TO BASE';
       const r=this.friendlyPortNav();
@@ -344,13 +344,14 @@ class SimEngine extends SimEngineCareer {
     // its lane and the casualty becomes a genuine straggler.
     const core=merchants.filter(c=>!shipIsStraggler(c));
     const lead=(core.length?core:merchants)[0],pr=routeProject(path,lead.position);
-    W.convoyLeg=W.convoyLeg===-1?-1:1;
-    const C=routeCum(path),L=C[C.length-1];
-    if((W.convoyLeg>0&&L-pr.s<1.6)||(W.convoyLeg<0&&pr.s<1.6)) W.convoyLeg*=-1;
-    const aim=routeAdvance(path,pr.s,W.convoyLeg,1.25);W.convoyLeg=aim.dir;W.convoyRouteS=pr.s;
+    // The primary convoy is a mission object, not ambient scenery. Keep it on
+    // a one-way voyage so an abstracted convoy cannot reverse to the opposite
+    // side of the chart while the player follows an old intelligence report.
+    W.convoyLeg=1;
+    const aim=routeAdvanceOneWay(path,pr.s,1.25);W.convoyRouteS=pr.s;W.primaryRouteEnded=!!aim.ended;
     if(!lead.scattering){
-      lead.desiredHeading=bearingBetween(lead.position,aim.pos);
-      lead.desiredSpeed=lead.baseSpeed||lead.speedKnots;
+      lead.desiredHeading=aim.ended?lead.heading:bearingBetween(lead.position,aim.pos);
+      lead.desiredSpeed=aim.ended?0:(lead.baseSpeed||lead.speedKnots);
     }
     const hdg=lead.desiredHeading===undefined?lead.heading:lead.desiredHeading;
     const r=degToRad(hdg),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
@@ -358,7 +359,7 @@ class SimEngine extends SimEngineCareer {
     for(const c of merchants){
       if(c===lead||c.scattering)continue;
       if(shipIsStraggler(c)){
-        const cp=routeProject(path,c.position),ca=routeAdvance(path,cp.s,W.convoyLeg,1.0);
+        const cp=routeProject(path,c.position),ca=routeAdvanceOneWay(path,cp.s,1.0);
         c.desiredHeading=bearingBetween(c.position,ca.pos);c.desiredSpeed=c.baseSpeed||c.speedKnots;
         continue;
       }
@@ -380,7 +381,7 @@ class SimEngine extends SimEngineCareer {
       if(c.stationary){c.speedKnots=0;c.desiredSpeed=0;continue;}
       // Apply scatter behaviour if a convoy merchant was alerted. Harbour
       // targets never scatter: they are moored prizes, not convoy traffic.
-      if(c.scattering&&c.type!=='ESCORT'&&!c.harborTarget){
+      if(c.scattering&&!isSurfaceCombatant(c)&&!c.harborTarget){
         const scatterAge=elapsed-(c.alertedAt||0);
         if(scatterAge<90){
           c.desiredHeading=c.scatterHeading;
@@ -543,9 +544,16 @@ class SimEngine extends SimEngineCareer {
     }
   }
 
-  updateTdc(){
+  updateTdc(force=false){
     const tdc=this.state.tdc;
-    if(!tdc.targetId){tdc.status='NO TARGET';tdc.solutionQuality=0;return;}
+    if(!tdc.targetId){tdc.status='NO TARGET';tdc.solutionQuality=0;tdc._lastSolvedTargetId=null;return;}
+    const now=this.state.time.elapsedSeconds||0,scale=Math.max(1,this.state.time.timeScale||1);
+    // TDC 2.0 solves real tube/gyro geometry and is intentionally more involved
+    // than the old ideal-line calculation. The display does not need a fresh
+    // solve at 60 Hz. At high time compression use a wider SIM-time interval;
+    // explicit target/manual changes and FIRE always pass force=true below.
+    const minInterval=scale>=8?2:.14;
+    if(!force&&tdc._lastSolvedTargetId===tdc.targetId&&Number.isFinite(tdc._lastSolveAt)&&now-tdc._lastSolveAt<minInterval)return;
     const tr=this.state.world.contactTracks[tdc.targetId];
     const manual=tdc.targetId==='MANUAL'||tdc.autoTrack===false;
     if(!manual&&(!tr||tr.confidence<=0.02)){tdc.status='TRACK LOST';tdc.solutionQuality=0;return;}
@@ -577,10 +585,19 @@ class SimEngine extends SimEngineCareer {
       torpedoSpeedKnots:tdc.torpedoSpeedKnots,confidence:manual?0.65:Math.min(tr.confidence,
         Number.isFinite(tr.positionConfidence)?tr.positionConfidence:tr.confidence)});
     tdc.bearing=bear;tdc.rangeNm=rng;tdc.targetCourse=crs;tdc.targetSpeedKnots=spd;
-    tdc.gyroAngle=res.gyroAngle===null?null:res.gyroAngle+(bias.gyroDeg||0);tdc.angleOnBow=res.angleOnBow;
+    // TDC 2.0 returns the same settling-run + gyro-turn geometry used by the
+    // physical torpedo. Gyro damage is applied to the final course, then all
+    // displayed launch angles are derived from that same erroneous course.
+    const machineCourse=res.solutionCourse==null?null:normDeg(res.solutionCourse+(bias.gyroDeg||0));
+    tdc.solutionCourse=machineCourse;tdc.launchBank=res.launchBank||null;tdc.launchGeometry=res.launchGeometry||null;
+    tdc.gyroAngle=machineCourse==null?null:shortDelta(sub.heading,machineCourse);
+    const tubeAxis=tdc.launchBank==='AFT'?normDeg(sub.heading+180):sub.heading;
+    tdc.tubeTurnDeg=machineCourse==null?null:shortDelta(tubeAxis,machineCourse);
+    tdc.interceptRunNm=res.interceptRunNm??null;tdc.predictedMissNm=res.predictedMissNm??null;tdc.angleOnBow=res.angleOnBow;
     tdc.timeToImpactSec=res.timeToImpactSec;
     tdc.solutionQuality=clamp(res.solutionQuality*(1-(d.tdcDamage||0)*.18-(d.gyroDamage||0)*.10),0,1);
     tdc.status=res.valid?'SOLUTION':'NO SOLUTION';
+    tdc._lastSolveAt=now;tdc._lastSolvedTargetId=tdc.targetId;
   }
 
   calcVis(sub,c,rng,env){
@@ -762,7 +779,7 @@ class SimEngine extends SimEngineCareer {
     if(!c){this.log('No contact near periscope centreline.','warn');return;}
     this.confirmScopeVisualContact(c.id);
     this.state.tactical.selectedTrackId=c.id; this.state.tdc.targetId=c.id;
-    this.log(`Selected ${c.id} for TDC tracking.`); this.updateTdc();
+    this.log(`Selected ${c.id} for TDC tracking.`); this.updateTdc(true);
   }
 
   sendScopeToTdc(){
@@ -775,7 +792,7 @@ class SimEngine extends SimEngineCareer {
     const mb=scopeMeasuredBearing(this.state,tr.bearing),mr=scopeMeasuredRangeNm(this.state,tr.rangeEstimateNm);
     tdc.targetId=sid;tdc.autoTrack=true;tdc.trackSource='SCOPE';tdc.bearing=mb;tdc.rangeNm=mr;
     tdc.targetCourse=tr.courseEstimate;tdc.targetSpeedKnots=tr.speedEstimateKnots;
-    this.updateTdc();
+    this.updateTdc(true);
     this.log(`TDC: ${sid} B${fmtDeg(mb)} R${mr.toFixed(1)}nm C${fmtDeg(tr.courseEstimate)} S${tr.speedEstimateKnots.toFixed(1)}kn${this.state.playerSub.damage.periscopeDamage>.12?' — optical measurement degraded':''}`);
   }
 

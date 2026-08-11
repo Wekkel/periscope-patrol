@@ -13,7 +13,7 @@ function _shipHash01(key){
   return (h>>>0)/4294967295;
 }
 function _shipLegacyGunThreshold(c){
-  return /CARRIER|CRUISER/i.test(c?.displayType||'')?2.7:['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c?.type)?1.55:c?.type==='TANKER'?1.25:1.0;
+  return /CARRIER|CRUISER/i.test(c?.displayType||'')?2.7:(typeof isSurfaceCombatant==='function'&&isSurfaceCombatant(c))?1.55:c?.type==='TANKER'?1.25:1.0;
 }
 function ensureShipDamage(c){
   if(!c)return null;
@@ -235,8 +235,9 @@ function beginShipSinking(engine,c,reason='FLOODING'){
         engine.captainLog?.(side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
       }
     }else{
-      const pts=Math.round((c.harborValue||(c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT'?(gun?1800:2200):(gun?1000:1400)))*(gun ? .85 : 1));
-      camp.score+=pts;camp.tonnageSunk+=(c.tonsFactor||3000);if(c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT')camp.escortsSunk++;
+      const combatant=typeof isSurfaceCombatant==='function'&&isSurfaceCombatant(c);
+      const pts=Math.round((c.harborValue||(combatant?(gun?1800:2200):(gun?1000:1400)))*(gun ? .85 : 1));
+      camp.score+=pts;camp.tonnageSunk+=(c.tonsFactor||3000);if(combatant)camp.escortsSunk++;
       const attackObj=camp.objectives?.find?.(o=>o.id==='attack')||(!camp.missionType?camp.objectives?.[1]:null);
       if(attackObj)attackObj.done=true;
       D.killCredited=true;D.killPoints=pts;

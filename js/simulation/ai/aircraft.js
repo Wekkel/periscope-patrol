@@ -34,12 +34,12 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         else if(friendly.rngNm<=12)chance*=.18;
         else if(friendly.rngNm<=18)chance*=.55;
       }else if(friendly&&friendly.rngNm<=6)chance*=.35;
-      if(W.aircraft.length>=2) chance=0;
+      if(W.aircraft.filter(a=>a.side!=='FRIENDLY').length>=2) chance=0;
       if(Math.random()<chance){
         const bear=Math.random()*360, rng=11+Math.random()*9;
         const r=degToRad(bear);
         W.aircraft.push({
-          id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,
+          id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,side:'ENEMY',
           ...(()=>{const r=Math.random();
             /* Keep the game-readable split simple rather than inventing a
                per-squadron loadout database: large maritime patrol flying boats
@@ -58,8 +58,71 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       }
     }
 
+    /* Friendly aircraft are deliberately a tiny ambient layer, not a second
+       air-war simulation. One local patrol at most can cross the tactical
+       bubble. This gives Allied-controlled waters life without multiplying
+       update cost on the Helios G88 or granting the player permanent air cover. */
+    air.friendlyNextCheck=(air.friendlyNextCheck??(240+Math.random()*180))-dt;
+    if(air.friendlyNextCheck<=0){
+      air.friendlyNextCheck=300+Math.random()*240;
+      const friendlyLocal=W.aircraft.some(a=>a.side==='FRIENDLY'&&!a.shotDown);
+      const area=this.state.campaign?.patrolArea||'';
+      const deepEnemy=/Truk|Kii Suido|Yellow Sea/.test(area);
+      const day=clamp(env.daylight,0,1);
+      if(!friendlyLocal&&!deepEnemy&&day>.18&&Math.random()<.32){
+        const bear=Math.random()*360,rng=7+Math.random()*6,r=degToRad(bear);
+        const fp=Math.random()<.62?{name:'Allied PBY Catalina',kind:'FLYING_BOAT',speed:115}:{name:'Allied fighter patrol',kind:'FIGHTER',speed:175};
+        W.aircraft.push({
+          id:`FAIR-${(W.nextFriendlyAirId=(W.nextFriendlyAirId||0)+1)}`,side:'FRIENDLY',
+          name:fp.name,kind:fp.kind,ordnance:'NONE',
+          position:{xNm:sub.position.xNm+Math.sin(r)*rng,yNm:sub.position.yNm-Math.cos(r)*rng},
+          heading:normDeg(bear+135+(Math.random()-.5)*70),speedKnots:fp.speed,
+          state:'FRIENDLY_PATROL',seenBySub:false,bornAt:now,legTimer:55+Math.random()*80,
+          contactReportAt:-999,interceptAt:-999
+        });
+      }
+    }
+
     for(const a of W.aircraft){
       const rng=distNm(a.position,sub.position),friendly=nearestFriendly(a.position);
+      if(a.side==='FRIENDLY'){
+        // Allied patrols never participate in the hostile aircraft state
+        // machine below. Keeping this branch self-contained is an important
+        // safety boundary: a new affiliation must never accidentally acquire
+        // the player as an attack target simply because it shares a renderer.
+        const wx=weatherBetween(this.state,sub.position,a.position);
+        if(!a.seenBySub&&sub.depthFeet<12&&rng<Math.min(10,Math.max(2,wx.visibilityNm*.75))
+           &&Math.random()<dt*(.10+.18*env.daylight)){
+          a.seenBySub=true;
+          this.log(`Lookouts identify ${a.name} — friendly aircraft, bearing ${fmtDeg(bearingBetween(sub.position,a.position))}.`,'ok');
+        }
+        // A fighter patrol can statistically drive off a nearby Japanese
+        // aircraft. No bullets/secondary physics are spawned offscreen.
+        if(a.kind==='FIGHTER'&&now-(a.interceptAt||-999)>22){
+          const hostile=W.aircraft.find(x=>x!==a&&x.side!=='FRIENDLY'&&!x.shotDown&&x.state!=='DEPARTING'&&distNm(a.position,x.position)<3.8);
+          if(hostile&&Math.random()<dt*.025){
+            a.interceptAt=now;hostile.state='DEPARTING';hostile.bombs=0;
+            hostile.departBearing=bearingBetween(a.position,hostile.position);
+            if(a.seenBySub||hostile.seenBySub)this.log(`${a.name} drives ${hostile.name} away from the area.`,'ok');
+          }
+        }
+        // A patrol aircraft may pass a rough contact report, but it does not
+        // create a magic exact MAP track. The report is flavour/intelligence;
+        // the player's sensors still have to localise the target.
+        if(now-(a.contactReportAt||-999)>180){
+          const c=(W.contacts||[]).find(c=>!c.sunk&&c.side!=='FRIENDLY'&&isSurfaceCombatant(c)&&distNm(a.position,c.position)<6.5);
+          if(c&&Math.random()<dt*.02){
+            a.contactReportAt=now;
+            const br=bearingBetween(sub.position,c.position),rr=distNm(sub.position,c.position);
+            this.log(`FOX SCHEDULE — Allied patrol aircraft reports enemy warship roughly ${rr.toFixed(0)} nm on bearing ${fmtDeg(br)}.`,'ok');
+          }
+        }
+        a.legTimer=(a.legTimer||0)-dt;
+        if(a.legTimer<=0){a.legTimer=65+Math.random()*95;a.legSign=-(a.legSign||1);a.heading=normDeg(a.heading+a.legSign*(18+Math.random()*30));}
+        const d=knotsNmSec(a.speedKnots)*dt,r=degToRad(a.heading);
+        a.position.xNm+=Math.sin(r)*d;a.position.yNm-=Math.cos(r)*d;
+        continue;
+      }
       if(a.state==='SEARCHING'&&!a.spotted&&friendly&&friendly.rngNm<5.5){
         a.state='DEPARTING';a.departBearing=bearingBetween(friendly.port.pos,a.position);
         if(a.seenBySub)this.log(`${a.name} turns away from ${friendly.port.name}'s defended airspace.`,'warn');
@@ -213,7 +276,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     }
     // patrols go home
     W.aircraft=W.aircraft.filter(a=>{
-      const life=a.state==='ATTACKING'||a.state==='STRAFING'?600:a.state==='ORBIT'?420:a.bombs<=0?150:420;
+      const life=a.side==='FRIENDLY'?480:a.state==='ATTACKING'||a.state==='STRAFING'?600:a.state==='ORBIT'?420:a.bombs<=0?150:420;
       const gone=(now-a.bornAt>life)||distNm(a.position,sub.position)>18
                  ||(a.state==='DEPARTING'&&distNm(a.position,sub.position)>6);
       if(gone&&a.seenBySub&&!a.shotDown) this.log(`${a.name} has left the area.`);

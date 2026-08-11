@@ -144,18 +144,22 @@ const closestApproach=HullGeometry.closestApproach;
 // Ship "type" is presentation/history; tactical AI should ask what a hull can do.
 // This lets ambient patrol craft and destroyers participate in ASW without
 // pretending that every surface combatant is the same class of escort.
+const SURFACE_COMBATANT_TYPES=new Set(['ESCORT','WARSHIP','PATROL_CRAFT','DESTROYER','KAIBOKAN','HEAVY_CRUISER','CARRIER']);
+const ASW_COMBATANT_TYPES=new Set(['ESCORT','WARSHIP','PATROL_CRAFT','DESTROYER','KAIBOKAN']);
 function isSurfaceCombatant(c){
-  return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ESCORT','PATROL_CRAFT','WARSHIP'].includes(c.type);
+  return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&SURFACE_COMBATANT_TYPES.has(c.type);
 }
 function hasSonar(c){
   if(!isSurfaceCombatant(c))return false;
   if(c.hasSonar!==undefined)return !!c.hasSonar;
-  return true;
+  // Heavy cruisers/carriers may fight on the surface but are not silently
+  // promoted into destroyer-grade ASW searchers just because they are armed.
+  return ASW_COMBATANT_TYPES.has(c.type);
 }
 function canProsecuteSubmarine(c){
   if(!isSurfaceCombatant(c)||!hasSonar(c))return false;
   return (c.dcRemaining===undefined?28:c.dcRemaining)>0;
 }
 function isASWCombatant(c){return isSurfaceCombatant(c)&&hasSonar(c);}
-function isEscortLike(c){return isSurfaceCombatant(c);}
+function isEscortLike(c){return !!c&&ASW_COMBATANT_TYPES.has(c.type)&&isSurfaceCombatant(c);}
 

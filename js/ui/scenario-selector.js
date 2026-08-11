@@ -28,6 +28,9 @@ class ScenarioSelector{
   bind(){
     document.getElementById('scenCancel')?.addEventListener('click',()=>this.close());
     document.getElementById('scenLaunch')?.addEventListener('click',()=>this.launch());
+    document.getElementById('profileExportBtn')?.addEventListener('click',()=>this.exportPlayerProfile());
+    document.getElementById('profileImportBtn')?.addEventListener('click',()=>document.getElementById('profileImportFile')?.click());
+    document.getElementById('profileImportFile')?.addEventListener('change',e=>{const f=e.target.files?.[0];if(f)this.importPlayerProfile(f);e.target.value='';});
     document.querySelectorAll('.scen-tab').forEach(tab=>{
       tab.addEventListener('click',()=>{
         this.activeTab=tab.dataset.stab;
@@ -36,6 +39,7 @@ class ScenarioSelector{
         document.getElementById('stabHistorical').style.display=this.activeTab==='historical'?'flex':'none';
         document.getElementById('stabSaveload').style.display=this.activeTab==='saveload'?'flex':'none';
         document.getElementById('stabCareer').style.display=this.activeTab==='career'?'flex':'none';
+        const about=document.getElementById('stabAbout');if(about)about.style.display=this.activeTab==='about'?'flex':'none';
         if(this.activeTab==='saveload')this.renderSaveSlots();
         if(this.activeTab==='career')this.renderCareer();
         this.syncFooter();
@@ -61,11 +65,9 @@ class ScenarioSelector{
 
   renderCards(){
     const c=document.getElementById('stabPatrol');if(!c)return;
-    const diffs={'Solomon Sea':{l:'MEDIUM',cls:'diff-med',s:'★★☆'},'Bismarck Sea':{l:'MEDIUM',cls:'diff-med',s:'★★☆'},
-      'Luzon Strait':{l:'HARD',cls:'diff-hard',s:'★★★'},'Truk Approaches':{l:'HARD',cls:'diff-hard',s:'★★★'},'Java Sea':{l:'EASY',cls:'diff-easy',s:'★☆☆'}};
     const missionOpts=[['AUTO','AUTO — varied patrol orders'],...(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).map(k=>[k,(typeof MISSION_DEFINITIONS!=='undefined'&&MISSION_DEFINITIONS[k]?.title)||k.replaceAll('_',' ')])];
     c.innerHTML=Object.entries(PATROL_AREAS).map(([name,area])=>{
-      const d=diffs[name]||{l:'MEDIUM',cls:'diff-med',s:'★★☆'};
+      const dl=String(area.difficulty||'MEDIUM').toUpperCase(),d=dl==='HARD'?{l:dl,cls:'diff-hard',s:'★★★'}:dl==='EASY'?{l:dl,cls:'diff-easy',s:'★☆☆'}:{l:dl,cls:'diff-med',s:'★★☆'};
       return `<div class="area-card${name===this.selArea?' selected':''}" data-area="${name}">
         <h3>${name.toUpperCase()}</h3>
         <div class="area-desc">${area.description}</div>
@@ -78,7 +80,7 @@ class ScenarioSelector{
         </div>
         <span class="area-diff ${d.cls}">${d.s} ${d.l}</span>
       </div>`;
-    }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">One primary mission per patrol. Truk harbor raids remain intelligence-driven optional opportunities.</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
+    }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">One primary mission per patrol. AUTO chooses orders that suit the selected Pacific area.</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
     const ms=c.querySelector('#missionTypeSelect');if(ms){ms.addEventListener('change',()=>{this.selMission=ms.value;});if(typeof Picker!=='undefined')Picker.enhance(ms);}
     c.querySelectorAll('.area-card').forEach(card=>{
       card.addEventListener('click',()=>{
@@ -149,6 +151,32 @@ class ScenarioSelector{
     }).join('');
   }
 
+  async exportPlayerProfile(){
+    try{
+      const text=await SaveSystem.exportProfile(this.game.getSnapshot()),stamp=new Date().toISOString().slice(0,10);
+      const blob=new Blob([text],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download=`periscope-patrol-profile-${stamp}.ppprofile.json`;document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      globalThis.Toast?.ok?.('Player profile exported — keep the file somewhere safe.');
+    }catch(e){console.warn('Profile export failed',e);alert(`Profile export failed: ${e?.message||e}`);}
+  }
+
+  async importPlayerProfile(file){
+    try{
+      if(!confirm('Import this player profile? Your local career, manual save slots and resumable patrol will be replaced.'))return;
+      const text=await file.text(),result=await SaveSystem.importProfile(text);
+      this.renderSaveSlots();this.renderCareer();
+      const career=SaveSystem.getCareer(),score=document.getElementById('scenCareerScore'),meta=document.getElementById('scenCareerMeta');
+      if(score)score.textContent=(career.totalScore||0).toLocaleString();
+      if(meta)meta.textContent=`${career.totalShips||0} ships · ${(career.totalTonnage||0).toLocaleString()} tons · ${career.patrolHistory?.length||0} recorded patrols`;
+      globalThis.Toast?.ok?.(`Profile imported — ${result.saves} save slot${result.saves===1?'':'s'}, ${result.patrols} patrol record${result.patrols===1?'':'s'}.`);
+      // Offer the imported current patrol immediately. While it is pending,
+      // SaveSystem suppresses autosave writes so the device we are importing ON
+      // cannot overwrite the transferred boat before the player makes a choice.
+      if(result.resumeState&&typeof AutoSave!=='undefined')AutoSave.offer();
+    }catch(e){console.warn('Profile import failed',e);alert(`Profile import failed: ${e?.message||e}`);}
+  }
+
   saveToSlot(slot){
     if(SaveSystem.save(slot,this.game.getSnapshot())){audio.playWaypoint();this.renderSaveSlots();}
     else alert('Save failed.');
@@ -156,7 +184,8 @@ class ScenarioSelector{
 
   loadSlot(slot){
     const state=SaveSystem.load(slot);
-    if(!state){alert('Load failed.');return;}
+    if(!state){alert(`Load failed${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:'.'}`);return;}
+    SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();
     Object.assign(this.game.state,state);
     this.close();
     showBriefing(state.campaign.patrolArea,state);
@@ -177,7 +206,11 @@ class ScenarioSelector{
     if(this.activeTab==='historical'&&this.selHist){
       const h=HISTORICAL_SCENARIOS.find(s=>s.id===this.selHist);
       if(h){
-        const aKey=Object.keys(PATROL_AREAS).find(k=>h.area.includes(k.split(' ')[0]))||'Solomon Sea';
+        const aKey=PATROL_AREAS[h.area]?h.area:null;
+        // Historical missions must never silently fall back to another chart: that
+        // turned the old Yellow Sea/Wahoo entry into a Solomon Sea patrol.
+        if(!aKey){globalThis.Toast?.bad?.(`Historical chart missing: ${h.area}`);return;}
+        SaveSystem.autoClear?.();
         this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty,missionType:h.missionType||'CONVOY_INTERDICTION'});
         const s=this.game.getSnapshot();
         Object.assign(s.world.environment,h.environment);
@@ -197,7 +230,7 @@ class ScenarioSelector{
         audio.playDive();this.close();showBriefing(aKey,s);return;
       }
     }
-    if(this.activeTab==='patrol'&&this.selArea){this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});this.close();}
+    if(this.activeTab==='patrol'&&this.selArea){SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});this.close();}
   }
 }
 

@@ -108,7 +108,9 @@ Time compression advances battery/fuel use in simulated time as expected.
 
 The Attack tab provides the Torpedo Data Computer, tube states and firing controls. Tubes must be flooded before firing; `FIRE` does not silently prepare a dry tube for the player.
 
-The TDC works from the selected track and exposes bearing/range-derived solution quality, gyro angle, angle on the bow and predicted run time. Historical torpedo availability and configurable dud behaviour are part of normal patrol gameplay; training torpedoes are made reliable so the tutorial can teach the attack flow.
+The TDC works from the selected track and now solves the same launch geometry that the torpedo actually flies: tube bank, initial settling run, finite-rate gyro turn and final intercept leg. The Attack UI reports the preferred `FWD`/`AFT` bank, gyro/tube turn and a launch-geometry cue (`GOOD`, `WIDE GYRO`, `VERY WIDE GYRO` or `SWING BOAT`). A mathematically tempting solution that cannot complete its turn cleanly at very short range is not presented as fireable. This keeps high-quality solutions honest without requiring the bow to point exactly at the target.
+
+Historical torpedo availability and configurable dud behaviour remain separate from fire-control accuracy. Training torpedoes are made reliable so the tutorial can teach the attack flow.
 
 Torpedo collision uses the same physical hull dimensions as the visible ship model and uses swept movement checks so a fast torpedo cannot step through a narrow or manoeuvring target between simulation ticks.
 
@@ -139,6 +141,12 @@ A shell hit creates a smaller, higher shipboard impact than a torpedo strike: lo
 Escorts search, acquire and attack rather than merely following scripted paths. Active sonar, contact quality, ownship noise, thermal-layer effects, manoeuvring, knuckles and finite depth-charge stores all affect an ASW engagement.
 
 Aircraft can search for and attack a surfaced submarine. Diving remains the primary defence. The 20 mm AA weapon is treated as an automatic last-ditch crew action rather than a separate manual station; SD air-search radar is handled automatically when historically fitted and usable.
+
+### Surface traffic, ship classes and friendly air
+
+Surface traffic distinguishes small patrol/subchaser craft, kaibokan/escort vessels, destroyers, heavy cruisers and carriers rather than rendering every warship as a merchant-shaped placeholder. The heavier classes use their own lightweight Canvas2D/pseudo-3D silhouettes while sharing the same world/collision/damage model.
+
+Friendly surface traffic is part of the local world. Visually identified friendly/neutral contacts are labelled separately, enemy surface combatants can engage a nearby Allied transport, and the transport will attempt to evade rather than pass through a hostile patrol as scenery. A deliberately sparse friendly-air layer can also produce an Allied PBY or fighter patrol in appropriate areas; these aircraft never enter the hostile attack state machine. Fighters may statistically drive off a nearby hostile aircraft and patrol aircraft can provide a rough contact report without creating an exact MAP track.
 
 ## Training patrol
 
@@ -175,16 +183,24 @@ The tutorial card can be minimised to keep the mobile interface usable. Once an 
 
 ## Missions, ports and campaign
 
-A patrol has a primary mission. The mission framework supports:
+A patrol has a primary mission. The Mega Pacific mission framework supports twelve families:
 
 1. Convoy interdiction
 2. High-value intercept
-3. Reconnaissance
+3. Anchorage reconnaissance
 4. Lifeguard duty
 5. Special transport / coastwatchers
 6. Minelaying
+7. Shadow & report
+8. Escort hunt
+9. Harbor strike
+10. Recon party insertion
+11. Recon party extraction
+12. Weather ambush
 
-Historical scenarios can pin their own date, area, refit and mission conditions.
+Mission-critical ships keep one identity and one route state even when the distant-traffic LOD abstracts them for performance. High-value/escort hunts therefore do not fail merely because an arbitrary clock expired, and their targets do not reverse across the whole chart after the player has travelled toward an old report. Periodic radio/intelligence updates remain deliberately imperfect rather than becoming a live GPS marker. Timers are retained only where time is part of the action itself, such as a transfer once the submarine is actually on station.
+
+The Pacific catalogue contains ten patrol areas. Terrain is expanded lazily for the selected patrol rather than eagerly constructing every coastline/bathymetry field at startup; this is a deliberate memory/startup safeguard for lower-spec mobile hardware. Historical scenarios pin their own date, area, refit and mission conditions.
 
 Friendly ports/rendezvous points serve two purposes:
 
@@ -214,9 +230,19 @@ The report contains:
 
 Older saved patrol records without the newer engagement snapshots remain readable; the UI can build simpler fallback cards from their existing sunk/damaged ship records.
 
+## Portable player profiles and save compatibility
+
+The `Save / Load` screen can export a portable player profile for reinstall/device migration. The profile contains the normalized career history, occupied manual save slots and (when meaningful) the current resumable patrol/autosave. Import is transactional at the application level: all profile-related `localStorage` keys are rolled back if a write fails part-way through.
+
+The portable envelope has its own `formatVersion`, deliberately separate from the career format and `STATE_SCHEMA_VERSION` used by serialized patrol snapshots. Future releases should migrate old profile envelopes in `SaveSystem._migrateProfile()` and old patrol-state schemas in `SaveSystem._migrateSnapshot()`, while keeping simulation migrations additive wherever practical. A newer, unsupported state schema is refused rather than half-loaded. Do not rewrite an imported backup file merely to migrate it; migration happens on the parsed copy before storage.
+
+Exports include a SHA-256 checksum when Web Crypto is available, with a small non-cryptographic fallback for unusual non-secure contexts. This is corruption/edit detection, not an anti-cheat security boundary. Periscope Patrol is a client-side open-source game: a technically capable player can inspect the algorithm and recompute any client-side checksum or embedded-key MAC. If a future competitive leaderboard needs trusted scores, validation/signing must happen outside the client (for example on a server); the local profile format should remain focused on reliable portability.
+
 ## Rendering and mobile performance
 
-Rendering uses Canvas2D; there is no WebGL dependency. The game is designed to remain usable on phones and lower-memory tablets as well as faster devices.
+Rendering uses a lightweight custom Canvas2D pseudo-3D naval world engine; there is no WebGL dependency. World entities live in shared world coordinates and SCOPE, BRG, GUN and impact presentation project them through explicit camera objects. Station controllers own station-specific camera state; terrain, ships and effects should not reach back into a station's bearing. This boundary prevents an island or vessel from being accidentally pinned to one view when another camera turns.
+
+The game is designed to remain usable on phones and lower-memory tablets as well as faster devices.
 
 Low-memory/low-core devices receive a reduced effects budget and capped backing-store DPR. MAP uses rasterised/reused bathymetry at very wide zoom levels and returns to the detailed vector chart as the player zooms in. Coast geometry is thinned only when sub-pixel detail would not be visible.
 
@@ -225,6 +251,8 @@ Visual effects are intentionally implemented with lightweight Canvas2D primitive
 Touch, mouse and stylus paths are all supported. Finger pinch/pan rules remain conservative while pen taps receive their own tolerance for accurate waypoint work.
 
 ## Project layout
+
+The in-game `About` tab identifies the project as `A WekSoft project · © 2026` and records that the source is MIT licensed. `WekSoft` is a project/development label; the bundled `LICENSE` remains the licensing source of truth.
 
 The GitHub Pages root is the directory containing `index.html`.
 
@@ -289,5 +317,9 @@ A few design rules have become important as the game has grown:
 - Avoid coupling game physics to cinematic presentation. Impact observations may pause/present state, but should not change whether a hit physically occurred.
 - Any new runtime JavaScript file must also be considered for the `sw.js` `SHELL` cache list.
 - Keep mobile performance in mind before adding new per-frame effects, timers or full-scene passes.
+- Shared world renderers consume `world + camera`; they must not read `periscopeBearing`, gun train or another station-specific bearing for projection.
+- TDC launch geometry and torpedo steering constants must stay shared; never introduce a second simplified intercept model in the UI.
+- Mission-critical contacts may be abstracted for LOD, but abstraction must preserve identity, route progress and member offsets exactly.
+- Keep distant entities abstract and cheap; spend full AI/collision/render work only inside the tactical bubble.
 
 No server, npm build, bundler or local Git installation is required to play or deploy the game.

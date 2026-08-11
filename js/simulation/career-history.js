@@ -28,7 +28,8 @@ function _careerRarity(c){
   else if(/LIGHT CARRIER|CARRIER/.test(id))score=92;
   else if(/CRUISER|BATTLESHIP/.test(id))score=87;
   else if(/TROOP TRANSPORT|FLEET OILER/.test(id))score=78;
-  else if(['ESCORT','WARSHIP'].includes(c?.type))score=66;
+  else if(c?.type==='DESTROYER')score=70;
+  else if(c?.type==='KAIBOKAN'||['ESCORT','WARSHIP'].includes(c?.type))score=62;
   else if(c?.type==='TANKER'||/TANKER|OILER/.test(id))score=55;
   else if(c?.type==='PATROL_CRAFT')score=40;
   else if(/SAMPAN|JUNK|FISHING|RAFT/.test(id))score=15;
@@ -45,7 +46,7 @@ function _careerAttackDifficulty(c,e){
   const speed=Number.isFinite(d.targetSpeedKnots)?d.targetSpeedKnots:Number(c?.baseSpeed??c?.speedKnots)||0;
   const len=Math.max(60,Number(d.lengthFeet)||Number(c?.lengthYards)||400);
   const sea=clamp(Number(d.seaState)||0,0,1),vis=Math.max(.5,Number(d.visibilityNm)||12),day=Number.isFinite(d.daylight)?d.daylight:1;
-  const escorts=Math.max(0,Number(d.escortThreat)||0),alerted=!!(d.targetAlerted||c?.scattering),combatant=d.targetCombatant!=null?!!d.targetCombatant:['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c?.type);
+  const escorts=Math.max(0,Number(d.escortThreat)||0),alerted=!!(d.targetAlerted||c?.scattering),combatant=d.targetCombatant!=null?!!d.targetCombatant:(typeof isSurfaceCombatant==='function'?isSurfaceCombatant(c):['ESCORT','WARSHIP','PATROL_CRAFT','DESTROYER','KAIBOKAN','HEAVY_CRUISER','CARRIER'].includes(c?.type));
   const rangeTerm=(weapon.includes('DECK'))?clamp((range-.7)/4.5,0,1)*25:clamp((range-.55)/3.4,0,1)*25;
   const speedTerm=clamp(speed/20,0,1)*18;
   const sizeTerm=(1-clamp((len-100)/650,0,1))*14;

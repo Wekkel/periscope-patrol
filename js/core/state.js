@@ -1,6 +1,10 @@
 // ═══════════════════════════════════════════════════ STATE
 function createState(areaKey){
   const area=PATROL_AREAS[areaKey];
+  // MEGA PACIFIC: patrol metadata stays cheap at boot; only the selected chart
+  // expands its terrain/bathymetry. Never reintroduce area.terrain here or the
+  // ten-map catalogue will all be built on low-memory devices before play starts.
+  const terrain=getPatrolTerrain(area.terrainKey||areaKey);
   return{
     time:{elapsedSeconds:0,timeScale:1,campaignDate:'1943-08-17'},
     log:[{t:0,level:'info',message:`Patrol commenced. Area: ${areaKey}. Good hunting.`}],
@@ -11,7 +15,7 @@ function createState(areaKey){
       torpedoRunDepthFt:10,
       dudMode:'reduced',
       autoTrack:true,trackSource:'PLOT',
-      gyroAngle:null,angleOnBow:null,timeToImpactSec:null,solutionQuality:0,status:'NO TARGET',
+      gyroAngle:null,tubeTurnDeg:null,launchBank:null,launchGeometry:null,solutionCourse:null,interceptRunNm:null,predictedMissNm:null,angleOnBow:null,timeToImpactSec:null,solutionQuality:0,status:'NO TARGET',
       manualBearing:90,manualRange:5,manualCourse:270,manualSpeed:8},
     weapons:{
       tubes:[
@@ -52,17 +56,17 @@ function createState(areaKey){
       airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,sdOn:true,nextCheck:120},
       sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,qcLastAt:-999,_tick:0},
       radar:null,weatherSystem:null,
-      traffic:{version:1,enabled:false,groups:[],nextId:1,clock:0,generated:false},
+      traffic:{version:2,enabled:false,groups:[],nextId:1,clock:0,generated:false},
       radio:{pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0},
       environment:{...area.environment},
       enemy:{alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
         searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0},
       depthCharges:[],
       harbor:null,harborInitialized:false,harborIntel:null,
-      terrain:area.terrain,
+      terrain,
       ports:area.ports,
       convoyRoutes:area.convoyRoutes,
-      shallowZones:area.terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF')
+      shallowZones:terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF')
     },
     playerSub:{
       mode:'SURFACED',position:{...(area.start||{xNm:0,yNm:0})},heading:90,orderedHeading:90,rudder:0,

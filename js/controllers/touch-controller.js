@@ -363,7 +363,11 @@ class TouchCtrl{
     // The large FIRE button is deliberately only a firing control. Flooding is
     // a separate readiness decision made in ATTACK, so an accidental MAP tap
     // can never flood every tube for the player behind the scenes.
-    const ready=W.tubes.find(t=>t.pos==='FWD'&&t.status==='READY')||W.tubes.find(t=>t.status==='READY');
+    const bank=s.tdc?.launchBank||'FWD';
+    // TDC 2.0 may legitimately choose stern tubes for the shorter/cleaner gyro
+    // solution. The big FIRE control must honor that bank or the UI and the
+    // physical torpedo would silently solve two different shots.
+    const ready=W.tubes.find(t=>t.pos===bank&&t.status==='READY')||W.tubes.find(t=>t.status==='READY');
     if(ready){this.game.dispatch({type:'FIRE_TORPEDO',tubeId:ready.id});buzz([28,30,28]);return;}
     const dry=W.tubes.some(t=>t.status==='LOADED_DRY');
     if(dry){Toast.warn('No torpedo tube flooded — open ATTACK and flood at least one tube first.');buzz(12);return;}
@@ -746,6 +750,7 @@ class TouchCtrl{
         : compact
         ? `<b>${tdc.targetId}</b> · ${sol}<br>${rng} · ${tti}`
         : `<b>${tdc.targetId}</b> · sol ${sol}<br>`+
+          `${tdc.launchBank||'FWD'} · tube <b>${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(0)+'°':'--'}</b> · <b>${tdc.launchGeometry||'--'}</b><br>`+
           `gyro <b>${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(0)+'°':'--'}</b> · run <b>${tti}</b><br>`+
           `${rng} · ${tdc.torpedoType}`);
     }
@@ -799,7 +804,7 @@ class TouchCtrl{
       if(note){
         const ri=torpedoRangeInfo(state,tdc.targetId);
         const txt=tdc.targetId
-          ?`${tdc.status} · solution ${sq}% · ${ri?`${ri.label} · range ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}gyro ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · TtI ${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'} · dud risk ${dudPct}%`
+          ?`${tdc.status} · solution ${sq}% · ${tdc.launchBank||'FWD'} tubes · ${tdc.launchGeometry||'--'} · tube turn ${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(1)+'°':'--'} · ${ri?`${ri.label} · range ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}gyro ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · TtI ${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'} · dud risk ${dudPct}%`
           :'No target. Lock a contact from the scope or the map, or enter a manual solution below.';
         if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');}
       }

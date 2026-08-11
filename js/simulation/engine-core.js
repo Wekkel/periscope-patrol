@@ -65,7 +65,7 @@ class SimEngineCore{
     if((wep.activeTorpedoes||[]).length||(W.depthCharges||[]).length)return false;
     if((s.campaign?.portRangeNm??99)<2.5||(W.harbor?.alert||0)>0)return false;
     for(const c of W.contacts||[]){if(!c?.sunk&&c.position&&distNm(sub.position,c.position)<6)return false;}
-    for(const a of W.aircraft||[]){if(a?.shotDown||!a?.position)continue;if(a.seenBySub||a.state==='ATTACKING'||a.state==='STRAFING'||distNm(sub.position,a.position)<12)return false;}
+    for(const a of W.aircraft||[]){if(a?.side==='FRIENDLY'||a?.shotDown||!a?.position)continue;if(a.seenBySub||a.state==='ATTACKING'||a.state==='STRAFING'||distNm(sub.position,a.position)<12)return false;}
     return true;
   }
 
@@ -223,7 +223,7 @@ class SimEngineCore{
     delete tr.truePosition;W.contactTracks[c.id]=tr;
     T.bridgeMarkedId=c.id;
     this.log(`Bridge mark — ${c.id}, bearing ${fmtDeg(obs.bearing)}, range ${obs.rangeNm.toFixed(2)} nm${bin?' (binocular observation)':''}.`);
-    if(select){T.selectedTrackId=c.id;s.tdc.targetId=c.id;s.tdc.autoTrack=true;s.tdc.trackSource='BRIDGE';this.updateTdc();this.log(`Target designated from bridge: ${c.id}.`);}
+    if(select){T.selectedTrackId=c.id;s.tdc.targetId=c.id;s.tdc.autoTrack=true;s.tdc.trackSource='BRIDGE';this.updateTdc(true);this.log(`Target designated from bridge: ${c.id}.`);}
     return tr;
   }
 
@@ -321,7 +321,7 @@ class SimEngineCore{
       case'START_TRANSIT':{
         const t=this.state.time;
         if(sub.mode==='SUNK') break;
-        const activeAir=(this.state.world.aircraft||[]).some(a=>!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'));
+        const activeAir=(this.state.world.aircraft||[]).some(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'));
         if(activeAir){t.timeScale=1;t.transitUntil=0;t.transitOpen=false;this.notify('Transit unavailable — aircraft attack in progress.','bad');break;}
         /* seconds:0 means "no clock" — she runs on until something actually
            happens. The old eight-hour ceiling was arbitrary; a patrol can
@@ -402,7 +402,7 @@ class SimEngineCore{
           const same=this.state.tdc.targetId===tr.id,oldSource=this.state.tdc.trackSource;
           this.state.tactical.selectedTrackId=tr.id;this.state.tdc.targetId=tr.id;this.state.tdc.autoTrack=true;
           this.state.tdc.trackSource=(same&&oldSource==='SCOPE')?'SCOPE':(hasFreshVisualFix(this.state,tr)?'VISUAL':'PLOT');
-          this.updateTdc();this.log(`Selected ${tr.id} for TDC tracking.`);}
+          this.updateTdc(true);this.log(`Selected ${tr.id} for TDC tracking.`);}
         else this.log('Track lost.','warn');
         break;}
       case'TDC_SEND_SCOPE_OBSERVATION': this.sendScopeToTdc(); break;
@@ -423,7 +423,7 @@ class SimEngineCore{
         // Update all loaded tubes
         for(const t of this.state.weapons.tubes) if(t.status==='LOADED_DRY') t.specKey=cmd.specKey;
         this.log(`Torpedo loaded: ${spec.name}. Speed ${spec.speedKnots}kn, range ${spec.maxRangeNm}nm. Dud risk: ${Math.round(100*(typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(this.state,cmd.specKey,this.state.tdc.dudMode):spec.dudChanceBase*DUD_MODES[this.state.tdc.dudMode]))}%`);
-        this.updateTdc(); break;}
+        this.updateTdc(true); break;}
       case'SET_DUD_MODE': this.state.tdc.dudMode=cmd.mode; this.log(`Dud mode: ${cmd.mode}.`); break;
       case'SET_TORPEDO_DEPTH':
         this.state.tdc.torpedoRunDepthFt=clamp(cmd.depthFt,5,45);
@@ -438,7 +438,7 @@ class SimEngineCore{
         tdc.autoTrack=false;tdc.trackSource='MANUAL';tdc.bearing=tdc.manualBearing; tdc.rangeNm=tdc.manualRange;
         tdc.targetCourse=tdc.manualCourse; tdc.targetSpeedKnots=tdc.manualSpeed;
         if(!tdc.targetId) tdc.targetId='MANUAL';
-        this.updateTdc();
+        this.updateTdc(true);
         this.log(`TDC manual: B${fmtDeg(tdc.bearing)} R${tdc.rangeNm.toFixed(1)}nm C${fmtDeg(tdc.targetCourse)} S${tdc.targetSpeedKnots}kn → ${tdc.status} sol${Math.round(tdc.solutionQuality*100)}%`);
         break;}
       case'FLOOD_AFT_TUBES':
@@ -988,9 +988,12 @@ class SimEngineCore{
     s.weapons.activeTorpedoes=[]; s.weapons.explosions=[]; s.weapons.hits=[];
     s.world.enemy={alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
       searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0};
-    s.world.terrain=area.terrain; s.world.ports=area.ports;
+    // Terrain is a patrol-scoped resource. getPatrolTerrain keeps one processed
+    // Pacific chart alive at a time so adding areas does not multiply startup/RAM.
+    const terrain=getPatrolTerrain(area.terrainKey||key);
+    s.world.terrain=terrain; s.world.ports=area.ports;
     s.world.convoyRoutes=area.convoyRoutes;
-    s.world.shallowZones=area.terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
+    s.world.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment={...area.environment};s.world.weatherSystem=null;s.world.traffic=null;
     s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=true;s.map.weatherOverlay=false;
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
@@ -999,7 +1002,8 @@ class SimEngineCore{
     s.map.recenterSeq=(s.map.recenterSeq||0)+1;
     s.tactical.activeStation='MAP';s.tactical.selectedTrackId=null;s.tactical.bridgeDiveSequence=null;s.tactical.impactObservation=null;
     s.tdc.targetId=null;s.tdc.bearing=null;s.tdc.rangeNm=null;s.tdc.targetCourse=null;s.tdc.targetSpeedKnots=null;
-    s.tdc.gyroAngle=null;s.tdc.angleOnBow=null;s.tdc.timeToImpactSec=null;s.tdc.solutionQuality=0;s.tdc.status='NO TARGET';s.tdc.autoTrack=true;s.tdc.trackSource='PLOT';
+    s.tdc.gyroAngle=null;s.tdc.tubeTurnDeg=null;s.tdc.launchBank=null;s.tdc.launchGeometry=null;s.tdc.solutionCourse=null;s.tdc.interceptRunNm=null;s.tdc.predictedMissNm=null;
+    s.tdc.angleOnBow=null;s.tdc.timeToImpactSec=null;s.tdc.solutionQuality=0;s.tdc.status='NO TARGET';s.tdc.autoTrack=true;s.tdc.trackSource='PLOT';
     s.campaign={
       patrolArea:key,score:0,scenarioSeed:Math.floor(Math.random()*9999),
       missionStatus:'PATROL',patrolNumber:nextPatrol,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
@@ -1138,10 +1142,10 @@ class SimEngineCore{
       {id:'M-04',name:'Transport',type:'MERCHANT',lengthYards:460,visualProfile:1.0,acousticBase:0.38,tonsFactor:5200},
     ];
     const escortTemplates=[
-      {id:'E-01',name:'Escort Destroyer',type:'ESCORT',lengthYards:350,visualProfile:0.75,acousticBase:0.65,tonsFactor:0},
-      {id:'E-02',name:'Patrol Vessel',type:'ESCORT',lengthYards:280,visualProfile:0.65,acousticBase:0.55,tonsFactor:0},
-      {id:'E-03',name:'Destroyer Escort',type:'ESCORT',lengthYards:306,visualProfile:0.70,acousticBase:0.60,tonsFactor:0},
-      {id:'E-04',name:'Subchaser',type:'ESCORT',lengthYards:185,visualProfile:0.55,acousticBase:0.50,tonsFactor:0},
+      {id:'E-01',name:'Escort Destroyer',type:'DESTROYER',displayType:'DESTROYER',lengthYards:350,visualProfile:0.75,acousticBase:0.65,tonsFactor:1900,hasSonar:true},
+      {id:'E-02',name:'Kaibokan Escort',type:'KAIBOKAN',displayType:'KAIBOKAN ESCORT',lengthYards:280,visualProfile:0.65,acousticBase:0.55,tonsFactor:950,hasSonar:true},
+      {id:'E-03',name:'Escort Destroyer',type:'DESTROYER',displayType:'DESTROYER',lengthYards:306,visualProfile:0.70,acousticBase:0.60,tonsFactor:1550,hasSonar:true},
+      {id:'E-04',name:'Subchaser',type:'PATROL_CRAFT',displayType:'SUBCHASER',lengthYards:185,visualProfile:0.55,acousticBase:0.50,tonsFactor:480,hasSonar:true},
     ];
 
     // Formation offsets: col ahead, then staggered behind, alternating sides

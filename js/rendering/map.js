@@ -173,8 +173,8 @@ class CanvasView extends CanvasViewSound {
       ctx.beginPath();ctx.arc(p.x,p.y,Math.max(8,r*this.zoom),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
       ctx.fillStyle=col;ctx.font=this.fnt(8,true);ctx.fillText(label,p.x+Math.max(10,r*this.zoom)+4*K,p.y-4*K);ctx.restore();
     };
-    if(m.type==='HIGH_VALUE_INTERCEPT'){
-      ring(m.intelFix,m.intelUncertaintyNm||2.5,'HVT — REPORTED AREA','rgba(160,205,255,.82)');
+    if(m.type==='HIGH_VALUE_INTERCEPT'||m.type==='ESCORT_HUNT'){
+      ring(m.intelFix,m.intelUncertaintyNm||2.5,m.type==='ESCORT_HUNT'?'ESCORT — REPORTED AREA':'HVT — REPORTED AREA','rgba(160,205,255,.82)');
       if(m.intelFix&&Number.isFinite(m.intelCourse)){
         const a=w2s(m.intelFix.xNm,m.intelFix.yNm),r=degToRad(m.intelCourse),L=Math.min(8*this.zoom,120*K);
         ctx.strokeStyle='rgba(160,205,255,.48)';ctx.lineWidth=1.2;ctx.setLineDash([8,5]);ctx.beginPath();ctx.moveTo(a.x-Math.sin(r)*L,a.y+Math.cos(r)*L);ctx.lineTo(a.x+Math.sin(r)*L,a.y-Math.cos(r)*L);ctx.stroke();ctx.setLineDash([]);
@@ -185,9 +185,15 @@ class CanvasView extends CanvasViewSound {
       ring(m.station,m.stationRadiusNm||2.5,'LIFEGUARD STATION','rgba(111,224,143,.78)');
       if(m.survivorSpawned&&!m.survivorSeen)ring(m.searchCenter,m.searchUncertaintyNm||1.6,'AIRMAN — SEARCH AREA','rgba(245,198,92,.80)',[3,5]);
       if(m.survivorSeen&&m.survivorPos){const p=w2s(m.survivorPos.xNm,m.survivorPos.yNm);ctx.fillStyle='#f5c65c';ctx.font=this.fnt(13,true);ctx.textAlign='center';ctx.fillText('⊙',p.x,p.y+4*K);ctx.font=this.fnt(7.5,true);ctx.fillText('LIFE RAFT',p.x,p.y-10*K);ctx.textAlign='left';}
-    }else if(m.type==='SPECIAL_TRANSPORT'){
-      ring(m.rendezvous,m.radiusNm||.18,m.dropComplete?'COASTWATCHERS — CLEAR AREA':'COASTWATCHER RV','rgba(111,224,143,.82)');
-      if(m.dropComplete)ring(m.rendezvous,m.escapeRadiusNm||4,'CLEAR THIS RING','rgba(245,198,92,.42)',[3,7]);
+    }else if(['SPECIAL_TRANSPORT','RECON_INSERTION','RECON_EXTRACTION'].includes(m.type)){
+      const done=!!m.transferComplete,label=m.type==='RECON_EXTRACTION'?'RECON EXTRACTION':m.type==='RECON_INSERTION'?'RECON LANDING':'COASTWATCHER RV';
+      ring(m.rendezvous,m.radiusNm||.18,done?`${label} — CLEAR AREA`:label,'rgba(111,224,143,.82)');
+      if(done)ring(m.rendezvous,m.escapeRadiusNm||4,'CLEAR THIS RING','rgba(245,198,92,.42)',[3,7]);
+    }else if(m.type==='HARBOR_STRIKE'){
+      ring(m.center,m.radiusNm||2,m.neutralized?'HARBOR TARGET DOWN — WITHDRAW':'HARBOR STRIKE','rgba(239,106,88,.72)');
+      if(m.neutralized)ring(m.center,m.escapeRadiusNm||6,'CLEAR DEFENSE RING','rgba(245,198,92,.42)',[3,7]);
+    }else if(m.type==='WEATHER_AMBUSH'){
+      const cell=(state.world.weatherSystem?.cells||[]).find(c=>c.id===m.weatherCellId);if(cell)ring(cell.center,cell.radiusNm||6,'REPORTED SQUALL','rgba(160,205,255,.50)',[3,7]);
     }else if(m.type==='MINELAYING'){
       ring(m.zone,m.zoneRadiusNm||.75,`MINE BOX · ${m.minesLaid||0}/${m.mineCount||12}`,'rgba(245,198,92,.82)');
       for(const q of m.mines||[]){const p=w2s(q.pos.xNm,q.pos.yNm);ctx.fillStyle='rgba(245,198,92,.72)';ctx.beginPath();ctx.arc(p.x,p.y,Math.max(1.5,2*K),0,Math.PI*2);ctx.fill();}
@@ -227,7 +233,7 @@ class CanvasView extends CanvasViewSound {
     for(const a of list){
       if(!a.seenBySub) continue;                       // only what the boat knows about
       const p=w2s(a.position.xNm,a.position.yNm);
-      const col=a.state==='ATTACKING'?'#ef6a58':'#f5c65c';
+      const col=a.side==='FRIENDLY'?'#6fe08f':a.state==='ATTACKING'||a.state==='STRAFING'?'#ef6a58':'#f5c65c';
       const S=Math.max(4.5,6*K);                       // a chart symbol, smaller than the boat
       ctx.save();ctx.translate(p.x,p.y);ctx.rotate(degToRad(a.heading));
       ctx.fillStyle=col;ctx.strokeStyle=col;
@@ -688,10 +694,20 @@ class CanvasView extends CanvasViewSound {
     ctx.lineWidth=isSelected?Math.max(1,1.3*K):Math.max(.7,.85*K);ctx.setLineDash(hydro?[6*K,7*K]:[4*K,5*K]);
     ctx.beginPath();ctx.ellipse(0,0,major,minor,0,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
     if(radar&&clamp(tr.positionConfidence||0,0,1)>.68){
-      const iconType=tr.contactType==='ESCORT'?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
+      const iconType=this._mapIconType(tr.contactType);
       this.shipIcon(ctx,pe.x,pe.y,tr.courseEstimate||0,clamp(13*K,11,24),iconType,
         'rgba(245,198,92,.035)','rgba(245,198,92,.20)',.22);
     }
+  }
+
+  _mapIconType(type='MERCHANT'){
+    const t=String(type||'MERCHANT').toUpperCase().replace(/\s+/g,'_');
+    if(t==='CARRIER')return 'CARRIER';
+    if(t==='HEAVY_CRUISER'||t==='CRUISER')return 'CRUISER';
+    if(['ESCORT','WARSHIP','PATROL_CRAFT','DESTROYER','KAIBOKAN'].includes(t))return 'ESCORT';
+    if(t==='TANKER')return 'TANKER';
+    if(t==='SUB')return 'SUB';
+    return 'MERCHANT';
   }
 
   _mapCompactTypeLabel(type='UNKNOWN'){
@@ -702,6 +718,10 @@ class CanvasView extends CanvasViewSound {
     if(t==='ESCORT') return 'ESCORT';
     if(t==='PATROL CRAFT') return 'PATROL';
     if(t==='WARSHIP') return 'WARSHIP';
+    if(t==='DESTROYER') return 'DESTROYER';
+    if(t==='KAIBOKAN') return 'KAIBOKAN';
+    if(t==='HEAVY CRUISER'||t==='HEAVY_CRUISER') return 'HEAVY CRUISER';
+    if(t==='CARRIER') return 'CARRIER';
     if(t==='UNKNOWN') return 'CONTACT';
     return t.replace(/\s+/g,' ').slice(0,18);
   }
@@ -829,9 +849,8 @@ class CanvasView extends CanvasViewSound {
           this.drawContactUncertaintyGlyph(ctx,gp,{...tr,positionSource:tr.visualTransitionSource||'HYDROPHONE'},
             Math.max(12*K,(tr.visualTransitionUncertaintyNm||.25)*this.zoom*K),K,false,a*fade,ownScreen);
         }
-        const isEsc=tr.contactType==='ESCORT'||tr.contactType==='WARSHIP'||tr.contactType==='PATROL_CRAFT';
+        const iconType=this._mapIconType(tr.contactType),isEsc=['ESCORT','CRUISER','CARRIER'].includes(iconType);
         const shipCol=tr.affiliation==='FRIENDLY'?'#6fe08f':tr.affiliation==='NEUTRAL'?'#9ec9d3':isEsc?'#ef6a58':'#f5c65c';
-        const iconType=(isEsc||tr.contactType==='WARSHIP'||tr.contactType==='PATROL_CRAFT')?'ESCORT':(tr.contactType==='TANKER'?'TANKER':'MERCHANT');
         if(isSelected)this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
           '#6fe08f',K,`${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
         const lenNm=shipVisualLengthNm(tr,isEsc?300:450);
@@ -897,7 +916,7 @@ class CanvasView extends CanvasViewSound {
      the ship's heading. Size follows the zoom but never drops below a
      readable minimum, so the plot works at every scale. ── */
   shipIcon(ctx,x,y,hdgDeg,lenPx,type,fill,stroke,alpha=1){
-    const L=lenPx, B=L*(type==='ESCORT'?0.17:type==='TANKER'?0.20:0.24);
+    const L=lenPx, B=L*(type==='ESCORT'?0.17:type==='CRUISER'?0.20:type==='CARRIER'?0.24:type==='TANKER'?0.20:0.24);
     ctx.save();
     ctx.translate(x,y);ctx.rotate(degToRad(hdgDeg));
     ctx.globalAlpha=alpha;
@@ -911,6 +930,12 @@ class CanvasView extends CanvasViewSound {
       ctx.quadraticCurveTo(B*0.42,L*0.44,0,L*0.50);
       ctx.quadraticCurveTo(-B*0.42,L*0.44,-B*0.50,L*0.10);
       ctx.quadraticCurveTo(-B*0.62,-L*0.28,0,-L*0.50);
+    }else if(type==='CARRIER'){
+      ctx.moveTo(-B*.54,-L*.48);ctx.lineTo(B*.54,-L*.48);ctx.lineTo(B*.50,L*.48);ctx.lineTo(-B*.50,L*.48);
+    }else if(type==='CRUISER'){
+      ctx.moveTo(0,-L*0.50);
+      ctx.quadraticCurveTo(B*.82,-L*.18,B*.58,L*.31);ctx.lineTo(B*.42,L*.50);ctx.lineTo(-B*.42,L*.50);
+      ctx.quadraticCurveTo(-B*.58,L*.31,-B*.82,-L*.18);ctx.quadraticCurveTo(-B*.44,-L*.38,0,-L*.50);
     }else if(type==='ESCORT'){
       ctx.moveTo(0,-L*0.50);
       ctx.quadraticCurveTo(B*0.78,-L*0.16,B*0.52,L*0.30);
@@ -931,6 +956,12 @@ class CanvasView extends CanvasViewSound {
       if(type==='SUB'){
         ctx.fillRect(-B*0.17,-L*0.12,B*0.34,L*0.24);            // conning tower
         ctx.fillRect(-B*0.46,L*0.30,B*0.92,Math.max(0.8,L*0.03)); // stern planes
+      }else if(type==='CARRIER'){
+        ctx.fillRect(B*.12,-L*.08,B*.24,L*.36);                  // island
+        ctx.fillRect(-B*.38,-L*.34,B*.76,Math.max(.8,L*.025));   // flight deck mark
+      }else if(type==='CRUISER'){
+        ctx.fillRect(-B*.28,-L*.08,B*.56,L*.22);                 // superstructure
+        for(const yy of [-L*.31,L*.28]){ctx.beginPath();ctx.arc(0,yy,Math.max(1,L*.055),0,Math.PI*2);ctx.fill();}
       }else if(type==='ESCORT'){
         ctx.fillRect(-B*0.24,-L*0.10,B*0.48,L*0.22);            // bridge
         ctx.fillRect(-B*0.16,L*0.24,B*0.32,L*0.12);             // aft mount

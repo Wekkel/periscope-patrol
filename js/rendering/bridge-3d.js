@@ -3,16 +3,9 @@
 // periscope/deck-gun world renderer so a second 3-D engine is not kept alive.
 class CanvasViewBridge extends CanvasViewPeriscope {
   setupBridgeCam(state,fovDeg,w,h){
-    const tact=state.tactical,cx=w/2,cy=this.portrait?h*.47:h*.50;
-    const f=(w/2)/Math.tan(degToRad(fovDeg)/2),camH=BRIDGE_VIEW.cameraHeightM;
-    const brg=degToRad(tact.bridgeBearing);
-    return{
-      E:state.playerSub.position.xNm*NM_M,N:-state.playerSub.position.yNm*NM_M,
-      h:camH,f,cx,cy,r:Math.max(w,h)*.72,fovDeg,bearingDeg:tact.bridgeBearing,viewW:w,viewH:h,
-      sin:Math.sin(brg),cos:Math.cos(brg),dip:Math.sqrt(2*camH/EARTH_R),
-      horizonY:cy+f*Math.sqrt(2*camH/EARTH_R),dHor:Math.sqrt(2*EARTH_R*camH),
-      halfFov:degToRad(fovDeg)/2,kind:'BRIDGE'
-    };
+    const tact=state.tactical,cx=w/2,cy=this.portrait?h*.47:h*.50,r=w/2;
+    return makeWorldCamera(state,{heightM:BRIDGE_VIEW.cameraHeightM,bearingDeg:tact.bridgeBearing,
+      fovDeg,cx,cy,r,viewW:w,viewH:h,kind:'BRIDGE'});
   }
 
   bridgeSurfaceMotion(state,t){
@@ -113,15 +106,15 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       const p=this.proj(cam,a.position.xNm*NM_M,-a.position.yNm*NM_M,altitude);if(!p)continue;
       const spanM=a.kind==='FLYING_BOAT'?28:a.kind==='BOMBER'?15:14;
       const px=clamp(spanM*cam.f/Math.max(p.d,120),2.2*k,54*k);
-      const attack=a.state==='ATTACKING'||a.state==='STRAFING';
+      const friendly=a.side==='FRIENDLY',attack=!friendly&&(a.state==='ATTACKING'||a.state==='STRAFING');
       const haze=clamp(1-rng/Math.max(1,wx.visibilityNm*1.2),.28,1);
       ctx.save();ctx.translate(p.x,p.y);
       // Bank follows heading change enough to make an attacking turn readable,
       // while remaining a very cheap vector silhouette on low-end hardware.
       const relH=shortDelta(bear,a.heading),bank=clamp(relH/95,-.48,.48);
       ctx.rotate(bank);
-      ctx.fillStyle=attack?`rgba(45,33,26,${.92*haze})`:`rgba(32,38,39,${.86*haze})`;
-      ctx.strokeStyle=attack?`rgba(239,106,88,${.62*haze})`:`rgba(200,216,211,${.36*haze})`;
+      ctx.fillStyle=friendly?`rgba(36,58,48,${.90*haze})`:attack?`rgba(45,33,26,${.92*haze})`:`rgba(32,38,39,${.86*haze})`;
+      ctx.strokeStyle=friendly?`rgba(111,224,143,${.70*haze})`:attack?`rgba(239,106,88,${.62*haze})`:`rgba(200,216,211,${.36*haze})`;
       ctx.lineWidth=Math.max(.8,k);
       ctx.beginPath();
       if(a.kind==='BOMBER'){
@@ -139,7 +132,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
         ctx.lineTo(-px*.10,-px*.08);
       }
       ctx.closePath();ctx.fill();ctx.stroke();ctx.restore();
-      if(attack&&px>5*k){ctx.fillStyle='rgba(239,106,88,.82)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText('AIRCRAFT',p.x,p.y-px*.75-3*k);ctx.textAlign='left';}
+      if((attack||friendly)&&px>5*k){ctx.fillStyle=friendly?'rgba(111,224,143,.88)':'rgba(239,106,88,.82)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText(friendly?'FRIENDLY AIRCRAFT':'AIRCRAFT',p.x,p.y-px*.75-3*k);ctx.textAlign='left';}
     }
   }
 

@@ -1,18 +1,12 @@
 class CanvasViewDeckGun extends CanvasViewTactical {
-  setupCam(state,fovDeg,cx,cy,r){
+  setupCam(state,fovDeg,cx,cy,r,opts={}){
     const sub=state.playerSub;
-    const camH=sub.depthFeet<8?6.5:clamp(1.8-(sub.depthFeet-45)*0.06,0.35,1.9);
-    const f=(r)/Math.tan(degToRad(fovDeg)/2);      // focal length in pixels
-    const dip=Math.sqrt(2*camH/EARTH_R);
-    const brg=degToRad(state.tactical.periscopeBearing);
-    return{
-      E:state.playerSub.position.xNm*NM_M,
-      N:-state.playerSub.position.yNm*NM_M,
-      h:camH,f,cx,cy,r,fovDeg,
-      sin:Math.sin(brg),cos:Math.cos(brg),
-      dip, horizonY:cy+f*dip, dHor:Math.sqrt(2*EARTH_R*camH),
-      halfFov:degToRad(fovDeg)/2
-    };
+    const camH=opts.heightM??(sub.depthFeet<8?6.5:clamp(1.8-(sub.depthFeet-45)*0.06,0.35,1.9));
+    // Compatibility wrapper around the shared camera contract. New station
+    // callers should pass their own bearing; the default is only for SCOPE.
+    return makeWorldCamera(state,{position:opts.position||sub.position,heightM:camH,
+      bearingDeg:opts.bearingDeg??state.tactical.periscopeBearing,fovDeg,cx,cy,r,
+      viewW:opts.viewW,viewH:opts.viewH,kind:opts.kind||'PERISCOPE'});
   }
   // world point → screen. d is the horizontal distance (also used for sorting)
   proj(cam,E,N,Y){
@@ -211,8 +205,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     const sub=state.playerSub,G=state.weapons.deckGun,env=state.world.environment,t=state.time.elapsedSeconds;
     const bearing=normDeg(sub.heading+(G?.trainDeg||0));
     const fov=this.portrait?62:56,cx=w/2,cy=this.portrait?h*0.46:h*0.49,r=Math.max(w,h)*0.72;
-    const cam=this.setupCam(state,fov,cx,cy,r);
-    cam.h=5.6;cam.bearingDeg=bearing;cam.viewW=w;cam.viewH=h;const br=degToRad(bearing);cam.sin=Math.sin(br);cam.cos=Math.cos(br);
+    const cam=this.setupCam(state,fov,cx,cy,r,{heightM:5.6,bearingDeg:bearing,viewW:w,viewH:h,kind:'GUN'});
     // The gun camera physically stands at the forward mount. setupCam's
     // generic world camera is at the submarine origin; with the gun trained
     // abeam that made a correctly simulated shell appear to emerge from the
@@ -221,7 +214,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     const hr=degToRad(sub.heading),mountForwardM=12.0;
     cam.E=(sub.position.xNm+Math.sin(hr)*mountForwardM/NM_M)*NM_M;
     cam.N=-(sub.position.yNm-Math.cos(hr)*mountForwardM/NM_M)*NM_M;
-    cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);cam.kind='GUN';
+    cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);
     this.cam=cam;this.gunCam=cam;
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
     this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);

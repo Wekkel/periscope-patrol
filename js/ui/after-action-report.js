@@ -65,7 +65,7 @@ class AfterActionReport{
   }
 
   fallbackRarity(type,tons=0){
-    const q=String(type||'').toUpperCase();let score=/FLEET CARRIER/.test(q)?98:/CARRIER/.test(q)?92:/CRUISER|BATTLESHIP/.test(q)?87:/TRANSPORT|OILER/.test(q)?78:/ESCORT|WARSHIP/.test(q)?66:/TANKER/.test(q)?55:/PATROL/.test(q)?40:/SAMPAN|JUNK|FISHING/.test(q)?15:25;if(tons>=15000)score=Math.max(score,85);return{score,label:score>=92?'VERY RARE':score>=76?'RARE':score>=48?'UNCOMMON':'COMMON'};
+    const q=String(type||'').toUpperCase();let score=/FLEET CARRIER/.test(q)?98:/CARRIER/.test(q)?92:/CRUISER|BATTLESHIP/.test(q)?87:/TRANSPORT|OILER/.test(q)?78:/DESTROYER/.test(q)?70:/KAIBOKAN|ESCORT|WARSHIP/.test(q)?62:/TANKER/.test(q)?55:/PATROL/.test(q)?40:/SAMPAN|JUNK|FISHING/.test(q)?15:25;if(tons>=15000)score=Math.max(score,85);return{score,label:score>=92?'VERY RARE':score>=76?'RARE':score>=48?'UNCOMMON':'COMMON'};
   }
   engagements(){
     if(Array.isArray(this.record?.engagements)&&this.record.engagements.length)return this.record.engagements;
@@ -77,7 +77,7 @@ class AfterActionReport{
 
   moveEngagement(delta){const a=this.engagements();if(a.length<2)return;this.engagementIndex=(this.engagementIndex+delta+a.length)%a.length;this.renderEngagement();}
   shipSilhouette(e){
-    const q=String(e.type||e.role||'').toUpperCase(),war=/ESCORT|WARSHIP|PATROL|CRUISER/.test(q),carrier=/CARRIER/.test(q),small=/SAMPAN|JUNK|FISHING|RAFT/.test(q);
+    const q=String(e.type||e.role||'').toUpperCase(),war=/DESTROYER|KAIBOKAN|ESCORT|WARSHIP|PATROL|CRUISER/.test(q),carrier=/CARRIER/.test(q),small=/SAMPAN|JUNK|FISHING|RAFT/.test(q);
     if(small)return `<svg viewBox="0 0 420 150" aria-hidden="true"><path class="hull" d="M70 93 L118 78 L300 79 L350 94 L320 110 L112 110 Z"/><path class="upper" d="M175 78 L190 55 L242 55 L263 79 Z"/><path class="line" d="M205 54 L205 32 M205 36 L238 50"/></svg>`;
     if(carrier)return `<svg viewBox="0 0 420 150" aria-hidden="true"><path class="hull" d="M48 91 L90 77 L344 80 L382 94 L349 112 L92 112 Z"/><path class="upper" d="M72 67 L340 63 L355 78 L76 81 Z"/><path class="upper" d="M245 62 L256 40 L294 42 L306 64 Z"/><path class="line" d="M267 42 L267 24"/></svg>`;
     if(war)return `<svg viewBox="0 0 420 150" aria-hidden="true"><path class="hull" d="M52 93 L104 73 L332 78 L382 94 L342 111 L98 111 Z"/><path class="upper" d="M153 74 L169 50 L248 50 L275 77 Z"/><path class="upper" d="M121 72 L141 63 L160 73 Z M286 78 L306 65 L326 80 Z"/><path class="line" d="M202 50 L202 26 M202 30 L238 45"/></svg>`;

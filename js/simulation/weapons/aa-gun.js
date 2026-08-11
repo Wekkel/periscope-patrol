@@ -8,7 +8,7 @@ class SimEngineAAGun extends SimEngineDeckGun {
   manageAutomaticAA(){
     const W=this.state.world, sub=this.state.playerSub, env=W.environment, G=this.state.weapons.deckGun;
     const aircraft=W.aircraft||[];
-    const active=aircraft.filter(a=>a.seenBySub&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'));
+    const active=aircraft.filter(a=>a.side!=='FRIENDLY'&&a.seenBySub&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'));
     const close=active.some(a=>distNm(a.position,sub.position)<=1.25);
     const diveOrdered=sub.orderedDepthFeet>10||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING'||sub.mode==='PERISCOPE_DEPTH'||sub.mode==='SUBMERGED';
 
@@ -44,7 +44,7 @@ class SimEngineAAGun extends SimEngineDeckGun {
     if(W.aaAmmo<=0){this.standDownAA('Ready-use lockers empty — gun crew below.');return;}
 
     for(const a of W.aircraft){
-      if(!a.seenBySub) continue;
+      if(a.side==='FRIENDLY'||!a.seenBySub) continue;
       const rng=distNm(a.position,sub.position);
       const engaging=(a.state==='ATTACKING'||a.state==='STRAFING');
       if(rng>(engaging?1.05:0.6)) continue;

@@ -116,7 +116,7 @@ class CanvasViewCore{
 
   drawAirAlarm(ctx,w,h,state){
     const air=state.world.aircraft||[];
-    const known=air.filter(a=>a.seenBySub&&a.state!=='DEPARTING'
+    const known=air.filter(a=>a.side!=='FRIENDLY'&&a.seenBySub&&a.state!=='DEPARTING'
       &&distNm(state.playerSub.position,a.position)<12);
     const orbiting=known.some(a=>a.state==='ORBIT');
     if(!known.length) return;

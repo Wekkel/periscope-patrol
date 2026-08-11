@@ -2,6 +2,21 @@
 // ═══════════════════════════════════════════════════ 3D PERISCOPE DATA
 const NM_M=1852, EARTH_R=6371000;
 
+/* MEGA PACIFIC — shared pseudo-3D camera contract.
+   World renderers must consume only world state + this camera. Station-specific
+   facts (periscope bearing, bridge look direction, gun train) belong in the
+   station controller that constructs the camera. If a shared renderer reaches
+   back into state.tactical for a station bearing, a new view will eventually
+   inherit the wrong horizon/terrain/object projection. */
+function makeWorldCamera(state,{position=null,heightM=1.8,bearingDeg=0,fovDeg=32,cx=0,cy=0,r=1,viewW=null,viewH=null,kind='WORLD'}={}){
+  const p=position||state.playerSub.position,br=degToRad(bearingDeg),h=Math.max(.15,heightM),f=r/Math.tan(degToRad(fovDeg)/2),dip=Math.sqrt(2*h/EARTH_R);
+  return{E:p.xNm*NM_M,N:-p.yNm*NM_M,h,f,cx,cy,r,fovDeg,bearingDeg:normDeg(bearingDeg),viewW:viewW??r*2,viewH:viewH??r*2,
+    sin:Math.sin(br),cos:Math.cos(br),dip,horizonY:cy+f*dip,dHor:Math.sqrt(2*EARTH_R*h),halfFov:degToRad(fovDeg)/2,kind};
+}
+function setWorldCameraBearing(cam,bearingDeg){
+  cam.bearingDeg=normDeg(bearingDeg);const br=degToRad(cam.bearingDeg);cam.sin=Math.sin(br);cam.cos=Math.cos(br);return cam;
+}
+
 /* Legacy contact data calls this field `lengthYards`, but the authored values
    are ship lengths in FEET: e.g. destroyer 350, merchant 420, tanker 520.
    Treating those numbers as yards made every optical model almost exactly 3×
@@ -14,12 +29,12 @@ function shipVisualLengthNm(c,fallbackFt=400){return shipVisualLengthM(c,fallbac
 
 // Rudder and engine limits. A Fubuki-class destroyer needed roughly 90 s for a
 // full circle at speed; a loaded freighter far longer.
-const SHIP_TURN_RATE={ESCORT:3.4,WARSHIP:2.8,PATROL_CRAFT:2.4,MERCHANT:1.2,TANKER:0.85,TROOP:1.0,JUNK:1.5};
-const SHIP_ACCEL={ESCORT:0.30,WARSHIP:0.26,PATROL_CRAFT:0.22,MERCHANT:0.10,TANKER:0.07,TROOP:0.09,JUNK:0.13};
+const SHIP_TURN_RATE={ESCORT:3.2,WARSHIP:3.0,DESTROYER:3.4,KAIBOKAN:2.7,PATROL_CRAFT:2.4,HEAVY_CRUISER:1.8,CARRIER:1.35,MERCHANT:1.2,TANKER:0.85,TROOP:1.0,JUNK:1.5};
+const SHIP_ACCEL={ESCORT:0.28,WARSHIP:0.28,DESTROYER:0.31,KAIBOKAN:0.23,PATROL_CRAFT:0.22,HEAVY_CRUISER:0.16,CARRIER:0.12,MERCHANT:0.10,TANKER:0.07,TROOP:0.09,JUNK:0.13};
 // Angular acceleration prevents a ship from snapping instantly to full rudder.
 // Values are intentionally modest: enough inertia to read on MAP/3-D without
 // making convoy station-keeping or ASW responses sluggish.
-const SHIP_TURN_ACCEL={ESCORT:2.8,WARSHIP:2.2,PATROL_CRAFT:1.8,MERCHANT:0.75,TANKER:0.52,TROOP:0.64,JUNK:1.0};
+const SHIP_TURN_ACCEL={ESCORT:2.5,WARSHIP:2.4,DESTROYER:2.8,KAIBOKAN:2.0,PATROL_CRAFT:1.8,HEAVY_CRUISER:1.25,CARRIER:.9,MERCHANT:0.75,TANKER:0.52,TROOP:0.64,JUNK:1.0};
 // WWII echo-ranging gear
 const SONAR={
   maxRangeNm:1.5,        // useful echo-ranging range
@@ -106,7 +121,47 @@ SHIP_MODELS.MERCHANT_COASTAL={
 };
 function shipVisualModelKey(c){if(!c)return'MERCHANT';if(!['MERCHANT','TROOP'].includes(c.type))return c.type;const d=String(c.displayType||'').toUpperCase();if(d.includes('COASTAL'))return'MERCHANT_COASTAL';if(d.includes('TRANSPORT')||d.includes('TROOP'))return'MERCHANT_ISLAND';let h=0;for(const ch of String(c.id||c.name||''))h=(h*33+ch.charCodeAt(0))>>>0;return['MERCHANT','MERCHANT_FORECASTLE','MERCHANT_ISLAND'][h%3];}
 SHIP_MODELS.TROOP=SHIP_MODELS.MERCHANT_ISLAND;
-SHIP_MODELS.WARSHIP=SHIP_MODELS.ESCORT;
+/* Distinct warship silhouettes. These stay deliberately low-poly/vector: class
+   identity comes from proportions, turrets, funnels and flight deck rather than
+   textures. That keeps BRG/SCOPE/GUN cheap on the Helios G88 while making a
+   destroyer, kaibokan, cruiser and carrier readable at useful attack ranges. */
+SHIP_MODELS.DESTROYER={
+  len:111,beam:10.5,fb:4.7,hull:[[-.50,.30],[-.44,.66],[-.31,.92],[-.05,1],[.20,.94],[.36,.73],[.47,.32],[.50,.03]],
+  parts:[
+    {t:'b',x:0,y:4.7,z:38,w:6.4,h:2.2,d:7,c:'gun',big:1},{t:'b',x:0,y:6.9,z:37,w:3.9,h:1.8,d:4,c:'gun'},
+    {t:'b',x:0,y:4.7,z:17,w:8.2,h:7.2,d:14,c:'house',big:1},{t:'b',x:0,y:11.9,z:19,w:5.2,h:3.1,d:7,c:'top'},
+    {t:'f',x:-1.7,y:5,z:2,r:1.55,h:10,c:'funnel',rake:.13,big:1},{t:'f',x:1.7,y:5,z:-11,r:1.45,h:9,c:'funnel',rake:.13,big:1},
+    {t:'b',x:0,y:4.7,z:-25,w:6.8,h:2.0,d:8,c:'gun',big:1},{t:'b',x:0,y:6.7,z:-26,w:3.8,h:1.6,d:4,c:'gun'},
+    {t:'b',x:0,y:4.7,z:-39,w:6.0,h:1.7,d:7,c:'gun'}],
+  masts:[{x:0,y:12,z:13,h:19,yard:6},{x:0,y:8,z:-20,h:11,yard:4}],smoke:{x:0,y:17,z:-4}
+};
+SHIP_MODELS.KAIBOKAN={
+  len:78,beam:9.1,fb:4.0,hull:[[-.50,.38],[-.42,.76],[-.25,.97],[.02,1],[.24,.91],[.39,.66],[.48,.26],[.50,.04]],
+  parts:[{t:'b',x:0,y:4,z:25,w:5.2,h:1.8,d:6,c:'gun',big:1},{t:'b',x:0,y:4,z:8,w:7.0,h:6.0,d:13,c:'house',big:1},
+    {t:'b',x:0,y:10,z:10,w:4.2,h:2.4,d:5,c:'top'},{t:'f',x:0,y:4,z:-5,r:1.8,h:8,c:'funnel',rake:.10,big:1},
+    {t:'b',x:0,y:4,z:-24,w:5.3,h:1.8,d:7,c:'gun',big:1}],
+  masts:[{x:0,y:10,z:6,h:15,yard:4}],smoke:{x:0,y:13,z:-5}
+};
+SHIP_MODELS.HEAVY_CRUISER={
+  len:202,beam:20.5,fb:6.8,hull:[[-.50,.28],[-.45,.63],[-.34,.88],[-.08,1],[.22,.96],[.38,.76],[.47,.36],[.50,.03]],
+  parts:[
+    {t:'b',x:0,y:6.8,z:72,w:13,h:3.3,d:13,c:'gun',big:1},{t:'b',x:0,y:10.1,z:72,w:7,h:2.0,d:7,c:'gun'},
+    {t:'b',x:0,y:6.8,z:52,w:13,h:3.3,d:13,c:'gun',big:1},{t:'b',x:0,y:10.1,z:52,w:7,h:2.0,d:7,c:'gun'},
+    {t:'b',x:0,y:6.8,z:18,w:15,h:9,d:32,c:'house',big:1},{t:'b',x:0,y:15.8,z:24,w:9,h:5,d:15,c:'top',big:1},
+    {t:'f',x:-3,y:7,z:-3,r:2.8,h:14,c:'funnel',rake:.08,big:1},{t:'f',x:3,y:7,z:-25,r:2.8,h:14,c:'funnel',rake:.08,big:1},
+    {t:'b',x:0,y:6.8,z:-62,w:13,h:3.1,d:13,c:'gun',big:1},{t:'b',x:0,y:9.9,z:-62,w:7,h:1.9,d:7,c:'gun'}],
+  masts:[{x:0,y:20,z:18,h:25,yard:9},{x:0,y:12,z:-42,h:17,yard:7}],smoke:{x:0,y:25,z:-14}
+};
+SHIP_MODELS.CARRIER={
+  len:240,beam:30,fb:8.0,hull:[[-.50,.30],[-.44,.68],[-.31,.91],[-.04,1],[.22,.96],[.39,.70],[.48,.30],[.50,.04]],
+  parts:[{t:'b',x:0,y:8,z:0,w:29,h:2.2,d:218,c:'dark',big:1},
+    {t:'b',x:9.5,y:10.2,z:-20,w:7.5,h:11,d:30,c:'house',big:1},{t:'b',x:9.5,y:21.2,z:-17,w:5.5,h:4.0,d:14,c:'top'},
+    {t:'f',x:10,y:11,z:-42,r:3.1,h:15,c:'funnel',rake:.12,big:1}],
+  masts:[{x:9.5,y:24,z:-10,h:22,yard:8}],smoke:{x:10,y:30,z:-42}
+};
+// Legacy saves may still say WARSHIP/ESCORT. Keep those keys valid, but new
+// content should use the explicit class types above.
+SHIP_MODELS.WARSHIP=SHIP_MODELS.DESTROYER;
 /* A small patrol craft/subchaser is not a destroyer shrunk by a scale factor.
    Give it a low, continuous bridge/funnel silhouette so close periscope views
    read as one vessel rather than a stack of unrelated boxes. */

@@ -3,7 +3,7 @@
 // patrol long. Distant traffic is a tiny abstract route track. Only groups
 // inside the tactical bubble are expanded into normal world contacts, where
 // all existing physics, sensing, collision and ship-damage systems take over.
-const TRAFFIC_DIRECTOR_VERSION=1;
+const TRAFFIC_DIRECTOR_VERSION=2;
 const TRAFFIC_TICK_SEC=10;
 const TRAFFIC_ACTIVATE_NM=23;
 const TRAFFIC_DEACTIVATE_NM=34;
@@ -37,12 +37,15 @@ function _trafficWaterPoint(engine,pos,fallback){
 }
 function _trafficManifest(group){
   const H=(tag)=>_trafficHash(group.seed,tag), enemy='ENEMY';
-  const mk=(suffix,name,type,displayType,lengthYards,tonsFactor,side=enemy,extra={})=>({
+  const profile=type=>({
+    TANKER:[1.0,.38],DESTROYER:[.74,.68],KAIBOKAN:[.64,.58],WARSHIP:[.72,.62],
+    PATROL_CRAFT:[.52,.46],HEAVY_CRUISER:[1.20,.72],CARRIER:[1.42,.76],JUNK:[.28,.10]
+  }[type]||[.82,.28]);
+  const mk=(suffix,name,type,displayType,lengthYards,tonsFactor,side=enemy,extra={})=>{const p=profile(type);return{
     suffix,name,type,displayType,lengthYards,tonsFactor,side,
-    visualProfile:extra.visualProfile??(type==='TANKER'?1.0:type==='WARSHIP'?.72:type==='PATROL_CRAFT'?.52:type==='JUNK'?.28:.82),
-    acousticBase:extra.acousticBase??(type==='TANKER'?.38:type==='WARSHIP'?.62:type==='PATROL_CRAFT'?.46:type==='JUNK'?.10:.28),
-    speedBias:extra.speedBias||0
-  });
+    visualProfile:extra.visualProfile??p[0],acousticBase:extra.acousticBase??p[1],speedBias:extra.speedBias||0,
+    hasSonar:extra.hasSonar
+  };};
   switch(group.kind){
     case'LONE_FREIGHTER':return[mk('A','Lone Freighter','MERCHANT','FREIGHTER',330+Math.round(H('len')*80),3000+Math.round(H('tons')*1700))];
     case'COASTAL_MERCHANT':return[mk('A','Coastal Maru','MERCHANT','COASTAL FREIGHTER',230+Math.round(H('len')*70),1700+Math.round(H('tons')*1200))];
@@ -54,14 +57,20 @@ function _trafficManifest(group){
       for(let i=0;i<n;i++)out.push(i===1&&H('tanker')>.56
         ?mk(String.fromCharCode(65+i),'Coastal Tanker','TANKER','TANKER',350,5000,enemy,{speedBias:-.3})
         :mk(String.fromCharCode(65+i),`Merchant ${i+1}`,'MERCHANT','FREIGHTER',300+Math.round(H('m'+i)*110),2500+Math.round(H('t'+i)*2300)));
-      if(H('guard')>.68)out.push(mk('P','Convoy Patrol Craft','PATROL_CRAFT','PATROL CRAFT',135,550,enemy,{speedBias:3}));
+      if(H('guard')>.68)out.push(H('guardType')>.55?mk('P','Kaibokan Escort','KAIBOKAN','KAIBOKAN ESCORT',255,900,enemy,{speedBias:2.5,hasSonar:true}):mk('P','Convoy Patrol Craft','PATROL_CRAFT','PATROL CRAFT',135,550,enemy,{speedBias:3,hasSonar:true}));
       return out;
     }
-    case'TASK_GROUP':return[
-      mk('A','Task Group Destroyer','WARSHIP','DESTROYER',335,1900,enemy,{visualProfile:.72,acousticBase:.68,speedBias:4}),
-      mk('B','Task Group Escort','WARSHIP','ESCORT VESSEL',285,1250,enemy,{visualProfile:.65,acousticBase:.60,speedBias:3}),
-      ...(H('transport')>.5?[mk('C','Fast Transport','MERCHANT','FAST TRANSPORT',360,3600,enemy,{speedBias:1})]:[])
-    ];
+    case'TASK_GROUP':{
+      const rare=H('capital');
+      const core=rare>.90?mk('C','Heavy Cruiser','HEAVY_CRUISER','HEAVY CRUISER',665,13500,enemy,{speedBias:2})
+        :rare>.82?mk('C','Light Carrier','CARRIER','LIGHT CARRIER',680,18000,enemy,{speedBias:1.5})
+        :(H('transport')>.5?mk('C','Fast Transport','MERCHANT','FAST TRANSPORT',360,3600,enemy,{speedBias:1}):null);
+      return[
+        mk('A','Task Group Destroyer','DESTROYER','DESTROYER',335,1900,enemy,{speedBias:4,hasSonar:true}),
+        mk('B','Task Group Kaibokan','KAIBOKAN','KAIBOKAN ESCORT',285,1250,enemy,{speedBias:3,hasSonar:true}),
+        ...(core?[core]:[])
+      ];
+    }
     case'FRIENDLY_TRAFFIC':return[mk('A','Allied Coastal Transport','MERCHANT','ALLIED COASTAL TRANSPORT',280,2200,'FRIENDLY',{visualProfile:.75,acousticBase:.24})];
     default:return[];
   }
@@ -93,12 +102,14 @@ function _trafficFormation(i){
       const path=this.ensureWaterRoute(route);if(!path||path.length<2)return T;
       const C=routeCum(path),L=C[C.length-1];if(L<10)return T;
       const area=s.campaign.patrolArea||'Patrol Area',seed=s.campaign.scenarioSeed||1,hp=s.campaign.historicalProfile||null;
-      const baseDensity={'Java Sea':10,'Luzon Strait':11,'Truk Approaches':9,'Solomon Sea':9,'Bismarck Sea':8}[area]||8;
+      const baseDensity={'Java Sea':10,'Luzon Strait':11,'Truk Approaches':9,'Solomon Sea':9,'Bismarck Sea':8,'Yellow Sea':11,'Kii Suido / Honshu Approaches':11,'East China Sea / Formosa Approaches':10,'Sulu Sea / Tawi-Tawi':9,'Kurile / Hokkaido Approaches':7}[area]||8;
       const density=clamp(Math.round(baseDensity*(hp?.trafficDensityFactor||1)),6,12);
       const base=['LONE_FREIGHTER','COASTAL_MERCHANT','SMALL_TANKER','FISHING_CRAFT','PATROL_CRAFT','SMALL_CONVOY'];
       const kinds=[];for(let i=0;i<density;i++)kinds.push(i<base.length?base[i]:base[Math.floor(_trafficHash(seed,`kind:${i}`)*base.length)%base.length]);
       if(_trafficHash(seed,`${area}:task-group`)<.32)kinds[Math.max(0,kinds.length-2)]='TASK_GROUP';
-      if(area!=='Truk Approaches'&&_trafficHash(seed,`${area}:friendly`)<.24)kinds[kinds.length-1]='FRIENDLY_TRAFFIC';
+      // Friendly shipping is intentionally uncommon but real. It creates useful
+      // identification decisions and local NPC-vs-NPC surface encounters.
+      if(!['Truk Approaches','Kii Suido / Honshu Approaches'].includes(area)&&_trafficHash(seed,`${area}:friendly`)<.28)kinds[kinds.length-1]='FRIENDLY_TRAFFIC';
       T.groups=kinds.map((kind,i)=>{
         const h=_trafficHash(seed,`${area}:traffic:${i}`),dir=_trafficHash(seed,`dir:${i}`)<.5?-1:1;
         const s0=((i+.22+h*.56)/kinds.length)*L;
@@ -130,8 +141,8 @@ function _trafficFormation(i){
 
     primaryConvoyExists(){
       const W=this.state.world,g=W.traffic?.primaryGroup;if(!g||g.destroyed)return false;
-      if(g.state==='TACTICAL')return (W.contacts||[]).some(c=>c.convoyId==='MAIN'&&c.type!=='ESCORT'&&!c.sunk);
-      if(g.state==='ABSTRACT')return (g.savedMembers||[]).some(c=>c.type!=='ESCORT'&&!c.sunk);
+      if(g.state==='TACTICAL')return (W.contacts||[]).some(c=>c.convoyId==='MAIN'&&!isSurfaceCombatant(c)&&!c.sunk);
+      if(g.state==='ABSTRACT')return (g.savedMembers||[]).some(c=>!isSurfaceCombatant(c)&&!c.sunk);
       return false;
     },
 
@@ -155,7 +166,7 @@ function _trafficFormation(i){
 
     materializePrimaryConvoy(g,path){
       const s=this.state,W=s.world;if(!g||g.state!=='ABSTRACT'||!g.savedMembers?.length)return false;
-      const q=routeAdvance(path,g.routeS||0,g.routeDir||1,0),off=_trafficSideOffset(q.pos,q.heading,0),r=degToRad(q.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r),ids=[];
+      const q=routeAdvanceOneWay(path,g.routeS||0,0),off=_trafficSideOffset(q.pos,q.heading,0),r=degToRad(q.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r),ids=[];
       for(const saved of g.savedMembers){const c=JSON.parse(JSON.stringify(saved)),f=c._trafficPrimaryFwd||0,side=c._trafficPrimarySide||0;delete c._trafficPrimaryFwd;delete c._trafficPrimarySide;c.position={xNm:off.xNm+fx*f+sx*side,yNm:off.yNm+fy*f+sy*side};c.heading=q.heading;c.desiredHeading=q.heading;c.speedKnots=clamp(c.speedKnots||c.baseSpeed||g.speedKnots,0,30);c.desiredSpeed=c.baseSpeed||c.speedKnots;W.contacts.push(c);if(W.contactTracks[c.id])W.contactTracks[c.id].worldContactAbstract=false;ids.push(c.id);}
       g.memberIds=ids;g.state='TACTICAL';g.position={...off};g.heading=q.heading;g.routeDir=q.dir;g.materializedAt=s.time.elapsedSeconds||0;W.convoyLeg=q.dir;this.assignASWRoles?.(null,true);return true;
     },
@@ -166,7 +177,7 @@ function _trafficFormation(i){
         this.syncPrimaryConvoy(g);if(g.destroyed)return;
         const d=distNm(sub.position,g.position);if(d>38)this.abstractPrimaryConvoy(g);
       }else if(g.state==='ABSTRACT'){
-        const q=routeAdvance(path,g.routeS||0,g.routeDir||1,knotsNmSec(g.speedKnots||8)*step);g.routeS=q.s;g.routeDir=q.dir;g.heading=q.heading;g.position={...q.pos};
+        const q=routeAdvanceOneWay(path,g.routeS||0,knotsNmSec(g.speedKnots||8)*step);g.routeS=q.s;g.routeDir=1;g.heading=q.heading;g.position={...q.pos};g.routeEnded=!!q.ended;
         if(distNm(sub.position,g.position)<=28)this.materializePrimaryConvoy(g,path);
       }
     },
@@ -254,11 +265,11 @@ function _trafficFormation(i){
 
     trafficIntelCandidates(){
       const s=this.state,W=s.world,T=this.ensureTrafficDirector(),out=[];
-      const main=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.type!=='ESCORT'&&!c.sunk),pg=T?.primaryGroup;
+      const main=W.contacts.filter(c=>c.convoyId==='MAIN'&&!isSurfaceCombatant(c)&&!c.sunk),pg=T?.primaryGroup;
       if(main.length){const lead=main.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0],route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route),pr=path?.length?routeProject(path,lead.position):null;
         out.push({id:'MAIN',label:'convoy',kind:'CONVOY',count:main.length,side:'ENEMY',missionCritical:true,position:{xNm:main.reduce((a,c)=>a+c.position.xNm,0)/main.length,yNm:main.reduce((a,c)=>a+c.position.yNm,0)/main.length},
           heading:lead.heading,speedKnots:lead.speedKnots,routeS:pr?.s??null,routeDir:W.convoyLeg||1});}
-      else if(pg&&!pg.destroyed&&pg.state==='ABSTRACT')out.push({id:'MAIN',label:'convoy',kind:'CONVOY',count:(pg.savedMembers||[]).filter(c=>c.type!=='ESCORT'&&!c.sunk).length,side:'ENEMY',missionCritical:true,
+      else if(pg&&!pg.destroyed&&pg.state==='ABSTRACT')out.push({id:'MAIN',label:'convoy',kind:'CONVOY',count:(pg.savedMembers||[]).filter(c=>!isSurfaceCombatant(c)&&!c.sunk).length,side:'ENEMY',missionCritical:true,
         position:{...pg.position},heading:pg.heading,speedKnots:pg.speedKnots,routeS:pg.routeS,routeDir:pg.routeDir});
       if(T?.enabled)for(const g of T.groups||[]){
         if(g.side!=='ENEMY')continue;

@@ -1,29 +1,31 @@
 // ═══════════════════════════════════════════════════ HISTORICAL SCENARIOS
+/* These are playable scenarios grounded in real patrol dates/areas, not exact
+   hour-by-hour reconstructions. Keep the start date and theatre aligned with
+   the historical boat before adding gameplay-specific mission variation. */
 const HISTORICAL_SCENARIOS=[
-  {id:'WAHOO_1943',name:'USS Wahoo — Yellow Sea Rampage',date:'1943-10-01',area:'Yellow Sea',
-    description:'Commander Dudley Morton\'s legendary patrol. Hunt for Japanese shipping in shallow, dangerous waters. Highly aggressive attack profile required.',
+  {id:'WAHOO_1943',name:'USS Wahoo — Fourth War Patrol',date:'1943-02-23',area:'Yellow Sea',missionType:'CONVOY_INTERDICTION',
+    description:'Wahoo heads for the far northern Yellow Sea on the aggressive fourth patrol that made Morton and O’Kane famous.',
     difficulty:'HARD',environment:{daylight:0.6,visibilityNm:10,seaState:0.5,layerDepthFt:195,weather:'OVERCAST'},
-    briefing:'Patrol the Yellow Sea. High merchant traffic but shallow water and active ASW patrols. Strike fast and evade.',
+    briefing:'Work into the shallow Yellow Sea, find coastal shipping and strike hard before the escorts can pin you down.',
     patrolBonus:3000},
-  {id:'SILVERSIDES_1942',name:'USS Silversides — First Pacific Patrol',date:'1942-06-15',area:'Solomon Sea',
-    description:'Early war patrol with unreliable Mark 14 torpedoes. Dud rates historically high. Test your patience and marksmanship.',
-    difficulty:'MEDIUM',environment:{daylight:0.8,visibilityNm:16,seaState:0.2,layerDepthFt:195,weather:'CLEAR'},
-    briefing:'First combat patrol. Expect significant torpedo reliability issues. Mark 14 magnetic exploders are known to be faulty.',
-    patrolBonus:1500,forceDudMode:'historical'},
-  {id:'FLASHER_1944',name:'USS Flasher — Wolf Pack Hunt',date:'1944-09-22',area:'Luzon Strait',
-    description:'Late-war patrol with improved Mark 18 electrics. Heavy tanker traffic in Luzon Strait.',
+  {id:'SILVERSIDES_1942',name:'USS Silversides — First War Patrol',date:'1942-04-30',area:'Kii Suido / Honshu Approaches',missionType:'CONVOY_INTERDICTION',
+    description:'Silversides departs Pearl Harbor for her first war patrol in Japanese home waters around Kii Suido.',
+    difficulty:'HARD',environment:{daylight:0.68,visibilityNm:12,seaState:0.35,layerDepthFt:180,weather:'PARTLY CLOUDY',airThreat:.82},
+    briefing:'First combat patrol in Japanese home waters. Early-war Mark 14 reliability is poor; make every firing position count.',
+    patrolBonus:2000,forceDudMode:'historical'},
+  {id:'FLASHER_1944',name:'USS Flasher — Philippine Wolf Pack',date:'1944-08-30',area:'Luzon Strait',missionType:'CONVOY_INTERDICTION',
+    description:'Flasher begins her fourth war patrol as leader of a coordinated attack group in the Philippines.',
     difficulty:'MEDIUM',environment:{daylight:0.55,visibilityNm:12,seaState:0.4,layerDepthFt:195,weather:'PARTLY CLOUDY'},
-    briefing:'Heavy tanker convoy en route Manila. Mark 18 electrics available. Multiple high-value targets.',
+    briefing:'Heavy Philippine traffic. Locate the convoy, coordinate your approach and exploit improved late-war torpedoes.',
     patrolBonus:2000,forceTorpedo:'mk18'},
-  {id:'HARDER_1944',name:'USS Harder — Destroyer Killer',date:'1944-06-06',area:'Truk Approaches',
-    description:'Commander Sam Dealey\'s legendary final patrol. Aggressively engage escorts head-on.',
-    difficulty:'HARD',environment:{daylight:0.7,visibilityNm:18,seaState:0.15,layerDepthFt:195,weather:'CLEAR'},
-    briefing:'Attack the escorts first. Draw them in and fire point-blank. High risk, high glory.',
+  {id:'HARDER_1944',name:'USS Harder — Fifth War Patrol',date:'1944-05-26',area:'Sulu Sea / Tawi-Tawi',missionType:'ESCORT_HUNT',
+    description:'Harder leaves Fremantle for the Celebes and Sulu Seas, operating around Tawi-Tawi and hunting Japanese destroyers.',
+    difficulty:'HARD',environment:{daylight:0.7,visibilityNm:18,seaState:0.2,layerDepthFt:195,weather:'CLEAR'},
+    briefing:'Intelligence places important fleet movements and destroyers around Tawi-Tawi. Find the named escort and survive the counterattack.',
     patrolBonus:4000},
-  {id:'TRIGGER_1943',name:'USS Trigger — Night Surface Attack',date:'1943-03-15',area:'Bismarck Sea',
-    description:'Night patrol in enemy-dominated waters. Low visibility, rough seas. Surface attacks only.',
-    difficulty:'MEDIUM',environment:{daylight:0.08,visibilityNm:5,seaState:0.65,layerDepthFt:195,weather:'ROUGH SEAS'},
-    briefing:'Night surface attack. Stay surfaced as long as possible. Crash dive if illuminated.',
-    patrolBonus:2500}
+  {id:'TRIGGER_1943',name:'USS Trigger — East China Sea Tanker Hunt',date:'1943-09-01',area:'East China Sea / Formosa Approaches',missionType:'CONVOY_INTERDICTION',
+    description:'Trigger begins her sixth war patrol north of Formosa, where tankers, freighters and maddening torpedo duds await.',
+    difficulty:'HARD',environment:{daylight:0.55,visibilityNm:11,seaState:0.45,layerDepthFt:195,weather:'PARTLY CLOUDY'},
+    briefing:'Patrol the East China Sea north of Formosa. Attack valuable tanker traffic and expect escorts and unreliable hits.',
+    patrolBonus:2500,forceDudMode:'historical'}
 ];
-

@@ -58,9 +58,9 @@ class SimEngineHarbor extends SimEngineCore {
       // The jackpot is deliberately uncertain. It is decided at patrol creation
       // and never respawned or moved later.
       if(Math.random()<0.38)
-        put('H-04','Japanese Fleet Carrier','MERCHANT','FLEET CARRIER',28,0.46,820,26000,9000,1.45);
+        put('H-04','Japanese Fleet Carrier','CARRIER','FLEET CARRIER',28,0.46,820,26000,9000,1.45);
       else
-        put('H-04','Heavy Cruiser','MERCHANT','HEAVY CRUISER',28,0.46,660,13500,5200,1.22);
+        put('H-04','Heavy Cruiser','HEAVY_CRUISER','HEAVY CRUISER',28,0.46,660,13500,5200,1.22);
     }
 
     this.ensureHarborIntel(true);

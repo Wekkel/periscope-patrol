@@ -51,7 +51,14 @@ class BridgeController{
     btn('selectScopeTargetButton',()=>this.game.dispatch({type:'PERISCOPE_SELECT_CENTER_CONTACT'}));
     btn('sendScopeToTdcButton',   ()=>this.game.dispatch({type:'TDC_SEND_SCOPE_OBSERVATION'}));
     btn('floodTubeButton',  ()=>this.game.dispatch({type:'FLOOD_ALL_TUBES'}));
-    btn('fireTubeButton',   ()=>this.game.dispatch({type:'FIRE_TORPEDO',tubeId:1}));
+    btn('fireTubeButton',   ()=>{
+      const s=this.game.getSnapshot(),bank=s.tdc?.launchBank||'FWD';
+      // Follow the TDC-selected bank; hard-coding tube 1 reintroduced the exact
+      // close-range geometry error TDC 2.0 is designed to remove.
+      const t=s.weapons.tubes.find(x=>x.pos===bank&&x.status==='READY')||s.weapons.tubes.find(x=>x.status==='READY');
+      if(t)this.game.dispatch({type:'FIRE_TORPEDO',tubeId:t.id});
+      else globalThis.Toast?.warn?.('No torpedo tube ready.');
+    });
     btn('fireSpreadButton', ()=>this.game.dispatch({type:'FIRE_READY_SPREAD'}));
     btn('floodAftButton',   ()=>this.game.dispatch({type:'FLOOD_AFT_TUBES'}));
     btn('fireAftButton',    ()=>this.game.dispatch({type:'FIRE_AFT_SPREAD'}));

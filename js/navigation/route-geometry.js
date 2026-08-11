@@ -41,6 +41,15 @@ function routeAdvance(path,s,dir,deltaNm){
   const q=routePointAt(path,ns);
   q.dir=nd;q.heading=nd>0?q.heading:normDeg(q.heading+180);return q;
 }
+/* Mission-critical traffic follows a real one-way voyage, not the generic
+   ambient out-and-back loop. At the end it holds on the final charted point;
+   that is deliberately boring but fair, and prevents a distant HVT from
+   reversing across the whole map while the player is chasing stale intel. */
+function routeAdvanceOneWay(path,s,deltaNm){
+  if(!path||path.length<2)return{...routePointAt(path,s),dir:1,ended:true};
+  const C=routeCum(path),L=C[C.length-1],ns=clamp((Number(s)||0)+Math.max(0,deltaNm||0),0,L),q=routePointAt(path,ns);
+  q.dir=1;q.ended=ns>=L-1e-6;return q;
+}
 function routeTrace(path,s,dir,deltaNm,stepNm=1.0){
   const out=[];const n=Math.max(1,Math.ceil(Math.abs(deltaNm)/Math.max(.2,stepNm)));
   for(let i=0;i<=n;i++) out.push(routeAdvance(path,s,dir,deltaNm*i/n));

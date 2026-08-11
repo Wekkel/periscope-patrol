@@ -178,6 +178,7 @@
       <button class="scen-tab" data-stab="historical">Historical Missions</button>
       <button class="scen-tab" data-stab="saveload">Save / Load</button>
       <button class="scen-tab" data-stab="career">Career</button>
+      <button class="scen-tab" data-stab="about">About</button>
     </div>
     <div class="scen-body">
       <!-- PATROL AREAS TAB -->
@@ -190,14 +191,30 @@
       </div>
       <!-- SAVE/LOAD TAB -->
       <div id="stabSaveload" class="save-grid" style="display:none;">
-        <div style="padding:4px 0 10px;color:var(--muted);font-size:12px;">
-          Saves are stored locally in your browser. Up to 5 save slots available.
+        <div style="padding:4px 0 4px;color:var(--muted);font-size:12px;">
+          Saves are stored locally in this browser. Up to 5 save slots are available.
+        </div>
+        <div class="profile-tools">
+          <div class="profile-copy"><b>PORTABLE PLAYER PROFILE</b><span>Move your career, save slots and current resumable patrol to another device or keep a reinstall backup. Import replaces local profile data.</span><small>Backups carry a corruption checksum. It is deliberately not advertised as anti-cheat: this is an open-source, client-side game.</small></div>
+          <div class="profile-buttons"><button id="profileExportBtn">⇩ Export profile</button><button id="profileImportBtn">⇧ Import profile</button></div>
+          <input id="profileImportFile" type="file" accept="application/json,.json,.ppprofile" hidden>
         </div>
         <div id="saveSlots"><!-- Filled by JS --></div>
       </div>
       <!-- CAREER HISTORY TAB -->
       <div id="stabCareer" class="hist-list" style="display:none;">
         <div id="careerHistory"><!-- Filled by JS --></div>
+      </div>
+      <!-- ABOUT / CREDITS TAB -->
+      <div id="stabAbout" class="hist-list" style="display:none;">
+        <div class="hist-card" style="max-width:720px;align-self:flex-start;">
+          <h3 style="margin-bottom:8px;">PERISCOPE PATROL</h3>
+          <div class="hist-date">A WekSoft project · © 2026</div>
+          <div class="hist-desc" style="margin-top:10px;line-height:1.65;">
+            A lightweight World War II submarine game built around a custom Canvas2D pseudo-3D naval world engine.<br><br>
+            Open-source software licensed under the MIT License. See the included LICENSE file for the complete license text.
+          </div>
+        </div>
       </div>
     </div>
     <div class="scen-footer">

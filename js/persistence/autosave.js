@@ -24,9 +24,10 @@ const AutoSave={
     const txt=document.getElementById('resumeTxt');
     if(txt) txt.innerHTML=`<b>Patrol in progress.</b> ${rec.area||''} — ${mins} min run, hull ${Math.round(rec.hullIntegrity??100)}%. Saved ${when}.`;
     bar.classList.add('on');
-    document.getElementById('resumeNo').onclick=()=>{bar.classList.remove('on');SaveSystem.autoClear();};
+    document.getElementById('resumeNo').onclick=()=>{bar.classList.remove('on');SaveSystem.releaseImportedResume?.();SaveSystem.autoClear();};
     document.getElementById('resumeYes').onclick=()=>{
       bar.classList.remove('on');
+      SaveSystem.releaseImportedResume?.();
       Object.assign(game.state,st);
       document.getElementById('briefingOverlay').style.display='none';
       sceneSelector.close?.();

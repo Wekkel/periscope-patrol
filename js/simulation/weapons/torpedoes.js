@@ -3,14 +3,12 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     const t=this.state.weapons.tubes.find(t=>t.id===id);
     if(!t||t.status!=='LOADED_DRY'){if(doLog)this.log(`Tube ${id} cannot flood.`,'warn');return;}
     t.status='READY'; t.flooded=true;
-    const isAft=t.pos==='AFT';
-    // Aft tubes fire backward: gyro is opposite bearing delta
-    if(isAft){
-      t.gyroAngle=normDeg(180+(this.state.tdc.gyroAngle??0));
-    } else {
-      t.gyroAngle=(this.state.tdc.gyroAngle??0);
-    }
-    if(doLog)this.log(`Tube ${id} (${t.pos}) flooded and ready. TDC gyro currently ${t.gyroAngle.toFixed(1)}°.`);
+    // Tube flooding does not freeze a stale gyro setting. The TDC is worked
+    // continuously and the physical course is read again at FIRE. Keep this
+    // field as a human-readable snapshot for old saves/UI only.
+    const axis=t.pos==='AFT'?normDeg(this.state.playerSub.heading+180):this.state.playerSub.heading;
+    t.gyroAngle=this.state.tdc.solutionCourse==null?0:shortDelta(axis,this.state.tdc.solutionCourse);
+    if(doLog)this.log(`Tube ${id} (${t.pos}) flooded and ready. TDC tube turn currently ${t.gyroAngle.toFixed(1)}°.`);
   }
 
   /* How far the fish actually has to swim: the target keeps moving while it
@@ -23,7 +21,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     // remains frozen by design.
     {const live=this.state.tdc?.targetId&&this.state.world?.contactTracks?.[this.state.tdc.targetId];
     if(this.state.tdc?.targetId&&this.state.tdc.targetId!=='MANUAL'&&this.state.tdc.autoTrack!==false&&live&&
-      Number.isFinite(live.bearing)&&Number.isFinite(live.rangeEstimateNm)&&Number.isFinite(live.courseEstimate)&&Number.isFinite(live.speedEstimateKnots))this.updateTdc?.();}
+      Number.isFinite(live.bearing)&&Number.isFinite(live.rangeEstimateNm)&&Number.isFinite(live.courseEstimate)&&Number.isFinite(live.speedEstimateKnots))this.updateTdc?.(true);}
     const t=this.state.weapons.tubes.find(t=>t.id===id);
     const tdc=this.state.tdc; const sub=this.state.playerSub;
     const W=this.state.weapons;
@@ -32,10 +30,9 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     if(sub.depthFeet>160){this.log('Too deep to fire.','warn');return;}
 
     const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||TORPEDO_SPECS['mk14fast'];
-    /* CAN SHE EVEN GET THERE? A torpedo has a finite run. The distance that
-       matters is not the range to the target now but the distance to the
-       intercept point, which is further whenever she is drawing away from
-       you — so work out the run and refuse the shot that cannot reach. */
+    /* CAN SHE EVEN GET THERE? TDC 2.0 already includes the settling run and
+       gyro arc in interceptRunNm. Do not replace it with present slant range:
+       that was the source of contradictory UI/firing decisions. */
     if(tdc.rangeNm!=null){
       const runNm=this.interceptRunNm(tdc,spec);
       if(runNm>spec.maxRangeNm){
@@ -43,28 +40,25 @@ class SimEngineTorpedoes extends SimEngineHarbor {
         this.notify(`Tube ${id}: intercept run ${runNm.toFixed(1)} nm; ${spec.name} max ${spec.maxRangeNm.toFixed(1)} nm — long by ${longBy.toFixed(1)} nm (${Math.round(longBy*2025)} yd). Close the range.`,'warn');
         return;
       }
-      if(runNm>spec.maxRangeNm*0.85)
-        this.notify(`Long shot — intercept run ${runNm.toFixed(1)} nm of ${spec.maxRangeNm.toFixed(1)} nm max. Little margin if she zigs.`,'warn');
+      if(runNm>spec.maxRangeNm*0.85)this.notify(`Long shot — intercept run ${runNm.toFixed(1)} nm of ${spec.maxRangeNm.toFixed(1)} nm max. Little margin if she zigs.`,'warn');
     }
     const dudMode=DUD_MODES[tdc.dudMode]??1;
     const dudChance=typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(this.state,tdc.torpedoSpecKey,tdc.dudMode):spec.dudChanceBase*dudMode;
 
-    // A torpedo leaves the tube along the tube's axis. The gyro then swings it
-    // onto the set course over a turning circle — it cannot simply point
-    // wherever it likes. Beyond 90° the gyro cannot be set at all and the boat
-    // has to be swung round.
+    // The displayed solution belongs to one tube bank. A forward solution
+    // cannot be silently fired from an aft tube (or vice versa): that would
+    // again make the physical weapon diverge from the TDC. Quick-fire prefers
+    // this bank; a manual wrong-bank click gets an actionable warning.
     const tubeAxis=t.pos==='AFT'?normDeg(sub.heading+180):sub.heading;
-    // A single tube always aims at the centre of the TDC solution. Spread is
-    // a salvo command, not a permanent tube bias. The old -2/+2/+4 degree
-    // tube offsets made individually fired tubes miss a good solution by
-    // design at ordinary attack ranges.
-    const courseSet=normDeg(sub.heading+(tdc.gyroAngle??0)+(Number(spreadOffsetDeg)||0));
-    const turn=shortDelta(tubeAxis,courseSet);
-    if(Math.abs(turn)>90){
-      this.log(`Tube ${id}: gyro angle ${turn.toFixed(0)}° is beyond the setting limits — swing the boat onto the target.`,'warn');
+    if(tdc.launchBank&&t.pos!==tdc.launchBank){
+      this.notify(`TDC launch solution is for ${tdc.launchBank} tubes — use that bank or swing the boat for a new solution.`,'warn');
       return;
     }
-    if(Math.abs(turn)>50) this.log(`Wide gyro ${turn.toFixed(0)}° — she will wander on the turn.`,'warn');
+    const courseSet=normDeg((tdc.solutionCourse??normDeg(sub.heading+(tdc.gyroAngle??0)))+(Number(spreadOffsetDeg)||0));
+    const turn=shortDelta(tubeAxis,courseSet);
+    if(Math.abs(turn)>TDC_MAX_TUBE_TURN_DEG){this.log(`Tube ${id}: gyro angle ${turn.toFixed(0)}° is beyond the setting limits — swing the boat onto the target.`,'warn');return;}
+    if(Math.abs(turn)>62)this.log(`Very wide gyro ${turn.toFixed(0)}° — TDC geometry is valid, but swinging the boat will improve the attack.`,'warn');
+    else if(Math.abs(turn)>38)this.log(`Wide gyro ${turn.toFixed(0)}° — TDC is accounting for the turn.`,'warn');
     const launchBear=tubeAxis;
     const tid=`T-${W.nextTorpedoId++}`;
 
@@ -74,11 +68,12 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     W.activeTorpedoes.push({
       id:tid, specKey:tdc.torpedoSpecKey, specName:spec.name,
       position:{...sub.position}, heading:launchBear,
-      // Fire-control error now scales with the quality shown to the player.
-      // A green solution should usually put a fish through a steady merchant;
-      // a marginal plot still has enough angular error to make misses normal.
-      courseSet:normDeg(courseSet+(Math.random()*2-1)*(lerp(1.15,0.16,clamp(tdc.solutionQuality,0,1))+Math.max(0,Math.abs(turn)-45)*0.006)),
-      turnRateDeg:8.0, reachNm:0.04,                 // short settling run, then gyro turn
+      // Observation/TDC uncertainty belongs in solutionQuality; the gyro arc
+      // itself is deterministic and already solved above. At 100% solution a
+      // steady target should normally be hit, so retain only a small mechanical
+      // course-setting error instead of adding a second wide-gyro punishment.
+      courseSet:normDeg(courseSet+(Math.random()*2-1)*lerp(.85,.07,clamp(tdc.solutionQuality,0,1))),
+      turnRateDeg:TDC_TURN_RATE_DEG, reachNm:TDC_LAUNCH_REACH_NM,
       gyroTurn:turn, launchSolutionQuality:tdc.solutionQuality,
       speedKnots:spec.speedKnots, rangeRunNm:0, maxRangeNm:spec.maxRangeNm,
       armedAfterNm:0.08,                 // arms after ~150 m
@@ -104,7 +99,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     else this.alertEscorts('TORPEDO_LAUNCH',{...sub.position},0.7);
   }
 
-  fireSpread(){this.fireSpreadByPos('FWD');}
+  fireSpread(){this.fireSpreadByPos(this.state.tdc?.launchBank||'FWD');}
 
   fireSpreadByPos(pos){
     const ready=this.state.weapons.tubes.filter(t=>t.status==='READY'&&t.pos===pos);

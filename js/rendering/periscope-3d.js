@@ -14,8 +14,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const r=Math.min(w*0.48,h*0.41);
     const cx=w/2, cy=this.portrait?h*0.42:h*0.5;
     this.scopeGeom={cx,cy,r,hor:cy};
-    const cam=this.setupCam(state,opt.fov,cx,cy,r);
-    cam.kind='PERISCOPE';cam.bearingDeg=tact.periscopeBearing;
+    const cam=this.setupCam(state,opt.fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'PERISCOPE'});
     this.cam=cam;
     this.scopeGeom.hor=cam.horizonY;
 
@@ -75,8 +74,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+Math.max(0,impactAge)},
       world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
       weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`}]}};
-    const cam=this.setupCam(viewState,fov,cx,cy,r);cam.kind='IMPACT';cam.bearingDeg=tact.periscopeBearing;cam.viewW=w;cam.viewH=h;
-    const br=degToRad(cam.bearingDeg);cam.sin=Math.sin(br);cam.cos=Math.cos(br);this.impactCam=cam;
+    const cam=this.setupCam(viewState,fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'IMPACT',viewW:w,viewH:h});this.impactCam=cam;
 
     ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
@@ -1004,7 +1002,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     for(const tr of Object.values(state.world.contactTracks)){
       if(tr.sunk||tr.source!=='HYDROPHONE'||tr.confidence<0.15) continue;
       if(state.world.contacts.some(c=>c.id===tr.id&&distNm(sub.position,c.position)<visNm)) continue;
-      const bd=shortDelta(state.tactical.periscopeBearing,tr.bearing);
+      const bd=shortDelta(cam.bearingDeg,tr.bearing);
       if(Math.abs(bd)>cam.fovDeg*0.5) continue;
       const x=cam.cx+Math.tan(degToRad(bd))*cam.f;
       ctx.strokeStyle=`rgba(245,198,92,${0.25+tr.confidence*0.35})`;
@@ -1496,7 +1494,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const since=state.time.elapsedSeconds-((c.sunkAt||0)+(c.sinkDurationSec||45));
     if(since<0||since>300) return;
     const p=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);if(!p)return;
-    const sub=state.playerSub,bd=shortDelta(state.tactical.periscopeBearing,bearingBetween(sub.position,c.position));
+    const sub=state.playerSub,bd=shortDelta(cam.bearingDeg,bearingBetween(sub.position,c.position));
     if(Math.abs(bd)>cam.fovDeg*0.9)return;
     for(const o of (this._landOcc||[]))if(p.x>=o.x0-4&&p.x<=o.x1+4&&p.d>o.d*1.02)return;
     const sc=cam.f/p.d,lenM=shipVisualLengthM(c,400),fade=clamp(1-since/300,0,1);
