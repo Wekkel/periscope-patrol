@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.3'; // pre relese version - Refine ASW pressure, aircraft attacks, impact framing and map labels
+const VERSION = '0.9.4'; // pre relese version - Refine aircraft attacks visuals and audio for bridge and canon view
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
