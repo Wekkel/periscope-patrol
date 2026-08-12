@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.10'; // pre relese version - Refine Truk infiltration gameplay and torpedo impact cinematic
+const VERSION = '0.9.11'; // pre relese version - Polish combat audio, sonar cues, gunnery UI and cinematic impacts
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
