@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.7'; // pre relese version - Refine Truk minefield approach chart and harbor navigation cues
+const VERSION = '0.9.8'; // pre relese version - Build dynamic submarine audio architecture and procedural combat soundscape
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
@@ -88,7 +88,8 @@ const SHELL = [
   './js/ui/after-action-report.js',
   './js/simulation/historical-campaign.js',
   './js/simulation/battle-atmosphere.js',
-  './js/rendering/battle-atmosphere.js'
+  './js/rendering/battle-atmosphere.js',
+  './js/audio/audio-director.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
