@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.11'; // pre relese version - Polish combat audio, sonar cues, gunnery UI and cinematic impacts
+const VERSION = '0.9.12'; // pre relese version - Refine homeward air routine, sound controls and torpedo impact feedback
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
