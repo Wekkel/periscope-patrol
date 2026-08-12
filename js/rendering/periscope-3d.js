@@ -109,8 +109,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     if(dl<.32)this.drawNightOverlay(ctx,w,h,dl);
 
     // Film-style exposure remains local to the impact. It blooms outward from
-    // the projected hit and lays a narrow reflection over the intervening sea,
-    // rather than washing the entire display white.
+    // the projected hit and lights only nearby water; no directional cone is
+    // allowed to masquerade as a last-second torpedo trail.
     const ip=this.proj(cam,impactPos.xNm*NM_M,-impactPos.yNm*NM_M,Math.max(.4,Number(obs.impactPosition?.zM)||3));
     if(ip&&impactAge>=0&&impactAge<1.1){
       const a=(1-impactAge/1.1)*.72,rr=clamp(30*k+7000/Math.max(100,ip.d)*k,32*k,125*k);
@@ -124,14 +124,12 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const bg=ctx.createRadialGradient(ip.x,ip.y,rr*.10,ip.x,ip.y,broadR);
       bg.addColorStop(0,`rgba(255,211,128,${a*.20})`);bg.addColorStop(.48,`rgba(255,150,70,${a*.07})`);bg.addColorStop(1,'rgba(255,115,40,0)');
       ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
-      const ey=Math.min(h,ip.y+Math.max(80*k,(h-ip.y)*.86)),dy=ey-ip.y;
-      const rg=ctx.createLinearGradient(ip.x,ip.y,w/2,ey);rg.addColorStop(0,`rgba(255,215,132,${a*.26})`);rg.addColorStop(.48,`rgba(255,163,78,${a*.12})`);rg.addColorStop(1,'rgba(255,132,50,0)');ctx.fillStyle=rg;
-      for(const pass of [{near:7*k,half:clamp(dy*.25,28*k,w*.30),alpha:1},{near:16*k,half:clamp(dy*.43,48*k,w*.45),alpha:.35}]){
-        ctx.globalAlpha=pass.alpha;ctx.beginPath();ctx.moveTo(ip.x-pass.near,ip.y);
-        ctx.quadraticCurveTo(lerp(ip.x,w/2,.50)-pass.half*.30,lerp(ip.y,ey,.55),w/2-pass.half,ey);
-        ctx.lineTo(w/2+pass.half,ey);
-        ctx.quadraticCurveTo(lerp(ip.x,w/2,.50)+pass.half*.30,lerp(ip.y,ey,.55),ip.x+pass.near,ip.y);ctx.closePath();ctx.fill();
-      }
+      // Water catches a broad LOCAL flash around the strike. Never draw a
+      // tapered reflection toward the observer: that directional cone reads as
+      // a rocket/torpedo trail appearing at impact and was the persistent visual bug.
+      const wy=ip.y+rr*.18,ew=rr*1.65,eh=rr*.34,eg=ctx.createRadialGradient(ip.x,wy,0,ip.x,wy,ew);
+      eg.addColorStop(0,`rgba(255,204,116,${a*.25})`);eg.addColorStop(.42,`rgba(255,150,68,${a*.10})`);eg.addColorStop(1,'rgba(255,120,45,0)');
+      ctx.save();ctx.translate(ip.x,wy);ctx.scale(1,eh/ew);ctx.fillStyle=eg;ctx.beginPath();ctx.arc(0,0,ew,0,Math.PI*2);ctx.fill();ctx.restore();
       ctx.globalAlpha=1;ctx.restore();
     }
 

@@ -78,8 +78,10 @@ window.addEventListener('keydown',e=>{
   if(k==='-'){canvasView.zoomAt(1/1.2,innerWidth/2,innerHeight/2);}
 });
 
-// audio needs a user gesture
-document.addEventListener('pointerdown',()=>audio.ensure(),{once:true});
+// Browser/PWA autoplay policy requires a gesture. The first real interaction
+// unlocks WebAudio and starts the one-shot opening motif; starting a mission
+// subsequently fades it via MISSION_START instead of replaying it.
+(()=>{let unlocked=false;const go=()=>{if(unlocked)return;unlocked=true;audio.ensure();audio.playTitleCue?.('START');document.removeEventListener('pointerdown',go,true);document.removeEventListener('keydown',go,true);};document.addEventListener('pointerdown',go,{capture:true,once:true});document.addEventListener('keydown',go,{capture:true,once:true});})();
 
 // Audio settings are profile-independent device preferences: a phone and a
 // tablet may need very different output levels. Keep them outside patrol saves.

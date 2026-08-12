@@ -109,9 +109,18 @@ class CanvasViewCore{
 
   drawSoundCallout(ctx,w,h,state){
     const r=state.world.sound?.lastOperatorReport;if(!r||state.time.elapsedSeconds>(r.until||0)||state.tactical.activeStation==='SOUND')return;
-    const k=this.k,bw=Math.min(w-20*k,430*k),bh=25*k,x=10*k,y=h-bh-8*k;
-    ctx.fillStyle='rgba(3,18,20,.88)';this.rr(ctx,x,y,bw,bh,5*k);ctx.fill();ctx.strokeStyle='rgba(89,151,133,.72)';ctx.lineWidth=Math.max(1,k);ctx.stroke();
-    ctx.fillStyle='rgba(205,238,223,.92)';ctx.font=this.fnt(8.6,true);ctx.fillText(r.text,x+8*k,y+16*k);
+    const k=this.k,safe=this.touchOverlaySafe;let x=10*k,bw=Math.min(w-20*k,430*k),y=h-33*k,bh=25*k;
+    if(safe){
+      const left=Math.max(8*k,safe.leftEnd||0),right=Math.min(w-8*k,safe.rightStart||w),gap=right-left;
+      if(gap>=170*k){bw=Math.min(gap,430*k);x=left+(gap-bw)/2;}
+      else{bw=Math.min(w-20*k,430*k);x=(w-bw)/2;y=Math.min(y,(safe.bottomTop||h)-35*k);}
+      y=Math.max((safe.top||0)+5*k,y);
+    }
+    ctx.font=this.fnt(8.6,true);const maxText=bw-16*k,text=String(r.text||''),parts=text.split(/\s*·\s*/),lines=[];
+    if(ctx.measureText(text).width<=maxText)lines.push(text);else if(parts.length>1){let a='',b='';for(const part of parts){const test=a?`${a} · ${part}`:part;if(!b&&ctx.measureText(test).width<=maxText)a=test;else b=b?`${b} · ${part}`:part;}lines.push(a||text);if(b)lines.push(b);}else lines.push(text);
+    if(lines.length>1){bh=39*k;y=Math.min(y,h-bh-8*k);}
+    ctx.fillStyle='rgba(3,18,20,.90)';this.rr(ctx,x,y,bw,bh,5*k);ctx.fill();ctx.strokeStyle='rgba(89,151,133,.72)';ctx.lineWidth=Math.max(1,k);ctx.stroke();
+    ctx.fillStyle='rgba(205,238,223,.94)';lines.slice(0,2).forEach((line,i)=>ctx.fillText(line,x+8*k,y+(i?29:16)*k));
   }
 
   drawAirAlarm(ctx,w,h,state){

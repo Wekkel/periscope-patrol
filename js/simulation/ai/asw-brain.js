@@ -179,7 +179,9 @@ class SimEngineASWBrain extends SimEngineWeather{
     e.searchCenter={xNm:s.xNm,yNm:s.yNm};e.lastKnownSubPosition={xNm:s.xNm,yNm:s.yNm};
     if(!wasHeld||now-A.lastRoleAssignAt>50)this.assignASWRoles(esc?.id,true);
     if(!wasHeld){
-      this.log(`ESCORT HAS CONTACT — ${esc?.name||'escort'} has a firm ${source==='VISUAL'?'visual':'sonar'} solution.`,'bad');
+      this.log(source==='VISUAL'
+        ?`VISUAL CONTACT — ${esc?.name||'escort'} sighted the boat near the surface.`
+        :`SONAR CONTACT — ${esc?.name||'escort'} has a firm echo.`, 'bad');
       A.generation++;
     }
     return quality;

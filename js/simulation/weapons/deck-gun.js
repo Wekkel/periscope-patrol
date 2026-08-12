@@ -93,7 +93,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
       vxM:Math.sin(br)*vh,vyM:-Math.cos(br)*vh,vzM:v*Math.sin(er),
       age:0,bearing,elevation:elev,prev:null
     });
-    G.ammo--;G.lastFireAt=now;G.flashStartedAt=now;G.flashUntil=now+0.30;G.lastFall=null;
+    G.ammo--;G.lastFireAt=now;G.flashStartedAt=now;G.flashUntil=now+0.30;G.ammoFlashUntil=now+1.35;G.ammoFlashCount=G.ammo;G.lastFall=null;
     if(now-(G._aarLastAttackAt??-999)>45){G._aarLastAttackAt=now;this.aarRecordEvent?.('DECK_GUN_ATTACK','Deck-gun engagement opened.',{},sub.position); }
     sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.16,0,1.5);
     this.alertEscorts('DECK_GUN',{...sub.position},0.88);
@@ -140,7 +140,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     const impactZ=Math.max(.2,hit.z||3.5),now=this.state.time.elapsedSeconds;
     G.impactFlash={position:{...impactPos},zM:impactZ,startedAt:now,until:now+1.15,power:1};
     this.state.weapons.explosions.push({position:{...impactPos},zM:impactZ,ageSec:0,maxAgeSec:5,label:'GUN HIT'});
-    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);audio.playHit?.();
+    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);audio.playDeckGunImpact?.(clamp(distNm(this.state.playerSub.position,impactPos)/3,0,1));
     this.alertEscorts('SHIP_HIT',{...c.position},1);
     updateShipDamage(this,c,0);
     const condition=shipDamageCondition(c);

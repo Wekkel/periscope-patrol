@@ -145,14 +145,19 @@ class GameLoop{
       // After an interrupt, the dedicated stop toast owns the lane for four seconds.
       const log=snap.log;
       if(log.length>this.lastLogLen){
-        const suppress=!!snap.time.transitUntil||performance.now()<this.stopToastUntil;
+        const suppress=!!snap.time.transitUntil||(Number(snap.time.timeScale)||1)>1||performance.now()<this.stopToastUntil;
         if(!suppress){
           for(const entry of log.slice(0,log.length-this.lastLogLen)){
             const m=entry.message;
             if(m.includes('HIT ')){Toast.ok('💥 '+m.slice(0,58));buzz([40,50,90]);}
             else if(m.includes('DUD')){Toast.warn('⚠ '+m.slice(0,58));buzz(30);}
             else if(entry.level==='bad'||TOAST_RED.test(m)){
-              Toast.auto(m.slice(0,64)); buzz([20,60,20]);
+              Toast.auto(m.slice(0,64));
+              // Contact/attack-state text is informational; a generic buzz made
+              // it indistinguishable from rejected control input. Reserve hard
+              // haptics for actual physical danger/damage while ASW state gets
+              // its own audible warning bell from AudioDirector.
+              if(/DEPTH CHARGE!|HULL FAILURE|RAMMED|COLLISION|AIR BOMB|STAR SHELL|SEARCHLIGHT CONTACT|GROUNDING/i.test(m))buzz([20,60,20]);
             }
           }
         }

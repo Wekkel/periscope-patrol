@@ -3,8 +3,8 @@ class AudioEngine{
   constructor(){this.ctx=null;this.enabled=true;this.masterGain=null;this.musicGain=null;this.outputLimiter=null;this.initialized=false;
     this.sfxVolume=.62;this.musicVolume=.42;this.noiseBuffer=null;this.sonarVariant=3;
     this.busNodes={};this.mixTargets={system:1,command:1,sensor:1,world:1,machinery:1,weapons:1,mission:1};this.duckUntil=0;this.duckFactor=1;
-    this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;
-    this.battleNoiseSource=null;this.seaGain=null;this.rainGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;this.escortMachinery=null;
+    this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;this.lastASWAlarm=0;
+    this.titleCueGain=null;this.titleCuePlayed=false;this.battleNoiseSource=null;this.seaGain=null;this.rainGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;this.escortMachinery=null;
     // Aircraft fly-by is a deliberately tiny procedural engine. Only the nearest
     // visible aircraft in BRIDGE/GUN gets voices; this avoids turning ambient
     // sound into another sensor and keeps oscillator count bounded on G88-class
@@ -152,33 +152,67 @@ class AudioEngine{
   }
 
   playDepthChargeSplash(distanceFactor=.5){
-    this.ensure();const v=clamp(.17*(1-clamp(distanceFactor,0,1)*.58),.045,.17);
-    // Water entry is intentionally a separate, much lighter event than the
-    // detonation: a short broad splash and low displaced-water 'plop'.
-    this._filteredNoise(.34,v,{type:'bandpass',freq:1050,q:.42,attack:.003},null,0,'weapons');
-    this._filteredNoise(.48,v*.42,{type:'lowpass',freq:210,q:.45,attack:.008},null,0,'weapons');
+    this.ensure();const d=clamp(Number(distanceFactor)||0,0,1);if(d>=.995||!this.ctx||!this.enabled)return;
+    // A charge entering the sea is a displaced-water event, not a percussion
+    // click. More importantly, range has a real zero: an inaudible distant
+    // splash must never survive as a minimum-volume 'tick' and become an
+    // accidental omniscient sensor.
+    const v=.19*Math.pow(1-d,1.55);if(v<.008)return;
+    this._filteredNoise(.46,v,{type:'lowpass',freq:720,q:.34,attack:.003},null,0,'weapons');
+    this._filteredNoise(.62,v*.72,{type:'lowpass',freq:175,q:.42,attack:.010},null,0,'weapons');
+    this._filteredNoise(.22,v*.24,{type:'bandpass',freq:1250,q:.38,attack:.002},null,0,'weapons');
+  }
+
+  playTorpedoHit(){
+    this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
+    // A torpedo warhead is the largest close-range weapon event in the game:
+    // hard pressure face, a dark water/steel body, then a long low inharmonic
+    // decay. No clean sub-bass oscillator: the mass comes from broad resonances.
+    this.duck(100,1850);
+    this._filteredNoise(.10,.98,{type:'lowpass',freq:1050,q:.28,attack:.0005},null,0,'weapons');
+    this._filteredNoise(.25,.86,{type:'lowpass',freq:165,q:.34,attack:.0007},null,0,'weapons');
+    this._filteredNoise(.42,.40,{type:'bandpass',freq:1180,q:.38,attack:.001},null,0,'weapons');
+    const dur=2.70,src=this._noiseSource(dur),body=ctx.createGain();body.gain.setValueAtTime(.92,now+.004);body.gain.exponentialRampToValueAtTime(.001,now+dur);
+    for(const [f0,q,w] of [[31,.62,.34],[44,.70,.48],[61,.80,.55],[86,.91,.48],[122,1.02,.37],[176,1.12,.24],[255,1.22,.12]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.004,Math.random()*1.0);src.stop(now+dur+.04);
+    this._filteredNoise(2.35,.15,{type:'lowpass',freq:205,q:.40,attack:.065},null,0,'weapons');
+    this._filteredNoise(1.35,.055,{type:'bandpass',freq:430,q:.72,attack:.04},null,0,'weapons');
   }
 
   playHit(){
-    this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
-    // Torpedo impact must read as a large warhead detonating against a ship, not
-    // as a game synth note. A hard broadband face excites broad low-Q water/
-    // hull resonances, followed by a shorter hot metal/water burst and heavy
-    // low-frequency decay. Keep the spectrum intentionally inharmonic.
-    this.duck(100,1250);
-    this._filteredNoise(.075,.92,{type:'lowpass',freq:1250,q:.30,attack:.0005},null,0,'weapons');
-    this._filteredNoise(.16,.72,{type:'lowpass',freq:220,q:.38,attack:.0006},null,0,'weapons');
-    this._filteredNoise(.34,.46,{type:'bandpass',freq:1550,q:.42,attack:.001},null,0,'weapons');
-    const dur=1.85,src=this._noiseSource(dur),body=ctx.createGain();body.gain.setValueAtTime(.82,now+.004);body.gain.exponentialRampToValueAtTime(.001,now+dur);
-    for(const [f0,q,w] of [[42,.70,.42],[63,.82,.50],[92,.95,.44],[136,1.08,.34],[205,1.18,.22],[315,1.30,.11]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.004,Math.random()*1.0);src.stop(now+dur+.03);
-    this._filteredNoise(1.25,.095,{type:'lowpass',freq:310,q:.45,attack:.035},null,0,'weapons');
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    // Generic hard collision/impact. Torpedoes and deck-gun shells have their
+    // own recipes so a ram, aircraft splash and shell strike no longer share a
+    // warhead-sized signature.
+    this.duck(90,650);
+    this._filteredNoise(.07,.62,{type:'lowpass',freq:1050,q:.34,attack:.0007},null,0,'weapons');
+    this._filteredNoise(.82,.30,{type:'lowpass',freq:180,q:.52,attack:.004},null,0,'weapons');
+    this._filteredNoise(.34,.16,{type:'bandpass',freq:760,q:.78,attack:.002},null,0,'weapons');
   }
 
   playDud(){this.ensure();this._noise(.22,105,'sine',.18,null,0,'weapons');setTimeout(()=>this._metalClack(.22,88,310,'weapons'),70);}
 
   playDeckGun(power=1){
-    this.ensure();const v=clamp(power,.2,1);this.duck(86,320);this._noise(.055,72,'sawtooth',.55*v,null,0,'weapons');
-    setTimeout(()=>this._white(.18,.42*v,null,0,'weapons'),18);setTimeout(()=>this._noise(.42,36,'sine',.30*v,null,0,'weapons'),45);
+    this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime,v=clamp(power,.2,1);
+    // The 3-inch gun is only metres in front of the player. Give the muzzle a
+    // violent pressure front and short recoil body without the long water-mass
+    // tail of a torpedo warhead.
+    this.duck(90,480);
+    this._filteredNoise(.065,.78*v,{type:'lowpass',freq:1200,q:.30,attack:.0005},null,0,'weapons');
+    this._filteredNoise(.16,.48*v,{type:'lowpass',freq:175,q:.38,attack:.0006},null,0,'weapons');
+    const src=this._noiseSource(.52),out=ctx.createGain();out.gain.setValueAtTime(.48*v,now+.003);out.gain.exponentialRampToValueAtTime(.001,now+.52);
+    for(const [f0,q,w] of [[56,.75,.48],[88,.92,.50],[132,1.05,.34],[205,1.18,.16]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(out);}out.connect(this._bus('weapons'));src.start(now+.003,Math.random()*1.2);src.stop(now+.56);
+    this._filteredNoise(.24,.16*v,{type:'bandpass',freq:1750,q:.45,attack:.001},null,0,'weapons');
+  }
+
+  playDeckGunImpact(distanceFactor=.25){
+    this.ensure();if(!this.ctx||!this.enabled)return;const d=clamp(Number(distanceFactor)||0,0,1),v=.42+.58*Math.pow(1-d,1.25);
+    // Venomous shell-on-steel strike: hard plate crack, compact dark body and
+    // fragments. Deliberately much shorter/smaller than a torpedo explosion.
+    this.duck(86,430);
+    this._filteredNoise(.050,.56*v,{type:'bandpass',freq:1750,q:.42,attack:.0004},null,0,'weapons');
+    this._filteredNoise(.18,.40*v,{type:'lowpass',freq:285,q:.42,attack:.0006},null,0,'weapons');
+    this._filteredNoise(.42,.22*v,{type:'bandpass',freq:520,q:.75,attack:.002},null,0,'weapons');
+    this._filteredNoise(.16,.12*v,{type:'bandpass',freq:2850,q:.48,attack:.001},null,0,'weapons');
   }
 
   _sonarConfig(index=this.sonarVariant,own=false){
@@ -211,8 +245,10 @@ class AudioEngine{
   }
 
   playSonarPing(bearingDeg=null,ownHeading=0,variant=this.sonarVariant,levelScale=1){
-    this.ensure();if(Date.now()-this.lastPing<700)return;this.lastPing=Date.now();this._playSelfDecaySonar(bearingDeg,ownHeading,variant,false,levelScale);
-    const ping=document.getElementById('sonarPing');if(ping){ping.classList.remove('ping');void ping.offsetWidth;ping.classList.add('ping');}
+    this.ensure();if(Date.now()-this.lastPing<700||!this.ctx||!this.enabled)return false;this.lastPing=Date.now();this._playSelfDecaySonar(bearingDeg,ownHeading,variant,false,levelScale);
+    // Visual sonar pulses are rendered in MAP world space by the sensor/map
+    // pipeline. Audio must not animate a viewport-centred fake source.
+    return true;
   }
 
 
@@ -247,21 +283,46 @@ class AudioEngine{
   playUiConfirm(weight=.28){this.ensure();this._metalClack(weight,96,820,'system');}
   playWaypoint(){this.ensure();this._metalClack(.24,92,620,'system');}
   playRadioMessage(){this.ensure();this._metalClack(.18,100,1280,'system');setTimeout(()=>this._metalClack(.12,96,980,'system'),105);}
+  _alarmBellStrike(level=.7,bus='command',delay=.0){
+    if(!this.ctx||!this.enabled)return;const ctx=this.ctx,at=ctx.currentTime+Math.max(0,delay);
+    // Dry mechanical clapper plus an intentionally non-harmonic bronze/steel
+    // ring. This reads as a period warning bell, not a UI error buzzer.
+    const src=this._noiseSource(.08),nf=ctx.createBiquadFilter(),ng=ctx.createGain();nf.type='bandpass';nf.frequency.value=1450;nf.Q.value=.55;ng.gain.setValueAtTime(.12*level,at);ng.gain.exponentialRampToValueAtTime(.001,at+.08);src.connect(nf);nf.connect(ng);ng.connect(this._bus(bus));src.start(at,Math.random()*1.4);src.stop(at+.09);
+    for(const [f,v,d] of [[610,.095,.72],[935,.070,.58],[1425,.048,.43],[2130,.022,.28]]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=f*(.985+Math.random()*.03);g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(v*level,at+.004);g.gain.exponentialRampToValueAtTime(.001,at+d);o.connect(g);g.connect(this._bus(bus));o.start(at);o.stop(at+d+.03);}
+  }
+
+  playASWAlarm(reminder=false){
+    this.ensure();const wall=Date.now(),guard=reminder?3500:2200;if(wall-this.lastASWAlarm<guard)return;this.lastASWAlarm=wall;
+    if(!this.ctx||!this.enabled)return;this._alarmBellStrike(reminder?.46:.78,'command',0);if(!reminder)this._alarmBellStrike(.66,'command',.34);this.duck(reminder?67:84,reminder?430:820);
+  }
+
   playBattleStations(){
-    this.ensure();if(Date.now()-this.lastBattleStations<1800)return;this.lastBattleStations=Date.now();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
-    // A low mechanical klaxon/buzzer replaces the former two arcade square
-    // beeps. It is deliberately brief; the actual ASW/aircraft world should
-    // carry the danger after this transition cue.
-    for(const [f,v] of [[178,.055],[356,.020]]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.value=f;g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(v,now+.025);g.gain.setValueAtTime(v,now+.25);g.gain.exponentialRampToValueAtTime(.001,now+.62);o.connect(g);g.connect(this._bus('command'));o.start();o.stop(now+.68);}this.duck(82,700);
+    this.ensure();if(Date.now()-this.lastBattleStations<1800)return;this.lastBattleStations=Date.now();if(!this.ctx||!this.enabled)return;
+    // General exposed-surface/air alarm: three compact bell strokes. ASW uses
+    // the related but distinct two-stroke playASWAlarm() pattern.
+    this._alarmBellStrike(.72,'command',0);this._alarmBellStrike(.62,'command',.26);this._alarmBellStrike(.52,'command',.52);this.duck(84,880);
+  }
+
+  stopTitleCue(fadeMs=520){
+    if(!this.ctx||!this.titleCueGain)return;const g=this.titleCueGain,now=this.ctx.currentTime,t=Math.max(.03,fadeMs/1000);try{g.gain.cancelScheduledValues(now);g.gain.setValueAtTime(Math.max(.0001,g.gain.value||.001),now);g.gain.exponentialRampToValueAtTime(.001,now+t);}catch(_){}setTimeout(()=>{try{g.disconnect();}catch(_){}if(this.titleCueGain===g)this.titleCueGain=null;},fadeMs+80);
   }
 
   playTitleCue(kind='START'){
-    this.ensure();if(!this.ctx||!this.enabled||this.musicVolume<=0)return;const ctx=this.ctx,now=ctx.currentTime,dur=kind==='COMPLETE'?4.2:5.4;
-    // Short original low-brass identity only; no melody and no external assets.
-    // Procedural brass is intentionally used sparingly because natural brass
-    // articulation is the least convincing category without recorded samples.
-    const chord=kind==='COMPLETE'?[73.42,110,146.83]:[65.41,98,130.81,155.56];
-    for(const f0 of chord){for(const [h,w] of [[1,.034],[2,.021],[3,.013],[4,.007]]){const o=ctx.createOscillator(),g=ctx.createGain(),lp=ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=f0*h;lp.type='lowpass';lp.frequency.value=1450;g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(w,now+.045);g.gain.setValueAtTime(w,now+.72);g.gain.exponentialRampToValueAtTime(.001,now+dur);o.connect(lp);lp.connect(g);g.connect(this.musicGain);o.start();o.stop(now+dur+.08);}}
+    this.ensure();if(!this.ctx||!this.enabled||this.musicVolume<=0)return;if(kind==='START'&&this.titleCuePlayed)return;if(kind==='START')this.titleCuePlayed=true;
+    const ctx=this.ctx,now=ctx.currentTime;this.stopTitleCue(40);const bus=ctx.createGain();bus.gain.value=kind==='COMPLETE'?.72:.82;bus.connect(this.musicGain);this.titleCueGain=bus;
+    const brass=(freq,at,dur,amp)=>{for(const [h,w] of [[1,1],[2,.46],[3,.22],[4,.10]]){const o=ctx.createOscillator(),lp=ctx.createBiquadFilter(),g=ctx.createGain();o.type='sawtooth';o.frequency.value=freq*h;lp.type='lowpass';lp.frequency.value=1250+(1/h)*500;lp.Q.value=.42;g.gain.setValueAtTime(.0001,at);g.gain.linearRampToValueAtTime(amp*w,at+.045);g.gain.setValueAtTime(amp*w*.88,at+Math.max(.07,dur*.48));g.gain.exponentialRampToValueAtTime(.001,at+dur);o.connect(lp);lp.connect(g);g.connect(bus);o.start(at);o.stop(at+dur+.04);}};
+    if(kind==='COMPLETE'){
+      [[73.42,0,1.2,.030],[98,.72,1.25,.029],[110,1.45,1.45,.031],[146.83,2.25,1.8,.026]].forEach(([f,a,d,v])=>brass(f,now+a,d,v));
+      this._alarmBellStrike(.20,'mission',.08);setTimeout(()=>{try{bus.disconnect();}catch(_){}if(this.titleCueGain===bus)this.titleCueGain=null;},4700);return;
+    }
+    // Original compact fleet-boat motif: a restrained low-brass call, enough
+    // melody to identify the game without pretending procedural brass is a full
+    // orchestra. It starts only after the browser's first user gesture.
+    [[73.42,0,.82,.030],[87.31,.68,.72,.026],[110,1.22,.92,.030],[98,2.05,.78,.027],[73.42,2.72,1.18,.033],[110,3.62,.70,.025],[146.83,4.15,1.55,.028]].forEach(([f,a,d,v])=>brass(f,now+a,d,v));
+    // Two very dark drum/ship-mass accents anchor the phrase without becoming
+    // a marching soundtrack.
+    for(const at of [now+.02,now+2.73]){const src=this._noiseSource(.24),f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='lowpass';f.frequency.value=105;f.Q.value=.45;g.gain.setValueAtTime(.11,at);g.gain.exponentialRampToValueAtTime(.001,at+.24);src.connect(f);f.connect(g);g.connect(bus);src.start(at,Math.random()*1.5);src.stop(at+.26);}
+    setTimeout(()=>{try{bus.disconnect();}catch(_){}if(this.titleCueGain===bus)this.titleCueGain=null;},6200);
   }
 
   event(type,opts={}){
@@ -272,11 +333,12 @@ class AudioEngine{
       case'WAYPOINT_REACHED':return this.playWaypoint();
       case'RADIO_MESSAGE':return this.playRadioMessage();
       case'HARBOR_REACHED':return this.playUiConfirm(.42);
-      case'MISSION_START':return this.playTitleCue('START');
+      case'MISSION_START':return this.stopTitleCue(620);
       case'PRIMARY_OBJECTIVE_COMPLETE':return this.playUiConfirm(.46);
       case'MISSION_FAILED':return this._metalClack(.34,78,390,'mission');
       case'PATROL_COMPLETE':case'MISSION_COMPLETE':return this.playTitleCue('COMPLETE');
-      case'AIRCRAFT_SPOTTED':case'AIRCRAFT_ATTACK':case'SUB_DETECTED':case'SEARCHLIGHT_CONTACT':return this.playBattleStations();
+      case'SUB_DETECTED':return this.playASWAlarm(false);
+      case'AIRCRAFT_SPOTTED':case'AIRCRAFT_ATTACK':case'SEARCHLIGHT_CONTACT':return this.playBattleStations();
       case'DEPTH_CHARGE_SPLASH':return this.playDepthChargeSplash(opts.distanceFactor??.5);
       default:return this.playUiConfirm(.18);
     }
@@ -288,7 +350,7 @@ class AudioEngine{
     if(key==='OWN_SONAR')return this._playSelfDecaySonar(null,0,opts.variant??this.sonarVariant,true);
     if(key==='DEPTH_FAR')return this.playDepthCharge(.92);if(key==='DEPTH_MEDIUM')return this.playDepthCharge(.55);if(key==='DEPTH_NEAR')return this.playDepthCharge(.05);if(key==='DEPTH_SPLASH')return this.playDepthChargeSplash(.25);
     if(key==='TUBE_FLOOD')return this.playTubeFlood();if(key==='TUBE_READY')return this.playTubeReady();if(key==='TDC')return this.playTdcSolution();if(key==='STATION')return this.playStationSwitch();
-    if(key==='SCOPE_EXTEND')return this.playPeriscopeMove('extend');if(key==='SCOPE_RETRACT')return this.playPeriscopeMove('retract');if(key==='MINE')return this.playMineStrike();if(key==='AIR_BOMB')return this.playAirBomb(.3);if(key==='TITLE')return this.playTitleCue('START');if(key==='BATTLE_STATIONS')return this.playBattleStations();
+    if(key==='SCOPE_EXTEND')return this.playPeriscopeMove('extend');if(key==='SCOPE_RETRACT')return this.playPeriscopeMove('retract');if(key==='MINE')return this.playMineStrike();if(key==='AIR_BOMB')return this.playAirBomb(.3);if(key==='TITLE')return this.playTitleCue('START');if(key==='BATTLE_STATIONS')return this.playBattleStations();if(key==='ASW_ALARM')return this.playASWAlarm(false);if(key==='DECK_GUN')return this.playDeckGun(1);if(key==='DECK_HIT')return this.playDeckGunImpact(.15);if(key==='TORPEDO_HIT')return this.playTorpedoHit();
     throw new Error(`Unknown audio review sound: ${name}`);
   }
 

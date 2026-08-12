@@ -133,7 +133,7 @@ class DomView{
       bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
       bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
       `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
-      `<div class="dmg-row"><span class="dmg-lbl">Oxygen</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#e36b5d':d.oxygen<50?'#f0c35a':'#7be08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`;
+      `<div class="dmg-row"><span class="dmg-lbl">Air quality</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#e36b5d':d.oxygen<50?'#f0c35a':'#7be08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`;
   }
   renderGauges(sub,state){
     if(!this.gaugeReadout) return;

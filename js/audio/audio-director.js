@@ -3,7 +3,7 @@
 // or procedurally perceive. Never key a tension cue from hidden AI state alone.
 // The director changes mix/perspective only; it never writes simulation state.
 class AudioDirector{
-  constructor(engine){this.engine=engine;this.lastAt=-Infinity;this.state={base:'NORMAL_NAVIGATION',threat:'NONE',perspective:'INTERNAL_SURFACE',compressed:false};this.previewState=null;this.previewUntil=0;}
+  constructor(engine){this.engine=engine;this.lastAt=-Infinity;this.state={base:'NORMAL_NAVIGATION',threat:'NONE',perspective:'INTERNAL_SURFACE',compressed:false};this.previewState=null;this.previewUntil=0;this.lastASWReminderAt=-Infinity;}
 
   _derive(s){
     const sub=s?.playerSub||{},T=s?.tactical||{},W=s?.world||{},camp=s?.campaign||{},depth=Number(sub.depthFeet)||0,station=T.activeStation||'TACTICAL',speed=Number(sub.propulsion?.speedKnots)||0;
@@ -51,7 +51,16 @@ class AudioDirector{
 
   update(s,force=false){
     if(!s)return;const now=performance.now();if(!force&&now-this.lastAt<260)return;this.lastAt=now;
-    let q=this._derive(s);if(this.previewState&&now<this.previewUntil)q={...q,...this.previewState};else if(this.previewState){this.previewState=null;this.previewUntil=0;}
+    const live=this._derive(s),prevThreat=this.state?.threat||'NONE';let q=live;
+    // ASW warning cadence is wall-clock based, not simulation-time based. A
+    // 32× clock may accelerate destroyers, but it must never machine-gun the
+    // player's ears with alarm cues. Two strokes mark a fresh held attack; one
+    // softer stroke roughly every 19 real seconds says that it is still live.
+    if(live.threat==='DETECTED_ASW'&&!s.tactical?.impactObservation){
+      if(prevThreat!=='DETECTED_ASW'&&now-this.lastASWReminderAt>8000){this.engine.playASWAlarm?.(false);this.lastASWReminderAt=now;}
+      else if(now-this.lastASWReminderAt>19000){this.engine.playASWAlarm?.(true);this.lastASWReminderAt=now;}
+    }
+    if(this.previewState&&now<this.previewUntil)q={...q,...this.previewState};else if(this.previewState){this.previewState=null;this.previewUntil=0;}
     this.state=q;this.engine.setAmbient?.(s.playerSub?.depthFeet||0,!!s.playerSub?.stealth?.silentRunning);this.engine.setBattleAmbience?.(s);this.engine.applyMixProfile?.(this._profile(q));
   }
 

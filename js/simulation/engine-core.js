@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════ SIMULATION ENGINE
 class SimEngineCore{
-  constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactSeq=0;}
+  constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactSoundTimer=null;this._impactSeq=0;}
 
   captureImpactShipState(c){
     if(!c)return null;const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
@@ -32,12 +32,16 @@ class SimEngineCore{
   startImpactObservation(snapshot){
     if(!snapshot||this.state.tactical.impactObservation)return false;
     const s=this.state,restoreScale=s.time.timeScale,token=snapshot.token||++this._impactSeq;
-    if(this._impactTimer)clearTimeout(this._impactTimer);
+    if(this._impactTimer)clearTimeout(this._impactTimer);if(this._impactSoundTimer)clearTimeout(this._impactSoundTimer);
     s.tactical.impactObservation={...snapshot,token,startedWall:(typeof performance!=='undefined'?performance.now():Date.now()),restoreScale};
     s.time.timeScale=0;
+    // The internal hit is already resolved, but its cinematic presentation is
+    // pre-impact by 1.5 s. Play the warhead at THAT frame instead of leaking a
+    // bang on MAP before the player sees the strike.
+    if(String(snapshot.weapon||'').toUpperCase()==='TORPEDO')this._impactSoundTimer=setTimeout(()=>{const cur=s.tactical.impactObservation;if(!cur||cur.token!==token)return;this._impactSoundTimer=null;audio.playTorpedoHit?.();},Math.max(0,snapshot.preImpactMs||0));
     this._impactTimer=setTimeout(()=>{
       const cur=s.tactical.impactObservation;if(!cur||cur.token!==token)return;
-      s.tactical.impactObservation=null;this._impactTimer=null;
+      s.tactical.impactObservation=null;this._impactTimer=null;if(this._impactSoundTimer){clearTimeout(this._impactSoundTimer);this._impactSoundTimer=null;}
       if(s.time.timeScale===0&&s.playerSub.mode!=='SUNK')s.time.timeScale=restoreScale;
     },snapshot.durationMs||2350);
     return true;

@@ -291,7 +291,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             W.hits.push({weapon:'TORPEDO',torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds,
               location:dmg.location});
             W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:true,targetLengthFeet:Number(c.lengthYards)||300});
-            particles.spawnExplosion(t.position.xNm,t.position.yNm,2.35,true);audio.playHit();
+            particles.spawnExplosion(t.position.xNm,t.position.yNm,2.35,true); // cinematic owns the warhead sound at the impact frame
             if(c.harborTarget)this.noteHarborAttack?.(c);
             this.alertEscorts('SHIP_HIT',{...t.position},1);
 

@@ -159,10 +159,13 @@ class SimEngineASW extends SimEngineASWBrain {
       dc.ageSec+=dt;
       if(dc.status!=='SINKING'||dc.ageSec<0) continue;
       if(!dc.waterEntryPlayed){
-        dc.waterEntryPlayed=true;const splashRange=distNm(dc.position,sub.position);audio.event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/1.2,0,1)});
+        dc.waterEntryPlayed=true;const splashRange=distNm(dc.position,sub.position),hearRange=sub.depthFeet>10?1.45:2.2;
+        // Real audibility gate: a distant attack on a stale datum must be silent,
+        // not reduced to a minimum-volume rhythmic tick that betrays hidden action.
+        if(splashRange<hearRange)audio.event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/hearRange,0,1)});
         // Only the first charge in a pattern speaks for the group. The report is
         // qualitative and range-limited; it does not reveal the destroyer's set depth.
-        if((dc.patternIndex??0)===0&&splashRange<(sub.depthFeet>10?1.45:2.2)){
+        if((dc.patternIndex??0)===0&&splashRange<hearRange){
           const closeness=splashRange<.28?'close aboard':splashRange<.75?'nearby':'distant';
           this.log(`${sub.depthFeet>10?'SOUND':'LOOKOUTS'} — multiple depth-charge splashes in the water, ${closeness}.`,'bad');
         }

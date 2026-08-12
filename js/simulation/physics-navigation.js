@@ -692,8 +692,8 @@ class SimEngine extends SimEngineCareer {
     else if(d.hullIntegrity<60) W.push({level:'warn',text:'HULL DAMAGED'});
     if(d.flooding>0.65) W.push({level:'critical',text:'FLOODING CRITICAL'});
     else if(d.flooding>0.25) W.push({level:'warn',text:'FLOODING'});
-    if(d.oxygen<20) W.push({level:'critical',text:'LOW OXYGEN'});
-    else if(d.oxygen<45) W.push({level:'warn',text:'OXYGEN FALLING'});
+    if(d.oxygen<20) W.push({level:'critical',text:'AIR CRITICAL'});
+    else if(d.oxygen<45) W.push({level:'warn',text:'AIR GETTING STALE'});
     if(e.alertState==='ATTACKING') W.push({level:'critical',text:'ESCORT ATTACK RUN'});
     else if(e.alertState==='SEARCHING') W.push({level:'warn',text:'ESCORTS SEARCHING'});
     const H=this.state.world.harbor;

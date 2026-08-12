@@ -511,11 +511,6 @@
     #updLater{border-color:var(--line);color:var(--muted);}
     html[data-lay="desk"] #updBar{left:auto;right:16px;bottom:16px;width:420px;}
 
-    /* ── SONAR PING ── */
-    #sonarPing{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-      width:0;height:0;border-radius:50%;border:3px solid var(--ok);opacity:0;pointer-events:none;z-index:50;}
-    #sonarPing.ping{animation:sonarAnim .8s ease-out forwards;}
-    @keyframes sonarAnim{0%{width:0;height:0;opacity:.8;margin:0;}100%{width:220px;height:220px;opacity:0;margin:-110px -110px;}}
 
     /* ── TUTORIAL COACH CARD ── */
     #coach{position:fixed;left:8px;right:8px;bottom:calc(var(--mob-tab-h) + 70px + var(--sab));

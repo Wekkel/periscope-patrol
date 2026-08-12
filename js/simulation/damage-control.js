@@ -143,6 +143,13 @@ class SimEngineDamage extends SimEngineCollision {
     else d.oxygen=clamp(d.oxygen+dt*0.15,0,100);
     if(sub.stealth.silentRunning)d.crewFatigue=clamp(d.crewFatigue+dt/900,0,1);
     else d.crewFatigue=clamp(d.crewFatigue-dt/1500,0,1);
+    // 'oxygen' remains the save-compatible scalar, but gameplay treats it as
+    // overall breathable-air quality (CO2/heat/humidity included). Extremely
+    // stale air now has a consequence without an arcade instant-death switch:
+    // crew fatigue rises, degrading repair and gunnery performance already.
+    if(sub.depthFeet>8&&d.oxygen<15)d.crewFatigue=clamp(d.crewFatigue+dt/900*(1-d.oxygen/15),0,1);
+    if(sub.depthFeet>8&&d.oxygen<10&&!d._airCriticalNoted){d._airCriticalNoted=true;this.notify('AIR QUALITY CRITICAL — crew efficiency is falling. Surface and ventilate when tactically possible.','bad');}
+    if(sub.depthFeet<=8&&d.oxygen>30)d._airCriticalNoted=false;
 
     // Pumps remain a captain's choice because they are noisy. Damage lowers
     // capacity; a badly hurt pump can trip once under sustained heavy load.

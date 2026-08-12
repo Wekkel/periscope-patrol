@@ -77,7 +77,7 @@ class AfterActionReport{
 
   moveEngagement(delta){const a=this.engagements();if(a.length<2)return;this.engagementIndex=(this.engagementIndex+delta+a.length)%a.length;this.renderEngagement();}
   shipSilhouette(e){
-    const q=String(e.type||e.displayType||e.role||'').toUpperCase();
+    const q=[e.type,e.displayType,e.role,e.name].filter(Boolean).join(' ').toUpperCase();
     const isSmall=/SAMPAN|JUNK|FISHING|RAFT/.test(q);
     const isCarrier=/CARRIER/.test(q);
     const isCruiser=/HEAVY CRUISER|CRUISER/.test(q);
@@ -85,7 +85,8 @@ class AfterActionReport{
     const isPatrol=/PATROL/.test(q);
     const isTanker=/TANKER|OILER/.test(q);
     const isSmallTanker=/SMALL TANKER/.test(q);
-    const isTransport=/TRANSPORT|FREIGHTER|MERCHANT|TROOP|CARGO/.test(q);
+    const isMerchant=/FREIGHTER|MERCHANT|CARGO|MARU/.test(q);
+    const isTransport=/TRANSPORT|TROOP/.test(q);
     const svg=(body)=>`<svg viewBox="0 0 420 150" aria-hidden="true">${body}</svg>`;
     /* Debrief silhouettes are simplified card art, but they should still read
        as believable side profiles. The key correction here is that bow and
@@ -99,6 +100,7 @@ class AfterActionReport{
     if(isPatrol)return svg(`<path class="hull" d="M70 112 L72 101 L112 97 L260 97 L292 95 L314 91 L324 85 L332 86 L318 101 L311 112 Z"/><path class="upper" d="M158 96 L174 78 L219 78 L238 96 Z"/><path class="upper" d="M146 96 L158 89 L170 96 Z"/><path class="line" d="M202 78 L202 48"/>`);
     if(isSmallTanker)return svg(`<path class="hull" d="M62 112 L62 94 L118 91 L286 91 L314 90 L334 88 L348 84 L356 84 L340 100 L332 112 Z"/><path class="upper" d="M184 91 L198 67 L244 67 L258 91 Z"/><path class="upper" d="M212 67 L212 49 L226 49 L226 67 Z"/><path class="line" d="M219 49 L219 31"/><path class="line" d="M138 91 L304 91"/>`);
     if(isTanker)return svg(`<path class="hull" d="M56 112 L56 92 L120 89 L302 89 L330 88 L350 86 L364 82 L372 83 L356 98 L348 112 Z"/><path class="upper" d="M108 89 L128 70 L160 70 L176 89 Z"/><path class="upper" d="M184 88 L302 88 L302 91 L184 91 Z"/><path class="line" d="M145 70 L145 44 M145 50 L168 60"/><path class="line" d="M236 88 L236 74 M268 88 L268 74"/>`);
+    if(isMerchant)return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M96 91 L116 71 L176 71 L198 83 L252 83 L272 92 L96 92 Z"/><path class="upper" d="M148 71 L160 52 L196 52 L208 71 Z"/><path class="line" d="M178 52 L178 34"/><path class="line" d="M228 84 L228 58"/>`);
     if(isTransport)return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M128 91 L148 70 L216 70 L242 84 L286 84 L304 92 L128 92 Z"/><path class="upper" d="M190 70 L201 52 L236 52 L247 70 Z"/><path class="line" d="M219 52 L219 34"/>`);
     return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M128 91 L148 70 L216 70 L242 84 L286 84 L304 92 L128 92 Z"/><path class="upper" d="M190 70 L201 52 L236 52 L247 70 Z"/><path class="line" d="M219 52 L219 34"/>`);
   }

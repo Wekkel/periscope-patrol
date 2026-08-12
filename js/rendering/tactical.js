@@ -336,7 +336,7 @@ class CanvasViewTactical extends CanvasViewCore {
        c:sub.stealth.visualProfile>0.5?'#ef6a58':sub.stealth.visualProfile>0.1?'#f5c65c':'#6fe08f'},
       {l:'BATTERY',v:p.battery/100,txt:`${p.battery.toFixed(0)}%${p.chargeRate>0.0004?' ↑'+(p.battery>=99.5?'':Math.round((100-p.battery)/(p.chargeRate*60))+'m'):''}`,c:p.battery<20?'#ef6a58':p.battery<45?'#f5c65c':'#6fe08f'},
       {l:'FUEL',v:p.fuel/100,txt:`${p.fuel.toFixed(0)}%`,c:p.fuel<20?'#ef6a58':'#6fe08f'},
-      {l:'O₂',v:sub.damage.oxygen/100,txt:`${sub.damage.oxygen.toFixed(0)}%`,c:sub.damage.oxygen<25?'#ef6a58':sub.damage.oxygen<50?'#f5c65c':'#6fe08f'}
+      {l:'AIR',v:sub.damage.oxygen/100,txt:`${sub.damage.oxygen.toFixed(0)}%`,c:sub.damage.oxygen<25?'#ef6a58':sub.damage.oxygen<50?'#f5c65c':'#6fe08f'}
     ];
     const n=items.length, gap=Math.round(6*k), cw=(w-gap*(n-1))/n;
     items.forEach((it,i)=>{

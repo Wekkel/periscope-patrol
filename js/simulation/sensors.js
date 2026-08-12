@@ -89,7 +89,12 @@ class SimEngineSensors extends SimEngineIntel {
       const p=clamp(1-rng/reach,0,1)*dt*.55*enemyVisualFactor;if(Math.random()<p){anySeen=true;if(!nearestSeen||rng<nearestSeen.r)nearestSeen={esc,r:rng,what};}
     }
     const now=this.state.time.elapsedSeconds;if(anySeen)e.visualHoldUntil=now+25;
-    e.visualOnSub=now<(e.visualHoldUntil||0)&&sub.depthFeet<30;e.periscopeSighted=now<(e.visualHoldUntil||0)&&sub.depthFeet>=30;
+    // A remembered visual datum may remain useful to the ASW plot, but visual
+    // CONTACT itself ends when the boat goes deep. In particular, a periscope
+    // sighting cannot remain true at 270 ft merely because a 25 s hold timer is
+    // still running.
+    e.visualOnSub=now<(e.visualHoldUntil||0)&&sub.depthFeet<30;
+    e.periscopeSighted=now<(e.visualHoldUntil||0)&&sub.depthFeet>=30&&sub.depthFeet<70;
     if(anySeen){
       const {esc,r,what}=nearestSeen,hull=sub.depthFeet<30,err=hull?.02:.055;
       e.solution={xNm:sub.position.xNm+(Math.random()-.5)*2*err,yNm:sub.position.yNm+(Math.random()-.5)*2*err,
@@ -131,7 +136,15 @@ class SimEngineSensors extends SimEngineIntel {
       const interval=baseInterval*(hist?.sonarIntervalFactor||1);
       esc.pingTimer=interval;esc.lastPingAt=now;pinged++;
       const rng=distNm(esc.position,sub.position),sea=clamp(env.seaState||0,0,1),audibleRange=clamp(8.5*(1-sea*.22)*(belowLayer?.68:1),4.2,8.8),depthHear=sub.depthFeet>8?1:.32;
-      if(rng<audibleRange){const lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear;audio.playSonarPing(bearingBetween(sub.position,esc.position),sub.heading,undefined,lvl);}
+      if(rng<audibleRange){
+        const lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear,heard=audio.playSonarPing(bearingBetween(sub.position,esc.position),sub.heading,undefined,lvl);
+        // MAP may illustrate an audible ping only when the boat already has a
+        // plotted contact for its source. The ring is frozen at that destroyer's
+        // plotted/known position at ping time: never viewport-centred, and never
+        // a free exact-position sensor for an otherwise hidden escort.
+        const tr=W.contactTracks?.[esc.id],wallAt=typeof performance!=='undefined'?performance.now():Date.now();
+        if(heard&&tr&&tr.confidence>.10){const precise=tr.visualHullConfirmed||tr.source==='VISUAL'||tr.source==='SJ RADAR',pp=precise?esc.position:(tr.plotPosition||tr.lastFixPosition);if(pp){W.sonarMapPulses=(W.sonarMapPulses||[]).filter(x=>wallAt-(x.wallAt||0)<1300);W.sonarMapPulses.push({escortId:esc.id,position:{xNm:pp.xNm,yNm:pp.yNm},wallAt,t:now});if(W.sonarMapPulses.length>16)W.sonarMapPulses.splice(0,W.sonarMapPulses.length-16);}}
+      }
       A.pingEvents=A.pingEvents||[];A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN'});if(A.pingEvents.length>80)A.pingEvents.shift();
 
       const dead=rng<SONAR.deadZoneNm;let p=0;
