@@ -142,6 +142,12 @@
       <div class="hk-row"><span class="hk-key">Tab</span><span class="hk-desc">Cycle time scale</span></div>
     </div>
     <div class="hk-section">
+      <div class="hk-title">Audio</div>
+      <div class="hk-row hk-audio-row"><span class="hk-desc">SFX</span><input id="audioSfxVolume" type="range" min="0" max="100" value="62"><span id="audioSfxValue" class="hk-key">62%</span></div>
+      <div class="hk-row hk-audio-row"><span class="hk-desc">Music / cues</span><input id="audioMusicVolume" type="range" min="0" max="100" value="42"><span id="audioMusicValue" class="hk-key">42%</span></div>
+      <div class="hk-row"><span class="hk-key">T</span><span class="hk-desc">Mute / restore audio</span></div>
+    </div>
+    <div class="hk-section">
       <div class="hk-title">Map</div>
       <div class="hk-row"><span class="hk-key">Click</span><span class="hk-desc">Plot waypoint</span></div>
     </div>
@@ -768,6 +774,7 @@
 <script src="./js/ui/briefing.js"></script>
 <script src="./js/data/historical-scenarios.js"></script>
 <script src="./js/audio/audio-engine.js"></script>
+<script src="./js/audio/audio-director.js"></script>
 <script src="./js/persistence/save-system.js"></script>
 <script src="./js/ui/scenario-selector.js"></script>
 <script src="./js/ui/after-action-report.js"></script>

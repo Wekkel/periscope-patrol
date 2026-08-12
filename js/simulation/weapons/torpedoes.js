@@ -8,7 +8,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     // field as a human-readable snapshot for old saves/UI only.
     const axis=t.pos==='AFT'?normDeg(this.state.playerSub.heading+180):this.state.playerSub.heading;
     t.gyroAngle=this.state.tdc.solutionCourse==null?0:shortDelta(axis,this.state.tdc.solutionCourse);
-    if(doLog)this.log(`Tube ${id} (${t.pos}) flooded and ready. TDC tube turn currently ${t.gyroAngle.toFixed(1)}°.`);
+    if(doLog){this.log(`Tube ${id} (${t.pos}) flooded and ready. TDC tube turn currently ${t.gyroAngle.toFixed(1)}°.`);audio.playTubeFlood?.();setTimeout(()=>audio.playTubeReady?.(),620);}
   }
 
   /* How far the fish actually has to swim: the target keeps moving while it

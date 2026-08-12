@@ -307,10 +307,10 @@ class SimEngineHarbor extends SimEngineCore {
           this.applyShock(dmg);
           this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
           this.notify(`COASTAL BATTERY HIT — ${dmg.toFixed(0)}% damage. Get below the searchlights!`,'bad');
-          audio.playDepthCharge(0.55);
+          audio.playShellImpact?.(bearingBetween(sub.position,H.center),sub.heading,.9);
         }else{
           this.notify('Coastal battery firing — shell splashes close aboard.','bad');
-          audio.playDepthCharge(0.9);
+          audio.playShellSplash?.(.35);
         }
       }
     }
@@ -327,7 +327,7 @@ class SimEngineHarbor extends SimEngineCore {
         this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:12,label:'MINE'});
         this.captainLog?.('MINE_STRUCK','Mine struck.',{damage:Math.round(dmg)},`mine:${m.xNm.toFixed(4)}:${m.yNm.toFixed(4)}`);
         this.notify(`MINE! Underwater explosion — ${dmg.toFixed(0)}% damage. You are in mined water; get clear of the field.`,'bad');
-        audio.playDepthCharge(0.15);particles.spawnExplosion(sub.position.xNm,sub.position.yNm,1.25,false);
+        audio.playMineStrike?.();particles.spawnExplosion(sub.position.xNm,sub.position.yNm,1.25,false);
         break;
       }
     }

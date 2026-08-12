@@ -24,7 +24,7 @@ if(window.ResizeObserver){
 ['saveGameButton','mSaveGame'].forEach(id=>{
   document.getElementById(id)?.addEventListener('click',()=>{
     if(SaveSystem.save(0,game.getSnapshot())){
-      audio.playWaypoint(); Toast.ok('Patrol saved to slot 1'); buzz(15);
+      audio.event?.('SAVE_CONFIRMED'); Toast.ok('Patrol saved to slot 1'); buzz(15);
     }
   });
 });
@@ -80,6 +80,13 @@ window.addEventListener('keydown',e=>{
 
 // audio needs a user gesture
 document.addEventListener('pointerdown',()=>audio.ensure(),{once:true});
+
+// Audio settings are profile-independent device preferences: a phone and a
+// tablet may need very different output levels. Keep them outside patrol saves.
+(()=>{const KEY='periscope_audio_v1',sfx=document.getElementById('audioSfxVolume'),mus=document.getElementById('audioMusicVolume'),sv=document.getElementById('audioSfxValue'),mv=document.getElementById('audioMusicValue');
+  let q={sfx:62,music:42};try{q={...q,...JSON.parse(localStorage.getItem(KEY)||'{}')};}catch(_){}
+  const apply=()=>{q.sfx=clamp(Number(sfx?.value??q.sfx),0,100);q.music=clamp(Number(mus?.value??q.music),0,100);audio.setSfxVolume(q.sfx/100);audio.setMusicVolume(q.music/100);if(sv)sv.textContent=`${Math.round(q.sfx)}%`;if(mv)mv.textContent=`${Math.round(q.music)}%`;try{localStorage.setItem(KEY,JSON.stringify(q));}catch(_){}};
+  if(sfx)sfx.value=q.sfx;if(mus)mus.value=q.music;apply();sfx?.addEventListener('input',apply,{passive:true});mus?.addEventListener('input',apply,{passive:true});})();
 
 // Safety net: if the page ended up in the desktop layout on a device that is
 // actually being touched, switch over. Without this a stored 'desk' preference
@@ -234,6 +241,19 @@ if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem('ss_hin
     captureCurrentDataUrl(){canvasView.render(game.getSnapshot());return canvasView.canvas.toDataURL('image/png');},
     downloadCurrent(filename='periscope-current.png'){return saveDataUrl(this.captureCurrentDataUrl(),filename);},
     captureScenarioDataUrl(name,opts={}){const s=makeScenario(name,opts),map=name==='map-labels'||name==='map-harbor-approach',harbor=name==='map-harbor-approach',center=harbor?{xNm:(s.playerSub.position.xNm+s.world.harbor.center.xNm)/2,yNm:(s.playerSub.position.yNm+s.world.harbor.center.yNm)/2}:{...s.playerSub.position};return capture(s,{strategy:opts.strategy||null,zoom:map?(Number(opts.zoom)||(harbor?54:72)):null,center:map?center:null});},
-    downloadScenario(name,opts={}){const strategy=String(opts.strategy||'').toLowerCase(),suffix=strategy?`-${strategy}`:'';return saveDataUrl(this.captureScenarioDataUrl(name,opts),opts.filename||`periscope-${name}${suffix}.png`);}
+    downloadScenario(name,opts={}){const strategy=String(opts.strategy||'').toLowerCase(),suffix=strategy?`-${strategy}`:'';return saveDataUrl(this.captureScenarioDataUrl(name,opts),opts.filename||`periscope-${name}${suffix}.png`);},
+    audio:{
+      // Audio review never mutates simulation state. Use it to audition a
+      // recipe immediately after a code change instead of playing a patrol.
+      list(){return['SONAR','OWN_SONAR','DEPTH_FAR','DEPTH_MEDIUM','DEPTH_NEAR','DEPTH_SPLASH','TUBE_FLOOD','TUBE_READY','TDC','STATION','SCOPE_EXTEND','SCOPE_RETRACT','MINE','AIR_BOMB','BATTLE_STATIONS','TITLE'];},
+      play(name,opts={}){return audio.debugPlay(name,opts);},
+      sonar(variant=audio.sonarVariant){audio.setSonarVariant(variant);return audio.debugPlay('SONAR',{variant});},
+      ownSonar(variant=audio.sonarVariant){audio.setSonarVariant(variant);return audio.debugPlay('OWN_SONAR',{variant});},
+      setSonarVariant(variant){return audio.setSonarVariant(variant);},
+      event(name,opts={}){return audio.event(name,opts);},
+      preview(base='SILENT_RUNNING',threat='NONE',perspective=null,durationMs=8000){return globalThis.audioDirector?.preview(base,threat,perspective,durationMs);},
+      stopPreview(){return globalThis.audioDirector?.stopPreview();},
+      stats(){return{engine:audio.audioStats(),director:globalThis.audioDirector?.stats?.()};}
+    }
   };
 })();

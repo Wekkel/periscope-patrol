@@ -498,7 +498,7 @@ class Tutorial{
     }
     if(ok&&st.check&&!this.doneAt){
       this.doneAt=performance.now();
-      audio.playWaypoint();buzz([15,40,15]);
+      audio.event?.('TUTORIAL_STEP');buzz([15,40,15]);
       // Objective complete: open the lesson so the player can read the result.
       // Progress is deliberately manual; a pre-satisfied objective must never
       // consume the next explanation before a new player can read it.

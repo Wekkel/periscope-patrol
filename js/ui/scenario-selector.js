@@ -178,7 +178,7 @@ class ScenarioSelector{
   }
 
   saveToSlot(slot){
-    if(SaveSystem.save(slot,this.game.getSnapshot())){audio.playWaypoint();this.renderSaveSlots();}
+    if(SaveSystem.save(slot,this.game.getSnapshot())){audio.event?.('SAVE_CONFIRMED');this.renderSaveSlots();}
     else alert('Save failed.');
   }
 
@@ -189,7 +189,7 @@ class ScenarioSelector{
     Object.assign(this.game.state,state);
     this.close();
     showBriefing(state.campaign.patrolArea,state);
-    audio.playDive();
+    audio.event?.('RESUME_CONFIRMED');
   }
 
   deleteSlot(slot){
@@ -228,10 +228,10 @@ class ScenarioSelector{
           const sp=TORPEDO_SPECS[h.forceTorpedo];
           if(sp){s.tdc.torpedoType=sp.name;s.tdc.torpedoSpeedKnots=sp.speedKnots;s.tdc.torpedoMaxRangeNm=sp.maxRangeNm;}
         }
-        audio.playDive();this.close();showBriefing(aKey,s);return;
+        audio.event?.('MISSION_START');this.close();showBriefing(aKey,s);return;
       }
     }
-    if(this.activeTab==='patrol'&&this.selArea){SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});this.close();}
+    if(this.activeTab==='patrol'&&this.selArea){SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});audio.event?.('MISSION_START');this.close();}
   }
 }
 

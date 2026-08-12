@@ -102,7 +102,7 @@ class SimEngineSensors extends SimEngineIntel {
         const A=this.ensureASWState?.();if(A){A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:err,source:'VISUAL'};A.datumAt=now;A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;this.assignASWRoles?.(esc.id,true);}
         this.log(`${esc.name} lookouts sighted a ${what} at ${(r*2025).toFixed(0)} yards.`);
       }
-      audio.playAlarm();
+      audio.event?.('SUB_DETECTED');
     }
     if(day<.25&&e.alertState==='ATTACKING'&&e.visualOnSub&&this.state.time.elapsedSeconds>(e.starShellUntil||0)+70&&Math.random()<dt*.06){
       e.starShellUntil=this.state.time.elapsedSeconds+45;this.log('STAR SHELL — the sea around you is lit up like day.','bad');
@@ -129,10 +129,12 @@ class SimEngineSensors extends SimEngineIntel {
       const ranging=!!(esc.sonarContact||e.contactHeld);
       const baseInterval=ranging?clamp(3.2+estRng*.45+(1-q)*2.0,3.0,7.5):clamp(9.5+Math.random()*4.5+(esc.aswRole==='CONVOY_GUARD'?2:0),8.5,16);
       const interval=baseInterval*(hist?.sonarIntervalFactor||1);
-      esc.pingTimer=interval;esc.lastPingAt=now;pinged++;audio.playSonarPing(bearingBetween(sub.position,esc.position),sub.heading);
+      esc.pingTimer=interval;esc.lastPingAt=now;pinged++;
+      const rng=distNm(esc.position,sub.position),sea=clamp(env.seaState||0,0,1),audibleRange=clamp(8.5*(1-sea*.22)*(belowLayer?.68:1),4.2,8.8),depthHear=sub.depthFeet>8?1:.32;
+      if(rng<audibleRange){const lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear;audio.playSonarPing(bearingBetween(sub.position,esc.position),sub.heading,undefined,lvl);}
       A.pingEvents=A.pingEvents||[];A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN'});if(A.pingEvents.length>80)A.pingEvents.shift();
 
-      const rng=distNm(esc.position,sub.position),dead=rng<SONAR.deadZoneNm;let p=0;
+      const dead=rng<SONAR.deadZoneNm;let p=0;
       if(!blind&&!dead&&rng<SONAR.maxRangeNm){
         const activeEcho=.82+.18*clamp(sub.propulsion.speedKnots/7,0,1); // stopping helps passive stealth far more than an active echo
         const layerFactor=belowLayer?.21:1,ownship=escortSonarOwnshipFactor(esc,sub.position);

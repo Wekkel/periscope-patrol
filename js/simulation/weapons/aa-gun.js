@@ -30,7 +30,7 @@ class SimEngineAAGun extends SimEngineDeckGun {
     W.aaHurt=(W.aaHurt||0)+1;
     sub.damage.crewFatigue=clamp(sub.damage.crewFatigue+0.24,0,1);
     this.notify(`${what} Men down on the cigarette deck — gun abandoned, wounded passed below.`,'bad');
-    audio.playAlarm();
+    audio.event?.('AIRCRAFT_ATTACK');
   }
 
   updateAAGun(dt){
@@ -100,7 +100,7 @@ class SimEngineAAGun extends SimEngineDeckGun {
       fuseSec:clamp(guess/sinkFps,5,33),targetDepthFeet:guess,status:'SINKING',strength:28};
     W.depthCharges.push(dc);
     const b=bearingBetween(sub.position,pos);
-    audio.playShellSplash?.(.8);
+    audio.event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:.75});dc.waterEntryPlayed=true;
     this.log(`${sub.depthFeet<12?'LOOKOUTS':'SOUND'} — AERIAL DEPTH CHARGE IN THE WATER, bearing ${fmtDeg(b)}. It is still sinking.`,'bad');
     this.aarRecordEvent?.('AIRCRAFT_DEPTH_CHARGE',`${a.name} dropped an aerial depth charge.`,{aircraftId:a.id,depthFt:guess},a.position,pos);
     this.alertEscorts('AIR_ATTACK',{...pos},0.6);
@@ -120,8 +120,8 @@ class SimEngineAAGun extends SimEngineDeckGun {
     const submerged=sub.depthFeet>12,hNm=distNm(pos,sub.position),dmg=submerged?0:52*Math.exp(-hNm/.020);
     this.state.weapons.explosions.push({position:{...pos},ageSec:0,maxAgeSec:8,label:dmg>4?`AIR BOMB -${Math.round(dmg)}`:'AIR BOMB'});
     if(W.aaManned&&!submerged&&hNm<.035&&Math.random()<.34)this.aaCasualty('Bomb burst close aboard.');
-    if(dmg>1.5){this.applyShock(dmg);audio.playDepthCharge(clamp(1-dmg/52,0,1));particles.spawnExplosion(pos.xNm,pos.yNm,.9,false);this.log(`AIR BOMB — ${dmg.toFixed(0)}% damage. Get her down!`,'bad');}
-    else{audio.playDepthCharge(.85);particles.spawnExplosion(pos.xNm,pos.yNm,.55,false);this.log(submerged?`${a.name} bombs the last surface datum — the boat is already under.`:`${a.name} dropped ordinary bombs — near miss.`,'warn');}
+    if(dmg>1.5){this.applyShock(dmg);audio.playAirBomb?.(clamp(1-dmg/52,0,1));particles.spawnExplosion(pos.xNm,pos.yNm,.9,false);this.log(`AIR BOMB — ${dmg.toFixed(0)}% damage. Get her down!`,'bad');}
+    else{audio.playAirBomb?.(.85);particles.spawnExplosion(pos.xNm,pos.yNm,.55,false);this.log(submerged?`${a.name} bombs the last surface datum — the boat is already under.`:`${a.name} dropped ordinary bombs — near miss.`,'warn');}
     this.alertEscorts('AIR_ATTACK',{...pos},0.6);
   }
 

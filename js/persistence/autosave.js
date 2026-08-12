@@ -33,7 +33,7 @@ const AutoSave={
       sceneSelector.close?.();
       touchCtrl.cache={};
       Toast.ok('Patrol resumed where you left her');
-      audio.playDive?.();
+      audio.event?.('RESUME_CONFIRMED');
     };
     return true;
   }

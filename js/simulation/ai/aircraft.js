@@ -46,7 +46,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     a.seenBySub=true;s.world.airThreat.alarmedAt=now;
     const T=s.time;if((T.timeScale||1)>1||T.transitUntil){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
     this.log(src==='WAKE'?`${a.name} has picked up the diving wake and is turning onto the last datum!`:`${a.name} has sighted the boat and is turning in!`,'bad');
-    audio.playAlarm();
+    audio.event?.('AIRCRAFT_SPOTTED');
   }
 
   updateAircraft(dt){
@@ -189,7 +189,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       if((a.state==='ATTACKING'||a.state==='STRAFING')&&!a.seenBySub){
         a.seenBySub=true;air.alarmedAt=now;
         const T=this.state.time;if(T.transitUntil||(T.timeScale||1)>1){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
-        if(!a._attackHandoffLogged){a._attackHandoffLogged=true;this.log(`⚠ AIR ALARM — ${a.name} is already on an attack run!`,'bad');audio.playAlarm();}
+        if(!a._attackHandoffLogged){a._attackHandoffLogged=true;this.log(`⚠ AIR ALARM — ${a.name} is already on an attack run!`,'bad');audio.event?.('AIRCRAFT_SPOTTED');}
       }
       if(a.state==='SEARCHING'&&!a.spotted&&friendly&&friendly.rngNm<5.5){
         a.state='DEPARTING';a.departBearing=bearingBetween(friendly.port.pos,a.position);
@@ -262,7 +262,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
           const diveUnderway=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
           const airAction=sub.depthFeet<8&&!diveUnderway?'CLEAR THE BRIDGE!':sub.depthFeet<18&&diveUnderway?'CONTINUE THE DIVE!':'REMAIN SUBMERGED.';
           this.log(`⚠ AIR ALARM — ${how}. ${airAction}`,'bad');
-          audio.playAlarm();
+          audio.event?.('AIRCRAFT_SPOTTED');
         }
       }
 
@@ -348,7 +348,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
           a.runTimer=22;a.passes=(a.passes||0)+1;
           const rat=clamp(a.rattled||0,0,1);
           this.log(`${a.name} is strafing — bullets all over the deck!`,'bad');
-          this.shake(2.4); audio.playDepthCharge(0.9);
+          this.shake(2.4); audio.playStrafe?.();
           if(Math.random()<0.42*(1-rat*0.5)) this.aaCasualty('Machine-gun fire raking the bridge.');
           else this.log('The burst went into the water alongside. The gun is still firing.','warn');
           if(a.passes>=2+Math.floor(Math.random()*2)){

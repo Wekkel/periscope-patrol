@@ -37,7 +37,7 @@ class SimEngineIntel extends SimEngineAAGun {
         m.time=now;m.seq=(R.seq=(R.seq||0)+1);R.inbox.unshift(m);R.unread++;
         if(R.inbox.length>12) R.inbox.pop();
         this.applySignal(m);
-        audio.playWaypoint();
+        audio.event?.('RADIO_MESSAGE');
       }
     }else if(R.copying>0){
       R.copying=Math.max(0,R.copying-dt*2);

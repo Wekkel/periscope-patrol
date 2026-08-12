@@ -167,9 +167,9 @@ class GameLoop{
     // BRIDGE/GUN aircraft alive. All heavier ambience remains on the 2 s tick.
     audio.updateAircraftFlyby?.(snap);
 
-    // ambient audio ~every 2 s
-    this.ambT+=dt;
-    if(this.ambT>2){this.ambT=0;audio.setAmbient(snap.playerSub.depthFeet,snap.playerSub.stealth.silentRunning);audio.setBattleAmbience?.(snap);}
+    // AudioDirector owns slow ambience/mix updates. It is internally throttled
+    // and never touches simulation timing or hidden tactical information.
+    globalThis.audioDirector?.update?.(snap);
 
     // adaptive effect quality — keeps mid-range tablets smooth
     const ms=performance.now()-t0;

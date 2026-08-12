@@ -110,8 +110,8 @@ class SimEngineASW extends SimEngineASWBrain {
         const hit=Math.random()<pHit;this.noteSurfaceGunfire?.(esc,sub,hit);
         if(hit){
           const dmg=4+Math.random()*11;this.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
-          this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');audio.playDepthCharge(.5);
-        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);audio.playDepthCharge(.9);}
+          this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');audio.playShellImpact?.(bearingBetween(sub.position,esc.position),sub.heading,.9);
+        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);audio.playShellSplash?.(clamp(trueRng/gunRange,0,1));}
       }
     }else esc.gunTimer=0;
   }
@@ -147,6 +147,7 @@ class SimEngineASW extends SimEngineASWBrain {
     for(const dc of W.depthCharges){
       dc.ageSec+=dt;
       if(dc.status!=='SINKING'||dc.ageSec<0) continue;
+      if(!dc.waterEntryPlayed){dc.waterEntryPlayed=true;audio.event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(distNm(dc.position,sub.position)/1.2,0,1)});}
       if(dc.ageSec>=dc.fuseSec){
         dc.status='DETONATED';
         const hNm=distNm(dc.position,sub.position);

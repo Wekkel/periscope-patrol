@@ -348,15 +348,16 @@ class SimEngineCore{
         this.state.time.timeScale=opts[(i+1)%opts.length];
         this.log(this.state.time.timeScale===0?'Simulation paused.':`Time scale: ${this.state.time.timeScale}x.`); break;}
       case'SET_ACTIVE_STATION':{
-        if(this.state.tactical.activeStation==='PERISCOPE'&&cmd.station!=='PERISCOPE')this.refreshScopeVisualContacts?.();
+        const prevStation=this.state.tactical.activeStation;
+        if(prevStation==='PERISCOPE'&&cmd.station!=='PERISCOPE')this.refreshScopeVisualContacts?.();
         if(cmd.station==='DECK_GUN'){
-          if(this.tryAutoManDeckGun()) this.state.tactical.activeStation='DECK_GUN';
+          if(this.tryAutoManDeckGun()){this.state.tactical.activeStation='DECK_GUN';if(prevStation!=='DECK_GUN')audio.playStationSwitch?.();}
           break;
         }
         if(cmd.station==='BRIDGE'){
           if(!bridgeCanUse(this.state)){this.notify(`Bridge unavailable at ${sub.depthFeet.toFixed(0)} ft — surface or come awash first.`,'warn');break;}
           if(this.state.tactical.activeStation==='DECK_GUN')this.secureDeckGunAuto();
-          this.state.tactical.activeStation='BRIDGE';this.state.tactical.bridgeBearing=sub.heading;this.state.tactical.bridgeBinoculars=false;this.state.tactical.bridgeZoom=0;
+          this.state.tactical.activeStation='BRIDGE';this.state.tactical.bridgeBearing=sub.heading;this.state.tactical.bridgeBinoculars=false;this.state.tactical.bridgeZoom=0;if(prevStation!=='BRIDGE')audio.playStationSwitch?.();
           break;
         }
         if(this.state.tactical.activeStation==='DECK_GUN') this.secureDeckGunAuto();
@@ -371,6 +372,7 @@ class SimEngineCore{
           this.refreshScopeVisualContacts?.();
         }
         if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.ensureSoundRadarState?.();}
+        if(prevStation!==this.state.tactical.activeStation)audio.playStationSwitch?.();
         break;}
       case'ROTATE_SOUND': this.state.tactical.soundBearing=normDeg((this.state.tactical.soundBearing||sub.heading)+(cmd.deltaDeg||0)); break;
       case'SOUND_MARK_BEARING': this.markSoundBearing?.(); break;
@@ -408,7 +410,7 @@ class SimEngineCore{
       case'TDC_SEND_SCOPE_OBSERVATION': this.sendScopeToTdc(); break;
       case'FLOOD_TUBE': this.floodTube(cmd.tubeId); break;
       case'FIRE_TORPEDO': this.fireTorpedo(cmd.tubeId); break;
-      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.floodTube(t.id,false); this.log('Forward tubes flooded and ready.'); break;
+      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.floodTube(t.id,false); this.log('Forward tubes flooded and ready.');audio.playTubeFlood?.();setTimeout(()=>audio.playTubeReady?.(),680); break;
       case'FIRE_READY_SPREAD': this.fireSpread(); break;
       case'SET_TORPEDO_TYPE':{
         const spec=TORPEDO_SPECS[cmd.specKey];
@@ -438,12 +440,12 @@ class SimEngineCore{
         tdc.autoTrack=false;tdc.trackSource='MANUAL';tdc.bearing=tdc.manualBearing; tdc.rangeNm=tdc.manualRange;
         tdc.targetCourse=tdc.manualCourse; tdc.targetSpeedKnots=tdc.manualSpeed;
         if(!tdc.targetId) tdc.targetId='MANUAL';
-        this.updateTdc(true);
+        this.updateTdc(true);audio.playTdcSolution?.();
         this.log(`TDC manual: B${fmtDeg(tdc.bearing)} R${tdc.rangeNm.toFixed(1)}nm C${fmtDeg(tdc.targetCourse)} S${tdc.targetSpeedKnots}kn → ${tdc.status} sol${Math.round(tdc.solutionQuality*100)}%`);
         break;}
       case'FLOOD_AFT_TUBES':
         for(const t of this.state.weapons.tubes.filter(t=>t.pos==='AFT')) this.floodTube(t.id,false);
-        this.log('Aft tubes flooded.'); break;
+        this.log('Aft tubes flooded.');audio.playTubeFlood?.();setTimeout(()=>audio.playTubeReady?.(),680); break;
       case'FIRE_AFT_SPREAD': this.fireSpreadByPos('AFT'); break;
       case'MAP_ADD_WAYPOINT':
         this.state.map.plottedCourse.push({xNm:cmd.xNm,yNm:cmd.yNm});
@@ -932,7 +934,7 @@ class SimEngineCore{
     }
 
     if(!camp._portTouchActive){
-      camp._portTouchActive=true;audio.playWaypoint();
+      camp._portTouchActive=true;audio.event?.('HARBOR_REACHED');
       this.notify(returning
         ? `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Patrol complete.`
         : `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Taking on fuel, stores and repair parties.`,'ok');
@@ -972,7 +974,7 @@ class SimEngineCore{
     this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
     Toast.show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
     this.log(`Patrol score: ${patrolScore} | Career total: ${camp.totalScore}`,'warn');
-    audio.playMissionComplete();
+    audio.event?.('PATROL_COMPLETE');
     // Rearm and refuel
     sub.propulsion.fuel=100; sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
     W.torpedoInventory=16;
