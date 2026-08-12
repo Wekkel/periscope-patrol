@@ -2,6 +2,42 @@
 class SimEngineCore{
   constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;}
 
+  boatIsLost(){
+    return this.state?.playerSub?.mode==='SUNK'||this.state?.campaign?.missionStatus==='LOST';
+  }
+
+  offerPatrolAAR(record,message,type='ok',completed=false){
+    if(!record||typeof Toast==='undefined')return null;
+    return Toast.stickyAction?.(message,'VIEW AAR',()=>{
+      globalThis.aarController?.open?.(record,{completed});
+    },type,'patrol-aar');
+  }
+
+  enterLostBoatState(reason='boat lost'){
+    if(!this.boatIsLost())return false;
+    const s=this.state,camp=s.campaign,sub=s.playerSub,T=s.tactical||{},tdc=s.tdc||{},W=s.world||{};
+    sub.mode='SUNK';camp.missionStatus='LOST';
+    // Game over is a lifecycle boundary, not another tactical state. Freeze
+    // the world while leaving UI/menu commands alive on the normal fixed tick.
+    Object.assign(s.time,{timeScale:0,transitUntil:0,transitOpen:false,transitReason:null});
+    if(s.map)s.map.autoFollowPlot=false;
+    T.selectedTrackId=null;T.bridgeMarkedId=null;T.impactObservation=null;T.bridgeDiveSequence=null;
+    tdc.targetId=null;tdc.autoTrack=false;tdc.trackSource='MANUAL';tdc.status='NO TARGET';tdc.solutionQuality=0;
+    if(W)W.aaManned=false;
+    if(s.weapons?.deckGun)s.weapons.deckGun.manned=false;
+    if(s.ui?.toasts) s.ui.toasts.length=0;
+
+    if(camp._lossStateEntered)return true;
+    camp._lossStateEntered=true;
+    const record=this.finalizePatrol?.('LOST',{reason,hullAtEnd:sub.damage?.hullIntegrity??0});
+    if(record)camp._lossRecordId=record.id||null;
+    if(typeof Toast!=='undefined'){
+      Toast.clear?.();
+      this.offerPatrolAAR(record,'BOAT LOST — patrol ended. After-action report ready.','bad',false);
+    }
+    return true;
+  }
+
   captureImpactShipState(c){
     if(!c)return null;const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
     return{heading:c.heading||0,speedKnots:c.speedKnots||0,shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,
@@ -78,7 +114,7 @@ class SimEngineCore{
     this.ensureMissionFramework?.();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
-    if(this.state.campaign.missionStatus==='LOST')this.finalizePatrol?.('LOST',{reason:'boat lost'});
+    if(this.enterLostBoatState('boat lost'))return;
     // Manual 8x/16x/32x hands the conn back before a predicted vessel collision.
     // Transit/skip uses transitInterrupt(), which reports the same hull-aware CPA.
     if(!this.state.time.transitUntil&&(this.state.time.timeScale||1)>1&&this.compressedCollisionWatch?.()) return;
@@ -93,13 +129,13 @@ class SimEngineCore{
       this.updateSub(sdt);
       this.state.time.elapsedSeconds+=sdt;
       this.state.campaign.patrolDuration+=sdt;
+      if(this.boatIsLost()){this.enterLostBoatState('boat lost');break;}
       // A cinematic impact freezes time from the hit onward. At high time
       // compression `steps` was calculated before the hit, so without this
       // guard the engine could still execute several already-scheduled slices
       // after startImpactObservation() had set timeScale to zero.
       if(this.state.tactical?.impactObservation&&this.state.time.timeScale===0)break;
     }
-    if(this.state.campaign.missionStatus==='LOST')this.finalizePatrol?.('LOST',{reason:'boat lost'});
   }
 
   processCommands(){for(const c of this.bus.drain())this.applyCmd(c);}
@@ -232,7 +268,7 @@ class SimEngineCore{
     const sub=this.state.playerSub;
     // a lost boat takes no more orders — only the menus stay live
     if(sub.mode==='SUNK'&&!['NEW_PATROL','SET_ACTIVE_STATION','CYCLE_TIME_SCALE','SET_TIME_SCALE',
-        'MAP_CLEAR_PLOT','SET_TORPEDO_TYPE','SET_DUD_MODE'].includes(cmd.type)){
+        'MAP_CLEAR_PLOT','SET_TORPEDO_TYPE','SET_DUD_MODE','DESELECT_TRACK'].includes(cmd.type)){
       /* She is gone. Silently swallowing the order is the cruellest thing the
          interface can do — the player sits there working the controls of a
          wreck. Say it, once every few seconds, in plain words. */
@@ -986,10 +1022,10 @@ class SimEngineCore{
       const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(camp._careerStartDate,camp.patrolDuration):camp.startDate);
       camp.nextPatrolDate=historicalNextPatrolDate(endDate,camp.patrolNumber,camp.scenarioSeed);
     }
-    if(patrolRecord&&globalThis.aarController?.open)setTimeout(()=>globalThis.aarController.open(patrolRecord,{completed:true}),0);
     camp.score=0;                       // banked — startNewPatrol would count it twice
-    this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
-    Toast.show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
+    const completeMsg=`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`;
+    this.log(completeMsg,'ok');
+    this.offerPatrolAAR(patrolRecord,`PATROL COMPLETE — ${portName.toUpperCase()} · after-action report ready.`,'ok',true);
     this.log(`Patrol score: ${patrolScore} | Career total: ${camp.totalScore}`,'warn');
     audio.event?.('PATROL_COMPLETE');
     // Rearm and refuel
@@ -1000,10 +1036,11 @@ class SimEngineCore{
     sub.damage.flooding=0;
     // Patrol number belongs to the completed patrol until a new patrol is
     // actually commissioned. startNewPatrol() advances it exactly once.
-    setTimeout(()=>this.log(`Rearmed and refueled. Ready for patrol #${(camp.patrolNumber||1)+1}.`)  ,3000);
+    setTimeout(()=>{if(this.state.campaign===camp&&camp.missionStatus==='COMPLETED')this.log(`Rearmed and refueled. Ready for patrol #${(camp.patrolNumber||1)+1}.`);},3000);
   }
 
   startNewPatrol(areaKey,options={}){
+    if(typeof Toast!=='undefined')Toast.dismissRole?.('patrol-aar');
     const keys=Object.keys(PATROL_AREAS);
     const key=areaKey||keys[Math.floor(Math.random()*keys.length)];
     const area=PATROL_AREAS[key];

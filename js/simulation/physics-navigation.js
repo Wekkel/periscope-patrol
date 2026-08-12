@@ -143,21 +143,26 @@ class SimEngine extends SimEngineCareer {
 
   // ── CORE PHYSICS ──
   updateSub(dt){
-    const sub=this.state.playerSub;
+    const sub=this.state.playerSub,lost=()=>this.boatIsLost?.();
     this.captureCollisionFrame();
     this.updateBridgeDiveSequence?.(dt);
     this.updateHeading(sub,dt); this.updateDepth(sub,dt); this.updatePropulsion(sub,dt);
     this.updatePosition(sub,dt);
-    this.applyTerrainEffects(sub,dt);
+    this.applyTerrainEffects(sub,dt);if(lost())return;
     this.updateWeather?.(dt);
     this.updateTrafficDirector?.(dt);
-    this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
+    this.updateWorld(dt); this.updateVesselCollisions(dt);if(lost())return;
+    this.updateSigs(sub); this.updateHarbor(dt);if(lost())return;
     this.updateDetection(dt); this.updateSoundRadar?.(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
-    this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
+    this.updateEnemyAI(dt);if(lost())return;
+    this.updateAircraft(dt);if(lost())return;
+    this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     this.updateBattleAtmosphere?.(dt);
     this.updateMissionFramework?.(dt);
     if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
-    this.updateDmg(sub,dt); this.updateDmgCtrl(sub,dt); this.updateWarnings(sub);
+    this.updateDmg(sub,dt);if(lost())return;
+    this.updateDmgCtrl(sub,dt);if(lost())return;
+    this.updateWarnings(sub);
     this.checkMissionObjectives(); this.checkPortArrival(dt);
     this.updateModeAfter(sub);
     this.updateAfterActionRecorder?.(dt);

@@ -361,6 +361,8 @@
     .toast.warn{border-color:var(--alert);color:var(--alert);}
     .toast.bad{border-color:var(--danger);color:var(--danger);}
     .action-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;text-align:left;}
+    .sticky-toast{animation:toastIn .18s ease-out;order:-30;border-width:2px;
+      box-shadow:0 5px 22px rgba(0,0,0,.78),0 0 0 1px rgba(111,224,143,.12) inset;}
     .impact-action-toast{order:-20;border-width:2px;box-shadow:0 5px 22px rgba(0,0,0,.78),0 0 0 1px rgba(245,198,92,.14) inset;}
     .action-toast span{flex:1;min-width:0;}
     .toast-action-btn{width:auto!important;min-width:86px;margin:0!important;padding:7px 10px!important;border-color:currentColor!important;color:inherit!important;background:rgba(0,0,0,.22)!important;font-size:9.5px!important;white-space:nowrap;}
@@ -510,12 +512,6 @@
     #updBar button{margin:0;width:auto;padding:8px 14px;min-height:40px;flex-shrink:0;}
     #updLater{border-color:var(--line);color:var(--muted);}
     html[data-lay="desk"] #updBar{left:auto;right:16px;bottom:16px;width:420px;}
-
-    /* ── SONAR PING ── */
-    #sonarPing{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-      width:0;height:0;border-radius:50%;border:3px solid var(--ok);opacity:0;pointer-events:none;z-index:50;}
-    #sonarPing.ping{animation:sonarAnim .8s ease-out forwards;}
-    @keyframes sonarAnim{0%{width:0;height:0;opacity:.8;margin:0;}100%{width:220px;height:220px;opacity:0;margin:-110px -110px;}}
 
     /* ── TUTORIAL COACH CARD ── */
     #coach{position:fixed;left:8px;right:8px;bottom:calc(var(--mob-tab-h) + 70px + var(--sab));
@@ -720,7 +716,18 @@
       box-shadow:0 0 0 1px rgba(245,198,92,.5) inset;}
     /* Keep the station strip permanently one tap away, but reserve the top
        canvas band for NAV/SOUND/track labels instead of painting tabs over it. */
-    html[data-lay="touch"] #ovlStations{top:58px;}
+    html[data-lay="touch"] #ovlStations{top:58px;background:rgba(6,16,20,.48);
+      border-color:rgba(38,86,79,.58);transition:background 1.55s ease,border-color 1.55s ease,box-shadow 1.55s ease;}
+    html[data-lay="touch"] #ovlStations button{color:rgba(130,168,154,.72);
+      transition:color 1.55s ease,background 1.55s ease,box-shadow 1.55s ease;}
+    html[data-lay="touch"] #ovlStations button.active{color:rgba(245,198,92,.82);
+      background:linear-gradient(180deg,rgba(61,49,22,.72),rgba(36,26,9,.68));
+      box-shadow:0 0 0 1px rgba(245,198,92,.32) inset;}
+    html[data-lay="touch"] #ovlStations.awake{background:rgba(6,16,20,.86);border-color:var(--line);
+      box-shadow:0 3px 14px rgba(0,0,0,.32);}
+    html[data-lay="touch"] #ovlStations.awake button{color:var(--muted);}
+    html[data-lay="touch"] #ovlStations.awake button.active{color:var(--alert);
+      background:linear-gradient(180deg,#3d3116,#241a09);box-shadow:0 0 0 1px rgba(245,198,92,.5) inset;}
     @media(orientation:landscape){html[data-lay="touch"] #ovlStations{top:48px;}}
     @media(max-width:430px){
       #ovlStations button{padding:7px 9px;font-size:9.5px;letter-spacing:.7px;}

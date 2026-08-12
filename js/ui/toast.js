@@ -36,7 +36,7 @@ const Toast = {
     const c = document.getElementById('toastContainer');
     if (!c) return;
     duration=this.durationFor(msg,type,duration);
-    if(replace) c.replaceChildren();
+    if(replace) c.querySelectorAll('.toast:not(.sticky-toast)').forEach(x=>x.remove());
     const div = document.createElement('div');
     div.className = `toast ${type}`;
     div.textContent = msg;
@@ -56,6 +56,20 @@ const Toast = {
     b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();try{fn?.();}finally{div.remove();}});
     div.appendChild(b);div.style.setProperty('--toast-hold',Math.max(.35,(duration-300)/1000)+'s');c.appendChild(div);
     setTimeout(()=>div.remove(),duration+60);return div;
+  },
+  stickyAction(msg,label,fn,type='ok',role=''){
+    const c=document.getElementById('toastContainer');if(!c)return null;
+    if(role)c.querySelectorAll(`.sticky-toast[data-role="${role}"]`).forEach(x=>x.remove());
+    const div=document.createElement('div');div.className=`toast ${type} action-toast sticky-toast`;
+    if(role)div.dataset.role=role;
+    const txt=document.createElement('span');txt.textContent=msg;div.appendChild(txt);
+    const b=document.createElement('button');b.type='button';b.className='toast-action-btn';b.textContent=label;
+    b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();try{fn?.();}finally{div.remove();}});
+    div.appendChild(b);c.appendChild(div);return div;
+  },
+  dismissRole(role){
+    if(!role)return;
+    document.querySelectorAll(`#toastContainer .sticky-toast[data-role="${role}"]`).forEach(x=>x.remove());
   },
   impactAction(msg,fn){
     const c=document.getElementById('toastContainer');if(!c)return null;

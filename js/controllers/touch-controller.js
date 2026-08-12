@@ -157,9 +157,18 @@ class TouchCtrl{
     g('mTimeSel')?.addEventListener('change',onTime);
     btn('tBtnMenu',()=>sceneSelector?.open());
 
-    // station switcher
+    // station switcher. The strip remains permanently one-tap; touching a
+    // station merely wakes its contrast for a moment, never inserts an
+    // intermediate "show controls" gesture.
+    const wakeStations=()=>{
+      const strip=g('ovlStations');if(!strip)return;
+      strip.classList.add('awake');clearTimeout(this._stationWakeTimer);
+      this._stationWakeTimer=setTimeout(()=>strip.classList.remove('awake'),1450);
+    };
     document.querySelectorAll('#ovlStations button').forEach(b=>{
+      b.addEventListener('pointerdown',wakeStations,{passive:true});
       b.addEventListener('click',()=>{
+        wakeStations();
         D({type:'SET_ACTIVE_STATION',station:b.dataset.sta});
         this.setPane('view');
         /* Do not wait for the next physics/RAF tick to make a station tap
@@ -653,7 +662,11 @@ class TouchCtrl{
     }
 
     // top bar
-    set('mClock',Math.floor(state.time.elapsedSeconds).toString().padStart(5,'0'));
+    {const hasCycle=typeof DayNightCycle!=='undefined';
+      const dl=hasCycle?DayNightCycle.getDaylight(state.time.elapsedSeconds,state.time.timeScale):Number(state.world.environment?.daylight);
+      const tod=hasCycle?DayNightCycle.getTimeString(state.time.elapsedSeconds):'--:--';
+      const icon=dl>.6?'☀':dl>.25?'🌅':'🌙';
+      set('mClock',`${icon} ${tod}`);}
     set('mMode',sub.mode.replace(/_/g,' '));
     const tsel=g('tBtnTime');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){

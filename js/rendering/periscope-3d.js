@@ -1832,14 +1832,20 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
             }
           }
         }
-        // 4 ─ expanding foam ring on the surface
+        // 4 ─ expanding foam ring on the surface. The old full ellipses
+        // straddled the horizon, putting white "water" into the sky. Clip the
+        // disturbance to the sea side of the local waterline and keep a
+        // torpedo ring deliberately compact so the rising fireball owns the hit.
         if(age<6){
-          const rg=Math.max(2,(6+age*22)*sc*big), a=clamp(1-age/6,0,1);
-          ctx.strokeStyle=`rgba(240,250,252,${a*0.5})`;
-          ctx.lineWidth=Math.max(1,rg*0.10);
-          ctx.beginPath();ctx.ellipse(p.x,p.y,rg,Math.max(1,rg*0.24),0,0,Math.PI*2);ctx.stroke();
-          ctx.strokeStyle=`rgba(240,250,252,${a*0.22})`;
-          ctx.beginPath();ctx.ellipse(p.x,p.y,rg*0.66,Math.max(1,rg*0.16),0,0,Math.PI*2);ctx.stroke();
+          const foamScale=torpHit?.68:1;
+          const rg=Math.max(2,(6+age*22)*sc*big*foamScale), a=clamp(1-age/6,0,1);
+          ctx.save();ctx.beginPath();ctx.rect(-10000,p.y,20000,20000);ctx.clip();
+          ctx.strokeStyle=`rgba(240,250,252,${a*(torpHit?.32:.50)})`;
+          ctx.lineWidth=Math.max(1,rg*(torpHit?.07:.10));
+          ctx.beginPath();ctx.ellipse(p.x,p.y,rg,Math.max(1,rg*0.21),0,0,Math.PI*2);ctx.stroke();
+          ctx.strokeStyle=`rgba(240,250,252,${a*(torpHit?.12:.22)})`;
+          ctx.beginPath();ctx.ellipse(p.x,p.y,rg*0.66,Math.max(1,rg*0.14),0,0,Math.PI*2);ctx.stroke();
+          ctx.restore();
         }
         // 5 ─ thrown debris, dark, ballistic
         if(age<2.4&&this.quality>0.4){
@@ -1870,8 +1876,9 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         ctx.fillStyle=`rgba(232,246,255,${a*0.55})`;
         ctx.fillRect(p.x-Math.max(1,3*sc),p.y-(12+age*10)*sc,Math.max(1.5,6*sc),(12+age*10)*sc);
         const rg=Math.max(1.5,(3+age*10)*sc);
+        ctx.save();ctx.beginPath();ctx.rect(-10000,p.y,20000,20000);ctx.clip();
         ctx.strokeStyle=`rgba(232,246,255,${a*0.35})`;ctx.lineWidth=1;
-        ctx.beginPath();ctx.ellipse(p.x,p.y,rg,rg*0.24,0,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.ellipse(p.x,p.y,rg,rg*0.24,0,0,Math.PI*2);ctx.stroke();ctx.restore();
       }
       if(age<3.5&&e.label){
         ctx.fillStyle=dud?`rgba(245,198,92,${1-age/3.5})`:`rgba(255,214,130,${1-age/3.5})`;

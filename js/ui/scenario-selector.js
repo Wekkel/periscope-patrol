@@ -7,6 +7,9 @@ class ScenarioSelector{
 
   open(){
     audio.ensure();
+    // Opening the anchor/menu is the alternative acknowledgement path for the
+    // persistent end-of-patrol AAR offer.
+    if(typeof Toast!=='undefined')Toast.dismissRole?.('patrol-aar');
     this.syncFooter();
     const career=SaveSystem.getCareer();
     const el=document.getElementById('scenCareerScore');

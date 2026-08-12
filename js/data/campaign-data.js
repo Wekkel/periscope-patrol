@@ -57,7 +57,7 @@ const PATROL_AREAS={
     environment:{daylight:.52,visibilityNm:9,seaState:.48,layerDepthFt:125,weather:'HAZE'},convoySpeedRange:[6,10],convoyCountRange:[4,7],difficulty:'HARD'},
   'Kii Suido / Honshu Approaches':{
     description:'Japanese home waters off Kii Suido. Heavy coastal traffic, fishing craft and aggressive air patrols.',terrainKey:'Kii Suido / Honshu Approaches',
-    convoyRoutes:[{from:{xNm:-118,yNm:94},to:{xNm:96,yNm:-112},label:'HONSHU COASTAL SHIPPING LANE'}],start:{xNm:66,yNm:128},
+    convoyRoutes:[{from:{xNm:-118,yNm:94},to:{xNm:96,yNm:-112},label:'HONSHU COASTAL SHIPPING LANE'}],start:{xNm:66,yNm:112},
     ports:[{name:'Wakayama',pos:{xNm:9,yNm:-38},side:'ENEMY'},{name:'Osaka approaches',pos:{xNm:25,yNm:-65},side:'ENEMY'},{name:'Submarine rendezvous',pos:{xNm:85,yNm:105},side:'FRIENDLY'}],
     environment:{daylight:.68,visibilityNm:12,seaState:.38,layerDepthFt:175,weather:'PARTLY CLOUDY',airThreat:.85},convoySpeedRange:[7,11],convoyCountRange:[4,7],difficulty:'HARD'},
   'East China Sea / Formosa Approaches':{

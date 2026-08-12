@@ -59,7 +59,7 @@ class CanvasView extends CanvasViewSound {
     this.drawMapDCs(ctx,state.world.depthCharges,w2s);
     this.drawMapTorps(ctx,state.weapons.activeTorpedoes,w2s);
     this.drawMapExplosions(ctx,state.weapons.explosions,w2s);
-    this.drawMapSonarPings(ctx,state,w2s);
+    this.drawMapSonarPulses(ctx,state,w2s,w,h);
     this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId,state);
     this.drawUltra(ctx,state,w2s);
     this.drawMapAircraft(ctx,state.world.aircraft||[],w2s,sub);
@@ -110,19 +110,6 @@ class CanvasView extends CanvasViewSound {
     ctx.fillText(`${nm} nm`,sbx+sbw/2,sby-6*k);ctx.textAlign='left';
 
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
-  }
-
-
-  drawMapSonarPings(ctx,state,w2s){
-    const P=state.world?.sonarMapPulses;if(!Array.isArray(P)||!P.length)return;const K=this.k,wall=typeof performance!=='undefined'?performance.now():Date.now();
-    ctx.save();
-    for(const q of P){
-      if(!q?.position||!state.world.contactTracks?.[q.escortId])continue;const age=(wall-(q.wallAt||wall))/1000;if(age<0||age>.86)continue;
-      const p=w2s(q.position.xNm,q.position.yNm),u=clamp(age/.86,0,1),r=(7+103*u)*K,a=(1-u)*.72;
-      ctx.strokeStyle=`rgba(111,224,143,${a})`;ctx.lineWidth=Math.max(1,1.8*K);ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();
-      if(u<.28){ctx.fillStyle=`rgba(111,224,143,${(.20*(1-u/.28)).toFixed(3)})`;ctx.beginPath();ctx.arc(p.x,p.y,3.2*K,0,Math.PI*2);ctx.fill();}
-    }
-    ctx.restore();
   }
 
   drawMapWeather(ctx,state,w2s,w,h){
@@ -856,6 +843,33 @@ class CanvasView extends CanvasViewSound {
     }
     if(best){clampRect(best);occupied.push(best);return best;}
     const fallback=clampRect({x:anchor.x+12*K,y:anchor.y-h-8*K,w,h});occupied.push(fallback);return fallback;
+  }
+
+  drawMapSonarPulses(ctx,state,w2s,w,h){
+    const events=state?.world?.enemy?.asw?.pingEvents,K=this.k;
+    if(!Array.isArray(events)||!events.length)return;
+    const nowMs=typeof performance!=='undefined'?performance.now():Date.now();
+    const tracks=state.world.contactTracks||{};
+    ctx.save();
+    for(const e of events.slice(-12)){
+      if(!e?.heardBySub||!Number.isFinite(e.heardAtMs))continue;
+      const age=nowMs-e.heardAtMs;if(age<0||age>900)continue;
+      const tr=tracks[e.escortId];if(!tr||tr.sunk||(Number(tr.confidence)||0)<.05)continue;
+      // Never use the enemy's true world position here. A sonar pulse may
+      // confirm that a known plot transmitted, but must not reveal a hidden
+      // escort more accurately than the crew's own chart already does.
+      const pos=tr.plotPosition||tr.lastFixPosition;if(!pos)continue;
+      const p=w2s(pos.xNm,pos.yNm);
+      if(!Number.isFinite(p.x)||!Number.isFinite(p.y)||p.x<-130*K||p.x>w+130*K||p.y<-130*K||p.y>h+130*K)continue;
+      const f=clamp(age/900,0,1),ease=1-Math.pow(1-f,1.65),r=(7+88*ease)*K,a=(1-f)*.62;
+      ctx.strokeStyle=`rgba(111,224,143,${a})`;ctx.lineWidth=Math.max(.8,(1.8-f*.8)*K);
+      ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();
+      if(f<.42){
+        ctx.strokeStyle=`rgba(111,224,143,${a*.34})`;ctx.lineWidth=Math.max(.7,K);
+        ctx.beginPath();ctx.arc(p.x,p.y,Math.max(2,r*.55),0,Math.PI*2);ctx.stroke();
+      }
+    }
+    ctx.restore();
   }
 
   drawScopeFovCue(ctx,state,w2s,w,h){

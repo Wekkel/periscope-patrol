@@ -5,6 +5,11 @@ class GameLoop{
     this.fdt=1/10;this.acc=0;this.last=performance.now();
     this.domAcc=0;this.domInterval=1/5;      // DOM refresh at 5 Hz — huge saving on tablets
     this.frameMs=16;this.ambT=0;this.lastLogLen=0;this.stopToastUntil=0;this.lastTransitRender=0;
+    // requestAnimationFrame follows the panel refresh rate. On a 120 Hz phone
+    // that used to double Canvas2D/compositor work even though simulation is
+    // only 10 Hz. A carry budget produces ~60 work frames on 60/90/120 Hz
+    // panels without changing simulation time.
+    this.rafTargetMs=1000/60;this.rafCarryMs=0;this.lastRaf=performance.now();
     this._frame=this.frame.bind(this);
   }
   start(){requestAnimationFrame(this._frame);}
@@ -34,6 +39,11 @@ class GameLoop{
 
   frame(now){
     requestAnimationFrame(this._frame);
+    const rafDt=Math.min(Math.max(0,now-this.lastRaf),50);this.lastRaf=now;
+    this.rafCarryMs+=rafDt;
+    if(this.rafCarryMs<this.rafTargetMs-.65)return;
+    this.rafCarryMs=Math.max(0,this.rafCarryMs-this.rafTargetMs);
+    if(this.rafCarryMs>this.rafTargetMs*2)this.rafCarryMs=0;
     const dt=Math.min((now-this.last)/1000,0.25);
     this.last=now;
     if(document.hidden) return;
@@ -50,7 +60,12 @@ class GameLoop{
     const snap0=this.game.getSnapshot();
     const U=snap0.ui, Tq=snap0.time;
     if(U&&U.toasts&&U.toasts.length){
-      if(Tq.transitUntil||(Tq.timeScale||1)>1||performance.now()<this.stopToastUntil){ // any compressed run / final reason owns lane: hold them
+      const lost0=snap0.playerSub?.mode==='SUNK'||snap0.campaign?.missionStatus==='LOST';
+      if(lost0){
+        // A dead boat has no new operational traffic. The dedicated persistent
+        // BOAT LOST / AAR action is a direct UI element, not this queue.
+        U.toasts.length=0;
+      }else if(Tq.transitUntil||(Tq.timeScale||1)>1||performance.now()<this.stopToastUntil){ // any compressed run / final reason owns lane: hold them
         if(U.toasts.length>40) U.toasts.splice(0,U.toasts.length-40);
       }else{
         const q=U.toasts.splice(0,U.toasts.length);
@@ -100,7 +115,10 @@ class GameLoop{
             const stopText='TRANSIT STOPPED — '+why;
             const stopMs=Toast.durationFor?Toast.durationFor(stopText,stopKind,3900):4000;
             this.stopToastUntil=performance.now()+stopMs+150;
-            setTimeout(()=>Toast.stop(stopText,stopKind),90);
+            setTimeout(()=>{
+              const q=this.game.getSnapshot();
+              if(q.playerSub?.mode!=='SUNK'&&q.campaign?.missionStatus!=='LOST')Toast.stop(stopText,stopKind);
+            },90);
             buzz([20,50,20]);
           }
           break;
@@ -117,7 +135,11 @@ class GameLoop{
     // day/night motion clearly, while freeing a large slice of a G88-class
     // frame for the accelerated patrol clock. A transit stop renders at once.
     const transitRunning=snap.time.transitUntil>snap.time.elapsedSeconds;
-    if(!transitRunning||now-this.lastTransitRender>=66){
+    const terminal=snap.playerSub?.mode==='SUNK'||snap.campaign?.missionStatus==='LOST';
+    // A frozen wreck and accelerated transit both need information refresh,
+    // not high-frequency repainting. 15 fps is ample for their mostly static
+    // chart/death presentation and leaves far more room for screen recording.
+    if((!transitRunning&&!terminal)||now-this.lastTransitRender>=66){
       this.cv.render(snap);this.lastTransitRender=now;
     }
 
@@ -145,19 +167,14 @@ class GameLoop{
       // After an interrupt, the dedicated stop toast owns the lane for four seconds.
       const log=snap.log;
       if(log.length>this.lastLogLen){
-        const suppress=!!snap.time.transitUntil||(Number(snap.time.timeScale)||1)>1||performance.now()<this.stopToastUntil;
+        const suppress=terminal||!!snap.time.transitUntil||performance.now()<this.stopToastUntil;
         if(!suppress){
           for(const entry of log.slice(0,log.length-this.lastLogLen)){
             const m=entry.message;
             if(m.includes('HIT ')){Toast.ok('💥 '+m.slice(0,58));buzz([40,50,90]);}
             else if(m.includes('DUD')){Toast.warn('⚠ '+m.slice(0,58));buzz(30);}
             else if(entry.level==='bad'||TOAST_RED.test(m)){
-              Toast.auto(m.slice(0,64));
-              // Contact/attack-state text is informational; a generic buzz made
-              // it indistinguishable from rejected control input. Reserve hard
-              // haptics for actual physical danger/damage while ASW state gets
-              // its own audible warning bell from AudioDirector.
-              if(/DEPTH CHARGE!|HULL FAILURE|RAMMED|COLLISION|AIR BOMB|STAR SHELL|SEARCHLIGHT CONTACT|GROUNDING/i.test(m))buzz([20,60,20]);
+              Toast.auto(m.slice(0,64)); buzz([20,60,20]);
             }
           }
         }
@@ -170,7 +187,7 @@ class GameLoop{
     // Aircraft fly-by needs smooth bearing/range/Doppler updates, but the audio
     // engine internally throttles these to ~12 Hz and only keeps one nearby
     // BRIDGE/GUN aircraft alive. All heavier ambience remains on the 2 s tick.
-    audio.updateAircraftFlyby?.(snap);
+    if(!terminal)audio.updateAircraftFlyby?.(snap);
 
     // AudioDirector owns slow ambience/mix updates. It is internally throttled
     // and never touches simulation timing or hidden tactical information.

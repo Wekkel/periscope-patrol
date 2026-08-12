@@ -6,13 +6,13 @@ class CanvasViewTactical extends CanvasViewCore {
 
     // Background
     const bg=ctx.createRadialGradient(w/2,h*0.42,0,w/2,h*0.42,Math.max(w,h)*0.75);
-    if(silent){bg.addColorStop(0,'#170808');bg.addColorStop(1,'#080303');}
+    if(silent){bg.addColorStop(0,'#071b1b');bg.addColorStop(1,'#030d0e');}
     else{bg.addColorStop(0,'#0b2029');bg.addColorStop(1,'#040b0e');}
     ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
 
     // Grid
     const gs=Math.round(46*k);
-    ctx.strokeStyle=silent?'rgba(110,40,40,0.22)':'rgba(47,95,86,0.16)';ctx.lineWidth=1;
+    ctx.strokeStyle=silent?'rgba(58,112,105,0.20)':'rgba(47,95,86,0.16)';ctx.lineWidth=1;
     ctx.beginPath();
     for(let x=gs;x<w;x+=gs){ctx.moveTo(x+.5,0);ctx.lineTo(x+.5,h);}
     for(let y=gs;y<h;y+=gs){ctx.moveTo(0,y+.5);ctx.lineTo(w,y+.5);}
@@ -28,7 +28,7 @@ class CanvasViewTactical extends CanvasViewCore {
     const bodyTop=sceneTop+headerH, bodyBot=h-barsH;
 
     // Header (pushed down when a threat banner is showing)
-    ctx.fillStyle=silent?'#e8b7b1':'#8fb8a8';ctx.font=this.fnt(11.5,true);
+    ctx.fillStyle=silent?'#a9d0c4':'#8fb8a8';ctx.font=this.fnt(11.5,true);
     ctx.fillText('TACTICAL STATUS',pad,sceneTop+bannerH+Math.round(18*k));
     ctx.font=this.fnt(9.5);ctx.fillStyle='rgba(140,175,160,.9)';
     ctx.fillText(`${sub.position.xNm.toFixed(1)}E / ${(-sub.position.yNm).toFixed(1)}N nm — ${state.campaign.patrolArea}`,pad,sceneTop+bannerH+Math.round(32*k));
@@ -68,8 +68,8 @@ class CanvasViewTactical extends CanvasViewCore {
     // Silent running banner
     if(silent){
       const bh2=Math.round(22*k);
-      ctx.fillStyle='rgba(150,32,32,0.85)';ctx.fillRect(0,h-bh2,w,bh2);
-      ctx.fillStyle='#ffd9d5';ctx.font=this.fnt(10.5,true);ctx.textAlign='center';
+      ctx.fillStyle='rgba(22,78,74,0.88)';ctx.fillRect(0,h-bh2,w,bh2);
+      ctx.fillStyle='#d3eee7';ctx.font=this.fnt(10.5,true);ctx.textAlign='center';
       ctx.fillText('🔇 SILENT RUNNING — MINIMUM NOISE',w/2,h-bh2*0.3);ctx.textAlign='left';
     }
     // Threat banner
@@ -336,7 +336,7 @@ class CanvasViewTactical extends CanvasViewCore {
        c:sub.stealth.visualProfile>0.5?'#ef6a58':sub.stealth.visualProfile>0.1?'#f5c65c':'#6fe08f'},
       {l:'BATTERY',v:p.battery/100,txt:`${p.battery.toFixed(0)}%${p.chargeRate>0.0004?' ↑'+(p.battery>=99.5?'':Math.round((100-p.battery)/(p.chargeRate*60))+'m'):''}`,c:p.battery<20?'#ef6a58':p.battery<45?'#f5c65c':'#6fe08f'},
       {l:'FUEL',v:p.fuel/100,txt:`${p.fuel.toFixed(0)}%`,c:p.fuel<20?'#ef6a58':'#6fe08f'},
-      {l:'AIR',v:sub.damage.oxygen/100,txt:`${sub.damage.oxygen.toFixed(0)}%`,c:sub.damage.oxygen<25?'#ef6a58':sub.damage.oxygen<50?'#f5c65c':'#6fe08f'}
+      {l:'O₂',v:sub.damage.oxygen/100,txt:`${sub.damage.oxygen.toFixed(0)}%`,c:sub.damage.oxygen<25?'#ef6a58':sub.damage.oxygen<50?'#f5c65c':'#6fe08f'}
     ];
     const n=items.length, gap=Math.round(6*k), cw=(w-gap*(n-1))/n;
     items.forEach((it,i)=>{

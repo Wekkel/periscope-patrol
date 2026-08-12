@@ -215,7 +215,9 @@ class AudioEngine{
 
   playSonarPing(bearingDeg=null,ownHeading=0,variant=this.sonarVariant,levelScale=1){
     this.ensure();if(Date.now()-this.lastPing<700)return;this.lastPing=Date.now();this._playSelfDecaySonar(bearingDeg,ownHeading,variant,false,levelScale);
-    const ping=document.getElementById('sonarPing');if(ping){ping.classList.remove('ping');void ping.offsetWidth;ping.classList.add('ping');}
+    // Spatial ping graphics belong to MAP, where a heard transmission can be
+    // placed at the crew's plotted sender position. A screen-centred DOM ring
+    // falsely implied that every escort transmitted from ownship.
   }
 
 
