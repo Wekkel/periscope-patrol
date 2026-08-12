@@ -50,7 +50,7 @@ class GameLoop{
     const snap0=this.game.getSnapshot();
     const U=snap0.ui, Tq=snap0.time;
     if(U&&U.toasts&&U.toasts.length){
-      if(Tq.transitUntil||performance.now()<this.stopToastUntil){ // running / final reason owns lane: hold them
+      if(Tq.transitUntil||(Tq.timeScale||1)>1||performance.now()<this.stopToastUntil){ // any compressed run / final reason owns lane: hold them
         if(U.toasts.length>40) U.toasts.splice(0,U.toasts.length-40);
       }else{
         const q=U.toasts.splice(0,U.toasts.length);

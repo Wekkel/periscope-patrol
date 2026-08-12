@@ -24,9 +24,9 @@ class SimEngineHarbor extends SimEngineCore {
     if(!port) return;
     const H=W.harbor={
       name:port.name,center:{...port.pos},outerRadiusNm:5.6,innerRadiusNm:1.25,
-      channelBearing:68,channelHalfWidthNm:0.42,
+      channelBearing:68,channelHalfWidthNm:0.42,channelSafeHalfWidthNm:0.34,channelDepthFeet:120,innerBasinDepthFeet:110,
       mineInnerNm:2.15,mineOuterNm:4.75,
-      netRangeNm:1.82,netHalfSpanNm:1.18,netGapHalfNm:0.28,
+      netRangeNm:1.82,netHalfSpanNm:1.18,netGapHalfNm:0.28,netMaxDepthFt:320,
       hydrophoneRangeNm:4.6,batteryRangeNm:5.1,
       suspicion:0,alert:0,entered:false,inside:false,lastGunAt:-999,lastSweepAt:-999,
       mines:[]
@@ -73,6 +73,12 @@ class SimEngineHarbor extends SimEngineCore {
   ensureHarborIntel(fresh=false){
     const W=this.state.world,H=W.harbor,C=this.state.campaign;
     if(!H) return null;
+    // Save migration for patrols created before the navigable swept-channel and
+    // closed defensive-net model were introduced.
+    if(H.channelSafeHalfWidthNm==null)H.channelSafeHalfWidthNm=.34;
+    if(H.channelDepthFeet==null)H.channelDepthFeet=120;
+    if(H.innerBasinDepthFeet==null)H.innerBasinDepthFeet=110;
+    if(H.netMaxDepthFt==null)H.netMaxDepthFt=320;
     if(!Array.isArray(C.optionalObjectives)) C.optionalObjectives=[];
     let I=W.harborIntel;
     if(!I||fresh){
@@ -91,7 +97,7 @@ class SimEngineHarbor extends SimEngineCore {
         net:{known:false,discoveredAt:null,source:null},
         batteries:[],
         heavyUnit:{reported:false,identified:false,identity:null,identifiedAt:null},
-        raid:{attempted:false,enteredAt:null,leftAt:null,result:'not_attempted'}
+        raid:{attempted:false,enteredAt:null,leftAt:null,result:'not_attempted',gateCrossed:false,gateCrossedAt:null,reconComplete:false,lastChannelAlongNm:null}
       };
       return I;
     }
@@ -102,7 +108,7 @@ class SimEngineHarbor extends SimEngineCore {
     I.net=Object.assign({known:false,discoveredAt:null,source:null},I.net||{});
     I.batteries=Array.isArray(I.batteries)?I.batteries:[];
     I.heavyUnit=Object.assign({reported:false,identified:false,identity:null,identifiedAt:null},I.heavyUnit||{});
-    I.raid=Object.assign({attempted:false,enteredAt:null,leftAt:null,result:'not_attempted'},I.raid||{});
+    I.raid=Object.assign({attempted:false,enteredAt:null,leftAt:null,result:'not_attempted',gateCrossed:false,gateCrossedAt:null,reconComplete:false,lastChannelAlongNm:null},I.raid||{});
     return I;
   }
 
@@ -126,11 +132,12 @@ class SimEngineHarbor extends SimEngineCore {
       O={id:'truk-raid',text:'Investigate Truk Anchorage',done:false,failed:false,optional:true,result:I.raid.result};
       C.optionalObjectives.push(O);
     }
-    O.text=I.heavyUnit.identified
-      ?`${this.harborIdentityLabel(I.heavyUnit.identity)} identified at Truk Anchorage`
-      :'Investigate Truk Anchorage';
+    const label=I.heavyUnit.identified?this.harborIdentityLabel(I.heavyUnit.identity):null;
+    if(I.raid.reconComplete) O.text=`Intelligence complete — ${label||'heavy unit'} identified inside Truk Anchorage`;
+    else if(I.raid.gateCrossed) O.text=label?`Confirm ${label.toLowerCase()} inside Truk Anchorage`:'Identify the reported heavy unit inside Truk Anchorage';
+    else O.text='Penetrate Truk Anchorage through the swept approach and identify the reported heavy unit';
     O.result=I.raid.result;
-    O.done=I.raid.result==='sunk';
+    O.done=!!I.raid.reconComplete;
     O.failed=false; // Optional means exactly that: ignoring it is never a patrol failure.
     return O;
   }
@@ -142,8 +149,8 @@ class SimEngineHarbor extends SimEngineCore {
     if(I.minefield.level==='NONE') I.minefield.level='REPORTED';
     if(I.channel.level==='NONE') I.channel.level='REPORTED';
     this.refreshHarborOptionalObjective();
-    this.notify('OPTIONAL OBJECTIVE — Investigate Truk Anchorage. No penalty if you decline the raid.','warn');
-    this.notify('CHART UPDATED — Reported mine belt and swept approach plotted. The limits are approximate: keep near the centerline. Torpedo-net gate not yet located.','warn');
+    this.notify('OPTIONAL OBJECTIVE — Penetrate Truk Anchorage through the swept approach and identify the reported heavy unit. Visual sightings from outside the torpedo net do not complete the intelligence objective. No penalty if you decline.','warn');
+    this.notify('CHART UPDATED — Reported mine belt and swept approach plotted. Keep near the centerline; the passage is charted deep enough for submerged approach. The intelligence objective requires entry inside the torpedo net. Gate not yet located.','warn');
     return true;
   }
 
@@ -209,6 +216,12 @@ class SimEngineHarbor extends SimEngineCore {
       this.notify(`TRUK VISUAL IDENTIFICATION — ${label.toUpperCase()} at anchor.`,'ok');
     }
 
+    this.updateHarborGateProgress(I,H,sub);
+    if(I.heavyUnit.identified&&!I.raid.gateCrossed&&!I.raid._outsideIdWarned){
+      I.raid._outsideIdWarned=true;
+      this.notify('VISUAL IDENTIFICATION MADE — but the intelligence objective still requires penetration inside the torpedo net through the swept approach.','warn');
+    }
+
     const heavy=W.contacts.find(c=>c.id==='H-04'&&c.harborTarget);
     if(heavy?.sunk) I.raid.result='sunk';
     else if((heavy&&shipDamageSeverity(heavy)>.05)||(heavy?.gunDamage||0)>0) I.raid.result='damaged';
@@ -217,14 +230,39 @@ class SimEngineHarbor extends SimEngineCore {
     this.refreshHarborOptionalObjective();
   }
 
+  harborChannelFrame(H,pos){
+    if(!H||!pos)return{along:99,lateral:99};
+    const r=degToRad(H.channelBearing),dx=pos.xNm-H.center.xNm,dy=pos.yNm-H.center.yNm;
+    return{along:dx*Math.sin(r)-dy*Math.cos(r),lateral:dx*Math.cos(r)+dy*Math.sin(r)};
+  }
+
+  updateHarborGateProgress(I,H,sub){
+    if(!I||!H||!sub)return;
+    const f=this.harborChannelFrame(H,sub.position),prev=Number(I.raid.lastChannelAlongNm);
+    if(!I.raid.gateCrossed&&Number.isFinite(prev)
+       &&prev>H.netRangeNm+.025&&f.along<H.netRangeNm-.025
+       &&Math.abs(f.lateral)<=H.netGapHalfNm*.92){
+      I.raid.gateCrossed=true;I.raid.gateCrossedAt=this.state.time.elapsedSeconds;
+      if(!I.raid.attempted){I.raid.attempted=true;I.raid.enteredAt=this.state.time.elapsedSeconds;}
+      this.notify('TORPEDO-NET GATE PASSED — inside the defended anchorage. Intelligence objective now requires a firm visual identification of the reported heavy unit.','ok');
+    }
+    I.raid.lastChannelAlongNm=f.along;
+    if(I.raid.gateCrossed&&I.heavyUnit.identified&&!I.raid.reconComplete){
+      I.raid.reconComplete=true;if(I.raid.result==='not_attempted'||I.raid.result==='abandoned')I.raid.result='recon_complete';
+      this.captainLog?.('TRUK_RECON_COMPLETE',`${this.harborIdentityLabel(I.heavyUnit.identity)} identified after penetrating the Truk torpedo-net gate.`,{identity:I.heavyUnit.identity},'truk-recon-complete');
+      this.notify(`INTELLIGENCE OBJECTIVE COMPLETE — ${this.harborIdentityLabel(I.heavyUnit.identity).toUpperCase()} positively identified inside Truk Anchorage.`,'ok');
+    }
+  }
+
   harborNetSegments(H){
     if(!H) return [];
-    const r=degToRad(H.channelBearing), sx=Math.cos(r), sy=Math.sin(r);
-    const gate={xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,
-                yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};
-    const at=d=>({xNm:gate.xNm+sx*d,yNm:gate.yNm+sy*d});
-    return [{a:at(H.netGapHalfNm),b:at(H.netHalfSpanNm)},
-            {a:at(-H.netGapHalfNm),b:at(-H.netHalfSpanNm)}];
+    // Defensive boom/net is a ring around the inner anchorage with one opening
+    // aligned to the swept approach. The previous two short straight segments
+    // could simply be sailed around, making the charted gate optional.
+    const segs=[],step=6,gapHalfDeg=radToDeg(Math.asin(clamp(H.netGapHalfNm/Math.max(.1,H.netRangeNm),0,.95)));
+    const at=b=>{const r=degToRad(b);return{xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};};
+    for(let a=0;a<360;a+=step){const b=a+step,mid=normDeg(a+step*.5);if(Math.abs(shortDelta(H.channelBearing,mid))<=gapHalfDeg)continue;segs.push({a:at(a),b:at(b)});}
+    return segs;
   }
 
   pointSegNm(p,a,b){
@@ -278,7 +316,7 @@ class SimEngineHarbor extends SimEngineCore {
       W.enemy.searchCenter={...sub.position};
     }
     if(H.alert===2&&H.suspicion<12) H.alert=1;
-    if(H.alert===1&&H.suspicion<4) H.alert=0;
+    if(H.alert===1&&H.suspicion<4){H.alert=0;H.searchlightSweepWarned=false;H.lastSearchlightContactAt=-999;}
 
     // Searchlight sweeps are warnings; the battery only has a useful target if
     // the boat is surfaced/awash. Diving under the beams is therefore real cover.
@@ -287,7 +325,8 @@ class SimEngineHarbor extends SimEngineCore {
       H.lastSweepAt=now;
       if(this.startHarborSearchlightSweep)this.startHarborSearchlightSweep(H);
       else{H.searchlightActiveUntil=now+8*harborWx.searchlightFactor;H.searchlightBearing=normDeg(bearingBetween(H.center,sub.position)+(Math.random()-.5)*12);H.searchlightWidthDeg=14;}
-      this.notify('Searchlight beam sweeping the harbour entrance — keep the deck down or get under it.','warn');
+      if(!H.searchlightSweepWarned){H.searchlightSweepWarned=true;this.notify('SEARCHLIGHTS SWEEPING THE HARBOUR ENTRANCE — stay below periscope depth or clear the defended approach.','warn');}
+      else this.log('Harbour searchlights continue sweeping the entrance.','warn');
       H.suspicion=clamp(H.suspicion+5,0,100);
     }
     if(H.alert>=2&&sub.depthFeet<12&&rng<H.batteryRangeNm&&now-H.lastGunAt>11){
@@ -334,7 +373,7 @@ class SimEngineHarbor extends SimEngineCore {
 
     // A submarine can foul a net just as a torpedo can. Stop and shove her back
     // rather than leaving the player irretrievably welded to the obstacle.
-    if(sub.depthFeet>=4&&sub.depthFeet<=80&&now-(H.lastNetAt||-999)>8){
+    if(sub.depthFeet>=4&&sub.depthFeet<=(H.netMaxDepthFt||320)&&now-(H.lastNetAt||-999)>8){
       for(const seg of this.harborNetSegments(H)){
         if(this.pointSegNm(sub.position,seg.a,seg.b)>=0.036) continue;
         H.lastNetAt=now;this.revealHarborNet('CONTACT');

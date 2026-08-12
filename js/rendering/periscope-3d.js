@@ -90,7 +90,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       // cinematic effects may advance on wall-clock time while simulation stays paused.
       time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+Math.max(0,impactAge)},
       world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
-      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`,targetLengthFeet:Number(target.lengthYards)||300}]}};
+      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`,big:String(obs.weapon||'TORPEDO').toUpperCase()==='TORPEDO',targetLengthFeet:Number(target.lengthYards)||300}]}};
     const cam=this.setupCam(viewState,fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'IMPACT',viewW:w,viewH:h});this.impactCam=cam;
 
     ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);
@@ -167,7 +167,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   drawImpactTorpedoTrack(ctx,cam,obs,impactAge,dl,env){
     if(!obs?.torpedoWakeVisible||!obs.impactPosition||dl<.22)return;
     const calm=clamp(1-clamp(env?.seaState||0,0,1)*1.45,0,1);if(calm<.08)return;
-    const postFade=impactAge<0?1:Math.exp(-impactAge/2.6),baseA=.26*calm*clamp(dl*1.35,0,1)*postFade;
+    const postFade=impactAge<0?1:Math.exp(-impactAge/2.6),baseA=.40*calm*clamp(dl*1.35,0,1)*postFade;
     const raw=Array.isArray(obs.torpedoWakePath)?obs.torpedoWakePath.filter(p=>Number.isFinite(p?.xNm)&&Number.isFinite(p?.yNm)):[];
     let pts=[];
     if(raw.length>=2){
@@ -181,9 +181,10 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
     if(pts.length<2)return;
 
-    // This is the actual sampled track already laid in the water before the
-    // cinematic begins. Nothing advances along it during the pre-impact beat.
-    // Segment opacity/width only describe older churn fading astern.
+    // This is a PRE-TRIMMED snapshot of the wake as it existed about 1.5 s
+    // before impact. It is complete on the very first cinematic frame and its
+    // head already lies close to the target. Nothing grows, advances or spawns
+    // along this track during the anticipation beat; only post-impact fading is allowed.
     ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
     for(let i=1;i<pts.length;i++){
       const u=i/(pts.length-1),a=baseA*(.30+.70*u),w=Math.max(.8,this.k*(1.0+2.1*u));

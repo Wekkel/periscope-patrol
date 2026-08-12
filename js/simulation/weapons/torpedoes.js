@@ -151,6 +151,20 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     return out.reverse();
   }
 
+  torpedoWakeForPreImpact(t,maxNm=.48,leadSec=1.5){
+    if(t.isElectric)return[];
+    const leadNm=knotsNmSec(t.speedKnots||46)*leadSec,src=this.torpedoWakeForImpact(t,maxNm+leadNm+.04);
+    if(src.length<2)return src;
+    // Trim the newest part of the already-laid wake so the cinematic opens on
+    // the physical situation ~1.5 s before impact: the bubble track is already
+    // present, but its head still stops short of the hull. Nothing is animated
+    // forward during the anticipation beat.
+    let remain=leadNm,cut=src.length-1,head={...src[cut]};
+    while(cut>0&&remain>0){const a=src[cut-1],b=src[cut],seg=distNm(a,b);if(seg>=remain&&seg>1e-9){const f=clamp((seg-remain)/seg,0,1);head={xNm:lerp(a.xNm,b.xNm,f),yNm:lerp(a.yNm,b.yNm,f)};break;}remain-=seg;cut--;head={...src[cut]};}
+    const trimmed=src.slice(0,Math.max(1,cut));trimmed.push(head);
+    let acc=0,out=[trimmed[trimmed.length-1]];for(let i=trimmed.length-2;i>=0;i--){acc+=distNm(trimmed[i],trimmed[i+1]);out.push(trimmed[i]);if(acc>=maxNm)break;}return out.reverse();
+  }
+
   torpedoShipSweepHit(t,prevPos,c){
     const prev=c._collisionPrev||{},ship0=prev.position||c.position,ship1=c.position;
     const h0=Number.isFinite(prev.heading)?prev.heading:(c.heading||0),h1=c.heading||h0;
@@ -276,8 +290,8 @@ class SimEngineTorpedoes extends SimEngineHarbor {
               warheadKg:spec.warheadKg||292,torpedoId:t.id,specKey:t.specKey});
             W.hits.push({weapon:'TORPEDO',torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds,
               location:dmg.location});
-            W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:dmg.location==='MIDSHIPS'});
-            particles.spawnExplosion(t.position.xNm,t.position.yNm,1.8,true);audio.playHit();
+            W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:true,targetLengthFeet:Number(c.lengthYards)||300});
+            particles.spawnExplosion(t.position.xNm,t.position.yNm,2.35,true);audio.playHit();
             if(c.harborTarget)this.noteHarborAttack?.(c);
             this.alertEscorts('SHIP_HIT',{...t.position},1);
 
@@ -290,7 +304,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
                incidenceDeg:Math.round(incidence),condition,weapon:'TORPEDO'},this.state.playerSub.position,shipPosition);
             this.offerImpactObservation?.(c,{weapon:'TORPEDO',location:dmg.location,condition,beforeShip,impactPosition:{...t.position},
               targetPosition:{...shipPosition},targetHeading:shipHeading,torpedoHeading:t.heading,
-              torpedoWakePath:this.torpedoWakeForImpact(t,.48),torpedoWakeNm:Math.min(.48,Math.max(.10,t.rangeRunNm||0)),torpedoWakeVisible:!t.isElectric});
+              torpedoWakePath:this.torpedoWakeForPreImpact(t,.48,1.5),torpedoWakeNm:Math.min(.48,Math.max(.10,t.rangeRunNm||0)),torpedoWakeVisible:!t.isElectric});
             if(!c.sunk){
               const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));
               const sum=shipDamageSummary(c);

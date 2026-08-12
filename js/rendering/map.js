@@ -50,7 +50,7 @@ class CanvasView extends CanvasViewSound {
     this.drawMapWeather(ctx,state,w2s,w,h);
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
-    this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds);
+    this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds,state.campaign);
     this.drawMissionOverlay(ctx,state,w2s);
     this.drawMapTrail(ctx,map.ownshipTrail,w2s);
     this.drawMapPlot(ctx,map.plottedCourse,w2s,sub.position,map.autoFollowPlot);
@@ -541,7 +541,7 @@ class CanvasView extends CanvasViewSound {
     }
   }
 
-  drawMapHarbor(ctx,H,I,w2s,now){
+  drawMapHarbor(ctx,H,I,w2s,now,campaign=null){
     if(!H) return;
     const K=this.k,c=w2s(H.center.xNm,H.center.yNm), mine=I?.minefield, ch=I?.channel;
     const hasKnowledge=!!I&&(mine?.level!=='NONE'||ch?.level!=='NONE'||I.net?.known||(I.batteries||[]).length);
@@ -615,6 +615,7 @@ class CanvasView extends CanvasViewSound {
       const labelT=.60,lp=toScreen(point(inner+(outer-inner)*labelT,edgeHalf(labelT)*1.38));ctx.fillStyle=observed?'rgba(151,238,181,.90)':'rgba(151,238,181,.64)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';
       ctx.fillText(observed?'OBSERVED SWEPT APPROACH':'REPORTED SWEPT APPROACH · APPROX',lp.x,lp.y-3*K);
       ctx.font=this.fnt(6.4,true);ctx.fillStyle=observed?'rgba(190,246,207,.76)':'rgba(190,246,207,.48)';ctx.fillText('FOLLOW CENTERLINE INBOUND',lp.x,lp.y+7*K);
+      if(H.channelDepthFeet){ctx.font=this.fnt(5.8,true);ctx.fillStyle='rgba(157,214,239,.76)';ctx.fillText(`CHARTED PASSAGE · ~${Math.round(H.channelDepthFeet)} FT`,lp.x,lp.y+16*K);}
       if(!I?.net?.known){
         const noteT=.26,np=toScreen(point(inner+(outer-inner)*noteT,-edgeHalf(noteT)*1.72));ctx.fillStyle='rgba(245,198,92,.82)';ctx.font=this.fnt(6.7,true);ctx.textAlign='center';
         ctx.fillText('NET / GATE NOT LOCATED',np.x,np.y);ctx.font=this.fnt(6.0);ctx.fillStyle='rgba(245,198,92,.62)';ctx.fillText('VISUAL RECON REQUIRED',np.x,np.y+9*K);
@@ -625,17 +626,16 @@ class CanvasView extends CanvasViewSound {
     // Once known, the opening itself gets a separate green gate marker: the net
     // and the swept mine approach are two different navigation problems.
     if(I?.net?.known){
-      const r=degToRad(H.channelBearing),sx=Math.cos(r),sy=Math.sin(r);
-      const gate={xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};
-      const at=d=>w2s(gate.xNm+sx*d,gate.yNm+sy*d),gp=w2s(gate.xNm,gate.yNm);
-      ctx.strokeStyle='rgba(245,198,92,.84)';ctx.lineWidth=Math.max(2,2.35*K);
-      for(const [a,b] of [[H.netGapHalfNm,H.netHalfSpanNm],[-H.netGapHalfNm,-H.netHalfSpanNm]]){const p1=at(a),p2=at(b);ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();}
-      const netLabel=at(H.netHalfSpanNm*.72);ctx.fillStyle='rgba(245,198,92,.78)';ctx.font=this.fnt(6.7,true);ctx.textAlign='center';ctx.fillText('OBSERVED TORPEDO NET',netLabel.x,netLabel.y-7*K);
-      const gapA=at(-H.netGapHalfNm),gapB=at(H.netGapHalfNm);ctx.strokeStyle='rgba(111,224,143,.94)';ctx.lineWidth=Math.max(1.5,2*K);
-      ctx.beginPath();ctx.arc(gp.x,gp.y,Math.max(4.5*K,5),0,Math.PI*2);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(gapA.x,gapA.y);ctx.lineTo(gp.x,gp.y);ctx.lineTo(gapB.x,gapB.y);ctx.stroke();
+      const r=degToRad(H.channelBearing),gate={xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,yNm:H.center.yNm-Math.cos(r)*H.netRangeNm},gp=w2s(gate.xNm,gate.yNm);
+      const gapHalfDeg=radToDeg(Math.asin(clamp(H.netGapHalfNm/Math.max(.1,H.netRangeNm),0,.95))),step=6,atBearing=b=>{const q=degToRad(b);return w2s(H.center.xNm+Math.sin(q)*H.netRangeNm,H.center.yNm-Math.cos(q)*H.netRangeNm);};
+      ctx.strokeStyle='rgba(245,198,92,.84)';ctx.lineWidth=Math.max(2,2.1*K);ctx.beginPath();let open=false;
+      for(let a=0;a<=360;a+=step){const mid=normDeg(a-step*.5);if(a>0&&Math.abs(shortDelta(H.channelBearing,mid))<=gapHalfDeg){open=false;continue;}const p=atBearing(a);if(!open){ctx.moveTo(p.x,p.y);open=true;}else ctx.lineTo(p.x,p.y);}ctx.stroke();
+      const labelB=normDeg(H.channelBearing+72),netLabel=atBearing(labelB);ctx.fillStyle='rgba(245,198,92,.78)';ctx.font=this.fnt(6.7,true);ctx.textAlign='center';ctx.fillText('OBSERVED TORPEDO NET',netLabel.x,netLabel.y-7*K);
+      ctx.strokeStyle='rgba(111,224,143,.94)';ctx.lineWidth=Math.max(1.5,2*K);ctx.beginPath();ctx.arc(gp.x,gp.y,Math.max(4.5*K,5),0,Math.PI*2);ctx.stroke();
       ctx.fillStyle='rgba(151,238,181,.95)';ctx.font=this.fnt(7.2,true);ctx.fillText('GATE',gp.x,gp.y+12*K);
     }
+    const trukObj=campaign?.optionalObjectives?.find?.(o=>o.id==='truk-raid');
+    if(trukObj&&!trukObj.done){const r=degToRad(H.channelBearing),a=I?.net?.known?H.netRangeNm:Math.max(2.1,H.mineInnerNm+.2),q=w2s(H.center.xNm+Math.sin(r)*a,H.center.yNm-Math.cos(r)*a);ctx.fillStyle='rgba(245,198,92,.92)';ctx.font=this.fnt(6.4,true);ctx.textAlign='center';ctx.fillText(I?.net?.known?'INTEL OBJECTIVE · PASS GATE':'INTEL OBJECTIVE · ENTRY INSIDE NET REQUIRED',q.x,q.y+24*K);}
 
     // Battery positions are estimates created by observed fire, never truth
     // locations or weapon-range circles.

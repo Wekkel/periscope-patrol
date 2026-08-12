@@ -62,8 +62,10 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       const wasLit=now<(H.searchlightContactUntil||-1);
       H.searchlightContactUntil=now+1.25;H.suspicion=clamp(H.suspicion+dt*(H.alert>=2?16:10),0,100);
       W.enemy.searchCenter={...sub.position};W.enemy.lastKnownSubPosition={...sub.position};W.enemy.lastKnownConfidence=Math.max(W.enemy.lastKnownConfidence||0,.88);H.alert=2;
-      if(!wasLit&&now-(H.lastSearchlightContactAt||-999)>10){
-        H.lastSearchlightContactAt=now;this.notify('SEARCHLIGHT CONTACT — the beam has you. Dive, turn hard or run out of it before the batteries correct.','bad');
+      if(!wasLit&&now-(H.lastSearchlightContactAt||-999)>45){
+        H.lastSearchlightContactAt=now;
+        const T=this.state.time;if((T.timeScale||1)>1||T.transitUntil){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.stopReason='searchlight contact';T.stopReasonAt=now;}
+        this.notify('SEARCHLIGHT CONTACT — the beam has you. Dive, turn hard or run out of it before the batteries correct.','bad');
         audio.event?.('SEARCHLIGHT_CONTACT');this.aarRecordEvent?.('SEARCHLIGHT_CONTACT','Caught in a harbour searchlight.',{},sub.position,H.center);
       }
     },

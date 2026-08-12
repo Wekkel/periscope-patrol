@@ -160,11 +160,18 @@ class AudioEngine{
   }
 
   playHit(){
-    this.ensure();
-    this.duck(92,650);this._noise(.1,80,'sawtooth',.9,null,0,'weapons');
-    setTimeout(()=>this._white(2.0,.7,null,0,'weapons'),50);
-    setTimeout(()=>this._noise(3.0,25,'sine',.6,null,0,'weapons'),100);
-    setTimeout(()=>this._noise(1.5,55,'sawtooth',.4,null,0,'weapons'),400);
+    this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
+    // Torpedo impact must read as a large warhead detonating against a ship, not
+    // as a game synth note. A hard broadband face excites broad low-Q water/
+    // hull resonances, followed by a shorter hot metal/water burst and heavy
+    // low-frequency decay. Keep the spectrum intentionally inharmonic.
+    this.duck(100,1250);
+    this._filteredNoise(.075,.92,{type:'lowpass',freq:1250,q:.30,attack:.0005},null,0,'weapons');
+    this._filteredNoise(.16,.72,{type:'lowpass',freq:220,q:.38,attack:.0006},null,0,'weapons');
+    this._filteredNoise(.34,.46,{type:'bandpass',freq:1550,q:.42,attack:.001},null,0,'weapons');
+    const dur=1.85,src=this._noiseSource(dur),body=ctx.createGain();body.gain.setValueAtTime(.82,now+.004);body.gain.exponentialRampToValueAtTime(.001,now+dur);
+    for(const [f0,q,w] of [[42,.70,.42],[63,.82,.50],[92,.95,.44],[136,1.08,.34],[205,1.18,.22],[315,1.30,.11]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.004,Math.random()*1.0);src.stop(now+dur+.03);
+    this._filteredNoise(1.25,.095,{type:'lowpass',freq:310,q:.45,attack:.035},null,0,'weapons');
   }
 
   playDud(){this.ensure();this._noise(.22,105,'sine',.18,null,0,'weapons');setTimeout(()=>this._metalClack(.22,88,310,'weapons'),70);}
