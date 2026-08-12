@@ -55,6 +55,9 @@ class SimEngineIntel extends SimEngineAAGun {
     }
     const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT'&&!c.harborTarget&&(!c.side||c.side==='ENEMY'));
     const shipping=(this.trafficIntelCandidates?.()||[]).filter(x=>x.side==='ENEMY');
+    const primary=shipping.find(x=>x.missionCritical)||null;
+    const locateObj=(camp.objectives||[]).find(o=>o.id==='locate'||/^Locate enemy convoy$/i.test(o.text||''));
+    const missionConvoyRequired=camp.primaryMission?.type==='CONVOY_INTERDICTION'&&!!primary&&!locateObj?.done;
     const R=W.radio||{};
     const forced=!!R.forceUltra; R.forceUltra=false;
     if(forced) R.coldFor=0;
@@ -65,8 +68,11 @@ class SimEngineIntel extends SimEngineAAGun {
          the anti-frustration mechanic does not send the skipper after a sampan. */
       let q=null;
       if(shipping.length){
-        const primary=shipping.find(x=>x.missionCritical);
-        q=forced&&primary?primary:shipping[Math.floor(Math.random()*shipping.length)];
+        // Until the assigned convoy has actually been found, an ULTRA shipping
+        // plot is mission guidance. Do not overwrite it with an unrelated
+        // ambient convoy at the far end of the chart. Once located, ordinary
+        // traffic intelligence may again refer to any worthwhile shipping.
+        q=missionConvoyRequired&&primary?primary:(forced&&primary?primary:shipping[Math.floor(Math.random()*shipping.length)]);
       }
       if(!q&&alive.length){const t=alive[Math.floor(Math.random()*alive.length)];q={id:t.id,label:(t.displayType||t.type||'enemy ship').toLowerCase(),count:1,position:{...t.position},heading:t.heading,speedKnots:t.speedKnots,routeS:null,routeDir:null,missionCritical:t.convoyId==='MAIN'};}
       const err=forced?(0.4+Math.random()*0.8):(0.8+Math.random()*2.2);
@@ -75,15 +81,25 @@ class SimEngineIntel extends SimEngineAAGun {
       const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);
       let pos,courseDeg=q.heading||0,routeS=q.routeS??null,routeDir=q.routeDir??null;
       if(path&&path.length>1&&routeS!=null&&routeDir!=null){
-        const hist=routeAdvance(path,routeS,routeDir,-back);
-        const noisy=routeAdvance(path,hist.s,hist.dir,(Math.random()-.5)*2*err);
-        pos=noisy.pos;courseDeg=noisy.heading;routeS=noisy.s;routeDir=noisy.dir;
+        if(q.missionCritical){
+          // The primary convoy now makes one persistent one-way voyage. Rewind
+          // the historical report along that same lane; never reflect it off an
+          // endpoint as ambient traffic does.
+          const hist=routePointAt(path,Math.max(0,routeS-back));
+          const noisy=routePointAt(path,hist.s+(Math.random()-.5)*2*err);
+          pos=noisy.pos;courseDeg=noisy.heading;routeS=noisy.s;routeDir=1;
+        }else{
+          const hist=routeAdvance(path,routeS,routeDir,-back);
+          const noisy=routeAdvance(path,hist.s,hist.dir,(Math.random()-.5)*2*err);
+          pos=noisy.pos;courseDeg=noisy.heading;routeS=noisy.s;routeDir=noisy.dir;
+        }
       }else{
         const br=degToRad(courseDeg);pos={xNm:q.position.xNm-Math.sin(br)*back,yNm:q.position.yNm+Math.cos(br)*back};
       }
       const label=q.missionCritical?'convoy':(q.label||'enemy shipping');
+      const qualification=q.missionCritical?' This is the assigned patrol convoy.':" This report is not guaranteed to be the patrol's primary target.";
       return{type:'ULTRA',subject:forced?'ENEMY SHIPPING — AMPLIFYING REPORT':'ENEMY SHIPPING REPORTED',
-        text:`ULTRA. ${label.toUpperCase()} reported in ${camp.patrolArea}${q.count>1?` — approximately ${q.count} ships`:''}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(courseDeg)}, speed ${speed.toFixed(0)} knots. This report is not guaranteed to be the patrol's primary target.`,
+        text:`ULTRA. ${label.toUpperCase()} reported in ${camp.patrolArea}${q.count>1?` — approximately ${q.count} ships`:''}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(courseDeg)}, speed ${speed.toFixed(0)} knots.${qualification}`,
         intel:{pos,courseDeg,speedKn:speed,ageSec,routeS,routeDir,uncBaseNm:err,targetLabel:label,targetId:q.id,missionCritical:!!q.missionCritical}};
     }
     if(roll<0.68){
@@ -117,11 +133,11 @@ class SimEngineIntel extends SimEngineAAGun {
         const run=knotsNmSec(U.speedKn)*age;
         const route=(W.convoyRoutes||[])[0],path=route?.waterPath;
         const routed=path&&path.length>1&&U.routeS!=null&&U.routeDir!=null;
-        const nowFix=routed?routeAdvance(path,U.routeS,U.routeDir,run):null;
+        const nowFix=routed?(U.missionCritical?routePointAt(path,U.routeS+run):routeAdvance(path,U.routeS,U.routeDir,run)):null;
         const dr=routed?nowFix.pos:(()=>{const r=degToRad(U.courseDeg);return{xNm:U.reportPos.xNm+Math.sin(r)*run,yNm:U.reportPos.yNm-Math.cos(r)*run};})();
         const rng=distNm(sub.position,dr);
         // is she opening or closing? compare with where the lane puts her in ten minutes
-        const fwd=routed?routeAdvance(path,nowFix.s,nowFix.dir,knotsNmSec(U.speedKn)*600).pos
+        const fwd=routed?(U.missionCritical?routePointAt(path,nowFix.s+knotsNmSec(U.speedKn)*600).pos:routeAdvance(path,nowFix.s,nowFix.dir,knotsNmSec(U.speedKn)*600).pos)
                          :(()=>{const r=degToRad(U.courseDeg),r2=knotsNmSec(U.speedKn)*600;return{xNm:dr.xNm+Math.sin(r)*r2,yNm:dr.yNm-Math.cos(r)*r2};})();
         /* Two solutions: one at the speed she is making now, one at flank on
            the roof. If only the second exists, the answer to "why can I never

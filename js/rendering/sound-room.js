@@ -11,6 +11,7 @@ class CanvasViewSound extends CanvasViewBridge {
   drawHydrophone(ctx,w,h,state){
     const k=this.k,T=state.tactical,S=state.world.sound||{},sig=soundSignalAt(state,T.soundBearing),cx=w/2,cy=this.portrait?h*.43:h*.49;
     const r=Math.min(w*(this.portrait?.38:.30),h*(this.portrait?.27:.36),210*k);
+    this.soundGeom={cx,cy,r};
     // Bakelite receiver / bearing dial.
     ctx.fillStyle='rgba(7,22,25,.96)';ctx.beginPath();ctx.arc(cx,cy,r*1.08,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='rgba(88,139,124,.65)';ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();

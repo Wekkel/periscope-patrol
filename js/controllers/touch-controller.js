@@ -60,26 +60,25 @@ class TouchCtrl{
     return{tabsBottom:Math.round(r.bottom),viewport:vh,overflow:off,blockedBy:blocked};
   }
 
-  syncCanvasOverlaySafeAreas(){
-    if(!this.touch||!this.cv?.canvas){this.cv.touchOverlaySafe=null;return null;}
-    const canvas=this.cv.canvas,nav=document.getElementById('ovlStations'),left=document.getElementById('ovlLeft'),right=document.getElementById('ovlRight');
-    if(!nav)return null;const cr=canvas.getBoundingClientRect(),nr=nav.getBoundingClientRect(),lr=left?.getBoundingClientRect(),rr=right?.getBoundingClientRect();if(cr.width<40||cr.height<40)return null;
-    const vis=r=>r&&r.width>3&&r.height>3;
-    const safe={
-      top:clamp(nr.bottom-cr.top+6,0,Math.min(100,cr.height*.22)),navLeft:clamp(nr.left-cr.left,0,cr.width),
-      leftEnd:vis(lr)?clamp(lr.right-cr.left+6,0,cr.width*.48):8,
-      rightStart:vis(rr)?clamp(rr.left-cr.left-6,cr.width*.52,cr.width):cr.width-8,
-      bottomTop:Math.min(vis(lr)?lr.top-cr.top:cr.height,vis(rr)?rr.top-cr.top:cr.height)
-    };
-    this.cv.touchOverlaySafe=safe;return safe;
-  }
-
   syncTacticalSafeAreas(){
     if(!this.touch||!this.cv?.canvas){this.cv.touchSafeTactical=null;return null;}
-    const sta=this.game?.getSnapshot?.()?.tactical?.activeStation||'TACTICAL';if(sta!=='TACTICAL'){this.cv.touchSafeTactical=null;return null;}
-    const base=this.cv.touchOverlaySafe||this.syncCanvasOverlaySafeAreas(),canvas=this.cv.canvas;if(!base)return null;const cr=canvas.getBoundingClientRect();
-    const safe={top:base.top,navLeft:base.navLeft,rightStart:base.rightStart,chipWidth:clamp(base.navLeft-16,58,Math.min(330,cr.width*.62))};
-    this.cv.touchSafeTactical=safe;return safe;
+    const sta=this.game?.getSnapshot?.()?.tactical?.activeStation||'TACTICAL';
+    if(sta!=='TACTICAL'){this.cv.touchSafeTactical=null;return null;}
+    const canvas=this.cv.canvas,nav=document.getElementById('ovlStations'),right=document.getElementById('ovlRight');
+    if(!nav||!right)return null;
+    const cr=canvas.getBoundingClientRect(),nr=nav.getBoundingClientRect(),rr=right.getBoundingClientRect();
+    if(cr.width<40||cr.height<40)return null;
+    /* Real DOM geometry, in the same CSS-pixel coordinate system as CanvasView.
+       This keeps TAC correct on a narrow phone, a large Android tablet and
+       unusual browser zoom/DPR values without maintaining device breakpoints. */
+    const safe={
+      top:clamp(nr.bottom-cr.top+6,0,Math.min(92,cr.height*.18)),
+      navLeft:clamp(nr.left-cr.left,0,cr.width),
+      rightStart:clamp(rr.left-cr.left,cr.width*.52,cr.width),
+      chipWidth:clamp(nr.left-cr.left-16,58,Math.min(330,cr.width*.62))
+    };
+    this.cv.touchSafeTactical=safe;
+    return safe;
   }
 
   applyLayout(first){
@@ -109,7 +108,6 @@ class TouchCtrl{
     if(shell&&deskC&&right&&deskC.parentElement!==shell) shell.insertBefore(deskC,right);
     if(deskC) deskC.style.cssText='';          // back to the stylesheet's grid cell
     this.canvasMoved=false;
-    this.cv.touchOverlaySafe=null;this.cv.touchSafeTactical=null;
     if(!this.wired) this.wire();
   }
 
@@ -169,8 +167,8 @@ class TouchCtrl{
            This also keeps the bridge usable if a migrated save trips a
            simulation subsystem later in the frame. */
         const snap=this.game.getSnapshot();
-        this.updateTouch(snap,true);   // measures the new station's overlay safe area first
         this.cv.render(snap);
+        this.updateTouch(snap,true);
         buzz(8);
       },{passive:true});
     });
@@ -188,7 +186,7 @@ class TouchCtrl{
     btn('oScopeDepth',()=>{D({type:'PERISCOPE_DEPTH'});this.setDepthSlider(55);});
     btn('oDive',   ()=>{D({type:'DIVE'});this.setDepthSlider(100);});
     btn('oGunLay', ()=>{D({type:'LAY_DECK_GUN'});buzz(10);});
-    btn('oGunFire',()=>{D({type:'FIRE_DECK_GUN'});});
+    btn('oGunFire',()=>{D({type:'FIRE_DECK_GUN'});buzz([18,22,18]);});
     btn('oGunElevUp',()=>{D({type:'ADJUST_DECK_GUN',deltaElevDeg:.1});buzz(6);});
     btn('oGunElevDown',()=>{D({type:'ADJUST_DECK_GUN',deltaElevDeg:-.1});buzz(6);});
     {const el=g('oGunElev');
@@ -209,11 +207,8 @@ class TouchCtrl{
     btn('bridgeMark',()=>{D({type:'BRIDGE_MARK_CONTACT'});buzz(10);});
     btn('bridgeTarget',()=>{D({type:'BRIDGE_TARGET_CENTER'});buzz(14);});
     btn('bridgeGun',()=>{D({type:'SET_ACTIVE_STATION',station:'DECK_GUN'});buzz(14);});
-    btn('soundLeft',()=>{D({type:'ROTATE_SOUND',deltaDeg:-5});buzz(6);});
-    btn('soundRight',()=>{D({type:'ROTATE_SOUND',deltaDeg:5});buzz(6);});
-    btn('soundMark',()=>{D({type:'SOUND_MARK_BEARING'});buzz(10);});
-    btn('soundEcho',()=>{D({type:'SOUND_ECHO_RANGE'});buzz([12,30,12]);});
-    btn('soundRadar',()=>{D({type:'TOGGLE_SOUND_DISPLAY'});buzz(10);});
+    // SOUND buttons are owned by BridgeController on every layout. Keeping one
+    // owner prevents a single touch from dispatching the same bearing/QC command twice.
     btn('oSilent', ()=>{D({type:'TOGGLE_SILENT_RUNNING'});buzz(12);});
     btn('oLock',   ()=>{D({type:'PERISCOPE_SELECT_CENTER_CONTACT'});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(12);});
     btn('btnFire', ()=>this.quickFire());
@@ -472,7 +467,7 @@ class TouchCtrl{
         const f=cv.bridgeCam?.f||Math.max(120,cv.w*.7);
         D({type:'ROTATE_BRIDGE',deltaDeg:-radToDeg(Math.atan(dx/f))});
       }
-      else if(mode==='sound'){D({type:'ROTATE_SOUND',deltaDeg:-dx*.55});}
+      else if(mode==='sound'){this.soundDrag(e);}
       else if(mode==='gun'){
         const f=cv.gunCam?.f||Math.max(180,cv.w*0.9);
         /* Horizontal drag should remain brisk for bearing, but vertical drag is
@@ -535,7 +530,10 @@ class TouchCtrl{
     if(sta==='MAP') return 'pan';
     if(sta==='PERISCOPE') return 'scope';
     if(sta==='BRIDGE') return 'bridge';
-    if(sta==='SOUND') return 'sound';
+    if(sta==='SOUND'){
+      const gm=this.cv.soundGeom,p=this.cv.toLocal(e.clientX,e.clientY);
+      return gm&&Math.hypot(p.x-gm.cx,p.y-gm.cy)<=gm.r*1.12?'sound':null;
+    }
     if(sta==='DECK_GUN') return 'gun';
     const gm=this.cv.tactGeom;
     if(gm){
@@ -544,6 +542,14 @@ class TouchCtrl{
       if(p.x>=gm.col.x&&p.x<=gm.col.x+gm.col.w&&p.y>=gm.col.y&&p.y<=gm.col.y+gm.col.h) return 'depth';
     }
     return null;
+  }
+
+  soundDrag(e){
+    const gm=this.cv.soundGeom;if(!gm)return;
+    const p=this.cv.toLocal(e.clientX,e.clientY),s=this.game.getSnapshot();
+    const want=normDeg(radToDeg(Math.atan2(p.x-gm.cx,-(p.y-gm.cy))));
+    const have=normDeg(s.tactical.soundBearing||0);
+    this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:shortDelta(have,want)});
   }
 
   compassDrag(e){
@@ -720,8 +726,7 @@ class TouchCtrl{
       const lock=g('oLock'),fire=g('btnFire');if(lock)lock.style.display=(gun||bridge||sound)?'none':'';if(fire)fire.style.display=(gun||bridge||sound)?'none':'';
       g('bridgeControls')?.classList.toggle('on',bridge);g('soundControls')?.classList.toggle('on',sound);
     }
-    this.syncCanvasOverlaySafeAreas();const tactSafe=this.syncTacticalSafeAreas();
-    const gunShots=state.weapons.deckGun?.shots||0;if(C._gunShots===undefined)C._gunShots=gunShots;else if(gunShots>C._gunShots){buzz([24,28,42]);C._gunShots=gunShots;}else if(gunShots<C._gunShots)C._gunShots=gunShots;
+    const tactSafe=this.syncTacticalSafeAreas();
     const bz=bridgeZoomAmount(state);cls('bridgeBino','on',bz>.05);
     const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
@@ -855,7 +860,7 @@ class TouchCtrl{
         bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
         bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
         `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
-        `<div class="dmg-row"><span class="dmg-lbl">Air quality</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#ef6a58':d.oxygen<50?'#f5c65c':'#6fe08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`);
+        `<div class="dmg-row"><span class="dmg-lbl">Oxygen</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#ef6a58':d.oxygen<50?'#f5c65c':'#6fe08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`);
       html('mGauges',
         `<span>Contacts</span><strong>${Object.keys(state.world.contactTracks).length}</strong>`+
         `<span>Visibility</span><strong>${state.world.environment.visibilityNm.toFixed(1)} nm</strong>`+

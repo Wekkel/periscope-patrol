@@ -33,6 +33,129 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     return{xNm:D.xNm+Math.sin(r)*d,yNm:D.yNm-Math.cos(r)*d};
   }
 
+  wearAirState(){
+    const W=this.state.world;W.airThreat=W.airThreat||{};
+    return W.airThreat.wear||(W.airThreat.wear={learned:false,manualAircraftId:null,active:null});
+  }
+
+  /* WEAR = the long, otherwise routine homeward leg. This is intentionally a
+     hard-and-fast gate over state the simulation already owns, not a new event
+     director. If anything tactically interesting exists, the captain keeps the
+     conn. */
+  wearAirEligibility(requireCompressed=true){
+    const s=this.state,W=s.world,sub=s.playerSub,c=s.campaign,T=s.time;
+    const wp=s.map.plottedCourse?.[0],nav=this.friendlyPortNav?.();
+    if(c.missionStatus!=='RETURN TO BASE'||!c._headingHome||!wp||wp.navKind!=='FRIENDLY_APPROACH')return{ok:false,why:'not on the homeward approach'};
+    if(!nav||nav.rngNm<=12)return{ok:false,why:'inside the home approach'};
+    if(requireCompressed&&!((T.timeScale||1)>1||T.transitUntil))return{ok:false,why:'the captain is manoeuvring at real time'};
+    if(W.enemy?.alertState!=='UNAWARE')return{ok:false,why:'escort activity'};
+    if((W.harbor?.alert||0)>0)return{ok:false,why:'harbor defenses'};
+    if(sub.inShallowWater||(sub.seabedFeet??3000)<165||(sub.keelClearanceFeet??3000)<150)return{ok:false,why:'shoal water'};
+    if(sub.damage.hullIntegrity<55||sub.damage.flooding>.20)return{ok:false,why:'damage'};
+    if(sub.propulsion.battery<18)return{ok:false,why:'battery state'};
+    if(sub.damage.oxygen<35)return{ok:false,why:'air state'};
+    if(sub.propulsion.fuel<20)return{ok:false,why:'fuel state'};
+    if((s.weapons.activeTorpedoes||[]).some(t=>t.status==='RUNNING'))return{ok:false,why:'torpedoes running'};
+    if((W.depthCharges||[]).some(dc=>dc.status==='SINKING'))return{ok:false,why:'depth charges in the water'};
+    if(W.aaManned||s.weapons.deckGun?.manned)return{ok:false,why:'gun crews are topside'};
+    const hotTrack=Object.values(W.contactTracks||{}).find(tr=>tr&&!tr.sunk&&tr.confidence>=.08&&(tr.staleSeconds||0)<600);
+    if(hotTrack)return{ok:false,why:'a sound or surface contact is being worked'};
+    return{ok:true,why:''};
+  }
+
+  wearAirNotice(msg,kind='warn'){
+    this.log(msg,kind);
+    // Routine transit normally holds queued toasts. This hand-off message is
+    // one of the rare things the player should see immediately even at 32x.
+    if(typeof Toast!=='undefined'){
+      const fn=kind==='bad'?'bad':kind==='ok'?'ok':'warn';Toast[fn]?.(msg);
+    }
+  }
+
+  noteWearManualAircraft(a,wasCompressed=true){
+    const wear=this.wearAirState();
+    if(wear.learned||wear.manualAircraftId||!wasCompressed)return;
+    if(!this.wearAirEligibility(false).ok)return;
+    wear.manualAircraftId=a.id;wear.manualClear=false;
+  }
+
+  startWearAirRoutine(a){
+    const wear=this.wearAirState(),elig=this.wearAirEligibility(true),sub=this.state.playerSub;
+    if(!wear.learned||wear.active||!elig.ok||a.state!=='SEARCHING')return false;
+    const safeDepth=120;
+    wear.active={aircraftId:a.id,phase:sub.depthFeet>=105?'HIDE':'DIVE',safeDepth,
+      saved:{orderedRpm:sub.propulsion.orderedRpm,orderedHeading:sub.orderedHeading,orderedDepthFeet:sub.orderedDepthFeet},startedAt:this.state.time.elapsedSeconds};
+    a._wearManaged=true;
+    this.clearDeckForDive('Routine air evasion');
+    sub.orderedDepthFeet=safeDepth;
+    sub.propulsion.orderedRpm=Math.min(sub.propulsion.orderedRpm||220,220);
+    this.derivMode?.();
+    this.wearAirNotice(`AIR CONTACT — ROUTINE EVASION. CREW HAS THE BOAT — diving to ${safeDepth} ft.`,'warn');
+    return true;
+  }
+
+  abortWearAirRoutine(reason){
+    const wear=this.wearAirState(),active=wear.active;if(!active)return;
+    const a=(this.state.world.aircraft||[]).find(x=>x.id===active.aircraftId);if(a)a._wearManaged=false;
+    wear.active=null;
+    const T=this.state.time;T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason=reason;T.stopReason=reason;T.stopReasonAt=T.elapsedSeconds;
+    // Deliberately do NOT restore depth/RPM/heading orders. The crew hands the
+    // conn over; it does not cancel a safety manoeuvre halfway through it.
+    this.wearAirNotice(`CAPTAIN REQUIRED — ${reason.toUpperCase()}. Routine air evasion disengaged; current orders remain in force.`,'bad');
+  }
+
+  updateWearAirRoutine(){
+    const s=this.state,W=s.world,sub=s.playerSub,wear=this.wearAirState(),now=s.time.elapsedSeconds;
+
+    // The first qualifying aeroplane stays a normal player problem. Once the
+    // skipper has cleared it, surfaced and resumed the official compressed
+    // homeward leg, the crew is trusted with repetitions for this patrol.
+    if(!wear.learned&&wear.manualAircraftId){
+      const a=(W.aircraft||[]).find(x=>x.id===wear.manualAircraftId);
+      const clear=!a||a.shotDown||(a.state==='DEPARTING'&&distNm(a.position,sub.position)>=8.5);
+      if(clear)wear.manualClear=true;
+      if(wear.manualClear&&sub.depthFeet<12&&this.wearAirEligibility(true).ok){
+        wear.learned=true;wear.manualAircraftId=null;wear.manualClear=false;
+        this.wearAirNotice('AIR EVASION COMPLETE — crew has the routine for the homeward leg.','ok');
+      }
+    }
+
+    const active=wear.active;if(!active)return;
+    const a=(W.aircraft||[]).find(x=>x.id===active.aircraftId);
+    const elig=this.wearAirEligibility(false);
+    const otherAir=(W.aircraft||[]).find(x=>x.side!=='FRIENDLY'&&!x.shotDown&&x.id!==active.aircraftId&&x.seenBySub&&x.state!=='DEPARTING');
+    if(!elig.ok){this.abortWearAirRoutine(elig.why);return;}
+    if((s.time.timeScale||1)<=1&&!s.time.transitUntil){this.abortWearAirRoutine('the captain has slowed to real time');return;}
+    if(otherAir){this.abortWearAirRoutine('a second air contact');return;}
+    if(a&&(a.state==='ATTACKING'||a.state==='STRAFING')){this.abortWearAirRoutine('aircraft attack');return;}
+
+    if(active.phase==='DIVE'){
+      if(sub.depthFeet>=105)active.phase='HIDE';
+      return;
+    }
+    if(active.phase==='HIDE'){
+      const clear=!a||a.shotDown||(a.state==='DEPARTING'&&distNm(a.position,sub.position)>=9.5);
+      if(!clear)return;
+      active.phase='RECOVER';active.clearAt=now;
+      sub.orderedDepthFeet=0;
+      sub.orderedHeading=active.saved.orderedHeading;
+      this.derivMode?.();
+      return;
+    }
+    if(active.phase==='RECOVER'){
+      // A fresh threat while climbing is never allowed to continue in the
+      // background. Transfer the conn at 1x and retain the current safe orders.
+      if(a&&!a.shotDown&&a.state!=='DEPARTING'){this.abortWearAirRoutine('air contact still active');return;}
+      if(sub.depthFeet<=8){
+        sub.orderedHeading=active.saved.orderedHeading;
+        sub.propulsion.orderedRpm=active.saved.orderedRpm;
+        if(a)a._wearManaged=false;
+        wear.active=null;
+        this.log('ROUTINE AIR EVASION COMPLETE — homeward course and power restored.','ok');
+      }
+    }
+  }
+
   beginAircraftAttack(a,observed,source='VISUAL',motion=null){
     const s=this.state,now=s.time.elapsedSeconds,src=source==='WAKE'?'WAKE':'VISUAL';
     const unc=src==='WAKE'?clamp(.035+(1-(motion?.strength||.5))*.11,.035,.15):.012;
@@ -44,7 +167,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     // event.  Even if the original patrol was not spotted, the attack warning is
     // an intentional arcade hand-off of the conn to the player.
     a.seenBySub=true;s.world.airThreat.alarmedAt=now;
-    const T=s.time;if((T.timeScale||1)>1||T.transitUntil){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
+    const T=s.time,wasCompressed=!!(T.transitUntil||(T.timeScale||1)>1);this.noteWearManualAircraft(a,wasCompressed);
+    if(wasCompressed){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
     this.log(src==='WAKE'?`${a.name} has picked up the diving wake and is turning onto the last datum!`:`${a.name} has sighted the boat and is turning in!`,'bad');
     audio.event?.('AIRCRAFT_SPOTTED');
   }
@@ -259,10 +383,14 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         }
         if(seen){
           a.seenBySub=true; air.alarmedAt=now;
-          const diveUnderway=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
-          const airAction=sub.depthFeet<8&&!diveUnderway?'CLEAR THE BRIDGE!':sub.depthFeet<18&&diveUnderway?'CONTINUE THE DIVE!':'REMAIN SUBMERGED.';
-          this.log(`⚠ AIR ALARM — ${how}. ${airAction}`,'bad');
-          audio.event?.('AIRCRAFT_SPOTTED');
+          const managed=this.startWearAirRoutine(a);
+          if(!managed){
+            this.noteWearManualAircraft(a,!!(this.state.time.transitUntil||(this.state.time.timeScale||1)>1));
+            const diveUnderway=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
+            const airAction=sub.depthFeet<8&&!diveUnderway?'CLEAR THE BRIDGE!':sub.depthFeet<18&&diveUnderway?'CONTINUE THE DIVE!':'REMAIN SUBMERGED.';
+            this.log(`⚠ AIR ALARM — ${how}. ${airAction}`,'bad');
+            audio.event?.('AIRCRAFT_SPOTTED');
+          }
         }
       }
 
@@ -392,6 +520,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       if(gone&&a.seenBySub&&!a.shotDown)this.log(`${a.name} has left the area.`);
       return !gone;
     });
+    this.updateWearAirRoutine();
   }
 
   /* ══════════ 3\"/50 DECK GUN ════════════════════════════════════════

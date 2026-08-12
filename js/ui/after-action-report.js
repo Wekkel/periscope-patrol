@@ -77,7 +77,7 @@ class AfterActionReport{
 
   moveEngagement(delta){const a=this.engagements();if(a.length<2)return;this.engagementIndex=(this.engagementIndex+delta+a.length)%a.length;this.renderEngagement();}
   shipSilhouette(e){
-    const q=[e.type,e.displayType,e.role,e.name].filter(Boolean).join(' ').toUpperCase();
+    const q=String(e.type||e.displayType||e.role||'').toUpperCase();
     const isSmall=/SAMPAN|JUNK|FISHING|RAFT/.test(q);
     const isCarrier=/CARRIER/.test(q);
     const isCruiser=/HEAVY CRUISER|CRUISER/.test(q);
@@ -85,8 +85,7 @@ class AfterActionReport{
     const isPatrol=/PATROL/.test(q);
     const isTanker=/TANKER|OILER/.test(q);
     const isSmallTanker=/SMALL TANKER/.test(q);
-    const isMerchant=/FREIGHTER|MERCHANT|CARGO|MARU/.test(q);
-    const isTransport=/TRANSPORT|TROOP/.test(q);
+    const isTransport=/TRANSPORT|FREIGHTER|MERCHANT|TROOP|CARGO/.test(q);
     const svg=(body)=>`<svg viewBox="0 0 420 150" aria-hidden="true">${body}</svg>`;
     /* Debrief silhouettes are simplified card art, but they should still read
        as believable side profiles. The key correction here is that bow and
@@ -94,22 +93,21 @@ class AfterActionReport{
        tanker hulls get a fuller transom/cruiser stern, while warships keep a
        sharper bow with a comparatively blunter aft run. */
     if(isSmall)return svg(`<path class="hull" d="M72 112 L72 97 L104 94 L268 94 L298 93 L326 91 L338 89 L346 90 L334 100 L318 112 Z"/><path class="upper" d="M178 94 L192 74 L235 74 L248 94 Z"/><path class="line" d="M206 74 L206 42 M206 48 L231 59"/>`);
-    if(isCarrier)return svg(`<path class="hull" d="M58 112 L58 96 L88 94 L332 94 L362 93 L382 92 L392 93 L380 101 L370 112 Z"/><path class="upper" d="M78 82 L344 80 L358 94 L90 94 Z"/><path class="upper" d="M256 78 L270 52 L304 52 L316 83 Z"/><path class="line" d="M282 52 L282 30"/>`);
+    if(isCarrier)return svg(`<path class="hull" d="M58 112 L58 96 L86 94 L334 94 L364 93 L384 92 L392 93 L380 101 L370 112 Z"/><path class="upper" d="M72 78 L360 78 L360 94 L72 94 Z"/><path class="upper" d="M226 78 L226 54 L270 54 L270 78 Z"/><path class="upper" d="M240 54 L240 46 L258 46 L258 54 Z"/><path class="line" d="M250 46 L250 29 M250 34 L268 42"/>`);
     if(isCruiser)return svg(`<path class="hull" d="M60 112 L64 100 L110 96 L286 96 L318 95 L342 92 L356 84 L366 85 L348 101 L340 112 Z"/><path class="upper" d="M130 95 L148 78 L200 78 L224 88 L272 88 L292 96 L130 96 Z"/><path class="upper" d="M118 95 L130 89 L144 95 Z M300 96 L314 88 L328 96 Z"/><path class="upper" d="M246 78 L260 62 L278 62 L292 78 Z"/><path class="line" d="M188 78 L188 44 M188 50 L219 61"/>`);
     if(isDestroyer)return svg(`<path class="hull" d="M62 112 L66 99 L114 95 L286 95 L316 93 L338 89 L352 80 L362 81 L344 100 L336 112 Z"/><path class="upper" d="M138 94 L154 75 L208 75 L226 86 L264 86 L284 95 L138 95 Z"/><path class="upper" d="M125 94 L136 88 L149 94 Z M290 95 L304 88 L317 95 Z"/><path class="line" d="M187 75 L187 42 M187 47 L214 58"/>`);
     if(isPatrol)return svg(`<path class="hull" d="M70 112 L72 101 L112 97 L260 97 L292 95 L314 91 L324 85 L332 86 L318 101 L311 112 Z"/><path class="upper" d="M158 96 L174 78 L219 78 L238 96 Z"/><path class="upper" d="M146 96 L158 89 L170 96 Z"/><path class="line" d="M202 78 L202 48"/>`);
     if(isSmallTanker)return svg(`<path class="hull" d="M62 112 L62 94 L118 91 L286 91 L314 90 L334 88 L348 84 L356 84 L340 100 L332 112 Z"/><path class="upper" d="M184 91 L198 67 L244 67 L258 91 Z"/><path class="upper" d="M212 67 L212 49 L226 49 L226 67 Z"/><path class="line" d="M219 49 L219 31"/><path class="line" d="M138 91 L304 91"/>`);
     if(isTanker)return svg(`<path class="hull" d="M56 112 L56 92 L120 89 L302 89 L330 88 L350 86 L364 82 L372 83 L356 98 L348 112 Z"/><path class="upper" d="M108 89 L128 70 L160 70 L176 89 Z"/><path class="upper" d="M184 88 L302 88 L302 91 L184 91 Z"/><path class="line" d="M145 70 L145 44 M145 50 L168 60"/><path class="line" d="M236 88 L236 74 M268 88 L268 74"/>`);
-    if(isMerchant)return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M96 91 L116 71 L176 71 L198 83 L252 83 L272 92 L96 92 Z"/><path class="upper" d="M148 71 L160 52 L196 52 L208 71 Z"/><path class="line" d="M178 52 L178 34"/><path class="line" d="M228 84 L228 58"/>`);
-    if(isTransport)return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M128 91 L148 70 L216 70 L242 84 L286 84 L304 92 L128 92 Z"/><path class="upper" d="M190 70 L201 52 L236 52 L247 70 Z"/><path class="line" d="M219 52 L219 34"/>`);
-    return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M128 91 L148 70 L216 70 L242 84 L286 84 L304 92 L128 92 Z"/><path class="upper" d="M190 70 L201 52 L236 52 L247 70 Z"/><path class="line" d="M219 52 L219 34"/>`);
+    if(isTransport)return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M104 91 L124 70 L190 70 L216 83 L258 83 L278 92 L104 92 Z"/><path class="upper" d="M160 70 L171 52 L206 52 L217 70 Z"/><path class="line" d="M189 52 L189 34"/>`);
+    return svg(`<path class="hull" d="M58 112 L60 95 L114 92 L290 92 L322 91 L344 87 L358 83 L366 84 L350 101 L342 112 Z"/><path class="upper" d="M104 91 L124 70 L190 70 L216 83 L258 83 L278 92 L104 92 Z"/><path class="upper" d="M160 70 L171 52 L206 52 L217 70 Z"/><path class="line" d="M189 52 L189 34"/>`);
   }
 
   miniMap(e){
     const m=e.attackMap||{},raw=[m.own,m.launch,m.target,m.impact].filter(p=>Number.isFinite(p?.xNm)&&Number.isFinite(p?.yNm));if(raw.length<2)return '<div class="aar-mini-empty">No geometry recorded for this engagement.</div>';
     let minX=Math.min(...raw.map(p=>p.xNm)),maxX=Math.max(...raw.map(p=>p.xNm)),minY=Math.min(...raw.map(p=>p.yNm)),maxY=Math.max(...raw.map(p=>p.yNm));let span=Math.max(maxX-minX,maxY-minY,.25);minX=(minX+maxX)/2-span*.62;maxX=minX+span*1.24;minY=(minY+maxY)/2-span*.34;maxY=minY+span*.68;
-    const P=p=>({x:18+(p.xNm-minX)/(maxX-minX)*324,y:108-(p.yNm-minY)/(maxY-minY)*88});const own=P(m.launch||m.own),tar=P(m.impact||m.target),weapon=String(m.weapon||'').replace(/_/g,' ');
-    return `<svg class="aar-mini-svg" viewBox="0 0 360 122" role="img" aria-label="Static engagement geometry"><path class="grid" d="M18 20H342M18 50H342M18 80H342M18 108H342M90 14V108M180 14V108M270 14V108"/><path class="attack" d="M${own.x.toFixed(1)} ${own.y.toFixed(1)} L${tar.x.toFixed(1)} ${tar.y.toFixed(1)}"/><g class="own" transform="translate(${own.x.toFixed(1)} ${own.y.toFixed(1)})"><path d="M0 -8 L-5 6 L0 4 L5 6 Z"/></g><g class="target" transform="translate(${tar.x.toFixed(1)} ${tar.y.toFixed(1)})"><path d="M-12 3 L-8 -4 L8 -4 L12 3 L8 6 L-8 6 Z"/></g><text x="20" y="118">FIRING / IMPACT GEOMETRY · ${this.esc(weapon)}</text></svg>`;
+    const P=p=>({x:18+(p.xNm-minX)/(maxX-minX)*324,y:108-(p.yNm-minY)/(maxY-minY)*88});const own=P(m.launch||m.own),tar=P(m.target||m.impact),hit=P(m.impact||m.target),weapon=String(m.weapon||'').replace(/_/g,' ');
+    return `<svg class="aar-mini-svg" viewBox="0 0 360 122" role="img" aria-label="Static engagement geometry"><path class="grid" d="M18 20H342M18 50H342M18 80H342M18 108H342M90 14V108M180 14V108M270 14V108"/><path class="attack" d="M${own.x.toFixed(1)} ${own.y.toFixed(1)} L${hit.x.toFixed(1)} ${hit.y.toFixed(1)}"/><g class="own" transform="translate(${own.x.toFixed(1)} ${own.y.toFixed(1)})"><circle r="7"/><path d="M-8 0 L8 0 M-4 -3 L4 -3 M0 -7 L0 3"/><text x="10" y="-8">LAUNCH</text></g><g class="target" transform="translate(${tar.x.toFixed(1)} ${tar.y.toFixed(1)})"><path d="M-12 3 L-8 -4 L8 -4 L12 3 L8 6 L-8 6 Z"/></g><g class="impact" transform="translate(${hit.x.toFixed(1)} ${hit.y.toFixed(1)})"><circle r="5"/><path d="M-8 0H8 M0 -8V8"/><text x="8" y="12">IMPACT</text></g><text x="20" y="118">FIRING / IMPACT GEOMETRY · ${this.esc(weapon)}</text></svg>`;
   }
 
   damageBars(e){const d=e.damage||{};return ['flotation','propulsion','steering','fire'].map(k=>{const p=this.pct(d[k]);return `<div class="aar-damage-row"><span>${k.slice(0,4).toUpperCase()}</span><i><b style="width:${p}%"></b></i><em>${p}%</em></div>`;}).join('');}

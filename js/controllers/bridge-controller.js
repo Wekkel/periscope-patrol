@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════ DESKTOP CONTROLLER
 class BridgeController{
-  constructor(game,cv){this.game=game;this.cv=cv;this.bind();}
+  constructor(game,cv){this.game=game;this.cv=cv;this._qcConfirmUntil=0;this._qcConfirmTimer=null;this.bind();}
   bind(){
     const hi=document.getElementById('headingInput');
     const ri=document.getElementById('rpmInput');
@@ -76,7 +76,7 @@ class BridgeController{
     btn('soundLeft',       ()=>this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:-5}));
     btn('soundRight',      ()=>this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:5}));
     btn('soundMark',       ()=>this.game.dispatch({type:'SOUND_MARK_BEARING'}));
-    btn('soundEcho',       ()=>this.game.dispatch({type:'SOUND_ECHO_RANGE'}));
+    btn('soundEcho',       ()=>this.confirmActiveQc());
     btn('soundRadar',      ()=>this.game.dispatch({type:'TOGGLE_SOUND_DISPLAY'}));
     btn('deckGunLayButton', ()=>this.game.dispatch({type:'LAY_DECK_GUN'}));
     btn('deckGunFireButton',()=>this.game.dispatch({type:'FIRE_DECK_GUN'}));
@@ -135,5 +135,19 @@ class BridgeController{
       this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'});
     });
   }
+  confirmActiveQc(){
+    const now=performance.now(),btn=document.getElementById('soundEcho');
+    if(now<this._qcConfirmUntil){
+      this._qcConfirmUntil=0;if(this._qcConfirmTimer){clearTimeout(this._qcConfirmTimer);this._qcConfirmTimer=null;}
+      btn?.classList.remove('confirm');if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent='Active QC';}
+      this.game.dispatch({type:'SOUND_ECHO_RANGE'});return;
+    }
+    this._qcConfirmUntil=now+2800;btn?.classList.add('confirm');
+    if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent='Confirm Ping';}
+    if(typeof Toast!=='undefined')Toast.warn('ACTIVE QC WILL BROADCAST YOUR POSITION — tap CONFIRM PING to transmit.');
+    if(this._qcConfirmTimer)clearTimeout(this._qcConfirmTimer);
+    this._qcConfirmTimer=setTimeout(()=>{this._qcConfirmUntil=0;this._qcConfirmTimer=null;btn?.classList.remove('confirm');if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent='Active QC';}},2850);
+  }
+
 }
 

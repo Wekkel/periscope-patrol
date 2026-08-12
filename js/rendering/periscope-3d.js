@@ -90,7 +90,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       // cinematic effects may advance on wall-clock time while simulation stays paused.
       time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+Math.max(0,impactAge)},
       world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
-      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`,big:String(obs.weapon||'TORPEDO').toUpperCase()==='TORPEDO',targetLengthFeet:Number(target.lengthYards)||300}]}};
+      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:8,label:`${obs.weapon||'TORPEDO'} HIT`,big:String(obs.weapon||'TORPEDO').toUpperCase()==='TORPEDO',targetLengthFeet:Number(target.lengthYards)||300}]}};
     const cam=this.setupCam(viewState,fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'IMPACT',viewW:w,viewH:h});this.impactCam=cam;
 
     ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);
@@ -109,8 +109,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     if(dl<.32)this.drawNightOverlay(ctx,w,h,dl);
 
     // Film-style exposure remains local to the impact. It blooms outward from
-    // the projected hit and lights only nearby water; no directional cone is
-    // allowed to masquerade as a last-second torpedo trail.
+    // the projected hit and lays a narrow reflection over the intervening sea,
+    // rather than washing the entire display white.
     const ip=this.proj(cam,impactPos.xNm*NM_M,-impactPos.yNm*NM_M,Math.max(.4,Number(obs.impactPosition?.zM)||3));
     if(ip&&impactAge>=0&&impactAge<1.1){
       const a=(1-impactAge/1.1)*.72,rr=clamp(30*k+7000/Math.max(100,ip.d)*k,32*k,125*k);
@@ -124,12 +124,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const bg=ctx.createRadialGradient(ip.x,ip.y,rr*.10,ip.x,ip.y,broadR);
       bg.addColorStop(0,`rgba(255,211,128,${a*.20})`);bg.addColorStop(.48,`rgba(255,150,70,${a*.07})`);bg.addColorStop(1,'rgba(255,115,40,0)');
       ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
-      // Water catches a broad LOCAL flash around the strike. Never draw a
-      // tapered reflection toward the observer: that directional cone reads as
-      // a rocket/torpedo trail appearing at impact and was the persistent visual bug.
-      const wy=ip.y+rr*.18,ew=rr*1.65,eh=rr*.34,eg=ctx.createRadialGradient(ip.x,wy,0,ip.x,wy,ew);
-      eg.addColorStop(0,`rgba(255,204,116,${a*.25})`);eg.addColorStop(.42,`rgba(255,150,68,${a*.10})`);eg.addColorStop(1,'rgba(255,120,45,0)');
-      ctx.save();ctx.translate(ip.x,wy);ctx.scale(1,eh/ew);ctx.fillStyle=eg;ctx.beginPath();ctx.arc(0,0,ew,0,Math.PI*2);ctx.fill();ctx.restore();
+      // Keep impact illumination radial. The former triangular reflection
+      // pointed at the viewer and read as a rocket/torpedo trail at the instant of impact.
       ctx.globalAlpha=1;ctx.restore();
     }
 
@@ -1712,7 +1708,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
      pure function of the explosion's age, so the picture is stable.      */
   drawExplosions3D(ctx,cam,state,dl){
     for(const e of state.weapons.explosions){
-      const gunHit=/GUN HIT/.test(e.label||'');
+      const gunHit=/GUN HIT/.test(e.label||''),torpHit=!!e.big&&/TORPEDO HIT|HIT —/.test(e.label||'');
       const p=this.proj(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,gunHit?Math.max(.5,Number(e.zM)||3.5):0);
       if(!p) continue;
       const sc=cam.f/p.d;                                   // pixels per metre
@@ -1787,11 +1783,11 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
           ctx.fillStyle=fg;ctx.beginPath();ctx.arc(p.x,p.y-12*sc,rr,0,Math.PI*2);ctx.fill();
         }
         // 2 ─ fireball: three rising blobs, hot core → orange → sooty red
-        if(age<3.0){
-          const f=age/3.0, a=Math.pow(1-f,1.3);
+        if(age<(torpHit?4.2:3.0)){
+          const life=torpHit?4.2:3.0,f=age/life, a=Math.pow(1-f,1.15),fireScale=torpHit?1.55:1;
           for(let i=2;i>=0;i--){
-            const off=(i-1)*14*sc*big, rise=(14+f*34+i*6)*sc*big;
-            const rr=Math.max(2,(12+f*40)*sc*big*(1-i*0.18));
+            const off=(i-1)*14*sc*big*fireScale, rise=(14+f*(torpHit?54:34)+i*6)*sc*big*fireScale;
+            const rr=Math.max(2,(12+f*(torpHit?55:40))*sc*big*(1-i*0.18)*fireScale);
             const gr=ctx.createRadialGradient(p.x+off*0.5,p.y-rise,0,p.x+off*0.5,p.y-rise,rr);
             gr.addColorStop(0,`rgba(255,246,200,${a})`);
             gr.addColorStop(0.35,`rgba(255,160,44,${a*0.9})`);
@@ -1803,20 +1799,20 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         // 3 ─ water column with cap, then falling spray
         if(age<5){
           const up=clamp(age/1.6,0,1), a=clamp(1-(age-1.4)/3.4,0,1);
-          const rawColumnM=(28+up*86)*big;
+          const rawColumnM=(torpHit?(10+up*34):(28+up*86))*big;
           // A cinematic torpedo hit knows the target hull length. Cap the water
           // column in WORLD metres before projection so a close/zoomed impact can
           // never grow into a skyscraper above a small destroyer or merchant.
           const targetLenM=Number.isFinite(Number(e.targetLengthFeet))?Math.max(20,Number(e.targetLengthFeet)*.3048):null;
-          const plumeCapM=targetLenM?clamp(targetLenM*.32,18,48):Infinity;
-          const colH=Math.min(rawColumnM,plumeCapM)*sc, colW=Math.max(1.5,(7+up*8)*sc*big);
+          const plumeCapM=targetLenM?(torpHit?clamp(targetLenM*.16,10,25):clamp(targetLenM*.32,18,48)):Infinity;
+          const colH=Math.min(rawColumnM,plumeCapM)*sc, colW=Math.max(1.5,(torpHit?(4+up*5):(7+up*8))*sc*big);
           const cg=ctx.createLinearGradient(p.x,p.y,p.x,p.y-colH);
           cg.addColorStop(0,`rgba(240,250,255,${a*0.9})`);
           cg.addColorStop(0.75,`rgba(232,246,255,${a*0.5})`);
           cg.addColorStop(1,'rgba(255,255,255,0)');
           ctx.fillStyle=cg;ctx.fillRect(p.x-colW/2,p.y-colH,colW,colH);
           // side jets
-          ctx.strokeStyle=`rgba(238,250,255,${a*0.55})`;ctx.lineWidth=Math.max(1,colW*0.3);
+          ctx.strokeStyle=`rgba(238,250,255,${a*(torpHit?.34:.55)})`;ctx.lineWidth=Math.max(1,colW*(torpHit?.20:.30));
           ctx.beginPath();
           ctx.moveTo(p.x,p.y);ctx.quadraticCurveTo(p.x-colW*2.2,p.y-colH*0.6,p.x-colW*3.4,p.y-colH*0.18);
           ctx.moveTo(p.x,p.y);ctx.quadraticCurveTo(p.x+colW*2.2,p.y-colH*0.62,p.x+colW*3.6,p.y-colH*0.2);
@@ -1858,9 +1854,9 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         }
         // 6 ─ rolling smoke pall, outliving the flame
         if(this.quality>0.35&&age>0.4){
-          const a=clamp(1-tt,0,1)*0.55;
-          for(let i=0;i<7;i++){
-            const f=(i+1)/7, rise=(16+age*17)*sc*big*f, rr=Math.max(2,(9+age*7)*sc*big*f);
+          const smokeLife=torpHit?8:Math.max(1,e.maxAgeSec||5),a=clamp(1-age/smokeLife,0,1)*(torpHit?.68:.55),count=torpHit?9:7;
+          for(let i=0;i<count;i++){
+            const f=(i+1)/count, rise=(16+age*(torpHit?21:17))*sc*big*f, rr=Math.max(2,(9+age*(torpHit?10:7))*sc*big*f);
             const drift=age*5*sc*big*(0.4+f);
             ctx.fillStyle=`rgba(${46+i*3},${44+i*3},${44+i*2},${a*(1-f*0.45)})`;
             ctx.beginPath();

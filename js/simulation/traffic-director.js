@@ -268,9 +268,9 @@ function _trafficFormation(i){
       const main=W.contacts.filter(c=>c.convoyId==='MAIN'&&!isSurfaceCombatant(c)&&!c.sunk),pg=T?.primaryGroup;
       if(main.length){const lead=main.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0],route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route),pr=path?.length?routeProject(path,lead.position):null;
         out.push({id:'MAIN',label:'convoy',kind:'CONVOY',count:main.length,side:'ENEMY',missionCritical:true,position:{xNm:main.reduce((a,c)=>a+c.position.xNm,0)/main.length,yNm:main.reduce((a,c)=>a+c.position.yNm,0)/main.length},
-          heading:lead.heading,speedKnots:lead.speedKnots,routeS:pr?.s??null,routeDir:W.convoyLeg||1});}
+          heading:lead.heading,speedKnots:lead.speedKnots,routeS:pr?.s??null,routeDir:1});}
       else if(pg&&!pg.destroyed&&pg.state==='ABSTRACT')out.push({id:'MAIN',label:'convoy',kind:'CONVOY',count:(pg.savedMembers||[]).filter(c=>!isSurfaceCombatant(c)&&!c.sunk).length,side:'ENEMY',missionCritical:true,
-        position:{...pg.position},heading:pg.heading,speedKnots:pg.speedKnots,routeS:pg.routeS,routeDir:pg.routeDir});
+        position:{...pg.position},heading:pg.heading,speedKnots:pg.speedKnots,routeS:pg.routeS,routeDir:1});
       if(T?.enabled)for(const g of T.groups||[]){
         if(g.side!=='ENEMY')continue;
         const live=g.state==='TACTICAL'?(W.contacts||[]).filter(c=>c.trafficGroupId===g.id&&!c.sunk):null;

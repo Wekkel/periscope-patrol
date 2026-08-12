@@ -12,7 +12,7 @@ class SimEngine extends SimEngineCareer {
       trackIds:ids,mainTrackIds,visualIds,visualMainIds,visualAswIds,aswBands,
       alert:s.world.enemy.alertState,
       hull:s.playerSub.damage.hullIntegrity,
-      air:(s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub).length,
+      air:(s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub&&!a._wearManaged).length,
       // Attack state is safety-critical even when the aeroplane was already
       // known before transit began (or the lookout/radar has not yet promoted
       // it to a fresh contact count). This is a deliberate arcade safety net.
@@ -91,7 +91,7 @@ class SimEngine extends SimEngineCareer {
     if(!(w.visualMainIds||[]).length&&visualMain.length) return 'convoy sighted';
     if(newVisual.some(id=>byId.get(id)?.convoyId!=='MAIN')) return 'contact now visual';
     for(const id of ids){const c=byId.get(id),tr=tracks[id];if(!c||!isASWCombatant(c)||!tr||tr.confidence<=.02)continue;const r=tr.rangeEstimateNm??99,band=r<=1.5?3:r<=3?2:r<=6?1:0;if(band>(w.aswBands?.[id]??band))return band>=3?'escort inside 1.5 nm':band>=2?'escort inside 3 nm':'escort inside 6 nm';}
-    if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub).length>w.air) return 'aircraft';
+    if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub&&!a._wearManaged).length>w.air) return 'aircraft';
     if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length>(w.airDanger||0)) return 'aircraft attack';
     if(s.world.ultra&&!w.ultra) return 'an ULTRA intercept';
     if(s.map.plottedCourse.length<w.wp) return 'a waypoint reached';
@@ -692,8 +692,8 @@ class SimEngine extends SimEngineCareer {
     else if(d.hullIntegrity<60) W.push({level:'warn',text:'HULL DAMAGED'});
     if(d.flooding>0.65) W.push({level:'critical',text:'FLOODING CRITICAL'});
     else if(d.flooding>0.25) W.push({level:'warn',text:'FLOODING'});
-    if(d.oxygen<20) W.push({level:'critical',text:'AIR CRITICAL'});
-    else if(d.oxygen<45) W.push({level:'warn',text:'AIR GETTING STALE'});
+    if(d.oxygen<20) W.push({level:'critical',text:'LOW OXYGEN'});
+    else if(d.oxygen<45) W.push({level:'warn',text:'OXYGEN FALLING'});
     if(e.alertState==='ATTACKING') W.push({level:'critical',text:'ESCORT ATTACK RUN'});
     else if(e.alertState==='SEARCHING') W.push({level:'warn',text:'ESCORTS SEARCHING'});
     const H=this.state.world.harbor;
