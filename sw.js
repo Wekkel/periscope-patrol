@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.8'; // pre relese version - Build dynamic submarine audio architecture and procedural combat soundscape
+const VERSION = '0.9.9'; // pre relese version - Refine ASW prosecution limits and depth-charge attack feedback
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
