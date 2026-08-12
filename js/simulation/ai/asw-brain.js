@@ -42,6 +42,14 @@ class SimEngineASWBrain extends SimEngineWeather{
     if(!Number.isFinite(A.lastRoleAssignAt))A.lastRoleAssignAt=-999;
     if(!Number.isFinite(A.searchStartedAt))A.searchStartedAt=now;
     if(!Number.isFinite(A.searchRadiusNm))A.searchRadiusNm=.55;
+    // ASW prosecution budget is deliberately separate from alertTimerSec.
+    // Ordinary sonar reacquisition may keep the tactical plot alive, but it may
+    // not reset the escort commander's willingness to leave the convoy for ever.
+    // Strong new hostile acts (another torpedo, gunfire, collision etc.) can
+    // legitimately start a fresh prosecution episode.
+    if(!Number.isFinite(A.prosecutionStartedAt))A.prosecutionStartedAt=-1;
+    if(!Number.isFinite(A.prosecutionSoftDeadlineAt))A.prosecutionSoftDeadlineAt=-1;
+    if(!Number.isFinite(A.prosecutionHardDeadlineAt))A.prosecutionHardDeadlineAt=-1;
     if(!Array.isArray(A.pingEvents))A.pingEvents=[];
     const escorts=W.contacts.filter(c=>isASWCombatant(c));
     const fallback=aswScreenRoles(escorts.length,this.state.campaign.patrolArea,{startDate:this.state.campaign.startDate,difficulty:this.state.campaign.difficulty});
@@ -54,6 +62,42 @@ class SimEngineASWBrain extends SimEngineWeather{
       if(x.sonarContact===undefined)x.sonarContact=false;
     }
     return A;
+  }
+
+  aswProsecutionLimits(){
+    const d=String(this.state.campaign?.difficulty||'').toUpperCase();
+    // Gameplay budget, in simulation seconds. A destroyer can continue beyond
+    // the soft limit while it holds a firm contact, but an intermittent weak
+    // echo cannot keep the whole screen detached from its convoy indefinitely.
+    if(d==='HARD')return{softSec:24*60,hardSec:40*60};
+    if(d==='EASY')return{softSec:14*60,hardSec:26*60};
+    return{softSec:18*60,hardSec:32*60};
+  }
+
+  armASWProsecution(reason='CONTACT',restart=false){
+    const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0,L=this.aswProsecutionLimits();
+    const strong=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_DUD','DECK_GUN','COLLISION','EMERGENCY_BLOW','ACTIVE_QC'].includes(reason);
+    const missing=A.prosecutionStartedAt<0||A.prosecutionSoftDeadlineAt<=now||A.prosecutionHardDeadlineAt<=now;
+    if(restart||missing||strong){
+      A.prosecutionStartedAt=now;A.prosecutionSoftDeadlineAt=now+L.softSec;A.prosecutionHardDeadlineAt=now+L.hardSec;A.prosecutionReason=reason;
+    }
+    return A;
+  }
+
+  aswProsecutionExpiry(){
+    const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0;
+    if(e.alertState==='UNAWARE')return null;
+    // Old saves have no episode timestamps. Start a fair fresh budget on the
+    // first tick after upgrade rather than inventing elapsed prosecution time.
+    if(A.prosecutionStartedAt<0||A.prosecutionHardDeadlineAt<=0)this.armASWProsecution('ONGOING_SEARCH',true);
+    const firm=!!(e.contactHeld||e.visualOnSub);
+    if(now>=A.prosecutionHardDeadlineAt&&!e.visualOnSub)return'HARD_LIMIT';
+    if(now>=A.prosecutionSoftDeadlineAt&&!firm)return'SOFT_LIMIT';
+    return null;
+  }
+
+  resetASWProsecution(){
+    const A=this.ensureASWState();A.prosecutionStartedAt=-1;A.prosecutionSoftDeadlineAt=-1;A.prosecutionHardDeadlineAt=-1;delete A.prosecutionReason;
   }
 
   convoyFrame(){
@@ -162,15 +206,20 @@ class SimEngineASWBrain extends SimEngineWeather{
     for(const x of escorts){delete x.guardShipId;if(x===guard){x.guardShipId=straggler.id;x.aswRole='DAMAGED_GUARD';}}
     const active=escorts.filter(x=>x!==guard);
     if(e.alertState==='UNAWARE'||!this.aswDatum()){
-      for(const x of active)x.aswRole='SCREEN';A.lastRoleAssignAt=now;
+      for(const x of active){x.aswRole='SCREEN';x.aswExpended=false;}A.lastRoleAssignAt=now;
       A.roles=Object.fromEntries(escorts.map(x=>[x.id,x.aswRole]));return;
     }
-    const datum=this.aswDatum(),withCharges=active.filter(x=>(x.dcRemaining===undefined?28:x.dcRemaining)>=SONAR.patternSize);
+    // Escorts that can no longer throw a complete pattern return to convoy
+    // protection instead of continuing to orbit the datum as a fake prosecutor.
+    const depleted=active.filter(x=>(x.dcRemaining===undefined?28:x.dcRemaining)<SONAR.patternSize);
+    for(const x of depleted){x.aswExpended=true;x.aswRole='CONVOY_GUARD';}
+    const hunting=active.filter(x=>!depleted.includes(x));
+    const datum=this.aswDatum(),withCharges=hunting.filter(x=>(x.dcRemaining===undefined?28:x.dcRemaining)>=SONAR.patternSize);
     let prosecutor=withCharges.find(x=>x.id===preferredId)||withCharges.slice().sort((a,b)=>distNm(a.position,datum)-distNm(b.position,datum))[0]||null;
-    for(const x of active)x.aswRole='SWEEP';
+    for(const x of hunting)x.aswRole='SWEEP';
     if(prosecutor)prosecutor.aswRole='PROSECUTOR';
-    let rem=active.filter(x=>x!==prosecutor);
-    if(active.length>=4){
+    let rem=hunting.filter(x=>x!==prosecutor);
+    if(hunting.length>=4){
       const frame=this.convoyFrame();let convoyGuard=rem.find(x=>x.screenRole==='REAR_GUARD');
       if(!convoyGuard&&frame)convoyGuard=rem.slice().sort((a,b)=>distNm(a.position,frame)-distNm(b.position,frame))[0];
       if(convoyGuard){convoyGuard.aswRole='CONVOY_GUARD';rem=rem.filter(x=>x!==convoyGuard);}

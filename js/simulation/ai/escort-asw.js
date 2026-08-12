@@ -2,6 +2,11 @@ class SimEngineASW extends SimEngineASWBrain {
   updateEscortBeh(esc,e,sub,W,idx,total,dt){
     this.ensureASWState();
     const role=esc.aswRole||'SCREEN';
+    const noFullPattern=(esc.dcRemaining!==undefined&&esc.dcRemaining<SONAR.patternSize);
+    if(noFullPattern&&e.alertState!=='UNAWARE'&&role!=='DAMAGED_GUARD'&&role!=='CONVOY_GUARD'){
+      esc.aswExpended=true;esc.aswRole='CONVOY_GUARD';
+      const tgt=this.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.convoyFrame()?.speedKn||9)+2.5,8,17);}return;
+    }
     if(role==='DAMAGED_GUARD'){
       const casualty=W.contacts.find(c=>c.id===esc.guardShipId&&!c.sunk);
       if(casualty){
@@ -79,7 +84,7 @@ class SimEngineASW extends SimEngineASWBrain {
     }
 
     const lr=degToRad(sol?.courseDeg??this.ensureASWState().estimatedCourseDeg??0),spd=sol?.speedKn??this.ensureASWState().estimatedSpeedKn??0;
-    const sinkT=clamp((sol?.depthFt??130)/SONAR.sinkFps,4,34);let drop={...raw};
+    const sinkT=clamp((sol?.depthFt??130)/SONAR.sinkFps,4,55);let drop={...raw};
     for(let it=0;it<2;it++){
       const toGo=Math.min(300,distNm(esc.position,drop)/Math.max(esc.speedKnots,8)*3600),lead=spd*((toGo+sinkT)/3600);
       drop={xNm:raw.xNm+Math.sin(lr)*lead,yNm:raw.yNm-Math.cos(lr)*lead};
@@ -126,20 +131,26 @@ class SimEngineASW extends SimEngineASWBrain {
     const layer=env.layerDepthFt||200,belowLayer=estDepth>layer+15,base=(20+estDepth*.10+(belowLayer?58:0))*(speculative?1.45:1);
     let skill=clamp(1-(esc.attacksMade||0)*.11,.45,1);if(e.contactHeld)skill*=.55;
     const hist=this.state.campaign?.historicalProfile||null,err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1);let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
-    esc.attacksMade=(esc.attacksMade||0)+1;esc.dcRemaining=(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize;
-    const hdg=degToRad(esc.heading);
+    esc.attacksMade=(esc.attacksMade||0)+1;esc.dcRemaining=Math.max(0,(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize);
+    const hdg=degToRad(esc.heading),patternId=`DCP-${W.nextDcPatternId=(W.nextDcPatternId||0)+1}`;
     for(let i=0;i<SONAR.patternSize;i++){
       const along=(i<3?-(i*.012):-.008),across=(i<3?0:((i%2?1:-1)*.028*(i<5?1:1.7)));
       const px=(aim?aim.xNm:esc.position.xNm)+Math.sin(hdg)*along+Math.cos(hdg)*across,py=(aim?aim.yNm:esc.position.yNm)-Math.cos(hdg)*along+Math.sin(hdg)*across;
-      W.depthCharges.push({id:`DC-${W.nextDcId=(W.nextDcId||0)+1}`,ownerId:esc.id,position:{xNm:px,yNm:py},ageSec:-i*.9,
-        fuseSec:clamp(guess/SONAR.sinkFps,4,34),targetDepthFeet:guess,status:'SINKING'});
+      W.depthCharges.push({id:`DC-${W.nextDcId=(W.nextDcId||0)+1}`,patternId,patternIndex:i,patternCount:SONAR.patternSize,ownerId:esc.id,position:{xNm:px,yNm:py},ageSec:-i*.9,
+        // Do not clamp deep settings to a 34 s arcade wait. The audible gap
+        // between splash and detonation now corresponds to the same sink-rate
+        // model used for the enemy's predicted attack point.
+        fuseSec:clamp(guess/SONAR.sinkFps,4,55),targetDepthFeet:guess,status:'SINKING'});
     }
     e.sonarBlindUntil=this.state.time.elapsedSeconds+38+Math.random()*22;e.contactHeld=false;
     for(const x of W.contacts.filter(c=>isASWCombatant(c)))x.sonarContact=false;
-    this.log(speculative?`DEPTH CHARGES — ${esc.name} is trying the last datum, ${SONAR.patternSize} charges set around ${guess.toFixed(0)} ft.`:`DEPTH CHARGES — ${esc.name} rolling ${SONAR.patternSize}, set for ${guess.toFixed(0)} ft.`,'bad');
+    // The player is not in the destroyer's plotting room. Keep the exact depth
+    // setting internal; SOUND can infer only broad shallow/deep intent from the
+    // later splash-to-burst interval.
+    this.log(speculative?`DEPTH CHARGES — ${esc.name} is trying the last datum with a ${SONAR.patternSize}-charge pattern.`:`DEPTH CHARGES — ${esc.name} is beginning a ${SONAR.patternSize}-charge attack run.`,'bad');
     this.aarRecordEvent?.('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,count:SONAR.patternSize,depthFt:guess},esc.position,aim||sub.position);
     this.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
-    if(esc.dcRemaining<SONAR.patternSize){this.log(`${esc.name} has expended her depth charges and is falling back.`);this.assignASWRoles(null,true);}
+    if(esc.dcRemaining<SONAR.patternSize){esc.aswExpended=true;if(!esc.dcExhaustedNoted){esc.dcExhaustedNoted=true;this.log(`${esc.name} has expended her usable depth-charge patterns and is returning to the convoy screen.`);}this.assignASWRoles(null,true);}
   }
 
   updateDCs(dt){
@@ -147,7 +158,15 @@ class SimEngineASW extends SimEngineASWBrain {
     for(const dc of W.depthCharges){
       dc.ageSec+=dt;
       if(dc.status!=='SINKING'||dc.ageSec<0) continue;
-      if(!dc.waterEntryPlayed){dc.waterEntryPlayed=true;audio.event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(distNm(dc.position,sub.position)/1.2,0,1)});}
+      if(!dc.waterEntryPlayed){
+        dc.waterEntryPlayed=true;const splashRange=distNm(dc.position,sub.position);audio.event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/1.2,0,1)});
+        // Only the first charge in a pattern speaks for the group. The report is
+        // qualitative and range-limited; it does not reveal the destroyer's set depth.
+        if((dc.patternIndex??0)===0&&splashRange<(sub.depthFeet>10?1.45:2.2)){
+          const closeness=splashRange<.28?'close aboard':splashRange<.75?'nearby':'distant';
+          this.log(`${sub.depthFeet>10?'SOUND':'LOOKOUTS'} — multiple depth-charge splashes in the water, ${closeness}.`,'bad');
+        }
+      }
       if(dc.ageSec>=dc.fuseSec){
         dc.status='DETONATED';
         const hNm=distNm(dc.position,sub.position);
@@ -162,9 +181,14 @@ class SimEngineASW extends SimEngineASWBrain {
         this.state.campaign._depthChargeAttackSeen=true;
         this.state.weapons.explosions.push({position:{...dc.position},ageSec:0,maxAgeSec:10,label:dmg>4?`DC -${Math.round(dmg)}`:'DC'});
         if(dmg<=1&&hNm<0.5) this.shake(clamp(2.2-hNm*4,0.2,2.2));   // felt, not damaging
-        if(dmg<=1&&dD>80&&hNm<0.25) this.log(`${air?'Aerial charge':'Charges'} detonated ${dc.targetDepthFeet<sub.depthFeet?'well above':'below'} you.`,'warn');
+        if(!air&&(dc.patternIndex??0)===0&&hNm<1.45){
+          // Crew inference comes only from elapsed sink time. We intentionally
+          // report only the extremes; a precise feet setting would be arcade information.
+          if(dc.fuseSec>=25)this.log('SOUND — long sink time; the charges were set deep.','warn');
+          else if(dc.fuseSec<=11)this.log('SOUND — short sink time; the charges were set shallow.','warn');
+        }
         if(dmg>1){this.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');audio.playDepthCharge(clamp(1-dmg/42,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
-        else{this.log(`${air?'Aerial depth charge':'Depth charge'} detonated nearby.`,'warn');audio.playDepthCharge(0.9);particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
+        else{if(air||(dc.patternIndex??0)===0)this.log(`${air?'Aerial depth charge':'Depth-charge pattern'} detonating nearby.`,'warn');audio.playDepthCharge(0.9);particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
       }
     }
     W.depthCharges=W.depthCharges.filter(dc=>dc.status==='SINKING'||dc.ageSec<dc.fuseSec+6);

@@ -10,10 +10,11 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
         this.log(`Distant shipping alarm — ${reason.replaceAll('_',' ').toLowerCase()}, but no escort screen is close enough to react.`);
       return false;
     }
-    const newState=conf>.75?'ATTACKING':'SEARCHING';if(!(e.alertState==='ATTACKING'&&newState==='SEARCHING'))e.alertState=newState;
+    const wasUnaware=e.alertState==='UNAWARE',newState=conf>.75?'ATTACKING':'SEARCHING';if(!(e.alertState==='ATTACKING'&&newState==='SEARCHING'))e.alertState=newState;
     const timers={TORPEDO_LAUNCH:360,SHIP_HIT:600,EMERGENCY_BLOW:260,TORPEDO_DUD:210,COLLISION:320,DECK_GUN:340,AIR_ATTACK:240,NOISE:180,ACTIVE_QC:280};
     e.alertTimerSec=Math.max(e.alertTimerSec,timers[reason]||200);
     const q=this.noteASWCue?this.noteASWCue(pos,conf,reason):{xNm:pos.xNm,yNm:pos.yNm};
+    this.armASWProsecution?.(reason,wasUnaware);
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.searchCenter={xNm:q.xNm,yNm:q.yNm};
     e.searchPattern=reason==='SHIP_HIT'?'COORDINATED':reason==='TORPEDO_LAUNCH'?'CONVERGE':'CREEPING';e.searchPhase=0;
     // Important tactical alarms come from actual contact or weapons. A cue that
@@ -30,15 +31,20 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
   }
 
   updateEnemyAI(dt){
-    const W=this.state.world,e=W.enemy,sub=this.state.playerSub;this.ensureASWState?.();
+    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,A=this.ensureASWState?.();
+    const budgetExpiry=this.aswProsecutionExpiry?.();
+    if(budgetExpiry)e.alertTimerSec=0;
     if(e.alertTimerSec>0){
       // Quiet/deep running reduces SENSOR quality; it should not make a destroyer
       // forget a torpedo explosion twice as fast. Search persistence now decays
       // mostly with time, with only a modest bonus when contact is truly lost.
       let decay=dt;if(!e.contactHeld)decay+=dt*.08;if(!e.contactHeld&&sub.depthFeet>(W.environment.layerDepthFt||200)+15)decay+=dt*.10;
       e.alertTimerSec=Math.max(0,e.alertTimerSec-decay);
-    }else if(e.alertState!=='UNAWARE'){
-      e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;this.assignASWRoles?.(null,true);this.log('Escort search abandoned; convoy screen reforming.');
+    }
+    if(e.alertTimerSec<=0&&e.alertState!=='UNAWARE'){
+      e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;this.assignASWRoles?.(null,true);
+      this.log(budgetExpiry==='HARD_LIMIT'?'Escort commander breaks off the prolonged hunt; convoy screen reforming.':'Escort search abandoned; convoy screen reforming.');
+      this.resetASWProsecution?.();
       if(this.state.campaign._depthChargeAttackSeen){this.captainLog?.('DEPTH_CHARGE_ATTACK_SURVIVED','Depth-charge attack survived.',{},`dc-survived:${Math.floor((this.state.time.elapsedSeconds||0)/60)}`);this.state.campaign._depthChargeAttackSeen=false;}
       const camp=this.state.campaign,evade=camp.objectives?.find?.(o=>o.id==='evade')||(!camp.missionType?camp.objectives?.[2]:null);
       if(evade)evade.done=true;
@@ -60,8 +66,9 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
         const trueBear=bearingBetween(esc.position,sub.position),bearErr=(Math.random()-.5)*(det>.35?10:22),rangeFactor=det>.35?.22:.38,
           estRng=clamp(rng*(1+(Math.random()-.5)*2*rangeFactor),.1,SONAR.maxRangeNm*1.25),br=degToRad(normDeg(trueBear+bearErr)),
           est={xNm:esc.position.xNm+Math.sin(br)*estRng,yNm:esc.position.yNm-Math.cos(br)*estRng};
-        e.alertState='SEARCHING';e.alertTimerSec=Math.max(e.alertTimerSec,det>.35?180:120);e.lastKnownConfidence=Math.max(e.lastKnownConfidence||0,det);
+        const passiveWasUnaware=e.alertState==='UNAWARE';e.alertState='SEARCHING';e.alertTimerSec=Math.max(e.alertTimerSec,det>.35?180:120);e.lastKnownConfidence=Math.max(e.lastKnownConfidence||0,det);
         const A=this.ensureASWState?.();if(A){A.datum={...est,errNm:clamp(rng*rangeFactor,.16,.9),source:'PASSIVE'};A.datumAt=this.state.time.elapsedSeconds;A.searchStartedAt=this.state.time.elapsedSeconds;A.searchRadiusNm=clamp(.5+rng*rangeFactor,.6,1.8);}
+        this.armASWProsecution?.('PASSIVE',passiveWasUnaware);
         e.lastKnownSubPosition={...est};e.searchCenter={...est};this.assignASWRoles?.(esc.id,true);
         this.log(`${esc.name}: passive hydrophone bearing — escort screen searching.`);
       }
