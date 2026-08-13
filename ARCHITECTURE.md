@@ -395,3 +395,33 @@ completed at port, the mission is reopened with the new `release` and `approach`
 objectives. Any reward already credited by patch 13 is retained and flagged so
 it cannot be awarded twice. New patch-14 patrols do not complete or credit the
 mission at report transmission.
+
+### Phase-2 patch 15 — convoy attack, escort reaction and withdrawal
+
+CONTACT KEEPER v3 now carries the first Atlantic loop through the player's own
+attack and escape. An attack objective is satisfied only by a torpedo launched
+after the night attack position was earned and directed at the main convoy (or,
+for manual TDC, by a geometrically plausible shot from close to the convoy).
+The mission does not require a hit: tactical consequences and survival remain
+interesting after a miss or dud, and ship damage continues to belong to the
+shared weapons/damage systems.
+
+Crucially, mission code does not alert the escorts. `fireTorpedo()`, merchant
+lookouts, torpedo wakes, hits/duds and the existing local information relay
+continue to decide what the convoy can plausibly know. CONTACT KEEPER merely
+observes that shared enemy state. A quiet electric-torpedo attack may therefore
+start its withdrawal before an escort has a firm datum; an observed attack may
+instead trigger the existing search/prosecution system.
+
+Evasion deliberately permits both historically plausible tactical outcomes:
+breaking an actual firm escort contact after diving, or using darkness/surface
+speed to open the inner screen when no firm contact was ever obtained. The
+campaign authors only broad gameplay thresholds for quiet hold and withdrawal
+range. Once firm contact is broken and the boat remains at least six nautical
+miles from the convoy core for the authored hold time, the primary mission is
+complete and the normal return-to-base lifecycle resumes. This is a mission
+state layer only; it adds no duplicate ASDIC, visibility or escort AI.
+
+Patch-14 CONTACT KEEPER saves migrate additively to v3 by gaining `attack`,
+`evade` and `withdraw` objectives. Completed report/order/approach state is
+retained, and no prior reward is reissued.

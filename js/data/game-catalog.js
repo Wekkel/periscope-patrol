@@ -579,7 +579,8 @@ const GERMAN_ATLANTIC_1941_MISSION_PROFILE=Object.freeze({
       objectiveTexts:Object.freeze({
         locate:'Find the reported convoy',develop:'Develop convoy course and speed',
         shadow:'Maintain contact without firm escort prosecution',report:'Transmit contact report to B.d.U.',
-        release:'Copy B.d.U. attack order',approach:'Gain a night surface attack position',return:'Return to base'
+        release:'Copy B.d.U. attack order',approach:'Gain a night surface attack position',
+        attack:'Launch the torpedo attack',evade:'Break clear of escort prosecution',withdraw:'Withdraw clear of the convoy screen',return:'Return to base'
       }),
       locateConfidence:.08,developConfidence:.42,developRequiredSec:90,
       shadowRequiredSec:360,shadowMinNm:2.8,shadowMaxNm:8.5,
@@ -592,6 +593,10 @@ const GERMAN_ATLANTIC_1941_MISSION_PROFILE=Object.freeze({
       nightApproachMaxDaylight:.18,nightApproachSurfaceDepthFt:12,
       nightApproachMinNm:.8,nightApproachMaxNm:3.5,nightApproachForwardMinNm:.15,nightApproachLateralMaxNm:2.6,
       nightApproachHoldSec:30,
+      // Post-attack values are gameplay tuning. Existing enemy knowledge/ASW
+      // mechanics decide whether an escort ever acquires a firm contact; the
+      // mission never grants them telepathic knowledge merely because we fired.
+      evasionQuietHoldSec:45,evasionNoAlarmRangeNm:3.8,withdrawMinNm:6.0,withdrawQuietHoldSec:60,
       briefingSuffix:' A useful report requires a developed track and several minutes of safe shadowing. When the report is ready, come to the surface/antenna depth long enough to transmit. After B.d.U. replies, preserve contact until darkness and work ahead of the convoy for a surfaced attack approach.',
       developedNotice:'CONTACT DEVELOPED — course and speed are reliable enough to begin the shadow report.',
       reportReadyNotice:'CONTACT REPORT READY — come to the surface and hold the antenna up to transmit to B.d.U.',
@@ -601,6 +606,14 @@ const GERMAN_ATLANTIC_1941_MISSION_PROFILE=Object.freeze({
       attackOrderLog:'B.d.U. attack order copied. Contact keeper released to attack after dark.',
       nightApproachNotice:'NIGHT SURFACE ATTACK POSITION — ahead of the convoy and inside the screen. Attack at discretion.',
       nightApproachLog:'Night surface attack position gained ahead of the convoy.',
+      attackNotice:'TORPEDO ATTACK UNDERWAY — clear the convoy screen before the escorts can pin you down.',
+      attackLog:'Torpedo attack launched from the released night surface position.',
+      escortReactionNotice:'CONVOY ALARM — escort screen reacting. Break firm contact: dive or run dark.',
+      escortReactionLog:'Convoy alarm observed after the torpedo attack; escort screen reacting.',
+      evasionNotice:'FIRM CONTACT BROKEN — keep opening the range from the convoy.',
+      evasionLog:'Firm escort contact broken after the convoy attack.',
+      withdrawalNotice:'ATTACK COMPLETE — clear of the convoy screen. Return to base when ready.',
+      withdrawalLog:'Boat withdrew clear of the convoy screen after the attack.',
       supportMinBoats:1,supportMaxBoats:3,supportEtaMin:35,supportEtaSpreadMin:55
     })
   })
