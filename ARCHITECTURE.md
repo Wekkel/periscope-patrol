@@ -212,6 +212,8 @@ The nested same-origin deployment is an explicitly temporary development experim
 
 The build channel is a development convenience, not access control. Do not add hardware fingerprinting or treat `/dev/` as secret. Atlantic feature visibility may key from `PP_BUILD.isDev`, but all security assumptions must remain zero-trust because the complete client-side code is public.
 
+Atlantic DEV also carries a human-facing `PP_BUILD.devPatch` number. This is deliberately separate from `sw.js`'s release/cache `VERSION` and from the commit SHA that the Pages workflow appends to the deployed DEV service worker. Bump `devPatch` in every numbered Atlantic patch. The version chip then shows `AD Pxx`, while tap/click diagnostics retain the full deployed `-ad-<sha>` token. This gives device feedback an unambiguous patch identity without asking the owner to edit `sw.js` for each development patch.
+
 
 ### Campaign radio-intelligence boundary
 

@@ -16,14 +16,15 @@ const AppVersion = {
       const el=document.getElementById(id);
       if(!el) continue;
       const dev=!!globalThis.PP_BUILD?.isDev;
+      const patch=dev?Number(globalThis.PP_BUILD?.devPatch)||null:null;
       // The Pages workflow appends the AD commit hash to the DEV worker's
       // VERSION so every experimental deploy refreshes its offline shell. Keep
-      // that full build identity in the title/copy text, but not in the narrow
-      // mobile header chip.
+      // that SHA in title/copy diagnostics, while the narrow chip shows the
+      // human patch number that testers and patch ZIPs use.
       const display=dev?String(v).replace(/-ad-[0-9a-f]+$/i,''):v;
-      el.textContent='v'+display+(dev?' · AD':'');
+      el.textContent='v'+display+(dev?` · AD${patch?` P${patch}`:''}`:'');
       el.classList.toggle('upd',!!updating);el.classList.toggle('dev',dev);
-      el.title=`Periscope Patrol${dev?' DEV':''} build ${v}`+(updating?' — an update is waiting':'');
+      el.title=`Periscope Patrol${dev?' DEV':''}${patch?` patch ${patch}`:''} · build ${v}`+(updating?' — an update is waiting':'');
     }
   },
   async fromWorker(reg){
@@ -111,7 +112,8 @@ const AppVersion = {
 // tap the chip to copy the build string
 for(const id of ['appVerTouch','appVerDesk']){
   document.getElementById(id)?.addEventListener('click',()=>{
-    const s=`Periscope Patrol${globalThis.PP_BUILD?.isDev?' AD DEV':''} v${AppVersion.value||'?'} · ${navigator.userAgent}`;
+    const patch=globalThis.PP_BUILD?.isDev?(Number(globalThis.PP_BUILD?.devPatch)||null):null;
+    const s=`Periscope Patrol${globalThis.PP_BUILD?.isDev?' AD DEV':''}${patch?` patch ${patch}`:''} v${AppVersion.value||'?'} · ${navigator.userAgent}`;
     navigator.clipboard?.writeText(s).then(()=>Toast.ok('Build details copied'),
                                           ()=>Toast.warn('v'+(AppVersion.value||'?')));
   });

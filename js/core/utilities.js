@@ -30,7 +30,11 @@ const PP_BUILD=(()=>{
   const path=(typeof location!=='undefined'&&location.pathname)||'';
   const isDev=/(?:^|\/)dev(?:\/|$)/i.test(path);
   const storagePrefix=isDev?'ppdev_':'';
-  const api={channel:isDev?'atlantic-dev':'production',isDev,storagePrefix,
+  // Atlantic DEV patch number is a human test-build identity, separate from
+  // the service-worker VERSION/cache token. Bump this in every atlantic-dev
+  // patch so a tester can report the exact patch without translating a SHA.
+  const devPatch=isDev?16:null;
+  const api={channel:isDev?'atlantic-dev':'production',isDev,devPatch,storagePrefix,
     storageKey:key=>storagePrefix+String(key)};
   return Object.freeze(api);
 })();
