@@ -25,6 +25,10 @@ class SimEngineCollision extends SimEngineASW {
       delete c._collisionAvoidAppliedHeading;delete c._collisionAvoidBaseHeading;
     }
     const corrections=new Map();
+    const addCorrection=(c,delta)=>{
+      const old=corrections.get(c);
+      if(old===undefined||Math.abs(delta)>Math.abs(old))corrections.set(c,delta);
+    };
     for(let i=0;i<ships.length;i++)for(let j=i+1;j<ships.length;j++){
       const a=ships[i],b=ships[j];
       if(a.stationary&&b.stationary)continue;
@@ -34,13 +38,41 @@ class SimEngineCollision extends SimEngineASW {
       if(ca.rawTimeSec<4||ca.rawTimeSec>75||ca.clearanceNm>0.065)continue;
       const urgency=clamp((0.065-ca.clearanceNm)/0.065,0,1)*clamp((75-ca.rawTimeSec)/45,0.25,1);
       const turn=7+urgency*16;
-      if(!a.stationary)corrections.set(a,Math.max(corrections.get(a)||0,turn));
-      if(!b.stationary)corrections.set(b,Math.max(corrections.get(b)||0,turn));
+      if(!a.stationary)addCorrection(a,turn);
+      if(!b.stationary)addCorrection(b,turn); // normal COLREG-like bias: both ease starboard
     }
+
+    /* The bathymetry grid is intentionally coarse, while the visible coastline
+       is a much finer polygon. Formation offsets in narrow home waters can put
+       an escort on a chord that is 'water' to the grid yet clips a small island.
+       Look a short physical distance ahead and borrow this same temporary
+       avoidance layer to steer around exact land. This is navigation only: it
+       never changes tactical AI state, and bounding-box cached polygon tests
+       keep it cheap enough for the Helios G88. A hard post-move guard remains
+       in updateWorld() as the final guarantee against tunnelling. */
+    const waterProbe=(c,heading,dNm)=>{
+      const r=degToRad(heading),p={xNm:c.position.xNm+Math.sin(r)*dNm,yNm:c.position.yNm-Math.cos(r)*dNm};
+      const mid={xNm:(c.position.xNm+p.xNm)/2,yNm:(c.position.yNm+p.yNm)/2};
+      if(this.checkTerrainCollision?.({position:p})?.collision||this.checkTerrainCollision?.({position:mid})?.collision)return false;
+      return Bathy.feet(p.xNm,p.yNm)>=24&&Bathy.feet(mid.xNm,mid.yNm)>=24;
+    };
+    for(const c of ships){
+      if(c.stationary||(c.speedKnots||0)<.6)continue;
+      const base=c.desiredHeading===undefined?c.heading:c.desiredHeading;
+      const look=clamp(knotsNmSec(Math.max(4,c.speedKnots))*90,.16,.62);
+      if(waterProbe(c,base,look))continue;
+      let turn=null;
+      for(const d of [28,-28,48,-48,72,-72,105,-105,145,-145]){
+        if(waterProbe(c,normDeg(base+d),look*1.05)){turn=d;break;}
+      }
+      if(turn!==null)addCorrection(c,turn);
+      else c.desiredSpeed=Math.min(c.desiredSpeed??c.speedKnots,Math.max(1.5,(c.speedKnots||0)*.45));
+    }
+
     for(const [c,delta] of corrections){
       const base=c.desiredHeading===undefined?c.heading:c.desiredHeading;
       c._collisionAvoidBaseHeading=base;
-      c._collisionAvoidAppliedHeading=normDeg(base+clamp(delta,0,24)); // both ease to starboard
+      c._collisionAvoidAppliedHeading=normDeg(base+clamp(delta,-145,145));
       c.desiredHeading=c._collisionAvoidAppliedHeading;
     }
   }

@@ -184,9 +184,9 @@ class CanvasViewCore{
     for(let i=0;i<4;i++){
       const phase=(now-(gf?.startedAt??now))*13+i*1.71,ox=Math.sin(phase*1.9+i)*rr*(.035+.014*i),oy=Math.cos(phase*1.35+i*.8)*rr*(.025+.010*i);
       const rri=rr*(.72+i*.12),g=ctx.createRadialGradient(p.x+ox,p.y+oy,0,p.x+ox,p.y+oy,rri);
-      g.addColorStop(0,`rgba(255,244,202,${a*(.34-i*.035)})`);
-      g.addColorStop(.24,`rgba(255,188,92,${a*(.24-i*.024)})`);
-      g.addColorStop(.64,`rgba(255,128,48,${a*(.075-i*.008)})`);
+      g.addColorStop(0,`rgba(255,244,202,${a*(.24-i*.026)})`);
+      g.addColorStop(.24,`rgba(255,188,92,${a*(.16-i*.016)})`);
+      g.addColorStop(.64,`rgba(255,128,48,${a*(.050-i*.005)})`);
       g.addColorStop(1,'rgba(255,104,28,0)');ctx.fillStyle=g;ctx.fillRect(p.x-rri*1.2,p.y-rri*1.2,rri*2.4,rri*2.4);
     }
 
@@ -195,9 +195,9 @@ class CanvasViewCore{
     // than a full-screen exposure pulse.
     const broadR=Math.max(rr*2.9,Math.hypot(w,h)*.66);
     glow=ctx.createRadialGradient(p.x,p.y,rr*.16,p.x,p.y,broadR);
-    glow.addColorStop(0,`rgba(255,210,126,${a*.18})`);
-    glow.addColorStop(.32,`rgba(255,159,72,${a*.095})`);
-    glow.addColorStop(.70,`rgba(255,120,46,${a*.032})`);
+    glow.addColorStop(0,`rgba(255,210,126,${a*.125})`);
+    glow.addColorStop(.32,`rgba(255,159,72,${a*.064})`);
+    glow.addColorStop(.70,`rgba(255,120,46,${a*.022})`);
     glow.addColorStop(1,'rgba(255,105,35,0)');
     ctx.fillStyle=glow;ctx.fillRect(0,0,w,h);
 
@@ -208,15 +208,16 @@ class CanvasViewCore{
     const ey=Math.min(h,p.y+Math.max(92*k,(h-p.y)*.90));
     if(ey>p.y+8*k){
       const dy=ey-p.y,endX=w/2,rg=ctx.createLinearGradient(p.x,p.y,endX,ey);
-      rg.addColorStop(0,`rgba(255,226,158,${a*.20})`);
-      rg.addColorStop(.34,`rgba(255,174,88,${a*.105})`);
-      rg.addColorStop(.78,`rgba(255,132,54,${a*.040})`);
+      rg.addColorStop(0,`rgba(255,226,158,${a*.135})`);
+      rg.addColorStop(.30,`rgba(255,174,88,${a*.064})`);
+      rg.addColorStop(.66,`rgba(255,132,54,${a*.021})`);
       rg.addColorStop(1,'rgba(255,118,42,0)');
       for(const pass of [
-        {near:Math.max(18*k,rr*.20),half:clamp(dy*.56,72*k,w*.52),alpha:.72},
-        {near:Math.max(30*k,rr*.32),half:clamp(dy*.82,110*k,w*.70),alpha:.34},
-        {near:Math.max(46*k,rr*.46),half:clamp(dy*1.10,150*k,w*.88),alpha:.15},
-        {near:Math.max(62*k,rr*.58),half:Math.max(w*.98,dy*1.32),alpha:.055}
+        // Start wide at the strike point and flare rapidly. The previous narrow
+        // apex read as a directional beam/torpedo trail instead of reflected light.
+        {near:Math.max(34*k,rr*.48),half:clamp(dy*.78,108*k,w*.66),alpha:.42},
+        {near:Math.max(50*k,rr*.68),half:clamp(dy*1.04,148*k,w*.84),alpha:.19},
+        {near:Math.max(68*k,rr*.88),half:Math.max(w*.98,dy*1.30),alpha:.065}
       ]){
         ctx.globalAlpha=pass.alpha;ctx.fillStyle=rg;ctx.beginPath();
         ctx.moveTo(p.x-pass.near,p.y);ctx.lineTo(endX-pass.half,ey);ctx.lineTo(endX+pass.half,ey);ctx.lineTo(p.x+pass.near,p.y);ctx.closePath();ctx.fill();
@@ -224,8 +225,8 @@ class CanvasViewCore{
 
       const washX=lerp(p.x,endX,.58),washY=lerp(p.y,ey,.56),washR=Math.max(w*.58,dy*.92);
       glow=ctx.createRadialGradient(washX,washY,0,washX,washY,washR);
-      glow.addColorStop(0,`rgba(255,176,92,${a*.070})`);
-      glow.addColorStop(.55,`rgba(255,142,62,${a*.028})`);
+      glow.addColorStop(0,`rgba(255,176,92,${a*.045})`);
+      glow.addColorStop(.50,`rgba(255,142,62,${a*.016})`);
       glow.addColorStop(1,'rgba(255,120,46,0)');
       ctx.globalAlpha=1;ctx.fillStyle=glow;ctx.fillRect(0,p.y,w,h-p.y);
 
@@ -237,8 +238,8 @@ class CanvasViewCore{
         const side=clamp((p.x-w/2)/Math.max(1,w/2),-1,1);
         const deckX=w/2+side*w*.20,deckY=h*.90,deckR=Math.max(w*.50,h*.38);
         glow=ctx.createRadialGradient(deckX,deckY,0,deckX,deckY,deckR);
-        glow.addColorStop(0,`rgba(255,198,116,${a*.075})`);
-        glow.addColorStop(.48,`rgba(255,154,78,${a*.030})`);
+        glow.addColorStop(0,`rgba(255,198,116,${a*.046})`);
+        glow.addColorStop(.48,`rgba(255,154,78,${a*.016})`);
         glow.addColorStop(1,'rgba(255,128,54,0)');
         ctx.fillStyle=glow;ctx.fillRect(0,h*.66,w,h*.34);
       }

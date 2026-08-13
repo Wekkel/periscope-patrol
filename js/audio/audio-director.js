@@ -30,7 +30,7 @@ class AudioDirector{
 
   _profile(q){
     const m={system:1,command:1,sensor:1,world:1,machinery:1,weapons:1,mission:1};
-    if(q.base==='SILENT_RUNNING')Object.assign(m,{system:.70,command:.82,sensor:1.12,world:.28,machinery:.30,mission:.82});
+    if(q.base==='SILENT_RUNNING')Object.assign(m,{system:.70,command:.82,sensor:1.12,world:.32,machinery:.48,mission:.82});
     else if(q.base==='PERISCOPE_STALK')Object.assign(m,{system:.82,sensor:1.05,world:.48,machinery:.70});
     else if(q.base==='SURFACED_TRANSIT')Object.assign(m,{world:1.05,machinery:1.02});
     else if(q.base==='RETURN_HOME')Object.assign(m,{world:.88,machinery:.86,mission:1.05});
@@ -61,7 +61,7 @@ class AudioDirector{
       else if(now-this.lastASWReminderAt>19000){this.engine.playASWAlarm?.(true);this.lastASWReminderAt=now;}
     }
     if(this.previewState&&now<this.previewUntil)q={...q,...this.previewState};else if(this.previewState){this.previewState=null;this.previewUntil=0;}
-    this.state=q;this.engine.setAmbient?.(s.playerSub?.depthFeet||0,!!s.playerSub?.stealth?.silentRunning);this.engine.setBattleAmbience?.(s);this.engine.applyMixProfile?.(this._profile(q));
+    this.state=q;this.engine.setAmbient?.(s.playerSub?.depthFeet||0,!!s.playerSub?.stealth?.silentRunning,s.playerSub?.propulsion);this.engine.setBattleAmbience?.(s);this.engine.applyMixProfile?.(this._profile(q));
   }
 
   preview(base='SILENT_RUNNING',threat='NONE',perspective=null,durationMs=8000){this.previewState={base,threat};if(perspective)this.previewState.perspective=perspective;this.previewUntil=performance.now()+Math.max(500,durationMs);return{...this.previewState,untilMs:durationMs};}

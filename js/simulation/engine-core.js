@@ -1,4 +1,10 @@
 // ═══════════════════════════════════════════════════ SIMULATION ENGINE
+// Exact coast polygons are authoritative for collision, but some patrols carry
+// hundreds of polygon vertices. Cache a tiny bounding box per live terrain
+// feature so repeated ship/sub collision probes reject almost every feature
+// before point-in-polygon. WeakMap keeps this runtime-only: no save bloat and
+// old terrain arrays are collectible when a patrol area is replaced.
+const _terrainBoundsCache=new WeakMap();
 class SimEngineCore{
   constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;}
 
@@ -495,10 +501,17 @@ class SimEngineCore{
     const pos=sub.position;
     let inShallow=false,collision=false;
     for(const feat of this.state.world.terrain){
-      if(!feat.points||feat.points.length<3) continue;
-      if(this.pointInPolygon(pos,feat.points)){
+      const P=feat.points;if(!P||P.length<3)continue;
+      let b=_terrainBoundsCache.get(feat);
+      if(!b){
+        let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+        for(const q of P){if(q.xNm<minX)minX=q.xNm;if(q.xNm>maxX)maxX=q.xNm;if(q.yNm<minY)minY=q.yNm;if(q.yNm>maxY)maxY=q.yNm;}
+        b={minX,minY,maxX,maxY};_terrainBoundsCache.set(feat,b);
+      }
+      if(pos.xNm<b.minX||pos.xNm>b.maxX||pos.yNm<b.minY||pos.yNm>b.maxY)continue;
+      if(this.pointInPolygon(pos,P)){
         if(feat.type==='ISLAND'||feat.type==='COAST'){collision=true;break;}
-        if(feat.type==='REEF'||feat.depth==='SHALLOW') inShallow=true;
+        if(feat.type==='REEF'||feat.depth==='SHALLOW')inShallow=true;
       }
     }
     return{collision,inShallow};
