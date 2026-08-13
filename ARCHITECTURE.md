@@ -32,7 +32,7 @@ Nothing lower in this list needs to import something above it; the final boot co
 
 - `js/core/utilities.js` — math, units and shared formatting helpers.
 - `js/data/torpedo-data.js` — torpedo specs, dud modes and torpedo-load helpers.
-- `js/data/game-catalog.js` — explicit theater/faction/campaign/submarine identity profiles, additive surface-vessel identity profiles and boat-specific sensor presentation. Runtime vessel contacts now separate `gameplayType`, `factionId`, `vesselProfileId` and `modelKey`; legacy `type` remains a compatibility alias while older saves are normalized on load.
+- `js/data/game-catalog.js` — explicit theater/faction/campaign/submarine identity profiles, additive surface-vessel identity profiles, mission-critical convoy composition and boat-specific sensor presentation. Runtime vessel contacts now separate `gameplayType`, `factionId`, `vesselProfileId` and `modelKey`; legacy `type` remains a compatibility alias while older saves are normalized on load.
 - `js/data/pacific-terrain-data.js` — Pacific coastline source geometry and the one-entry lazy patrol-terrain cache.
 - `js/data/campaign-data.js` — patrol-area metadata only; do not eagerly call `buildTerrain()` here.
 - `js/navigation/route-geometry.js` — water-route/polyline geometry, including one-way progress for mission-critical routes.
@@ -114,6 +114,12 @@ Legacy serialized track sources `SJ RADAR` and `QC ECHO` are accepted and normal
 A contact's historical identity must not be inferred from one overloaded `type` string. `game-catalog.js` stamps four orthogonal fields: `gameplayType` for movement/combat classification, `factionId` for historical allegiance, `vesselProfileId` for the authored hull/profile identity, and `modelKey` for lightweight rendering. Existing Pacific contacts still retain their original `type` value byte-for-byte as a legacy alias, so untouched systems and old saves behave as before.
 
 `side` deliberately remains the cheap tactical FRIENDLY/ENEMY/NEUTRAL relationship used by current AI; it is not a substitute for `factionId`. New theaters should author explicit profile/faction IDs at contact creation. During the migration window, `materializeVesselIdentity()` may infer the current Pacific defaults for legacy contacts, and `SaveSystem` stamps the additive identity on load without a destructive schema bump. Physical movement/classification and shared vessel rendering should prefer `gameplayType` / `modelKey`; do not add a German or Allied Atlantic hull by inventing another meaning for legacy `type`.
+
+### Mission-critical convoy composition boundary
+
+The active campaign owns the authored hull mix for the primary convoy. `game-catalog.js` therefore contains the current `us-pacific` merchant/escort templates and their initial formation offsets; `engine-core.js` only materializes those definitions, applies historical tonnage/count factors and hands escorts to the existing ASW doctrine. Do not put Japanese names, kaibokan/subchaser templates or a Pacific fallback back into `makeConvoy()`.
+
+This is intentionally separate from ambient traffic. `traffic-director.js` still owns the current Pacific distant-world traffic mix and remains a later refactor target. Keeping the two steps separate protects the primary convoy's mission-critical LOD/persistence contract while the Pacific golden master is being established. A future Atlantic campaign must provide its own primary convoy profile; a missing profile should fail explicitly rather than silently materializing the Pacific convoy.
 
 ### Lazy patrol terrain
 

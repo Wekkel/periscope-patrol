@@ -14,7 +14,7 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=3;
+const PP_CATALOG_VERSION=4;
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
@@ -251,6 +251,33 @@ const US_PACIFIC_HISTORICAL_MODEL=Object.freeze({
   })
 });
 
+/* Mission-critical convoy composition is campaign data. The simulation owns
+   formation motion, ASW roles and tactical LOD; it must not know that the
+   current enemy happens to use Marus, kaibokan or Japanese subchasers. Keep
+   these templates immutable and materialize ordinary runtime contacts once
+   when a patrol starts. */
+const US_PACIFIC_PRIMARY_CONVOY_PROFILE=Object.freeze({
+  id:'us-pacific-primary-convoy-v1',
+  merchantTemplates:Object.freeze([
+    Object.freeze({id:'M-01',name:'Merchant Maru',type:'MERCHANT',vesselProfileId:'jp-merchant',lengthYards:420,visualProfile:0.95,acousticBase:0.35,tonsFactor:4200}),
+    Object.freeze({id:'M-02',name:'Tanker',type:'TANKER',vesselProfileId:'jp-tanker',lengthYards:520,visualProfile:1.1,acousticBase:0.45,tonsFactor:7800}),
+    Object.freeze({id:'M-03',name:'Cargo Maru',type:'MERCHANT',vesselProfileId:'jp-merchant',lengthYards:380,visualProfile:0.9,acousticBase:0.32,tonsFactor:3800}),
+    Object.freeze({id:'M-04',name:'Transport',type:'MERCHANT',vesselProfileId:'jp-transport',lengthYards:460,visualProfile:1.0,acousticBase:0.38,tonsFactor:5200})
+  ]),
+  escortTemplates:Object.freeze([
+    Object.freeze({id:'E-01',name:'Escort Destroyer',type:'DESTROYER',vesselProfileId:'jp-destroyer',displayType:'DESTROYER',lengthYards:350,visualProfile:0.75,acousticBase:0.65,tonsFactor:1900,hasSonar:true}),
+    Object.freeze({id:'E-02',name:'Kaibokan Escort',type:'KAIBOKAN',vesselProfileId:'jp-kaibokan',displayType:'KAIBOKAN ESCORT',lengthYards:280,visualProfile:0.65,acousticBase:0.55,tonsFactor:950,hasSonar:true}),
+    Object.freeze({id:'E-03',name:'Escort Destroyer',type:'DESTROYER',vesselProfileId:'jp-destroyer',displayType:'DESTROYER',lengthYards:306,visualProfile:0.70,acousticBase:0.60,tonsFactor:1550,hasSonar:true}),
+    Object.freeze({id:'E-04',name:'Subchaser',type:'PATROL_CRAFT',vesselProfileId:'jp-patrol-craft',displayType:'SUBCHASER',lengthYards:185,visualProfile:0.55,acousticBase:0.50,tonsFactor:480,hasSonar:true})
+  ]),
+  formationOffsets:Object.freeze([
+    Object.freeze({fwd:0,side:0}),
+    Object.freeze({fwd:-1.2,side:-0.8}),Object.freeze({fwd:-1.2,side:0.8}),
+    Object.freeze({fwd:-2.4,side:-1.6}),Object.freeze({fwd:-2.4,side:1.6}),
+    Object.freeze({fwd:-3.6,side:0})
+  ])
+});
+
 const CAMPAIGN_PROFILES=Object.freeze({
   'us-pacific':Object.freeze({
     id:'us-pacific',
@@ -262,7 +289,8 @@ const CAMPAIGN_PROFILES=Object.freeze({
     commandName:'COMSUBPAC',
     defaultArea:'Solomon Sea',
     defaultStartDate:'1943-08-17',
-    historicalModel:US_PACIFIC_HISTORICAL_MODEL
+    historicalModel:US_PACIFIC_HISTORICAL_MODEL,
+    primaryConvoyProfile:US_PACIFIC_PRIMARY_CONVOY_PROFILE
   })
 });
 
@@ -279,6 +307,13 @@ function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
 
 function getCampaignHistoricalModel(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   return CAMPAIGN_PROFILES[profileId]?.historicalModel||null;
+}
+
+function getPrimaryConvoyProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  /* Do not fall back to Pacific for a known future campaign that forgot to
+     author convoy data: that would silently spawn Japanese shipping in the
+     Atlantic. Unknown IDs are already rejected by the identity validator. */
+  return CAMPAIGN_PROFILES[profileId]?.primaryConvoyProfile||null;
 }
 
 function getSubmarineProfile(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){

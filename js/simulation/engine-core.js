@@ -1210,27 +1210,14 @@ class SimEngineCore{
     const perpRad=degToRad(crs+90);
     const contacts=[];
 
-    // V-formation: lead ship, two columns behind
-    const merchantTemplates=[
-      {id:'M-01',name:'Merchant Maru',type:'MERCHANT',lengthYards:420,visualProfile:0.95,acousticBase:0.35,tonsFactor:4200},
-      {id:'M-02',name:'Tanker',type:'TANKER',lengthYards:520,visualProfile:1.1,acousticBase:0.45,tonsFactor:7800},
-      {id:'M-03',name:'Cargo Maru',type:'MERCHANT',lengthYards:380,visualProfile:0.9,acousticBase:0.32,tonsFactor:3800},
-      {id:'M-04',name:'Transport',type:'MERCHANT',lengthYards:460,visualProfile:1.0,acousticBase:0.38,tonsFactor:5200},
-    ];
-    const escortTemplates=[
-      {id:'E-01',name:'Escort Destroyer',type:'DESTROYER',displayType:'DESTROYER',lengthYards:350,visualProfile:0.75,acousticBase:0.65,tonsFactor:1900,hasSonar:true},
-      {id:'E-02',name:'Kaibokan Escort',type:'KAIBOKAN',displayType:'KAIBOKAN ESCORT',lengthYards:280,visualProfile:0.65,acousticBase:0.55,tonsFactor:950,hasSonar:true},
-      {id:'E-03',name:'Escort Destroyer',type:'DESTROYER',displayType:'DESTROYER',lengthYards:306,visualProfile:0.70,acousticBase:0.60,tonsFactor:1550,hasSonar:true},
-      {id:'E-04',name:'Subchaser',type:'PATROL_CRAFT',displayType:'SUBCHASER',lengthYards:185,visualProfile:0.55,acousticBase:0.50,tonsFactor:480,hasSonar:true},
-    ];
-
-    // Formation offsets: col ahead, then staggered behind, alternating sides
-    const formationOffsets=[
-      {fwd:0,  side:0},   // lead
-      {fwd:-1.2,side:-0.8},{fwd:-1.2,side:0.8},
-      {fwd:-2.4,side:-1.6},{fwd:-2.4,side:1.6},
-      {fwd:-3.6,side:0},
-    ];
+    // Composition is authored by the active campaign. The engine owns only
+    // materialization, formation motion and ASW behaviour; it must not contain
+    // Pacific/Japanese hull names as a fallback for future theaters.
+    const convoyProfile=getPrimaryConvoyProfile(this.state.campaign?.campaignProfileId);
+    if(!convoyProfile)throw new Error(`Campaign ${this.state.campaign?.campaignProfileId||'UNKNOWN'} has no primary convoy profile`);
+    const merchantTemplates=convoyProfile.merchantTemplates||[];
+    const escortTemplates=convoyProfile.escortTemplates||[];
+    const formationOffsets=convoyProfile.formationOffsets||[];
 
     const numMerchants=Math.min(count,merchantTemplates.length);
     for(let i=0;i<numMerchants;i++){
