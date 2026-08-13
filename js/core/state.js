@@ -86,7 +86,7 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
       sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,activeEchoLastAt:-999,qcLastAt:-999,_tick:0},
       radar:null,weatherSystem:null,
       traffic:{version:2,enabled:false,groups:[],nextId:1,clock:0,generated:false},
-      radio:{pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0},
+      radio:{pending:null,inbox:[],unread:0,nextBroadcast:getCampaignRadioIntelProfile(identity.campaignProfileId)?.initialBroadcastSec??300,copying:0},
       environment:makePatrolEnvironment(area.environment),
       enemy:{alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
         searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0},

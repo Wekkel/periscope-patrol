@@ -103,15 +103,15 @@ class SimEngineIntel extends SimEngineAAGun {
         text:`${shippingCopy.sourceLabel}. ${label.toUpperCase()} reported in ${camp.patrolArea}${q.count>1?` — approximately ${q.count} ships`:''}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(courseDeg)}, speed ${speed.toFixed(0)} knots.${qualification}`,
         intel:{pos,courseDeg,speedKn:speed,ageSec,routeS,routeDir,uncBaseNm:err,targetLabel:label,targetId:q.id,missionCritical:!!q.missionCritical}};
     }
-    if(roll<radioProfile.routine.airCeiling){
+    if(radioProfile.air&&roll<radioProfile.routine.airCeiling){
       const copy=radioProfile.air;
       return{type:copy.type,subject:copy.subject,text:`${copy.textPrefix}${camp.patrolArea}${copy.textSuffix}`,airThreat:0.5+Math.random()*0.7};
     }
-    if(roll<radioProfile.routine.lifeguardCeiling){
+    if(radioProfile.lifeguard&&roll<radioProfile.routine.lifeguardCeiling){
       const copy=radioProfile.lifeguard;
       return{type:copy.type,subject:copy.subject,text:copy.text,score:copy.score};
     }
-    const copy=radioProfile.weather;
+    const copy=radioProfile.weather;if(!copy)throw new Error(`Campaign ${camp.campaignProfileId||'UNKNOWN'} has no fallback radio signal`);
     return{type:copy.type,subject:copy.subject,text:copy.text,weather:true};
   }
 

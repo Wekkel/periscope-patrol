@@ -323,3 +323,37 @@ shipping: patch 12 proves the mission-critical convoy can pass tactical →
 abstract → tactical LOD while preserving British vessel identity. Ambient
 freighters, independents, stragglers and other U-boats can be introduced later
 when they support concrete Atlantic gameplay.
+
+
+### Phase-2 patch 13 — Atlantic contact-keeper loop
+
+The first playable Atlantic loop is deliberately narrower than a full wolfpack
+simulation. `GERMAN_ATLANTIC_1941_MISSION_PROFILE` makes CONTACT KEEPER the sole
+late-1941 mission: find the assigned convoy, build a sufficiently reliable
+course/speed track, hold a safe shadowing band, then come to the surface/antenna
+depth long enough to transmit a contact report to B.d.U. The Pacific
+`SHADOW_REPORT` path keeps its previous timings and completion behavior when no
+`CONTACT_KEEPER` content is authored.
+
+Other U-boats are event/state only at this stage. A completed report creates one
+small `world.cooperativeSubmarines` record with a deterministic count and ETA;
+it does not spawn tactical submarine contacts, run extra AI, or consume the
+simulation budget on boats the player cannot currently interact with. A later
+attack/wolfpack patch may consume that state if it creates a concrete gameplay
+benefit.
+
+Atlantic now owns a B.d.U. radio-intelligence presentation profile. The shared
+radio room still receives, copies and dead-reckons stale shipping fixes using
+its existing cheap mechanics, but player-facing text no longer inherits ULTRA.
+The internal `world.ultra` key remains a legacy implementation detail only.
+Optional radio categories are truly optional: a campaign without an authored
+air/lifeguard broadcast falls through to its weather copy rather than borrowing
+Pacific content.
+
+The Atlantic DEV scenario selector may switch campaign identity only on the DEV
+build. `NEW_PATROL` therefore accepts an explicitly validated `gameIdentity` at
+the patrol lifecycle boundary. Switching submarines does not carry an old
+boat's torpedo spec across factions, terrain-less open ocean stays terrain-less,
+and air-warning state is rebuilt from the selected submarine profile. Historical
+scenario launches explicitly return to the default Pacific identity so a user
+cannot strand a Pacific scenario inside the Atlantic campaign by switching tabs.

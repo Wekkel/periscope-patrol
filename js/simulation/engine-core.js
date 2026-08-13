@@ -1025,20 +1025,22 @@ class SimEngineCore{
   }
 
   startNewPatrol(areaKey,options={}){
-    const s=this.state;
-    const identity=materializeGameIdentity(s);
-    const campaignProfile=getCampaignProfile(identity.campaignProfileId);
+    const s=this.state,currentIdentity=materializeGameIdentity(s);
+    const requestedIdentity=options.gameIdentity||currentIdentity,validation=validateGameIdentity(requestedIdentity);
+    if(!validation.ok)throw new Error(`Invalid game identity: ${validation.errors.join('; ')}`);
+    const identity=validation.identity,campaignProfile=getCampaignProfile(identity.campaignProfileId);
+    const identityChanged=identity.campaignProfileId!==currentIdentity.campaignProfileId||identity.submarineProfileId!==currentIdentity.submarineProfileId;
     const keys=Array.isArray(campaignProfile.patrolAreaIds)&&campaignProfile.patrolAreaIds.length
       ?campaignProfile.patrolAreaIds:Object.keys(PATROL_AREAS);
     const key=areaKey||keys[Math.floor(Math.random()*keys.length)];
     if(!keys.includes(key))throw new Error(`Patrol area ${key} does not belong to campaign ${campaignProfile.id}.`);
     const area=PATROL_AREAS[key];
     if(!area)throw new Error(`Patrol area data missing: ${key}`);
-    const fresh=materializeFreshSubmarine(identity.submarineProfileId,s.tdc?.torpedoSpecKey);
+    const fresh=materializeFreshSubmarine(identity.submarineProfileId,identity.submarineProfileId===currentIdentity.submarineProfileId?s.tdc?.torpedoSpecKey:null);
     const subProfile=fresh.profile,weaponProfile=fresh.weapons;
     const prevTotal=Number(s.campaign.totalScore)||0;
     const prevPatrol=s.campaign.patrolNumber||1;
-    const prevHistoricalProfile=s.campaign.historicalProfile||null;
+    const prevHistoricalProfile=identityChanged?null:(s.campaign.historicalProfile||null);
     const pristineBootstrap=prevPatrol===1&&s.campaign.missionStatus==='PATROL'&&(s.time.elapsedSeconds||0)===0&&!s.campaign.primaryMission;
     const nextPatrol=pristineBootstrap?1:prevPatrol+1;
     const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||campaignProfile.defaultStartDate;
@@ -1061,7 +1063,7 @@ class SimEngineCore{
       searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0};
     // Terrain is a patrol-scoped resource. getPatrolTerrain keeps one processed
     // Pacific chart alive at a time so adding areas does not multiply startup/RAM.
-    const terrain=getPatrolTerrain(area.terrainKey||key);
+    const terrain=area.terrainKey?getPatrolTerrain(area.terrainKey):[];
     s.world.terrain=terrain; s.world.ports=area.ports;
     s.world.convoyRoutes=area.convoyRoutes;
     s.world.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
@@ -1118,9 +1120,10 @@ class SimEngineCore{
     s.tactical.periscopeBearing=90;s.tactical.periscopeZoom=1;s.tactical.bridgeBearing=sub.heading;s.tactical.bridgeBinoculars=false;s.tactical.bridgeZoom=0;s.tactical.bridgeMarkedId=null;
     s.tactical.soundBearing=sub.heading;s.tactical.soundDisplay='PASSIVE';
     s.world.sound=null;s.world.radar=null;
+    const hasAirWarning=!!subProfile.sensors?.airWarningRadar;
     s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,
-      alarmedAt:-999,airWarningOn:true,sdOn:true,nextCheck:120};
-    s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
+      alarmedAt:-999,airWarningOn:hasAirWarning,sdOn:hasAirWarning,nextCheck:120};
+    s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:getCampaignRadioIntelProfile(identity.campaignProfileId)?.initialBroadcastSec??300,copying:0};
     const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
     s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;

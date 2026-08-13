@@ -3,12 +3,14 @@ class ScenarioSelector{
   constructor(game){
     this.game=game;
     const state=game.getSnapshot(),campaign=getCampaignProfile(state?.campaign?.campaignProfileId);
-    this.selArea=state?.campaign?.patrolArea||campaign?.defaultArea||null;this.selHist=null;this.selMission='AUTO';this.activeTab='patrol';
+    this.selCampaignId=campaign?.id||DEFAULT_GAME_IDENTITY.campaignProfileId;this.selArea=state?.campaign?.patrolArea||campaign?.defaultArea||null;this.selHist=null;this.selMission='AUTO';this.activeTab='patrol';
     this.bind();this.renderCards();this.renderHistorical();
   }
 
   open(){
     audio.ensure();
+    const current=this.game.getSnapshot(),campaign=getCampaignProfile(current?.campaign?.campaignProfileId);
+    if(campaign&&campaign.id!==this.selCampaignId){this.selCampaignId=campaign.id;this.selArea=current.campaign.patrolArea||campaign.defaultArea;this.selMission='AUTO';this.renderCards();}
     // Opening the anchor/menu is the alternative acknowledgement path for the
     // persistent end-of-patrol AAR offer.
     if(typeof Toast!=='undefined')Toast.dismissRole?.('patrol-aar');
@@ -70,13 +72,16 @@ class ScenarioSelector{
 
   renderCards(){
     const c=document.getElementById('stabPatrol');if(!c)return;
-    const state=this.game?.getSnapshot?.(),campaign=typeof getCampaignProfile==='function'?getCampaignProfile(state?.campaign?.campaignProfileId):null,
-      missionProfile=typeof getCampaignMissionProfile==='function'?getCampaignMissionProfile(state?.campaign?.campaignProfileId):null,
+    const state=this.game?.getSnapshot?.(),activeCampaign=typeof getCampaignProfile==='function'?getCampaignProfile(state?.campaign?.campaignProfileId):null,
+      campaign=typeof getCampaignProfile==='function'?getCampaignProfile(this.selCampaignId||activeCampaign?.id):activeCampaign,
+      missionProfile=typeof getCampaignMissionProfile==='function'?getCampaignMissionProfile(campaign?.id):null,
       areaIds=Array.isArray(campaign?.patrolAreaIds)?campaign.patrolAreaIds:Object.keys(PATROL_AREAS);
     const missionTypes=(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).filter(k=>missionProfile?.definitions?.[k]);
     const missionOpts=[['AUTO','AUTO — varied patrol orders'],...missionTypes.map(k=>[k,missionProfile.definitions[k].title||k.replaceAll('_',' ')])];
     const missionHint=missionProfile?.autoDescription||'One primary mission per patrol. AUTO chooses orders appropriate to the selected patrol area.';
-    c.innerHTML=areaIds.map(name=>[name,PATROL_AREAS[name]]).filter(([,area])=>!!area).map(([name,area])=>{
+    const devCampaigns=PP_BUILD?.isDev?Object.values(CAMPAIGN_PROFILES).filter(x=>x.id===DEFAULT_GAME_IDENTITY.campaignProfileId||x.devSelectable):[campaign].filter(Boolean);
+    const campaignPicker=PP_BUILD?.isDev?`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">THEATER / CAMPAIGN</h3><div class="hist-desc">Atlantic DEV can launch the stable Pacific campaign or the current experimental vertical slice.</div></div><select id="campaignProfileSelect" class="tsel" style="min-width:250px;max-width:100%;">${devCampaigns.map(x=>`<option value="${x.id}"${x.id===campaign?.id?' selected':''}>${x.displayName}</option>`).join('')}</select></div>`:'';
+    c.innerHTML=campaignPicker+areaIds.map(name=>[name,PATROL_AREAS[name]]).filter(([,area])=>!!area).map(([name,area])=>{
       const dl=String(area.difficulty||'MEDIUM').toUpperCase(),d=dl==='HARD'?{l:dl,cls:'diff-hard',s:'★★★'}:dl==='EASY'?{l:dl,cls:'diff-easy',s:'★☆☆'}:{l:dl,cls:'diff-med',s:'★★☆'};
       return `<div class="area-card${name===this.selArea?' selected':''}" data-area="${name}">
         <h3>${name.toUpperCase()}</h3>
@@ -91,6 +96,7 @@ class ScenarioSelector{
         <span class="area-diff ${d.cls}">${d.s} ${d.l}</span>
       </div>`;
     }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">${missionHint}</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
+    const cp=c.querySelector('#campaignProfileSelect');if(cp){cp.addEventListener('change',()=>{this.selCampaignId=cp.value;const next=getCampaignProfile(this.selCampaignId);this.selArea=next?.defaultArea||null;this.selMission='AUTO';this.renderCards();this.syncFooter();});if(typeof Picker!=='undefined')Picker.enhance(cp);}
     const ms=c.querySelector('#missionTypeSelect');if(ms){ms.addEventListener('change',()=>{this.selMission=ms.value;});if(typeof Picker!=='undefined')Picker.enhance(ms);}
     c.querySelectorAll('.area-card').forEach(card=>{
       card.addEventListener('click',()=>{
@@ -221,7 +227,7 @@ class ScenarioSelector{
         // turned the old Yellow Sea/Wahoo entry into a Solomon Sea patrol.
         if(!aKey){globalThis.Toast?.bad?.(`Historical chart missing: ${h.area}`);return;}
         SaveSystem.autoClear?.();
-        this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty,missionType:h.missionType||'CONVOY_INTERDICTION'});
+        this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty,missionType:h.missionType||'CONVOY_INTERDICTION',gameIdentity:DEFAULT_GAME_IDENTITY});
         const s=this.game.getSnapshot();
         Object.assign(s.world.environment,h.environment);
         rerollPatrolThermalLayer(s.world.environment,h.environment?.layerDepthFt);
@@ -241,7 +247,7 @@ class ScenarioSelector{
         audio.event?.('MISSION_START');this.close();showBriefing(aKey,s);return;
       }
     }
-    if(this.activeTab==='patrol'&&this.selArea){SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});audio.event?.('MISSION_START');this.close();}
+    if(this.activeTab==='patrol'&&this.selArea){const campaign=getCampaignProfile(this.selCampaignId),gameIdentity=campaign?{theaterId:campaign.theaterId,playerFactionId:campaign.playerFactionId,campaignProfileId:campaign.id,submarineProfileId:campaign.submarineProfileId}:DEFAULT_GAME_IDENTITY;SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO',gameIdentity});audio.event?.('MISSION_START');this.close();}
   }
 }
 
