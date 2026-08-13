@@ -328,7 +328,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     this.cam=cam;this.gunCam=cam;
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
     this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);
-    this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
+    this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t,env);
     this.drawTerrain3D(ctx,cam,state,env.daylight);
     this.drawBattleAtmosphereBack?.(ctx,cam,state,env.daylight,t);
     // Same world-space aircraft meshes as BRIDGE. GUN's different FOV changes

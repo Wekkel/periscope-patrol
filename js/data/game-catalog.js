@@ -840,7 +840,7 @@ const CAMPAIGN_PROFILES=Object.freeze({
     missionProfile:GERMAN_ATLANTIC_1941_MISSION_PROFILE,
     doctrineProfile:GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE,
     radioIntelProfile:GERMAN_ATLANTIC_1941_RADIO_INTEL_PROFILE,
-    devSelectable:true,developmentStage:'NIGHT_SURFACE_APPROACH_SLICE'
+    devSelectable:true,developmentStage:'NORTH_ATLANTIC_ENVIRONMENT'
   })
 });
 

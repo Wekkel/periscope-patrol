@@ -427,3 +427,8 @@ state layer only; it adds no duplicate ASDIC, visibility or escort AI.
 Patch-14 CONTACT KEEPER saves migrate additively to v3 by gaining `attack`,
 `evade` and `withdraw` objectives. Completed report/order/approach state is
 retained, and no prior reward is reissued.
+
+
+## Atlantic DEV patch 17 — North Atlantic environment
+
+The 1941 Atlantic slice now owns a concrete `NORTH_ATLANTIC_1941` climate identity and `NORTH_ATLANTIC` visual tone. Weather keeps a persistent low-overcast background between broader, longer-lived frontal cells rather than collapsing to the Pacific clear-sky baseline after weather initialization. The shared renderer uses the same row/particle budget but selects a colder sky/sea palette, stronger horizon haze and longer swell only for that visual tone. Pacific weather/rendering stays on the existing branch. Bridge motion speed normalization also reads the materialized submarine surface-speed characteristic instead of assuming an 18-knot Gato.

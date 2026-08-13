@@ -9,7 +9,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
   }
 
   bridgeSurfaceMotion(state,t){
-    const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),spd=clamp((sub.propulsion?.speedKnots||0)/18,0,1);
+    const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),maxSurface=Math.max(1,sub.propulsion?.characteristics?.maxSurfaceSpeedKn||18),spd=clamp((sub.propulsion?.speedKnots||0)/maxSurface,0,1);
     if((sub.depthFeet||0)>8)return{heaveM:0,pitchDeg:0,rollDeg:0};
     const live=clamp(.18+sea*.82+spd*.22,0,1.15);
     return{
@@ -45,7 +45,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     try{
       ctx.save();ctx.translate(cam.cx,cam.cy);ctx.rotate(degToRad(-motion.rollDeg));ctx.translate(-cam.cx,-cam.cy);
       this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);
-      this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
+      this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t,env);
       this.drawTerrain3D(ctx,cam,state,env.daylight);
       this.drawWeatherCells3D?.(ctx,cam,state,env.daylight,t);
       this.drawBattleAtmosphereBack?.(ctx,cam,state,env.daylight,t);

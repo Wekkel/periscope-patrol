@@ -84,5 +84,5 @@ const PATROL_AREAS={
     description:'Open-ocean North Atlantic convoy hunting area for the 1941 vertical-slice foundation.',terrainKey:null,
     convoyRoutes:[{from:{xNm:-130,yNm:15},to:{xNm:130,yNm:15},label:'NORTH ATLANTIC CONVOY LANE'}],start:{xNm:0,yNm:85},
     ports:[{name:'B.d.U. return rendezvous',pos:{xNm:0,yNm:125},side:'FRIENDLY'}],
-    environment:{daylight:.48,visibilityNm:10,seaState:.58,layerDepthFt:210,weather:'ATLANTIC OVERCAST'},convoySpeedRange:[7,9],convoyCountRange:[5,9],difficulty:'MEDIUM'}
+    environment:{daylight:.48,visibilityNm:10,seaState:.58,layerDepthFt:210,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC'},convoySpeedRange:[7,9],convoyCountRange:[5,9],difficulty:'MEDIUM'}
 };
