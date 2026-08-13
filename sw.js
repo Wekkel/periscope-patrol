@@ -14,7 +14,15 @@ const VERSION = '1.0'; // pre relese version - Finalize v1.0 simulation integrit
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
 
-const CACHE = `periscope-patrol-v${VERSION}`;
+// Production and Atlantic DEV share one browser origin, so their caches
+// must be strictly separated.
+const SCOPE_URL = new URL(self.registration.scope);
+const IS_DEV = /\/dev\/?$/i.test(SCOPE_URL.pathname);
+const CACHE_FAMILY = IS_DEV ? 'periscope-patrol-dev-' : 'periscope-patrol-prod-';
+const CACHE = `${CACHE_FAMILY}v${VERSION}`;
+const LEGACY_PROD_PREFIX = 'periscope-patrol-v';
+const DEV_PATH = IS_DEV ? SCOPE_URL.pathname : new URL('dev/', SCOPE_URL).pathname;
+const OFFLINE_INDEX = new URL('./index.html', SCOPE_URL).href;
 
 // The app shell. Everything the game needs to start with no network at all.
 const SHELL = [
@@ -132,8 +140,11 @@ self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     const names = await caches.keys();
     await Promise.all(
-      names.filter(n => n.startsWith('periscope-patrol-') && n !== CACHE)
-           .map(n => caches.delete(n))
+      names.filter(n => {
+        if (n === CACHE) return false;
+        if (n.startsWith(CACHE_FAMILY)) return true;
+        return !IS_DEV && n.startsWith(LEGACY_PROD_PREFIX);
+      }).map(n => caches.delete(n))
     );
     await self.clients.claim();
   })());
@@ -147,22 +158,26 @@ self.addEventListener('fetch', event => {
   if (req.method !== 'GET') return;
 
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;   // leave third parties alone
+  if (url.origin !== self.location.origin) return;
+
+  // The production worker must never cache or answer the Atlantic DEV subtree.
+  if (!IS_DEV && url.pathname.startsWith(DEV_PATH)) return;
 
   event.respondWith((async () => {
-    const cached = await caches.match(req, { ignoreSearch: true });
+    const cache = await caches.open(CACHE);
+    const cached = await cache.match(req, { ignoreSearch: true });
     if (cached) return cached;
+
     try {
       const res = await fetch(req);
       if (res && res.status === 200 && res.type === 'basic') {
         const copy = res.clone();
-        caches.open(CACHE).then(c => c.put(req, copy)).catch(() => {});
+        cache.put(req, copy).catch(() => {});
       }
       return res;
     } catch (err) {
-      // offline and not in the cache: for a navigation, hand back the game
       if (req.mode === 'navigate') {
-        const shell = await caches.match('./index.html');
+        const shell = await cache.match(OFFLINE_INDEX, { ignoreSearch: true });
         if (shell) return shell;
       }
       throw err;
