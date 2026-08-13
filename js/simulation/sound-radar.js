@@ -12,24 +12,20 @@ const SOUND_ROOM={
   surfaceRadarSweepSec:2.0
 };
 
-function _soundDateNumber(date){
-  const m=String(date||'1943-08-17').match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m?(+m[1])*10000+(+m[2])*100+(+m[3]):19430817;
-}
-
-/* Broad fleet-fit progression rather than per-hull paperwork.  SD reached the
-   force first; SJ followed during 1942.  Late-war SJ can be worked at radar
-   depth with the extensible mast. */
-function radarFitForDate(date){
-  const d=_soundDateNumber(date),p=typeof historicalCampaignProfile==='function'?historicalCampaignProfile(date):null;
+/* The selected campaign historical model owns dated equipment. This helper
+   only adapts generic capability data to the current radar runtime; the sd/sj
+   keys remain temporary compatibility aliases for untouched Pacific code. */
+function radarFitForDate(date,campaignProfileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  const p=historicalCampaignProfile(date,'',campaignProfileId);
+  const air=p.sensorCapabilities?.AIR_WARNING_RADAR||{},surface=p.sensorCapabilities?.SURFACE_SEARCH_RADAR||{};
   return{
-    sd:p?p.sdAvailable:d>=19420401,
-    sj:p?p.sjAvailable:d>=19420701,
-    sjRadarDepthFt:p?p.sjRadarDepthFt:(d>=19440101?48:12),
-    sjRangeNm:p?p.sjRangeNm:6.8,
-    sjErrorFactor:p?p.sjErrorFactor:1,
-    sjSweepSec:p?p.sjSweepSec:SOUND_ROOM.surfaceRadarSweepSec,
-    label:p?p.radarLabel:(d<19420401?'NO RADAR FIT':d<19420701?'SD AIR WARNING':'SD + SJ')
+    sd:!!(air.available??p.sdAvailable),
+    sj:!!(surface.available??p.sjAvailable),
+    sjRadarDepthFt:surface.mastDepthFt??p.sjRadarDepthFt,
+    sjRangeNm:surface.rangeNm??p.sjRangeNm,
+    sjErrorFactor:surface.errorFactor??p.sjErrorFactor,
+    sjSweepSec:surface.sweepSec??p.sjSweepSec??SOUND_ROOM.surfaceRadarSweepSec,
+    label:p.radarLabel
   };
 }
 
@@ -136,7 +132,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
   ensureWorldExtensions(){super.ensureWorldExtensions();this.ensureSoundRadarState();}
 
   ensureSoundRadarState(){
-    const W=this.state.world,fit=radarFitForDate(this.state.campaign?.startDate||this.state.time?.campaignDate);
+    const W=this.state.world,fit=radarFitForDate(this.state.campaign?.startDate||this.state.time?.campaignDate,this.state.campaign?.campaignProfileId);
     const S=W.sound||(W.sound={});
     S.bearingMarks=S.bearingMarks||{};S.lastOperatorAt=Number.isFinite(S.lastOperatorAt)?S.lastOperatorAt:-999;
     S.lastOperatorReport=S.lastOperatorReport||null;S.activeEchoLastAt=Number.isFinite(S.activeEchoLastAt)?S.activeEchoLastAt:(Number.isFinite(S.qcLastAt)?S.qcLastAt:-999);S.qcLastAt=S.activeEchoLastAt;

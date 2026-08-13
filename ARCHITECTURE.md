@@ -99,7 +99,13 @@ The optical views share a lightweight Canvas2D pseudo-3D world engine. World ent
 
 ### Sensor capability boundary
 
-Sensor simulation must not infer equipment identity from a US-specific display string. `game-catalog.js` owns the boat-specific presentation (`SJ Radar`, `SD Radar`, `Active QC` for the current Gato profile); `sensors.js` owns generic contact-fix semantics; `sound-radar.js` maps dated equipment availability into generic runtime fields and emits the generic `ACTIVE_ECHO` alert reason. The historical US date table is intentionally still in `historical-campaign.js`: moving doctrine/equipment-by-date is a separate Phase-1 patch and should not be mixed into this compatibility refactor.
+Sensor simulation must not infer equipment identity from a US-specific display string. `game-catalog.js` owns the boat-specific presentation (`SJ Radar`, `SD Radar`, `Active QC` for the current Gato profile); `sensors.js` owns generic contact-fix semantics; `sound-radar.js` consumes generic dated sensor capabilities and emits the generic `ACTIVE_ECHO` alert reason.
+
+### Campaign / equipment-by-date boundary
+
+`CAMPAIGN_PROFILES` owns authored historical progression. The current `us-pacific` profile contains the broad Pacific era bands, dated radar/torpedo availability, radar performance bands, war-progression factors and the small set of area-specific multipliers that previously lived as US/Pacific conditionals inside `historical-campaign.js`. `historical-campaign.js` is now a materializer: once per patrol/date change it resolves those data into `campaign.historicalProfile`, which remains the cheap runtime object used by sensors, ASW and traffic.
+
+New code should prefer `historicalProfile.sensorCapabilities[CAPABILITY_ID]` and `availableTorpedoes`. The old `sdAvailable`, `sjAvailable`, `sjRangeNm`, `sjErrorFactor`, `sjSweepSec` and `sjRadarDepthFt` fields remain additive compatibility aliases while untouched Pacific UI/save consumers migrate. A future Atlantic campaign must author its own historical model in the catalog; do not add Type VII, Kriegsmarine or Allied date exceptions to `historical-campaign.js`.
 
 Legacy serialized track sources `SJ RADAR` and `QC ECHO` are accepted and normalized at read/use boundaries. Do not remove those aliases until the save-schema migration explicitly converts them.
 

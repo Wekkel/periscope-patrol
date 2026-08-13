@@ -14,7 +14,7 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=2;
+const PP_CATALOG_VERSION=3;
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
@@ -63,9 +63,8 @@ const SUBMARINE_PROFILES=Object.freeze({
     }),
 
     /* Presentation belongs to the historical boat/equipment profile; simulation
-       code consumes generic capability IDs instead.  This is intentionally a
-       tiny boundary: date/fit doctrine remains in historical-campaign.js until
-       that later Phase-1 step has its own Pacific regression gate. */
+       code consumes generic capability IDs instead. Dated availability and
+       performance live on the campaign historical model below. */
     sensors:Object.freeze({
       passiveSound:Object.freeze({capabilityId:'PASSIVE_SOUND',label:'Passive Sound'}),
       activeEcho:Object.freeze({capabilityId:'ACTIVE_ECHO',label:'Active QC',shortLabel:'QC',fixLabel:'QC ECHO'}),
@@ -164,6 +163,94 @@ function materializeVesselIdentity(v,state=null,overrides=null){
   return v;
 }
 
+/* Historical campaign data belongs to the campaign profile, not to the
+   generic simulation. These are deliberately broad gameplay bands inherited
+   from the existing Pacific implementation; they are not a claim of exact
+   per-boat refit dates. A future Atlantic campaign must provide its own model
+   rather than adding German/Allied exceptions to historical-campaign.js. */
+const US_PACIFIC_HISTORICAL_MODEL=Object.freeze({
+  id:'us-pacific-history-v1',
+  defaultDate:'1943-08-17',
+  eraBands:Object.freeze([
+    Object.freeze({before:19430101,label:'EARLY WAR'}),
+    Object.freeze({before:19440101,label:'MID WAR'}),
+    Object.freeze({label:'LATE WAR'})
+  ]),
+  torpedoDudBands:Object.freeze([
+    Object.freeze({before:19430101,value:1.00}),
+    Object.freeze({before:19430901,value:.78}),
+    Object.freeze({before:19440101,value:.48}),
+    Object.freeze({value:.26})
+  ]),
+  equipment:Object.freeze({
+    sensors:Object.freeze({
+      AIR_WARNING_RADAR:Object.freeze({
+        availableFrom:19420401,
+        refitMessage:'REFIT COMPLETE — SD air-warning radar fitted.'
+      }),
+      SURFACE_SEARCH_RADAR:Object.freeze({
+        availableFrom:19420701,
+        refitMessage:'REFIT COMPLETE — SJ surface-search radar fitted.',
+        mastUpgradeMessage:'REFIT COMPLETE — improved SJ radar mast and display fitted.',
+        performanceBands:Object.freeze([
+          Object.freeze({before:19430101,rangeNm:5.4,errorFactor:1.35,sweepSec:2.8,mastDepthFt:12}),
+          Object.freeze({before:19440101,rangeNm:6.8,errorFactor:1.00,sweepSec:2.2,mastDepthFt:12}),
+          Object.freeze({rangeNm:8.5,errorFactor:.72,sweepSec:1.7,mastDepthFt:48})
+        ])
+      })
+    }),
+    radarFitLabelBands:Object.freeze([
+      Object.freeze({before:19420401,label:'NO RADAR FIT'}),
+      Object.freeze({before:19420701,label:'SD AIR WARNING'}),
+      Object.freeze({before:19430101,label:'SD + EARLY SJ'}),
+      Object.freeze({before:19440101,label:'SD + SJ'}),
+      Object.freeze({label:'SD + IMPROVED SJ'})
+    ]),
+    torpedoes:Object.freeze([
+      Object.freeze({specKey:'mk14fast'}),
+      Object.freeze({specKey:'mk14slow'}),
+      Object.freeze({specKey:'mk10'}),
+      Object.freeze({specKey:'mk18',availableFrom:19430901,availabilityLabel:'MARK 18 AVAILABLE',refitMessage:'REFIT COMPLETE — Mark 18 electric torpedoes now available.'})
+    ]),
+    defaultTorpedoLoadLabel:'STEAM TORPEDO LOAD'
+  }),
+  /* These factors describe the existing broad war-progression model: player
+     sound effectiveness, enemy ASW/air response and traffic composition. They
+     are evaluated once when a patrol historical profile is materialized. */
+  progressionBands:Object.freeze([
+    Object.freeze({before:19430101,values:Object.freeze({
+      soundFactor:.92,aswSkill:.76,sonarIntervalFactor:1.18,sonarErrorFactor:1.22,depthChargeErrorFactor:1.28,
+      airThreatFactor:.72,trafficDensityFactor:1.12,merchantTonnageFactor:.92,merchantSpeedBonus:-.45,
+      primaryMerchantCountFactor:1.08,surfaceOpportunity:1.22
+    })}),
+    Object.freeze({before:19440101,values:Object.freeze({
+      soundFactor:1.00,aswSkill:1.00,sonarIntervalFactor:1.00,sonarErrorFactor:1.00,depthChargeErrorFactor:1.00,
+      airThreatFactor:1.00,trafficDensityFactor:1.00,merchantTonnageFactor:1.00,merchantSpeedBonus:0,
+      primaryMerchantCountFactor:1.00,surfaceOpportunity:1.00
+    })}),
+    Object.freeze({values:Object.freeze({
+      soundFactor:1.08,aswSkill:1.18,sonarIntervalFactor:.86,sonarErrorFactor:.82,depthChargeErrorFactor:.82,
+      airThreatFactor:1.28,trafficDensityFactor:.74,merchantTonnageFactor:1.14,merchantSpeedBonus:.65,
+      primaryMerchantCountFactor:.82,surfaceOpportunity:.80
+    })})
+  ]),
+  areaProgression:Object.freeze({
+    'Truk Approaches':Object.freeze([
+      Object.freeze({from:19440101,multiply:Object.freeze({airThreatFactor:1.16,aswSkill:1.08})}),
+      Object.freeze({multiply:Object.freeze({airThreatFactor:1.05,aswSkill:1.08})})
+    ]),
+    'Luzon Strait':Object.freeze([
+      Object.freeze({from:19440101,multiply:Object.freeze({aswSkill:1.08,merchantTonnageFactor:1.08,trafficDensityFactor:.92})})
+    ]),
+    'Java Sea':Object.freeze([
+      Object.freeze({before:19430101,multiply:Object.freeze({surfaceOpportunity:1.12,airThreatFactor:.88})})
+    ]),
+    'Solomon Sea':Object.freeze([
+      Object.freeze({before:19430101,multiply:Object.freeze({trafficDensityFactor:1.08})})
+    ])
+  })
+});
+
 const CAMPAIGN_PROFILES=Object.freeze({
   'us-pacific':Object.freeze({
     id:'us-pacific',
@@ -174,7 +261,8 @@ const CAMPAIGN_PROFILES=Object.freeze({
     submarineProfileId:'gato-silversides',
     commandName:'COMSUBPAC',
     defaultArea:'Solomon Sea',
-    defaultStartDate:'1943-08-17'
+    defaultStartDate:'1943-08-17',
+    historicalModel:US_PACIFIC_HISTORICAL_MODEL
   })
 });
 
@@ -187,6 +275,10 @@ const DEFAULT_GAME_IDENTITY=Object.freeze({
 
 function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   return CAMPAIGN_PROFILES[profileId]||CAMPAIGN_PROFILES[DEFAULT_GAME_IDENTITY.campaignProfileId];
+}
+
+function getCampaignHistoricalModel(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  return CAMPAIGN_PROFILES[profileId]?.historicalModel||null;
 }
 
 function getSubmarineProfile(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
