@@ -171,10 +171,13 @@ class AudioEngine{
 
   playDepthChargeSplash(distanceFactor=.5){
     this.ensure();const v=clamp(.17*(1-clamp(distanceFactor,0,1)*.58),.045,.17);
-    // Water entry is intentionally a separate, much lighter event than the
-    // detonation: a short broad splash and low displaced-water 'plop'.
-    this._filteredNoise(.34,v,{type:'bandpass',freq:1050,q:.42,attack:.003},null,0,'weapons');
-    this._filteredNoise(.48,v*.42,{type:'lowpass',freq:210,q:.45,attack:.008},null,0,'weapons');
+    // Three physical layers: the thin surface slap, displaced-water body and
+    // an irregular bubble wash. Keeping them broadband avoids the old digital
+    // click while remaining much lighter than the later detonation.
+    this._filteredNoise(.075,v*.88,{type:'highpass',freq:1450,q:.34,attack:.001},null,0,'weapons');
+    this._filteredNoise(.32,v,{type:'bandpass',freq:820,q:.38,attack:.006},null,0,'weapons');
+    this._filteredNoise(.52,v*.40,{type:'lowpass',freq:190,q:.42,attack:.012},null,0,'weapons');
+    setTimeout(()=>this._filteredNoise(.26,v*.24,{type:'bandpass',freq:1280,q:.30,attack:.025},null,0,'weapons'),95);
   }
 
   playHit(){
@@ -278,10 +281,10 @@ class AudioEngine{
   playRadioMessage(){this.ensure();this._metalClack(.18,100,1280,'system');setTimeout(()=>this._metalClack(.12,96,980,'system'),105);}
   playBattleStations(){
     this.ensure();if(Date.now()-this.lastBattleStations<1800)return;this.lastBattleStations=Date.now();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
-    // A low mechanical klaxon/buzzer replaces the former two arcade square
-    // beeps. It is deliberately brief; the actual ASW/aircraft world should
-    // carry the danger after this transition cue.
-    for(const [f,v] of [[178,.055],[356,.020]]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.value=f;g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(v,now+.025);g.gain.setValueAtTime(v,now+.25);g.gain.exponentialRampToValueAtTime(.001,now+.62);o.connect(g);g.connect(this._bus('command'));o.start();o.stop(now+.68);}this.duck(82,700);
+    // Short electro-mechanical klaxon: an inharmonic motor/body pair, uneven
+    // rise and a little housing rattle. No clean two-note computer beep.
+    this._filteredNoise(.78,.045,{type:'bandpass',freq:310,q:2.1,attack:.018},null,0,'command');
+    for(const [f0,f1,v] of [[151,166,.052],[287,271,.019]]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.setValueAtTime(f0,now);o.frequency.linearRampToValueAtTime(f1,now+.53);g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(v,now+.055);g.gain.setValueAtTime(v*.82,now+.34);g.gain.exponentialRampToValueAtTime(.001,now+.76);o.connect(g);g.connect(this._bus('command'));o.start();o.stop(now+.80);}this.duck(82,820);
   }
 
   stopTitleCue(fade=.24){
@@ -562,4 +565,3 @@ class AudioEngine{
 }
 
 const audio=new AudioEngine();
-

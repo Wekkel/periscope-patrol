@@ -205,7 +205,9 @@ class SimEngineSoundRadar extends SimEngineSensors{
     if(!sensorUi.activeEcho){this.notify('No active echo-ranging set is fitted to this submarine.','warn');return null;}
     const echoName=sensorUi.activeEcho.shortLabel||sensorUi.activeEcho.label||'Active echo';
     if(now-S.activeEchoLastAt<SOUND_ROOM.activeEchoCooldownSec){this.notify(`${echoName} recharging — ${Math.ceil(SOUND_ROOM.activeEchoCooldownSec-(now-S.activeEchoLastAt))} seconds.`,'warn');return null;}
-    S.activeEchoLastAt=now;S.qcLastAt=now;audio.playOwnSonarPing?.();
+    S.activeEchoLastAt=now;S.qcLastAt=now;
+    S.qcVisual={bearing:normDeg(s.tactical.soundBearing||0),at:now,wallAt:typeof performance!=='undefined'?performance.now():Date.now()};
+    audio.playOwnSonarPing?.();
     // The transmission itself is a datum for enemy hydrophones, whether or not
     // the player's echo comes back.
     this.alertEscorts('ACTIVE_ECHO',{...s.playerSub.position},.88);

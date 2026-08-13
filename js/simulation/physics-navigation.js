@@ -325,13 +325,17 @@ class SimEngine extends SimEngineCareer {
       if(c===lead||c.scattering)continue;
       if(shipIsStraggler(c)){
         const cp=routeProject(path,c.position),ca=routeAdvanceOneWay(path,cp.s,1.0);
-        c.desiredHeading=bearingBetween(c.position,ca.pos);c.desiredSpeed=c.baseSpeed||c.speedKnots;
+        c.desiredHeading=bearingBetween(c.position,ca.pos);
+        c.desiredSpeed=Math.max(2,(c.baseSpeed||c.speedKnots)+(c.convoyNaturalSpeedBias||0));
         continue;
       }
       const f=(c.formationFwd??(-(c.formationIndex||1)*1.2))-lf,side=(c.formationSide||0)-ls;
       const tgt={xNm:lead.position.xNm+fx*f+sx*side,yNm:lead.position.yNm+fy*f+sy*side};
-      const err=distNm(c.position,tgt);c.desiredHeading=bearingBetween(c.position,tgt);
-      c.desiredSpeed=clamp((lead.baseSpeed||lead.speedKnots)+err*0.55,3,16);
+      const err=distNm(c.position,tgt),keep=clamp(c.convoyStationKeeping??1,.55,1);
+      const profile=getPrimaryConvoyProfile(this.state.campaign?.campaignProfileId),dyn=profile?.worldDynamics;
+      const wander=dyn?Math.sin((this.state.time.elapsedSeconds||0)/Math.max(30,Number(dyn.headingWanderPeriodSec)||150)*Math.PI*2+(c.convoyHeadingPhase||0))*Number(dyn.headingWanderDeg||0):0;
+      c.desiredHeading=normDeg(bearingBetween(c.position,tgt)+wander*(1-keep*.55));
+      c.desiredSpeed=clamp((lead.baseSpeed||lead.speedKnots)+err*(.28+.34*keep),3,16);
     }
   }
 

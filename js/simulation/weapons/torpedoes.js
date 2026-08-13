@@ -25,9 +25,9 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     const t=this.state.weapons.tubes.find(t=>t.id===id);
     const tdc=this.state.tdc; const sub=this.state.playerSub;
     const W=this.state.weapons;
-    if(!t||t.status!=='READY'){this.log(`Tube ${id} not ready.`,'warn');return;}
-    if(!tdc.targetId||tdc.gyroAngle===null||tdc.solutionQuality<0.25){this.log(`TDC solution too weak (${Math.round(tdc.solutionQuality*100)}%). Need 25%+ — send scope to TDC.`,'warn');return;}
-    if(sub.depthFeet>160){this.log('Too deep to fire.','warn');return;}
+    if(!t||t.status!=='READY'){this.notify(`Tube ${id} is not ready — flood a loaded tube or wait for reload.`,'warn');return;}
+    if(!tdc.targetId||tdc.gyroAngle===null||tdc.solutionQuality<0.25){this.notify(`TDC solution ${Math.round((tdc.solutionQuality||0)*100)}% — obtain a bearing/range plot and build at least 25% before firing.`,'warn');return;}
+    if(sub.depthFeet>160){this.notify(`Too deep to fire at ${Math.round(sub.depthFeet)} ft — come above 160 ft.`,'warn');return;}
 
     const spec=TORPEDO_SPECS[tdc.torpedoSpecKey];
     if(!spec){this.log(`Unknown torpedo specification: ${tdc.torpedoSpecKey||'NONE'}.`,'bad');return;}
@@ -57,7 +57,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     }
     const courseSet=normDeg((tdc.solutionCourse??normDeg(sub.heading+(tdc.gyroAngle??0)))+(Number(spreadOffsetDeg)||0));
     const turn=shortDelta(tubeAxis,courseSet);
-    if(Math.abs(turn)>TDC_MAX_TUBE_TURN_DEG){this.log(`Tube ${id}: gyro angle ${turn.toFixed(0)}° is beyond the setting limits — swing the boat onto the target.`,'warn');return;}
+    if(Math.abs(turn)>TDC_MAX_TUBE_TURN_DEG){this.notify(`Tube ${id}: gyro ${turn.toFixed(0)}° exceeds the setting limit — swing the boat toward the target and rebuild the solution.`,'warn');return;}
     if(Math.abs(turn)>62)this.log(`Very wide gyro ${turn.toFixed(0)}° — TDC geometry is valid, but swinging the boat will improve the attack.`,'warn');
     else if(Math.abs(turn)>38)this.log(`Wide gyro ${turn.toFixed(0)}° — TDC is accounting for the turn.`,'warn');
     const launchBear=tubeAxis;
@@ -78,7 +78,12 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       gyroTurn:turn, launchSolutionQuality:tdc.solutionQuality,
       speedKnots:spec.speedKnots, rangeRunNm:0, maxRangeNm:spec.maxRangeNm,
       armedAfterNm:0.08,                 // arms after ~150 m
-      targetId:tdc.targetId, status:'RUNNING', ageSec:0,
+      targetId:tdc.targetId,
+      // Miss coaching belongs only to the ship the skipper actually solved
+      // against. Other ships still have real hull collisions, but may not
+      // silently replace the intended target in the closest-approach report.
+      intendedTargetId:tdc.targetId==='MANUAL'?null:tdc.targetId,
+      status:'RUNNING', ageSec:0,
       willDud, dudRoll:Math.random(), glanceRoll:Math.random(),
       dudChance, isElectric:!!spec.isElectric,
       acousticPenalty:spec.acousticPenalty,
@@ -104,7 +109,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
 
   fireSpreadByPos(pos){
     const ready=this.state.weapons.tubes.filter(t=>t.status==='READY'&&t.pos===pos);
-    if(!ready.length){this.log(`No ready ${pos} tubes.`,'warn');return;}
+    if(!ready.length){this.notify(`No ready ${pos} tubes — flood a loaded ${pos} tube or wait for reload.`,'warn');return;}
     const before=this.state.weapons.activeTorpedoes.length;
     // A compact arcade spread brackets small errors without deliberately
     // throwing the outer fish hundreds of metres away from a good solution.
@@ -121,7 +126,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     if(t.cpaReported){ if(endOfRun) this.log(`${t.id} end of run.`,'warn'); return; }
     t.cpaReported=true;
     const c=t.cpa;
-    if(!c||c.gap>0.45){ this.log(`${t.id} end of run — no target.`,'warn'); return; }
+    if(!t.intendedTargetId||!c||c.targetId!==t.intendedTargetId||c.gap>0.45){ this.log(`${t.id} end of run — no reportable target passage.`,'warn'); return; }
     const yards=Math.round(c.gap*2025);
     const ahead=c.along>c.halfL, astern=c.along<-c.halfL;
     const where=ahead?'ahead of her stem':astern?'astern of her rudder':'clear down her side';
@@ -229,14 +234,17 @@ class SimEngineTorpedoes extends SimEngineHarbor {
          centre, so a fish crossing her beam "hit" while it was still a
          furlong clear of her side, and the column of water went up in open
          sea. A ship is a box: about seven times as long as she is wide. */
-      let near=null;
+      // Old saves used targetId only. Preserve their intended-target semantics
+      // while keeping manual solutions deliberately unassigned.
+      if(t.intendedTargetId===undefined)t.intendedTargetId=t.targetId&&t.targetId!=='MANUAL'?t.targetId:null;
+      let intendedNear=null;
       for(const c of this.state.world.contacts){
         if(c.sunk) continue;
         const H=shipHull(c),hRad=degToRad(c.heading||0),fx=Math.sin(hRad),fy=-Math.cos(hRad),px=-fy,py=fx;
         const dx=t.position.xNm-c.position.xNm,dy=t.position.yNm-c.position.yNm;
         const alongNow=dx*fx+dy*fy,lateralNow=dx*px+dy*py;
         const gap=Math.hypot(Math.max(0,Math.abs(alongNow)-H.halfLengthNm),Math.max(0,Math.abs(lateralNow)-H.halfBeamNm));
-        if(!near||gap<near.gap)near={c,gap,along:alongNow,lateral:lateralNow,halfL:H.halfLengthNm,halfB:H.halfBeamNm};
+        if(c.id===t.intendedTargetId)intendedNear={c,gap,along:alongNow,lateral:lateralNow,halfL:H.halfLengthNm,halfB:H.halfBeamNm};
         // Steam-torpedo wakes are not invisible. A merchant lookout in good
         // daylight may occasionally spot an approaching bubble track close
         // enough to order a last-moment evasive turn. Electric fish do not get
@@ -329,10 +337,10 @@ class SimEngineTorpedoes extends SimEngineHarbor {
          boat did learn something: sonar hears the fish run past, and the
          plot tells you by how much. Report it once, the moment she is
          drawing away again, so the next shot can be corrected. */
-      if(t.status==='RUNNING'&&near){
-        if(!t.cpa||near.gap<t.cpa.gap){
-          t.cpa={gap:near.gap,name:near.c.name,along:near.along,lateral:near.lateral,halfL:near.halfL};
-        }else if(!t.cpaReported&&t.cpa.gap<0.45&&near.gap>t.cpa.gap+0.035){
+      if(t.status==='RUNNING'&&intendedNear){
+        if(!t.cpa||intendedNear.gap<t.cpa.gap){
+          t.cpa={targetId:intendedNear.c.id,gap:intendedNear.gap,name:intendedNear.c.name,along:intendedNear.along,lateral:intendedNear.lateral,halfL:intendedNear.halfL};
+        }else if(!t.cpaReported&&t.cpa.gap<0.45&&intendedNear.gap>t.cpa.gap+0.035){
           this.reportMiss(t,false);      // reportMiss sets the flag itself
         }
       }

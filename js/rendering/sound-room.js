@@ -16,6 +16,17 @@ class CanvasViewSound extends CanvasViewBridge {
     ctx.fillStyle='rgba(7,22,25,.96)';ctx.beginPath();ctx.arc(cx,cy,r*1.08,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='rgba(88,139,124,.65)';ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
     for(let d=0;d<360;d+=10){const a=degToRad(d),maj=d%30===0,rr=r*(maj?.88:.93);ctx.strokeStyle=maj?'rgba(205,236,220,.68)':'rgba(113,153,141,.34)';ctx.lineWidth=maj?1.5*k:k;ctx.beginPath();ctx.moveTo(cx+Math.sin(a)*rr,cy-Math.cos(a)*rr);ctx.lineTo(cx+Math.sin(a)*r,cy-Math.cos(a)*r);ctx.stroke();if(maj){ctx.fillStyle='rgba(205,236,220,.72)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(d).padStart(3,'0'),cx+Math.sin(a)*r*.76,cy-Math.cos(a)*r*.76);}}
+    // A transmitted active pulse is visible only as a short, directional wave
+    // on the operator's trained bearing; it never paints a target by itself.
+    if(S.qcVisual){
+      const wallNow=typeof performance!=='undefined'?performance.now():Date.now(),age=(wallNow-(S.qcVisual.wallAt||wallNow))/1000;
+      if(age>=0&&age<1.65){
+        const qa=degToRad(S.qcVisual.bearing||0),fade=1-age/1.65;
+        ctx.save();ctx.strokeStyle=`rgba(239,106,88,${(.16+.34*fade).toFixed(3)})`;ctx.lineWidth=Math.max(1,1.7*k);
+        for(let i=0;i<3;i++){const phase=(age/1.65+i/3)%1,rr=r*(.16+.78*phase),spread=degToRad(11+phase*7);ctx.beginPath();ctx.arc(cx,cy,rr,qa-Math.PI/2-spread,qa-Math.PI/2+spread);ctx.stroke();}
+        ctx.restore();
+      }
+    }
     const a=degToRad(T.soundBearing||0);ctx.strokeStyle='#f5c65c';ctx.lineWidth=Math.max(2,2.4*k);ctx.beginPath();ctx.moveTo(cx-Math.sin(a)*r*.12,cy+Math.cos(a)*r*.12);ctx.lineTo(cx+Math.sin(a)*r*.92,cy-Math.cos(a)*r*.92);ctx.stroke();
     ctx.fillStyle='#f5c65c';ctx.beginPath();ctx.arc(cx,cy,4.5*k,0,Math.PI*2);ctx.fill();
 

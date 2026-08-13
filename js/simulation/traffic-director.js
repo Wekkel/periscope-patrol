@@ -35,7 +35,7 @@ function _trafficManifest(group,state=null){
   const H=(tag)=>_trafficHash(group.seed,tag);
   const signature=type=>({TANKER:[1.0,.38],DESTROYER:[.74,.68],KAIBOKAN:[.64,.58],WARSHIP:[.72,.62],PATROL_CRAFT:[.52,.46],HEAVY_CRUISER:[1.20,.72],CARRIER:[1.42,.76],JUNK:[.28,.10]}[type]||[.82,.28]);
   const mk=(spec,suffix='A',name=spec.name,lengthTag=null,tonsTag=null)=>{const sig=signature(spec.type);return{
-    suffix:spec.suffix||suffix,name,type:spec.type,vesselProfileId:spec.vesselProfileId,displayType:spec.displayType,
+    suffix:spec.suffix||suffix,name,type:spec.type,vesselProfileId:spec.vesselProfileId,modelKey:spec.modelKey,displayType:spec.displayType,
     lengthYards:_trafficNumber(spec.length,H,lengthTag),tonsFactor:_trafficNumber(spec.tons,H,tonsTag),side:spec.side||kind.side,
     visualProfile:spec.visualProfile??sig[0],acousticBase:spec.acousticBase??sig[1],speedBias:spec.speedBias||0,hasSonar:spec.hasSonar
   };};
@@ -169,7 +169,7 @@ function _trafficFormation(i){
         const d=defs[i],o=_trafficFormation(i),r=degToRad(q.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
         const p0={xNm:pos.xNm+fx*o.fwd+sx*o.side,yNm:pos.yNm+fy*o.fwd+sy*o.side},p=_trafficWaterPoint(this,p0,pos);
         const hp=s.campaign.historicalProfile||null,isEnemyMerchant=d.side==='ENEMY'&&(d.type==='MERCHANT'||d.type==='TANKER'),scale=isEnemyMerchant?(hp?.merchantTonnageFactor||1):1;
-        const id=`${g.id}-${d.suffix}`,contact={id,name:d.name,type:d.type,vesselProfileId:d.vesselProfileId,displayType:d.displayType,lengthYards:Math.round(d.lengthYards*(1+(scale-1)*.28)),tonsFactor:Math.round(d.tonsFactor*scale),
+        const id=`${g.id}-${d.suffix}`,contact={id,name:d.name,type:d.type,vesselProfileId:d.vesselProfileId,modelKey:d.modelKey,displayType:d.displayType,lengthYards:Math.round(d.lengthYards*(1+(scale-1)*.28)),tonsFactor:Math.round(d.tonsFactor*scale),
           visualProfile:d.visualProfile,acousticBase:d.acousticBase,side:d.side,position:p,heading:normDeg(q.heading+(_trafficHash(g.seed,`hdg:${i}`)-.5)*2),
           desiredHeading:q.heading,speedKnots:clamp(g.speedKnots+d.speedBias+(_trafficHash(g.seed,`spd:${i}`)-.5)*.35,2,26),
           baseSpeed:clamp(g.speedKnots+d.speedBias,2,26),desiredSpeed:clamp(g.speedKnots+d.speedBias,2,26),trafficAmbient:true,trafficGroupId:g.id,

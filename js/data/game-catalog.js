@@ -184,8 +184,12 @@ const VESSEL_PROFILES=Object.freeze({
   // silhouette selection so later British/Canadian escort classes can share
   // ESCORT behaviour without sharing one hull.
   'uk-merchant-1941':Object.freeze({id:'uk-merchant-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_FREIGHTER'}),
+  'uk-tramp-1941':Object.freeze({id:'uk-tramp-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_TRAMP'}),
+  'uk-cargo-liner-1941':Object.freeze({id:'uk-cargo-liner-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_CARGO_LINER'}),
+  'uk-coaster-1941':Object.freeze({id:'uk-coaster-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_COASTER'}),
   'uk-tanker-1941':Object.freeze({id:'uk-tanker-1941',factionId:'britain',gameplayType:'TANKER',modelKey:'ATLANTIC_TANKER'}),
-  'uk-flower-corvette-1941':Object.freeze({id:'uk-flower-corvette-1941',factionId:'britain',gameplayType:'ESCORT',modelKey:'FLOWER_CORVETTE_1941'})
+  'uk-flower-corvette-1941':Object.freeze({id:'uk-flower-corvette-1941',factionId:'britain',gameplayType:'ESCORT',modelKey:'FLOWER_CORVETTE_1941'}),
+  'uk-town-destroyer-1941':Object.freeze({id:'uk-town-destroyer-1941',factionId:'britain',gameplayType:'DESTROYER',modelKey:'DESTROYER'})
 });
 
 function getVesselProfile(profileId){return profileId?VESSEL_PROFILES[profileId]||null:null;}
@@ -343,7 +347,12 @@ const US_PACIFIC_HISTORICAL_MODEL=Object.freeze({
 const GERMAN_ATLANTIC_1941_HISTORICAL_MODEL=Object.freeze({
   id:'german-atlantic-1941-history-v1',
   defaultDate:'1941-09-01',
-  eraBands:Object.freeze([Object.freeze({label:'ATLANTIC 1941'})]),
+  eraBands:Object.freeze([
+    Object.freeze({before:19420101,label:'ATLANTIC 1941'}),
+    Object.freeze({from:19420101,before:19430101,label:'ATLANTIC 1942'}),
+    Object.freeze({from:19430101,before:19440101,label:'ATLANTIC 1943'}),
+    Object.freeze({from:19440101,label:'ATLANTIC 1944'})
+  ]),
   // Reliability calibration remains a later research/gameplay task. The model
   // keeps the neutral factor so individual torpedo specs own the current baseline.
   torpedoDudBands:Object.freeze([Object.freeze({value:1.00})]),
@@ -352,15 +361,17 @@ const GERMAN_ATLANTIC_1941_HISTORICAL_MODEL=Object.freeze({
     radarFitLabelBands:Object.freeze([Object.freeze({label:'NO RADAR FIT'})]),
     torpedoes:Object.freeze([
       Object.freeze({specKey:'g7e-t2'}),
-      Object.freeze({specKey:'g7a-t1-fast'})
+      Object.freeze({specKey:'g7a-t1-fast'}),
+      Object.freeze({specKey:'g7e-t3',availableFrom:19420101,availabilityLabel:'G7E T3 AVAILABLE',refitMessage:'TORPEDO REFIT — improved G7e T3 electric torpedoes are now available.'})
     ]),
     defaultTorpedoLoadLabel:'G7E / G7A LOAD'
   }),
-  progressionBands:Object.freeze([Object.freeze({values:Object.freeze({
-    soundFactor:1.00,aswSkill:1.00,sonarIntervalFactor:1.00,sonarErrorFactor:1.00,depthChargeErrorFactor:1.00,
-    airThreatFactor:1.00,trafficDensityFactor:1.00,merchantTonnageFactor:1.00,merchantSpeedBonus:0,
-    primaryMerchantCountFactor:1.00,surfaceOpportunity:1.00
-  })})]),
+  progressionBands:Object.freeze([
+    Object.freeze({before:19420101,values:Object.freeze({soundFactor:1.00,aswSkill:.88,sonarIntervalFactor:1.12,sonarErrorFactor:1.12,depthChargeErrorFactor:1.16,airThreatFactor:.48,trafficDensityFactor:1.04,merchantTonnageFactor:.96,merchantSpeedBonus:-.15,primaryMerchantCountFactor:1.00,surfaceOpportunity:1.18,hfdfRisk:.06})}),
+    Object.freeze({from:19420101,before:19430101,values:Object.freeze({soundFactor:1.00,aswSkill:1.00,sonarIntervalFactor:1.00,sonarErrorFactor:1.00,depthChargeErrorFactor:1.00,airThreatFactor:.72,trafficDensityFactor:1.00,merchantTonnageFactor:1.00,merchantSpeedBonus:0,primaryMerchantCountFactor:1.00,surfaceOpportunity:1.00,hfdfRisk:.16})}),
+    Object.freeze({from:19430101,before:19440101,values:Object.freeze({soundFactor:1.00,aswSkill:1.12,sonarIntervalFactor:.88,sonarErrorFactor:.88,depthChargeErrorFactor:.88,airThreatFactor:1.18,trafficDensityFactor:.92,merchantTonnageFactor:1.04,merchantSpeedBonus:.18,primaryMerchantCountFactor:1.00,surfaceOpportunity:.78,hfdfRisk:.32})}),
+    Object.freeze({from:19440101,values:Object.freeze({soundFactor:1.00,aswSkill:1.20,sonarIntervalFactor:.80,sonarErrorFactor:.80,depthChargeErrorFactor:.80,airThreatFactor:1.34,trafficDensityFactor:.82,merchantTonnageFactor:1.08,merchantSpeedBonus:.35,primaryMerchantCountFactor:.92,surfaceOpportunity:.62,hfdfRisk:.45})})
+  ]),
   areaProgression:Object.freeze({})
 });
 
@@ -414,23 +425,48 @@ const GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE=Object.freeze({
   escortTemplates:Object.freeze([
     Object.freeze({id:'AE-01',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
     Object.freeze({id:'AE-02',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
-    Object.freeze({id:'AE-03',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true})
+    Object.freeze({id:'AE-03',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
+    Object.freeze({id:'AE-04',name:'Town-class Destroyer',type:'DESTROYER',vesselProfileId:'uk-town-destroyer-1941',side:'ENEMY',displayType:'TOWN-CLASS DESTROYER',lengthYards:314,visualProfile:.72,acousticBase:.68,tonsFactor:1200,hasSonar:true})
   ]),
   formationOffsets:Object.freeze([
     Object.freeze({fwd:0,side:0}),
-    Object.freeze({fwd:-1.0,side:-.72}),Object.freeze({fwd:-1.0,side:.72}),
-    Object.freeze({fwd:-2.0,side:-1.44}),Object.freeze({fwd:-2.0,side:0}),Object.freeze({fwd:-2.0,side:1.44}),
-    Object.freeze({fwd:-3.0,side:-1.08}),Object.freeze({fwd:-3.0,side:0}),Object.freeze({fwd:-3.0,side:1.08})
-  ])
+    Object.freeze({fwd:0,side:-.92}),Object.freeze({fwd:0,side:.92}),
+    Object.freeze({fwd:-1.05,side:-.92}),Object.freeze({fwd:-1.05,side:0}),Object.freeze({fwd:-1.05,side:.92}),
+    Object.freeze({fwd:-2.10,side:-.92}),Object.freeze({fwd:-2.10,side:0}),Object.freeze({fwd:-2.10,side:.92})
+  ]),
+  /* Atlantic convoy character is authored here, not hidden in shared motion.
+     Jitter is materialized once per patrol so saves remain stable and the hot
+     loop only reads ordinary numeric state.  One slow aft merchant may become
+     a natural straggler; damage can still create additional stragglers through
+     the existing shared ship-damage thresholds. */
+  worldDynamics:Object.freeze({
+    stationJitterFwdNm:.10,stationJitterSideNm:.075,
+    stationKeepingMin:.72,stationKeepingSpread:.24,
+    headingWanderDeg:2.4,headingWanderPeriodSec:150,
+    naturalStraggler:Object.freeze({eligibleIndices:Object.freeze([6,7,8]),chance:.72,initialLagNm:.52,speedBiasKn:-.38}),
+    escortGuardNaturalStragglers:true
+  })
 });
 
-/* The distant-ocean director requires an authored profile even when this first
-   Atlantic slice deliberately has no extra ambient groups. Keeping density at
-   zero proves fail-closed theater ownership without inventing background
-   shipping before its gameplay purpose is designed. */
+/* Atlantic independents and minor groups remain cheap abstract route records
+   until they enter the tactical bubble. */
 const GERMAN_ATLANTIC_1941_AMBIENT_TRAFFIC_PROFILE=Object.freeze({
-  id:'german-atlantic-1941-ambient-traffic-v1',
-  defaultDensity:0,minDensity:0,maxDensity:0,baseKinds:Object.freeze([]),kinds:Object.freeze({})
+  id:'german-atlantic-ambient-traffic-v2',defaultDensity:5,minDensity:3,maxDensity:7,
+  densityByArea:Object.freeze({'North Atlantic Convoy Lanes':5,'Western Approaches':7,'Greenland–Iceland Gap':4}),
+  baseKinds:Object.freeze(['LONE_FREIGHTER','INDEPENDENT_TANKER','SLOW_STRAGGLER','SMALL_CONVOY','LONE_FREIGHTER']),
+  kinds:Object.freeze({
+    LONE_FREIGHTER:Object.freeze({label:'independent freighter',side:'ENEMY',speedBase:8,laneBase:1.6,historicalMerchantSpeed:true,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Independent Freighter',type:'MERCHANT',vesselProfileId:'uk-tramp-1941',displayType:'TRAMP STEAMER',length:Object.freeze({base:330,spread:105,hash:'len'}),tons:Object.freeze({base:2700,spread:2600,hash:'tons'})})})}),
+    INDEPENDENT_TANKER:Object.freeze({label:'independent tanker',side:'ENEMY',speedBase:8.2,laneBase:-2.0,historicalMerchantSpeed:true,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Independent Tanker',type:'TANKER',vesselProfileId:'uk-tanker-1941',displayType:'ATLANTIC TANKER',length:Object.freeze({base:405,spread:95,hash:'len'}),tons:Object.freeze({base:5200,spread:2700,hash:'tons'})})})}),
+    SLOW_STRAGGLER:Object.freeze({label:'unescorted slow freighter',side:'ENEMY',speedBase:6.4,laneBase:2.8,historicalMerchantSpeed:true,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Slow Straggler',type:'MERCHANT',vesselProfileId:'uk-coaster-1941',displayType:'SMALL FREIGHTER',length:Object.freeze({base:245,spread:95,hash:'len'}),tons:Object.freeze({base:1500,spread:1900,hash:'tons'})})})}),
+    SMALL_CONVOY:Object.freeze({label:'small dispersed convoy',side:'ENEMY',speedBase:7.6,laneBase:-1.1,historicalMerchantSpeed:true,manifest:Object.freeze({
+      style:'SMALL_CONVOY',countBase:2,countExtraHash:'count',countExtraAbove:.50,
+      merchant:Object.freeze({namePrefix:'Convoy Freighter ',type:'MERCHANT',vesselProfileId:'uk-cargo-liner-1941',displayType:'CARGO SHIP',length:Object.freeze({base:320,spread:120}),tons:Object.freeze({base:2600,spread:3200})}),
+      tanker:Object.freeze({name:'Convoy Tanker',type:'TANKER',vesselProfileId:'uk-tanker-1941',displayType:'TANKER',length:455,tons:6100,speedBias:-.2}),tankerIndex:1,tankerHash:'tanker',tankerAbove:.56,
+      guardHash:'guard',guardAbove:.62,guardTypeHash:'guardType',guardTypeAbove:.46,
+      guardHigh:Object.freeze({name:'Flower-class Escort',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',displayType:'FLOWER-CLASS CORVETTE',length:205,tons:925,speedBias:2.8,hasSonar:true}),
+      guardLow:Object.freeze({name:'Flower-class Escort',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',displayType:'FLOWER-CLASS CORVETTE',length:205,tons:925,speedBias:2.8,hasSonar:true})
+    })})
+  })
 });
 
 /* Ambient/distant-world traffic is authored by the active campaign. The
@@ -571,11 +607,25 @@ const GERMAN_ATLANTIC_1941_MISSION_PROFILE=Object.freeze({
   defaultMissionType:'SHADOW_REPORT',
   autoDescription:'B.d.U. orders: find the convoy, develop course and speed, keep contact without drawing the escort screen, then transmit a contact report.',
   definitions:Object.freeze({
+    CONVOY_INTERDICTION:Object.freeze({title:'CONVOY ATTACK',reward:2100,
+      briefing:'B.d.U. has assigned a reported Allied convoy. Develop the intercept, break into the formation, neutralize a meaningful share of shipping and survive the escort response.'}),
     SHADOW_REPORT:Object.freeze({title:'CONTACT KEEPER',reward:1800,
-      briefing:'B.d.U. reports an Allied convoy crossing the North Atlantic. Find it, develop a reliable movement picture, shadow without provoking the escorts and transmit a contact report so other U-boats can be directed toward the convoy.'})
+      briefing:'B.d.U. reports an Allied convoy crossing the North Atlantic. Find it, develop a reliable movement picture, shadow without provoking the escorts and transmit a contact report so other U-boats can be directed toward the convoy.'}),
+    WEATHER_AMBUSH:Object.freeze({title:'FRONT-LINE AMBUSH',reward:1900,
+      briefing:'A weather front is crossing the reported convoy route. Use darkness, rain or a squall to close unseen and score a torpedo hit under genuine visual cover.'})
   }),
-  missionPoolsByArea:Object.freeze({'North Atlantic Convoy Lanes':Object.freeze(['SHADOW_REPORT'])}),
-  defaultMissionPool:Object.freeze(['SHADOW_REPORT']),
+  missionPoolsByArea:Object.freeze({
+    'North Atlantic Convoy Lanes':Object.freeze(['SHADOW_REPORT','SHADOW_REPORT','CONVOY_INTERDICTION','WEATHER_AMBUSH']),
+    'Western Approaches':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','SHADOW_REPORT']),
+    'Greenland–Iceland Gap':Object.freeze(['SHADOW_REPORT','WEATHER_AMBUSH','CONVOY_INTERDICTION'])
+  }),
+  missionPoolsByEra:Object.freeze({
+    'ATLANTIC 1941':Object.freeze(['SHADOW_REPORT','SHADOW_REPORT','CONVOY_INTERDICTION','WEATHER_AMBUSH']),
+    'ATLANTIC 1942':Object.freeze(['SHADOW_REPORT','CONVOY_INTERDICTION','WEATHER_AMBUSH']),
+    'ATLANTIC 1943':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','SHADOW_REPORT']),
+    'ATLANTIC 1944':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','CONVOY_INTERDICTION'])
+  }),
+  defaultMissionPool:Object.freeze(['SHADOW_REPORT','CONVOY_INTERDICTION','WEATHER_AMBUSH']),
   content:Object.freeze({
     shadowReport:Object.freeze({
       mode:'CONTACT_KEEPER',
@@ -617,7 +667,16 @@ const GERMAN_ATLANTIC_1941_MISSION_PROFILE=Object.freeze({
       evasionLog:'Firm escort contact broken after the convoy attack.',
       withdrawalNotice:'ATTACK COMPLETE — clear of the convoy screen. Return to base when ready.',
       withdrawalLog:'Boat withdrew clear of the convoy screen after the attack.',
-      supportMinBoats:1,supportMaxBoats:3,supportEtaMin:35,supportEtaSpreadMin:55
+      supportMinBoats:1,supportMaxBoats:3,supportEtaMin:35,supportEtaSpreadMin:55,
+      /* Abstract support boats can create one or two observable attack events.
+         They never become tactical submarine contacts and never write a datum
+         about the player.  The mission layer only materializes their effects
+         while the convoy is in the player's tactical bubble. */
+      supportAttack:Object.freeze({firstDelaySec:360,delaySpreadSec:420,repeatDelaySec:540,
+        maxEvents:2,escortDiversionSec:300,damageMin:.18,damageSpread:.18,
+        observedNotice:'DISTANT TORPEDO HIT — another U-boat has struck the convoy. Escort screen is splitting.'}),
+      radioExposure:Object.freeze({reason:'RADIO_BEARING',confidence:.28,
+        warning:'RADIO ROOM — prolonged transmission. Enemy D/F stations may have obtained a rough bearing.'})
     })
   })
 });
@@ -732,18 +791,37 @@ const US_PACIFIC_DOCTRINE_PROFILE=Object.freeze({
 const GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE=Object.freeze({
   id:'german-atlantic-1941-doctrine-v1',
   asw:Object.freeze({
-    areaRisk:Object.freeze({'North Atlantic Convoy Lanes':0}),
+    areaRisk:Object.freeze({'North Atlantic Convoy Lanes':0,'Western Approaches':1,'Greenland–Iceland Gap':1}),
     escortCount:Object.freeze({
       merchantBands:Object.freeze([
         Object.freeze({max:5,count:2}),Object.freeze({max:7,count:2}),Object.freeze({count:3})
       ]),
-      yearModifiers:Object.freeze([]),difficultyModifiers:Object.freeze({EASY:-1,HARD:0}),min:1,max:3
+      yearModifiers:Object.freeze([Object.freeze({from:1943,add:1})]),difficultyModifiers:Object.freeze({EASY:-1,HARD:0}),min:1,max:4
     }),
     screenRoles:Object.freeze({
       1:Object.freeze(['FORWARD_SCREEN']),
       2:Object.freeze(['FORWARD_SCREEN','REAR_GUARD']),
-      3:Object.freeze(['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK'])
+      3:Object.freeze(['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK']),
+      4:Object.freeze(['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK','REAR_GUARD'])
     })
+  }),
+  air:Object.freeze({
+    hostile:Object.freeze({
+      checkSec:90,baseChance:.018,alertedFactor:1.65,surfacedFactor:1.55,dayBase:.24,dayFactor:.92,
+      nearLandRadiusNm:18,nearLandFactor:1.15,openWaterFactor:1,maxConcurrent:2,
+      spawnRangeMinNm:13,spawnRangeSpreadNm:7,headingJitterDeg:42,speedMinKn:115,speedSpreadKn:65,
+      bombMin:3,bombExtraExclusive:3,
+      friendlyPort:Object.freeze({unawareBlockNm:5,unawareInnerNm:9,unawareInnerFactor:.25,unawareOuterNm:15,unawareOuterFactor:.62,alertedInnerNm:5,alertedInnerFactor:.45}),
+      coverage:Object.freeze({gapCenterXNm:0,gapHalfWidthNm:48,edgeBlendNm:28,gapFactorByYear:Object.freeze({'1941':.10,'1942':.18,'1943':.52,'1944':.78})}),
+      roster:Object.freeze([
+        Object.freeze({throughYear:1942,before:.58,name:'Short Sunderland',kind:'FLYING_BOAT',ordnance:'DEPTH_CHARGE'}),
+        Object.freeze({fromYear:1942,before:.72,name:'Consolidated Catalina',kind:'FLYING_BOAT',ordnance:'DEPTH_CHARGE'}),
+        Object.freeze({fromYear:1943,name:'Very Long Range Liberator',kind:'BOMBER',ordnance:'DEPTH_CHARGE'})
+      ])
+    }),
+    // No friendly tactical air umbrella for a mid-ocean U-boat. The shared
+    // aircraft engine requires an explicit authored friendly boundary.
+    friendly:Object.freeze({initialCheckBaseSec:360,initialCheckSpreadSec:120,repeatCheckBaseSec:600,repeatCheckSpreadSec:180,blockedAreas:Object.freeze(['North Atlantic Convoy Lanes']),minDaylight:1,spawnChance:0,spawnRangeMinNm:8,spawnRangeSpreadNm:1,headingOffsetDeg:135,headingJitterDeg:0,legBaseSec:60,legSpreadSec:1,reportPrefix:'LUFTWAFFE',reportActor:'German aircraft',roster:Object.freeze([])})
   })
 });
 
@@ -828,14 +906,14 @@ const CAMPAIGN_PROFILES=Object.freeze({
   }),
   'german-atlantic-1941':Object.freeze({
     id:'german-atlantic-1941',
-    displayName:'German North Atlantic — 1941',
+    displayName:'German North Atlantic — 1941–44',
     theaterId:'atlantic',
     playerFactionId:'germany',
     opposingFactionIds:Object.freeze(['britain']),
     submarineProfileId:'type-viic-1941',
     commandName:'B.d.U.',
     defaultArea:'North Atlantic Convoy Lanes',
-    patrolAreaIds:Object.freeze(['North Atlantic Convoy Lanes']),
+    patrolAreaIds:Object.freeze(['North Atlantic Convoy Lanes','Western Approaches','Greenland–Iceland Gap']),
     defaultStartDate:'1941-09-01',
     historicalModel:GERMAN_ATLANTIC_1941_HISTORICAL_MODEL,
     primaryConvoyProfile:GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE,
@@ -843,7 +921,7 @@ const CAMPAIGN_PROFILES=Object.freeze({
     missionProfile:GERMAN_ATLANTIC_1941_MISSION_PROFILE,
     doctrineProfile:GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE,
     radioIntelProfile:GERMAN_ATLANTIC_1941_RADIO_INTEL_PROFILE,
-    devSelectable:true,developmentStage:'ATLANTIC_VESSEL_VISUALS'
+    devSelectable:true,developmentStage:'ATLANTIC_CAMPAIGN_COMPLETE'
   })
 });
 

@@ -39,6 +39,12 @@ const TORPEDO_SPECS = {
     warheadKg:280, reliability:0.86, acousticPenalty:0.07,
     dudChanceBase:0.14, visibleWake:true,
     note:'Steam torpedo, fast setting. Visible track.'
+  },
+  'g7e-t3': {
+    shortName:'T3', name:'G7e T3 Electric', speedKnots:30, maxRangeNm:2.70,
+    warheadKg:280, reliability:0.91, acousticPenalty:0.01,
+    dudChanceBase:0.09, isElectric:true, visibleWake:false,
+    note:'Improved electric torpedo available from 1942.'
   }
 };
 

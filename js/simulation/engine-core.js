@@ -1223,20 +1223,34 @@ class SimEngineCore{
     const merchantTemplates=convoyProfile.merchantTemplates||[];
     const escortTemplates=convoyProfile.escortTemplates||[];
     const formationOffsets=convoyProfile.formationOffsets||[];
+    const worldDynamics=convoyProfile.worldDynamics||null;
+    const natural=worldDynamics?.naturalStraggler||null;
+    const eligibleNatural=new Set(natural?.eligibleIndices||[]);
+    const naturalIndex=natural&&Math.random()<Number(natural.chance??0)
+      ?[...eligibleNatural][Math.floor(Math.random()*eligibleNatural.size)]:null;
 
     const numMerchants=Math.min(count,merchantTemplates.length);
     for(let i=0;i<numMerchants;i++){
       const off=formationOffsets[i]||{fwd:-i*1.2,side:(i%2===0?-1:1)*(i*0.5)};
       const t=merchantTemplates[i];
       const merchantScale=hp?.merchantTonnageFactor||1;
+      const stationFwd=(Math.random()-.5)*2*Number(worldDynamics?.stationJitterFwdNm||0);
+      const stationSide=(Math.random()-.5)*2*Number(worldDynamics?.stationJitterSideNm||0);
+      const stationKeeping=worldDynamics?Number(worldDynamics.stationKeepingMin||.75)+Math.random()*Number(worldDynamics.stationKeepingSpread||.2):1;
+      const naturalStraggler=i===naturalIndex;
+      const lag=naturalStraggler?Number(natural.initialLagNm||0):0;
       contacts.push({...t,tonsFactor:Math.round((t.tonsFactor||0)*merchantScale),lengthYards:Math.round((t.lengthYards||0)*(1+(merchantScale-1)*.28)),
         position:{
-          xNm:spawn.xNm+Math.sin(crsRad)*off.fwd+Math.cos(crsRad)*off.side,
-          yNm:spawn.yNm-Math.cos(crsRad)*off.fwd+Math.sin(crsRad)*off.side
+          xNm:spawn.xNm+Math.sin(crsRad)*(off.fwd+stationFwd-lag)+Math.cos(crsRad)*(off.side+stationSide),
+          yNm:spawn.yNm-Math.cos(crsRad)*(off.fwd+stationFwd-lag)+Math.sin(crsRad)*(off.side+stationSide)
         },
         heading:crs+(Math.random()-0.5)*8,
-        speedKnots:spd+(Math.random()-0.5)*0.5, baseSpeed:spd,
-        convoyRole:'MERCHANT', convoyId:'MAIN', formationIndex:i, formationFwd:off.fwd, formationSide:off.side
+        speedKnots:spd+(Math.random()-0.5)*0.5+(naturalStraggler?Number(natural.speedBiasKn||0):0), baseSpeed:spd,
+        convoyRole:'MERCHANT', convoyId:'MAIN', formationIndex:i,
+        formationFwd:off.fwd+stationFwd, formationSide:off.side+stationSide,
+        convoyStationKeeping:clamp(stationKeeping,.55,1),convoyHeadingPhase:Math.random()*Math.PI*2,
+        convoyNaturalStraggler:naturalStraggler,convoyNaturalSpeedBias:naturalStraggler?Number(natural.speedBiasKn||0):0,
+        convoyGuardEligible:naturalStraggler&&worldDynamics?.escortGuardNaturalStragglers!==false
       });
     }
 

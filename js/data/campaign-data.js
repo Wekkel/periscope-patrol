@@ -81,8 +81,18 @@ const PATROL_AREAS={
      slice needs a real coastal/port use case. Coordinates are tactical-space,
      not a claim to be a geographic chart. */
   'North Atlantic Convoy Lanes':{
-    description:'Open-ocean North Atlantic convoy hunting area for the 1941 vertical-slice foundation.',terrainKey:null,
+    description:'Mid-ocean convoy hunting across the broad North Atlantic air gap.',terrainKey:null,
     convoyRoutes:[{from:{xNm:-130,yNm:15},to:{xNm:130,yNm:15},label:'NORTH ATLANTIC CONVOY LANE'}],start:{xNm:0,yNm:85},
     ports:[{name:'B.d.U. return rendezvous',pos:{xNm:0,yNm:125},side:'FRIENDLY'}],
-    environment:{daylight:.48,visibilityNm:10,seaState:.58,layerDepthFt:210,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC'},convoySpeedRange:[7,9],convoyCountRange:[5,9],difficulty:'MEDIUM'}
+    environment:{daylight:.48,visibilityNm:10,seaState:.58,layerDepthFt:210,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC',airThreat:.42},convoySpeedRange:[7,9],convoyCountRange:[5,9],difficulty:'MEDIUM'},
+  'Western Approaches':{
+    description:'Heavily patrolled eastern convoy approaches with better air coverage and frequent foul weather.',terrainKey:null,
+    convoyRoutes:[{from:{xNm:-132,yNm:34},to:{xNm:128,yNm:-28},label:'WESTERN APPROACHES CONVOY ROUTE'}],start:{xNm:-18,yNm:92},
+    ports:[{name:'B.d.U. return rendezvous',pos:{xNm:0,yNm:125},side:'FRIENDLY'}],
+    environment:{daylight:.42,visibilityNm:8,seaState:.62,layerDepthFt:185,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC',airThreat:.88},convoySpeedRange:[7,10],convoyCountRange:[6,9],difficulty:'HARD'},
+  'Greenland–Iceland Gap':{
+    description:'Cold northern convoy route: long swell, low horizons and a tighter escort screen.',terrainKey:null,
+    convoyRoutes:[{from:{xNm:-118,yNm:-72},to:{xNm:116,yNm:76},label:'GREENLAND–ICELAND CONVOY ROUTE'}],start:{xNm:-34,yNm:108},
+    ports:[{name:'B.d.U. return rendezvous',pos:{xNm:0,yNm:126},side:'FRIENDLY'}],
+    environment:{daylight:.36,visibilityNm:7,seaState:.70,layerDepthFt:240,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC',airThreat:.58},convoySpeedRange:[7,9],convoyCountRange:[5,8],difficulty:'HARD'}
 };

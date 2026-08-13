@@ -84,7 +84,7 @@ function shipDamageTurnFactor(c){
 function shipIsStraggler(c){
   if(!c||c.sunk||c.harborTarget||isSurfaceCombatant(c)||c.convoyId!=='MAIN')return false;
   const D=ensureShipDamage(c),base=Math.max(1,c.baseSpeed||c.speedKnots||8);
-  return D.abandoned||D.propulsion>.55||D.flotation>.68||D.fire>.72||(c.speedKnots||0)<base*.58;
+  return !!c.convoyNaturalStraggler||D.abandoned||D.propulsion>.55||D.flotation>.68||D.fire>.72||(c.speedKnots||0)<base*.58;
 }
 function shipTorpedoHitLocation(hitFrac){
   if(hitFrac>.24)return 'BOW';

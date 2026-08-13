@@ -59,7 +59,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
 
   escortDirectlyNotices(reason,esc,pos,conf){
     const rng=distNm(esc.position,pos);
-    if(['ACTIVE_ECHO','ACTIVE_QC','NOISE','EMERGENCY_BLOW','COLLISION','AIR_ATTACK'].includes(reason))return rng<=18;
+    if(['ACTIVE_ECHO','ACTIVE_QC','NOISE','EMERGENCY_BLOW','COLLISION','AIR_ATTACK','RADIO_BEARING'].includes(reason))return rng<=18;
     const s=this.state,W=s.world,wx=weatherBetween(s,esc.position,pos),day=clamp(W.environment.daylight??1,0,1),visual=Math.max(.8,(wx.visibilityNm||.5)*(.35+day*.30));
     const limit=reason==='SHIP_HIT'?Math.min(7,visual*1.25+1)
       :reason==='DECK_GUN'?Math.min(7.5,visual*1.1)
@@ -110,7 +110,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     }
     for(const esc of localEscorts)this.markEscortAlerted(esc);
     const wasUnaware=e.alertState==='UNAWARE',newState=conf>.75?'ATTACKING':'SEARCHING';if(!(e.alertState==='ATTACKING'&&newState==='SEARCHING'))e.alertState=newState;
-    const timers={TORPEDO_LAUNCH:360,TORPEDO_SIGHTED:300,SHIP_HIT:600,EMERGENCY_BLOW:260,TORPEDO_DUD:210,COLLISION:320,DECK_GUN:340,AIR_ATTACK:240,NOISE:180,ACTIVE_ECHO:280,ACTIVE_QC:280};
+    const timers={TORPEDO_LAUNCH:360,TORPEDO_SIGHTED:300,SHIP_HIT:600,EMERGENCY_BLOW:260,TORPEDO_DUD:210,COLLISION:320,DECK_GUN:340,AIR_ATTACK:240,NOISE:180,ACTIVE_ECHO:280,ACTIVE_QC:280,RADIO_BEARING:240};
     e.alertTimerSec=Math.max(e.alertTimerSec,timers[reason]||200);
     const q=this.noteASWCue?this.noteASWCue(pos,conf,reason):{xNm:pos.xNm,yNm:pos.yNm};
     this.armASWProsecution?.(reason,wasUnaware);

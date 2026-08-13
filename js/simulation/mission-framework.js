@@ -116,6 +116,35 @@ function _missionContactKeeperReaction(state,m){
   if((W.enemy?.alertedEscortIds||[]).length)return true;
   return (W.contacts||[]).some(x=>x?.convoyId==='MAIN'&&!x.sunk&&((Number(x.surfaceAlarmAt)||0)>=after||(Number(x.alertedAt)||0)>=after||x.scattering&&now-after<900));
 }
+function _missionCoopTarget(engine,coop){
+  const ships=(engine.state.world.contacts||[]).filter(x=>x?.convoyId==='MAIN'&&!x.sunk&&!isSurfaceCombatant(x));
+  if(!ships.length)return null;
+  const n=Math.max(0,Number(coop.eventsResolved)||0),h=_missionHash(engine.state.campaign?.scenarioSeed,`coop-target:${n}`);
+  return ships[Math.min(ships.length-1,Math.floor(h*ships.length))];
+}
+function _missionApplyCoopAttack(engine,coop,content){
+  const s=engine.state,W=s.world,now=s.time.elapsedSeconds||0,target=_missionCoopTarget(engine,coop);if(!target)return false;
+  const cfg=content.supportAttack||{},n=Math.max(0,Number(coop.eventsResolved)||0),h=_missionHash(s.campaign?.scenarioSeed,`coop-damage:${n}`);
+  const D=ensureShipDamage(target),damage=Number(cfg.damageMin||.16)+h*Number(cfg.damageSpread||.18);
+  // A cheap external hit creates a real casualty/straggler but is deliberately
+  // capped below foundering. It is world pressure, not free player tonnage.
+  D.flotation=Math.max(D.flotation,clamp(damage*.78,0,.62));
+  D.propulsion=Math.max(D.propulsion,clamp(damage*2.2,0,.76));
+  D.fire=Math.max(D.fire,clamp(damage*.95,0,.54));
+  D.lastHitAt=now;D.lastHitLocation='ENGINE ROOM';D.lastWeapon='OTHER_U_BOAT';
+  D.lastWeaponId=`COOP-${n+1}`;D.lastAttackerSide='GERMANY';D.lastAttackerId=`ABSTRACT_U_BOAT_${n+1}`;
+  target.convoyNaturalStraggler=true;target.convoyGuardEligible=true;target.externalAttackAt=now;
+  engine.startMerchantEvasion?.(target,target.position,'SHIP_HIT',true);
+  const explosions=s.weapons.explosions=s.weapons.explosions||[];explosions.push({position:{...target.position},ageSec:0,maxAgeSec:12,label:'DISTANT TORPEDO HIT',big:true,targetLengthFeet:Number(target.lengthYards)||300,external:true});
+  const escorts=(W.contacts||[]).filter(x=>isASWCombatant(x)&&!x.sunk),nearest=escorts.slice().sort((a,b)=>distNm(a.position,target.position)-distNm(b.position,target.position))[0];
+  if(nearest){nearest.remoteAlarmPosition={...target.position};nearest.remoteAlarmUntil=now+Number(cfg.escortDiversionSec||300);nearest.remoteAlarmPhase=n;}
+  const tr=W.contactTracks?.[target.id],observed=!!(tr&&tr.confidence>.04&&(tr.staleSeconds||0)<240)||distNm(s.playerSub.position,target.position)<8;
+  coop.eventsResolved=n+1;coop.lastEventAt=now;coop.lastTargetId=target.id;coop.status='ATTACKING_CONVOY';
+  coop.events=Array.isArray(coop.events)?coop.events:[];coop.events.push({t:now,targetId:target.id,observed,escortId:nearest?.id||null});
+  if(observed){engine.notify(cfg.observedNotice||'DISTANT TORPEDO HIT — another U-boat has attacked the convoy.','warn');engine.captainLog?.('WOLFPACK_ATTACK',`Another U-boat struck ${target.name}; part of the escort screen detached.`,{targetId:target.id,escortId:nearest?.id||null},`coop-attack:${n+1}`);engine._missionStopTransit?.('another U-boat attacked the convoy');}
+  else engine.log('B.d.U. group traffic reports another boat attacking the convoy.');
+  return true;
+}
 function _missionSafePoint(engine,origin,bearingDeg,distanceNm,minDepthFt=24){
   const A=engine.areaBounds?.(),base=origin||engine.state.playerSub.position;
   for(let ring=0;ring<5;ring++)for(let side=0;side<12;side++){
@@ -261,7 +290,10 @@ function missionProgressText(state){
     chooseMissionType(requested='AUTO'){
       const c=this.state.campaign,profile=_missionProfile(this.state);if(!profile)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no mission profile`);
       if(MISSION_PRIMARY_TYPES.includes(requested)&&profile.definitions?.[requested])return requested;
-      const area=c.patrolArea,seed=c.scenarioSeed||1,pool=(profile.missionPoolsByArea?.[area]||profile.defaultMissionPool||[]).filter(type=>MISSION_PRIMARY_TYPES.includes(type)&&profile.definitions?.[type]);
+      const area=c.patrolArea,seed=c.scenarioSeed||1,era=c.historicalProfile?.era;
+      const areaPool=profile.missionPoolsByArea?.[area]||profile.defaultMissionPool||[],eraPool=profile.missionPoolsByEra?.[era]||null;
+      const authored=eraPool?areaPool.filter(x=>eraPool.includes(x)):areaPool;
+      const pool=(authored.length?authored:areaPool).filter(type=>MISSION_PRIMARY_TYPES.includes(type)&&profile.definitions?.[type]);
       if(!pool.length)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no missions for ${area||'UNKNOWN AREA'}`);
       return pool[Math.floor(_missionHash(seed,`${area}:${c.patrolNumber}:mission`)*pool.length)%pool.length];
     },
@@ -318,6 +350,15 @@ function missionProgressText(state){
 
     updateMissionFramework(dt){
       const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;
+      const coop=W.cooperativeSubmarines,shadowContent=m.type==='SHADOW_REPORT'?_missionContent(s,'shadowReport'):null,coopCfg=shadowContent?.supportAttack;
+      if(coop&&coopCfg&&_missionObj(c,'release')?.done){
+        if(!Number.isFinite(coop.eventsResolved))coop.eventsResolved=0;
+        if(!Number.isFinite(coop.nextAttackAt))coop.nextAttackAt=now+Number(coopCfg.firstDelaySec||360)+_missionHash(c.scenarioSeed,'coop-first')*Number(coopCfg.delaySpreadSec||420);
+        const max=Math.min(Number(coopCfg.maxEvents||1),Math.max(1,Number(coop.count)||1));
+        if(coop.eventsResolved<max&&now>=coop.nextAttackAt&&_missionApplyCoopAttack(this,coop,shadowContent)){
+          coop.nextAttackAt=now+Number(coopCfg.repeatDelaySec||540)+_missionHash(c.scenarioSeed,`coop-next:${coop.eventsResolved}`)*180;
+        }
+      }
       if(m.type==='HIGH_VALUE_INTERCEPT'||m.type==='ESCORT_HUNT')_missionRefreshIntel(this,m,false);
       if(m.type==='LIFEGUARD'){
         if(Number.isFinite(m.strikeAt)&&now>=m.strikeAt&&!m.survivorSpawned)this._spawnLifeguardSurvivor(m);const raft=m.survivorSpawned&&W.contacts.find(x=>x.id===m.survivorId),tr=raft&&W.contactTracks[m.survivorId];if(raft&&tr&&!m.survivorSeen&&((tr.positionSource||tr.source)==='VISUAL'||isSurfaceRadarFixSource(tr.positionSource||tr.source)||isSurfaceRadarFixSource(tr.lastSensorSource))){m.survivorSeen=true;m.survivorPos={...(tr.plotPosition||raft.position)};_missionSetDone(c,'locate');this.notify(_missionContent(s,'lifeguard')?.locatedNotice||'LIFE RAFT LOCATED. Close surfaced and slow for recovery.','ok');}if(raft&&m.survivorSeen){const close=distNm(sub.position,raft.position)<=.08&&sub.depthFeet<8&&sub.propulsion.speedKnots<=2.5;m.rescueHold=close?m.rescueHold+dt:Math.max(0,m.rescueHold-dt*.5);if(m.rescueHold>=15&&!m.recovered){m.recovered=true;_missionSetDone(c,'recover');W.contacts=W.contacts.filter(x=>x.id!==m.survivorId);delete W.contactTracks[m.survivorId];this.captainLog?.('AIRMAN_RECOVERED','Downed airman recovered.',{},'airman-recovered');this._missionFinish(true);}}
@@ -338,7 +379,7 @@ function missionProgressText(state){
           const developed=known&&(best.confidence||0)>=(m.developConfidence||.42)&&Number.isFinite(best.courseEstimate)&&Number.isFinite(best.speedEstimateKnots);
           if(!_missionObj(c,'develop')?.done){if(developed&&safe&&inBand)m.developSeconds+=dt;else m.developSeconds=Math.max(0,m.developSeconds-dt*.35);if(m.developSeconds>=m.developRequired){_missionSetDone(c,'develop');this.captainLog?.('CONVOY_CONTACT_DEVELOPED','Convoy course and speed developed for contact-keeper report.',{},'convoy-contact-developed');this.notify(content.developedNotice,'ok');}}
           if(_missionObj(c,'develop')?.done&&!m.reportReady){if(known&&safe&&inBand)m.shadowSeconds+=dt;else if(W.enemy.alertState==='ATTACKING'){m.detected=true;m.shadowSeconds=Math.max(0,m.shadowSeconds-dt*.22);}if(m.shadowSeconds>=m.shadowRequired){_missionSetDone(c,'shadow');m.reportReady=true;this.notify(content.reportReadyNotice,'warn');this._missionStopTransit('contact report ready');}}
-          if(m.reportReady&&!_missionObj(c,'report')?.done){const canTransmit=sub.depthFeet<=(m.reportMaxDepthFt||12)&&sub.damage.hullIntegrity>5&&safe;if(canTransmit)m.reportTransmitSeconds+=dt;else if(sub.depthFeet>(m.reportMaxDepthFt||12))m.reportTransmitSeconds=Math.max(0,m.reportTransmitSeconds-dt*.5);if(m.reportTransmitSeconds>=m.reportTransmitRequired){_missionSetDone(c,'report');m.reportedAt=now;const lo=content.supportMinBoats||1,hi=Math.max(lo,content.supportMaxBoats||lo),n=lo+Math.min(hi-lo,Math.floor(_missionHash(c.scenarioSeed,`contact-support:${c.patrolNumber}`)*(hi-lo+1))),eta=Math.round((content.supportEtaMin||35)+_missionHash(c.scenarioSeed,`contact-eta:${c.patrolNumber}`)*(content.supportEtaSpreadMin||55));W.cooperativeSubmarines={mode:'ABSTRACT',count:n,status:'CONVERGING',etaMinutes:eta,reportedAt:now,campaignProfileId:c.campaignProfileId};_missionQueuePrioritySignal(s,m,content,now);this.captainLog?.('CONTACT_REPORT_SENT',content.reportLog||'Convoy contact report transmitted.',{supportBoats:n,etaMinutes:eta},'contact-report-sent');this.notify(content.reportSentNotice,'ok');this._missionStopTransit('contact report sent');}}
+          if(m.reportReady&&!_missionObj(c,'report')?.done){const canTransmit=sub.depthFeet<=(m.reportMaxDepthFt||12)&&sub.damage.hullIntegrity>5&&safe;if(canTransmit)m.reportTransmitSeconds+=dt;else if(sub.depthFeet>(m.reportMaxDepthFt||12))m.reportTransmitSeconds=Math.max(0,m.reportTransmitSeconds-dt*.5);if(m.reportTransmitSeconds>=m.reportTransmitRequired){_missionSetDone(c,'report');m.reportedAt=now;const lo=content.supportMinBoats||1,hi=Math.max(lo,content.supportMaxBoats||lo),n=lo+Math.min(hi-lo,Math.floor(_missionHash(c.scenarioSeed,`contact-support:${c.patrolNumber}`)*(hi-lo+1))),eta=Math.round((content.supportEtaMin||35)+_missionHash(c.scenarioSeed,`contact-eta:${c.patrolNumber}`)*(content.supportEtaSpreadMin||55));W.cooperativeSubmarines={mode:'ABSTRACT',count:n,status:'CONVERGING',etaMinutes:eta,reportedAt:now,campaignProfileId:c.campaignProfileId};_missionQueuePrioritySignal(s,m,content,now);const exposure=content.radioExposure,risk=clamp(Number(c.historicalProfile?.hfdfRisk)||0,0,.9);if(exposure&&_missionHash(c.scenarioSeed,`hfdf:${c.patrolNumber}`)<risk){m.radioBearingRisk=true;this.notify(exposure.warning||'ENEMY D/F MAY HAVE OBTAINED A ROUGH BEARING.','warn');this.alertEscorts?.(exposure.reason||'RADIO_BEARING',{...sub.position},Number(exposure.confidence)||.28);}this.captainLog?.('CONTACT_REPORT_SENT',content.reportLog||'Convoy contact report transmitted.',{supportBoats:n,etaMinutes:eta,hfdfRisk:m.radioBearingRisk},'contact-report-sent');this.notify(content.reportSentNotice,'ok');this._missionStopTransit('contact report sent');}}
           if(_missionObj(c,'report')?.done&&!m.attackOrderQueued&&!_missionObj(c,'release')?.done)_missionQueuePrioritySignal(s,m,content,now);
           if(_missionObj(c,'report')?.done&&!_missionObj(c,'release')?.done){const copied=(W.radio?.inbox||[]).find(x=>x?.missionCommand===m.attackOrderCommand);if(copied){_missionSetDone(c,'release');m.attackOrderCopied=true;m.attackReleasedAt=copied.time||now;if(W.cooperativeSubmarines)W.cooperativeSubmarines.status='ATTACK_RELEASED';this.captainLog?.('BDU_ATTACK_ORDER',content.attackOrderLog||'Attack order copied.',{supportBoats:W.cooperativeSubmarines?.count||0},'bdu-attack-order');this.notify(content.attackOrderCopiedNotice||'ATTACK ORDER COPIED','ok');this._missionStopTransit('B.d.U. attack order copied');}}
           if(_missionObj(c,'release')?.done&&!_missionObj(c,'approach')?.done){const q=_missionContactKeeperGeometry(s,m),dark=(W.environment?.daylight??1)<=(m.approachMaxDaylight??.18),surfaced=sub.depthFeet<=(m.approachSurfaceDepthFt||12),positioned=!!q&&q.rangeNm>=(m.approachMinNm||.8)&&q.rangeNm<=(m.approachMaxNm||3.5)&&q.forwardNm>=(m.approachForwardMinNm??.15)&&q.lateralNm<=(m.approachLateralMaxNm||2.6),contact=known,safeApproach=W.enemy.alertState!=='ATTACKING'&&!W.enemy.contactHeld;if(dark&&surfaced&&positioned&&contact&&safeApproach)m.approachSeconds+=dt;else m.approachSeconds=Math.max(0,m.approachSeconds-dt*.4);if(m.approachSeconds>=m.approachRequired){_missionSetDone(c,'approach');m.attackPositionReady=true;m.attackPositionAt=now;if(W.cooperativeSubmarines)W.cooperativeSubmarines.status='ATTACK_IN_PROGRESS';this.captainLog?.('NIGHT_ATTACK_POSITION',content.nightApproachLog||'Night surface attack position gained.',{rangeNm:q?.rangeNm,forwardNm:q?.forwardNm,lateralNm:q?.lateralNm},'night-attack-position');this.notify(content.nightApproachNotice||'NIGHT ATTACK POSITION — attack at discretion.','ok');this._missionStopTransit('night attack position');}}

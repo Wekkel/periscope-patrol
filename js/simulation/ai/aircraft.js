@@ -201,6 +201,12 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       const stirred=W.enemy.alertState!=='UNAWARE'?D.alertedFactor:1;
       const surfaced=sub.depthFeet<10?D.surfacedFactor:1;
       let chance=D.baseChance*air.level*stirred*surfaced*(D.dayBase+day*D.dayFactor)*(nearLand?D.nearLandFactor:D.openWaterFactor);
+      const coverage=D.coverage;
+      if(coverage){
+        const year=String(this.state.campaign?.startDate||this.state.time?.campaignDate||'1941').slice(0,4),gap=Math.max(.01,Number(coverage.gapHalfWidthNm)||48),blend=Math.max(1,Number(coverage.edgeBlendNm)||24),x=Math.abs(sub.position.xNm-Number(coverage.gapCenterXNm||0));
+        const gapFactor=Number(coverage.gapFactorByYear?.[year]??coverage.gapFactor??.2),edge=clamp((x-gap)/blend,0,1);
+        chance*=lerp(gapFactor,1,edge);
+      }
       const localWx=weatherAtPosition(this.state,sub.position),friendly=nearestFriendly(sub.position),P=D.friendlyPort;
       chance*=(1-clamp(localWx.seaState,0,1)*0.35)*localWx.aircraftFactor;
       /* A friendly service port represents a locally controlled anchorage, not
@@ -216,8 +222,10 @@ class SimEngineAircraft extends SimEngineEnemyAI {
       if(Math.random()<chance){
         const bear=Math.random()*360, rng=D.spawnRangeMinNm+Math.random()*D.spawnRangeSpreadNm;
         const r=degToRad(bear),hunt=(W.enemy.alertState!=='UNAWARE'&&W.enemy.lastKnownSubPosition)?W.enemy.lastKnownSubPosition:sub.position;
-        const rosterRoll=Math.random(),template=D.roster.find(x=>x.before===undefined||rosterRoll<x.before)||D.roster[D.roster.length-1];
-        W.aircraft.push({
+        const year=Number(String(this.state.campaign?.startDate||this.state.time?.campaignDate||'1941').slice(0,4))||1941;
+        const roster=(D.roster||[]).filter(x=>(x.fromYear===undefined||year>=x.fromYear)&&(x.throughYear===undefined||year<=x.throughYear));
+        const rosterRoll=Math.random(),template=roster.find(x=>x.before===undefined||rosterRoll<x.before)||roster[roster.length-1];
+        if(template)W.aircraft.push({
           id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,side:'ENEMY',name:template.name,kind:template.kind,ordnance:template.ordnance,
           position:{xNm:hunt.xNm+Math.sin(r)*rng,yNm:hunt.yNm-Math.cos(r)*rng},
           heading:normDeg(bear+180+(Math.random()-0.5)*D.headingJitterDeg),

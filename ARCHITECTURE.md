@@ -452,3 +452,100 @@ it the same explicit in-app picker footprint as PRIMARY MISSION.  Subsequent
 is a DEV UI regression fix only; no campaign, simulation or production behavior is
 changed.
 
+## Atlantic DEV patch 20 — living convoy columns
+
+The first world-building pass deliberately reuses the existing shared convoy,
+damage, tactical-LOD and escort-role systems.  The Atlantic primary-convoy
+profile now authors a readable three-column merchant body plus bounded station
+jitter, individual station-keeping quality and a possible slow after-column
+straggler.  These values are materialized once when the patrol is created, so
+the simulation hot loop performs no random generation and saves reproduce the
+same convoy character.
+
+Healthy ships correct toward imperfect personal stations instead of converging
+on mathematically exact points.  A natural straggler follows the convoy route at
+its own sustainable pace, while damaged merchants continue to become stragglers
+through the existing propulsion/flotation/fire rules.  The existing ASW role
+allocator may leave one escort with a qualifying straggler when enough escorts
+remain; it does not duplicate escort AI or reveal player position.  Pacific
+profiles do not author these dynamics and therefore retain their prior behavior.
+
+## Atlantic DEV patch 21 — abstract wolfpack effects
+
+The CONTACT KEEPER support record can now produce a bounded one-or-two-event
+attack sequence after B.d.U. release.  Supporting boats remain abstract: no
+submarine contact, physics body, sensor loop or tactical AI is spawned.  When
+the primary convoy is inside the tactical bubble, an event can damage (but not
+sink or credit) one merchant, turn it into a real straggler, create a visible
+blast and divert the nearest available escort to a local remote-alarm search.
+
+That detached escort steers only from the other boat's attack position.  It
+does not write or consume player `enemy.solution`, does not join
+`alertedEscortIds`, and therefore gains no telepathic knowledge of ownship.  A
+later direct observation or convoy relay about the player's attack takes
+priority normally.  If the player did not have a useful plot or proximity to
+the event, only generic B.d.U. group traffic is logged rather than revealing an
+exact target position.
+
+## Atlantic DEV patch 22 — air gap and radio bearings
+
+The historical model now continues through 1944 instead of freezing every
+career patrol in the September-1941 force balance.  Aircraft, escort skill,
+surface opportunity, merchant density and HF/DF risk change in authored date
+bands; the improved straight-running G7e T3 becomes available in 1942.  The
+existing career calendar and refit message path expose these changes without an
+XP tree.
+
+Coastal Command patrols use the shared aircraft AI with an Atlantic roster.
+Their spawn chance is multiplied by a cheap position/date coverage profile: a
+broad central air gap is very quiet in 1941, then progressively closes through
+1943–44.  This is pressure, not omniscience; actual detection still uses local
+daylight, weather, sea state, surface trace and aircraft geometry.
+
+The campaign's required contact transmission now carries a date-dependent
+HF/DF risk.  When triggered, escorts within plausible relay range receive only
+a deliberately broad `RADIO_BEARING` cue.  The cue error is much larger than a
+weapon/visual datum and no escort outside the local communication boundary is
+magically alerted.  Pacific missions never author this exposure.
+
+## Atlantic DEV patch 23 — campaign breadth
+
+The Atlantic career now exposes three terrain-less open-ocean patrol areas:
+the mid-ocean convoy lanes, the air-threatened Western Approaches and the cold
+Greenland–Iceland route. They deliberately share no invented coastline; route
+geometry, weather, air pressure, start/return points and difficulty create
+different operational problems inside the existing single-area memory budget.
+
+AUTO orders are no longer CONTACT KEEPER every patrol. Campaign-authored area
+and era pools select contact-keeper/wolfpack work, direct convoy attacks or a
+front-line weather ambush. All three reuse proven mission mechanics with
+Atlantic wording. The late-war escort table can add a fourth Town-class
+destroyer to the Flower screen.
+
+Ambient Atlantic traffic is a bounded three-to-seven abstract groups:
+independents, tankers, slow unescorted stragglers and occasional small convoys.
+The traffic director materializes only the nearest groups, preserves their
+Atlantic vessel/model identity and reduces them again outside the tactical
+bubble. This adds horizon uncertainty without a full-ocean entity cost.
+
+## Atlantic DEV patch 24 — shared combat feedback
+
+The shared MAIN-FIRST backlog is forward-ported without changing Atlantic's
+theater-specific sensor names or AI paths. Torpedo miss coaching now follows
+only the intended TDC target; a fresh, noisy active-echo cue can replace an
+older enemy plot without exposing exact ownship position. Active transmission
+uses a red two-step confirmation and a short directional wave in SOUND.
+
+Weapon refusals state the corrective action. The general alarm is an irregular
+mechanical klaxon, depth-charge water entry has separate slap/body/bubble
+layers, and burst loudness uses actual horizontal-plus-depth slant distance
+rather than damage. AAR merchant side profiles place the superstructure aft.
+
+## Atlantic DEV patch 25 — 4 GB tablet guardrails
+
+The Helio G88 / 4 GB device class remains an explicit render target. Existing
+adaptive frame quality, a 1.5 DPR ceiling, a 2.2-megapixel canvas budget, lazy
+terrain, three tactical traffic groups and capped battle-atmosphere lists are
+retained. The general particle system now also has hard 420-particle and
+120-spark ceilings, preventing simultaneous convoy wakes, gunfire and depth
+charges from creating an unbounded transient render list.

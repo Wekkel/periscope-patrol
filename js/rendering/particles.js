@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════ PARTICLE SYSTEM
+// Hard ceilings are a last line of defence for 4 GB Android tablets during a
+// convoy attack with wakes, gunfire and depth charges all active at once.
+const PARTICLE_MAX=420,SPARK_MAX=120;
 class ParticleSystem {
   constructor() { this.particles = []; this.sparks = []; }
+
+  trimBudgets(){
+    if(this.particles.length>PARTICLE_MAX)this.particles.splice(0,this.particles.length-PARTICLE_MAX);
+    if(this.sparks.length>SPARK_MAX)this.sparks.splice(0,this.sparks.length-SPARK_MAX);
+  }
 
   spawnExplosion(xNm, yNm, scale=1, isHit=true) {
     const count = isHit ? 28 : 14;
@@ -30,6 +38,7 @@ class ParticleSystem {
         });
       }
     }
+    this.trimBudgets();
   }
 
   update(dt) {
@@ -102,8 +111,8 @@ class ParticleSystem {
         type: 'wake', ageSec: 0
       });
     }
+    this.trimBudgets();
   }
 }
 
 const particles = new ParticleSystem();
-
