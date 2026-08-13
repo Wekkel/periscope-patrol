@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '1.0'; // pre relese version - Finalize v1.0 simulation integrity, combat feedback, and AAR polish
+const VERSION = '1.0';
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
@@ -97,7 +97,9 @@ const SHELL = [
   './js/simulation/historical-campaign.js',
   './js/simulation/battle-atmosphere.js',
   './js/rendering/battle-atmosphere.js',
-  './js/audio/audio-director.js'
+  './js/audio/audio-director.js'.
+  './js/data/game-catalog.js',
+  './js/data/pacific-terrain-data.js'
 ];
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
