@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '0.9.12'; // pre relese version - Refine homeward air routine, sound controls and torpedo impact feedback
+const VERSION = '1.0'; // pre relese version - Finalize v1.0 simulation integrity, combat feedback, and AAR polish
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
