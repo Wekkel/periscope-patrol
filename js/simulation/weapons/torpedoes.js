@@ -291,7 +291,8 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             W.hits.push({weapon:'TORPEDO',torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds,
               location:dmg.location});
             W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:true,targetLengthFeet:Number(c.lengthYards)||300});
-            particles.spawnExplosion(t.position.xNm,t.position.yNm,1.65,true);audio.playHitCue?.();
+            particles.spawnExplosion(t.position.xNm,t.position.yNm,2.35,true);
+            const automaticImpactView=['PERISCOPE','BRIDGE'].includes(this.state.tactical.activeStation);if(!automaticImpactView)audio.playTorpedoHit?.();
             if(c.harborTarget)this.noteHarborAttack?.(c);
             this.alertEscorts('SHIP_HIT',{...t.position},1);
 
