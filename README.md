@@ -17,7 +17,7 @@ A normal patrol is built around a simple command cycle:
 5. Observe the result, then evade escorts or aircraft if the attack has compromised the boat.
 6. Complete the mission, return to a friendly rendezvous and review the patrol debrief.
 
-The simulation includes navigation, fuel and battery management, torpedoes, deck gun, automatic AA defence, visual observation, hydrophones, radar, weather, sea state, day/night lighting, escort ASW, active sonar, depth charges, aircraft search and attack, harbours, collision/grounding, subsystem damage, flooding, repair, radio/intelligence, traffic generation, historical refits, missions and persistent career history.
+The simulation includes navigation, fuel and battery management, breathable-air quality, torpedoes, deck gun, automatic AA defence, visual observation, hydrophones, radar, weather, sea state, day/night lighting, escort ASW, active sonar, depth charges, aircraft search and attack, harbours, collision/grounding, bottoming on suitable seabeds, subsystem damage, flooding, repair, radio/intelligence, traffic generation, historical refits, missions and persistent career history.
 
 ## Six stations
 
@@ -83,6 +83,14 @@ The sound room is intentionally skipper-level rather than a separate sonar minig
 
 Ownship noise matters. Slowing or stopping the shafts improves passive listening; silent running further reduces the boat's acoustic signature.
 
+Enemy active-sonar transmissions also have restrained non-auditory feedback. On MAP the pulse is shown at the transmitting escort's plotted world position; on other stations a small neutral HUD pulse indicates that an audible ping occurred without giving away a bearing the current station should not know. This keeps the essential cue usable when game/device sound is muted.
+
+## Audio
+
+Audio is procedural WebAudio rather than a library of external samples. The `AudioDirector` sits between simulation events and the sound engine so station changes, time compression and knowledge rules can decide what should actually be heard. The mix is divided into system, command, sensor, world, machinery, weapons, music and ambience roles; routine sounds are suppressed during heavy time compression while important interrupts remain available.
+
+The title cue begins only after the browser has received a valid user gesture, plays once for a true app opening and yields to the mission soundscape when a patrol starts. Torpedo impacts, depth charges, machinery, hydrophone contacts and other combat events are tied to committed simulation events rather than UI button presses. `AUDIO_SOUND_BIBLE.md` records the intended sound identity and implementation rules.
+
 ## Propulsion and battery
 
 Surface/awash propulsion uses the diesels. For playability the induction is treated as available to roughly 12 ft on the way down and returns at roughly 8 ft on the way up. Below that the boat runs on electric motors; there is no snorkel.
@@ -103,6 +111,12 @@ The fixed hotel load is lower during silent running. Propulsion demand rises sha
 On the surface the diesels can recharge the battery, but the screws have priority. Charging is fastest while loafing at low revolutions and becomes very poor at flank speed. A heavily discharged battery normally needs several hours on the surface to recover.
 
 Time compression advances battery/fuel use in simulated time as expected.
+
+## Air quality and lying on the bottom
+
+The serialized field is still named `oxygen` for save compatibility, but the player-facing `Air quality` value represents the overall breathable atmosphere inside the boat rather than oxygen percentage alone. While submerged it slowly deteriorates; silent running makes the decline slightly faster. Surfacing ventilates the boat. Poor air increases crew fatigue, severe air deterioration interrupts compressed transit, and remaining at effectively exhausted air for too long can incapacitate the crew.
+
+In sufficiently shallow water with a suitable soft seabed, the Helm controls can order the boat to `Lie on the Bottom`. The order is a real manoeuvre: the boat descends normally and settles rather than teleporting to seabed depth. Mud and sand can reduce both passive detectability and the quality of an escort's active-sonar return, but bottoming is not invisibility; movement, pumps and other noise can still betray the boat. Coming off a soft bottom can also require extra effort after the hull has settled into it.
 
 ## Torpedoes and the TDC
 
@@ -138,7 +152,7 @@ A shell hit creates a smaller, higher shipboard impact than a torpedo strike: lo
 
 ## Enemy ASW and aircraft
 
-Escorts search, acquire and attack rather than merely following scripted paths. Active sonar, contact quality, ownship noise, thermal-layer effects, manoeuvring, knuckles and finite depth-charge stores all affect an ASW engagement.
+Escorts search, acquire and attack rather than merely following scripted paths. Active sonar, contact quality, ownship noise, thermal-layer effects, manoeuvring, knuckles, bottom return and finite depth-charge stores all affect an ASW engagement. An escort prosecution also has a finite soft/hard search budget independent of the short alert timer: weak reacquisitions do not keep a hunt alive forever, while a genuinely renewed hostile contact or fresh attack can begin a new prosecution episode.
 
 Aircraft can search for and attack a surfaced submarine. Diving remains the primary defence. The 20 mm AA weapon is treated as an automatic last-ditch crew action rather than a separate manual station; SD air-search radar is handled automatically when historically fitted and usable.
 
@@ -164,16 +178,16 @@ The current course teaches:
 
 - station switching;
 - MAP panning/zooming and waypoint plotting;
-- helm, speed/noise and depth control;
-- passive visual/sound detection;
+- helm, speed/noise and depth control, including the air-quality consequences of staying submerged;
+- passive visual/sound detection and the non-auditory enemy-ping cue;
 - the difference between safe passive `Mark Bearing` and revealing active `Echo Range`;
 - contact interpretation;
 - SCOPE and target lock;
 - TDC solution reading, flooding and firing;
-- following a torpedo run on MAP and using time compression;
+- following a torpedo run on MAP, using time compression and opening impact observation from non-optical stations;
 - surfacing and using the deck gun;
-- silent/deep evasion of a deliberately introduced escort;
-- aircraft behaviour, Status, damage, radio and return-to-base flow.
+- silent/deep evasion of a deliberately introduced escort, with soft-bottom hiding explained as an advanced option;
+- aircraft behaviour, Status, damage, air quality, radio, return-to-base flow and access to the AAR after either success or loss.
 
 During `The Run` the player may use MAP and high time compression while the torpedo is still distant. The training instructor returns the clock to 1× shortly before the expected terminal run.
 
@@ -209,7 +223,7 @@ Friendly ports/rendezvous points serve two purposes:
 
 ## After Action Report and career history
 
-The old animated AAR replay has been removed from the player-facing report. The AAR is now a static patrol debrief: more useful to browse, cheaper to run and substantially less fragile than replaying the tactical simulation after the fact.
+The old animated AAR replay has been removed from the player-facing report. The AAR is now a static patrol debrief: more useful to browse, cheaper to run and substantially less fragile than replaying the tactical simulation after the fact. A completed patrol can open it normally; a lost boat receives a one-shot `VIEW AAR` toast while the surrounding world simulation is allowed to continue. Once a patrol is definitively lost, its old resumable autosave is cleared so reopening the PWA cannot resurrect the boat from an accidental pre-loss checkpoint.
 
 The report contains:
 
@@ -262,6 +276,7 @@ sw.js
 manifest.webmanifest
 README.md
 ARCHITECTURE.md
+AUDIO_SOUND_BIBLE.md
 PWA_CACHE_FILES.txt
 LICENSE
 apple-touch-icon.png
@@ -285,7 +300,7 @@ js/
   ui/
 ```
 
-The production app currently consists of 63 ordered runtime JavaScript files under `js/`. It intentionally uses classic ordered `<script>` loading rather than ES modules, so GitHub Pages deployment remains a simple static-file upload. `ARCHITECTURE.md` documents dependency/load-order considerations in more detail.
+The production app currently consists of 64 ordered runtime JavaScript files under `js/`. It intentionally uses classic ordered `<script>` loading rather than ES modules, so GitHub Pages deployment remains a simple static-file upload. `ARCHITECTURE.md` documents dependency/load-order considerations in more detail.
 
 Development tests, temporary patch notes and generated audit JSON are not required by the production PWA and can be kept outside the clean runtime repository.
 
