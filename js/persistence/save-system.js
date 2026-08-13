@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════ SAVE / LOAD SYSTEM
 const SaveSystem={
-  KEY:'ss2_save_', CAREER:'ss2_career', MAX:5,
+  KEY:PP_BUILD.storageKey('ss2_save_'), CAREER:PP_BUILD.storageKey('ss2_career'), MAX:5,
   FULL_REPLAY_PATROLS:10,
 
   /* Portable profile envelope. Keep this version independent from individual
@@ -301,7 +301,7 @@ const SaveSystem={
      visibilitychange, on pagehide, on blur — and on a slow tick besides.
      It lives in its own key, outside the five manual slots, so it can
      never overwrite a save the player made deliberately. */
-  AUTO:'pp_autosave',
+  AUTO:PP_BUILD.storageKey('pp_autosave'),
 
   autoSave(state,why){
     try{

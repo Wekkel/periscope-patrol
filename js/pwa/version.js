@@ -15,16 +15,34 @@ const AppVersion = {
     for(const id of ['appVerTouch','appVerDesk']){
       const el=document.getElementById(id);
       if(!el) continue;
-      el.textContent='v'+v;
-      el.classList.toggle('upd',!!updating);
-      el.title=`Periscope Patrol build ${v}`+(updating?' — an update is waiting':'');
+      const dev=!!globalThis.PP_BUILD?.isDev;
+      // The Pages workflow appends the AD commit hash to the DEV worker's
+      // VERSION so every experimental deploy refreshes its offline shell. Keep
+      // that full build identity in the title/copy text, but not in the narrow
+      // mobile header chip.
+      const display=dev?String(v).replace(/-ad-[0-9a-f]+$/i,''):v;
+      el.textContent='v'+display+(dev?' · AD':'');
+      el.classList.toggle('upd',!!updating);el.classList.toggle('dev',dev);
+      el.title=`Periscope Patrol${dev?' DEV':''} build ${v}`+(updating?' — an update is waiting':'');
     }
   },
   async fromWorker(reg){
     // may be called with no registration at all — off a file:// URL, in a
     // browser without service workers, or from a test harness
     const sw=(typeof navigator!=='undefined'&&navigator.serviceWorker)||null;
-    const w=(reg&&(reg.active||reg.waiting))||(sw&&sw.controller)||null;
+    // On the first /dev/ visit the page can still be controlled by the broader
+    // production worker while the nested DEV worker is installing. Do not ask
+    // that wrong-scope controller for its version or the AD chip briefly reports
+    // the production build. Falling back to ./sw.js is both cheap and correct.
+    let controller=(sw&&sw.controller)||null;
+    if(controller&&reg?.scope&&controller.scriptURL){
+      try{
+        const scopePath=new URL(reg.scope).pathname;
+        const scriptPath=new URL(controller.scriptURL).pathname;
+        if(!scriptPath.startsWith(scopePath))controller=null;
+      }catch(_){ controller=null; }
+    }
+    const w=(reg&&(reg.active||reg.waiting))||controller||null;
     if(!w||typeof MessageChannel==='undefined') return null;
     return new Promise(res=>{
       const ch=new MessageChannel();
@@ -93,7 +111,7 @@ const AppVersion = {
 // tap the chip to copy the build string
 for(const id of ['appVerTouch','appVerDesk']){
   document.getElementById(id)?.addEventListener('click',()=>{
-    const s=`Periscope Patrol v${AppVersion.value||'?'} · ${navigator.userAgent}`;
+    const s=`Periscope Patrol${globalThis.PP_BUILD?.isDev?' AD DEV':''} v${AppVersion.value||'?'} · ${navigator.userAgent}`;
     navigator.clipboard?.writeText(s).then(()=>Toast.ok('Build details copied'),
                                           ()=>Toast.warn('v'+(AppVersion.value||'?')));
   });

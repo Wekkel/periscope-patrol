@@ -52,7 +52,7 @@ const refreshLayoutLabel=()=>{
 refreshLayoutLabel();
 layoutToggle?.addEventListener('click',()=>{
   const cur=document.documentElement.dataset.lay;
-  localStorage.setItem('ss_ui',cur==='touch'?'desk':'touch');
+  localStorage.setItem(PP_BUILD.storageKey('ss_ui'),cur==='touch'?'desk':'touch');
   hotkeyOverlay?.classList.remove('open');
   touchCtrl.applyLayout(true);
   refreshLayoutLabel();
@@ -85,7 +85,7 @@ document.addEventListener('pointerdown',()=>{audio.ensure();audio.playTitleCue?.
 
 // Audio settings are profile-independent device preferences: a phone and a
 // tablet may need very different output levels. Keep them outside patrol saves.
-(()=>{const KEY='periscope_audio_v1',sfx=document.getElementById('audioSfxVolume'),mus=document.getElementById('audioMusicVolume'),sv=document.getElementById('audioSfxValue'),mv=document.getElementById('audioMusicValue');
+(()=>{const KEY=PP_BUILD.storageKey('periscope_audio_v1'),sfx=document.getElementById('audioSfxVolume'),mus=document.getElementById('audioMusicVolume'),sv=document.getElementById('audioSfxValue'),mv=document.getElementById('audioMusicValue');
   let q={sfx:62,music:42};try{q={...q,...JSON.parse(localStorage.getItem(KEY)||'{}')};}catch(_){}
   const apply=()=>{q.sfx=clamp(Number(sfx?.value??q.sfx),0,100);q.music=clamp(Number(mus?.value??q.music),0,100);audio.setSfxVolume(q.sfx/100);audio.setMusicVolume(q.music/100);if(sv)sv.textContent=`${Math.round(q.sfx)}%`;if(mv)mv.textContent=`${Math.round(q.music)}%`;try{localStorage.setItem(KEY,JSON.stringify(q));}catch(_){}};
   if(sfx)sfx.value=q.sfx;if(mus)mus.value=q.music;apply();sfx?.addEventListener('input',apply,{passive:true});mus?.addEventListener('input',apply,{passive:true});})();
@@ -97,8 +97,8 @@ document.addEventListener('pointerdown',()=>{audio.ensure();audio.playTitleCue?.
 window.addEventListener('pointerdown',e=>{
   if(e.pointerType&&e.pointerType!=='touch') return;
   if(document.documentElement.dataset.lay!=='desk') return;
-  if(localStorage.getItem('ss_ui')==='desk') return;      // explicit user choice — respect it
-  localStorage.setItem('ss_ui','touch');
+  if(localStorage.getItem(PP_BUILD.storageKey('ss_ui'))==='desk') return;      // explicit user choice — respect it
+  localStorage.setItem(PP_BUILD.storageKey('ss_ui'),'touch');
   touchCtrl.applyLayout(true);
   Toast.ok('Touch detected — switched to the touch layout');
 },{capture:true});
@@ -114,26 +114,27 @@ function refreshDiag(){
     (vv?` · visible ${Math.round(vv.width)}×${Math.round(vv.height)}`:'')+
     ` · dpr ${(window.devicePixelRatio||1).toFixed(2)}`+
     ` · canvas ${canvasView.w}×${canvasView.h}@${canvasView.dpr}`+
+    ` · build ${PP_BUILD.isDev?'AD DEV':'PROD'}`+
     (d?` · tabbar bottom ${d.tabsBottom}/${d.viewport}${d.overflow>2?' ⚠ OFF SCREEN':''}`+
        (d.blockedBy?` · ⚠ covered by ${d.blockedBy}`:' · tabs clear'):'')+
-    ` · pref ${localStorage.getItem('ss_ui')||'auto'}`;
+    ` · pref ${localStorage.getItem(PP_BUILD.storageKey('ss_ui'))||'auto'}`;
 }
 document.getElementById('mHelpBtn')?.addEventListener('click',()=>setTimeout(refreshDiag,60));
 document.getElementById('tutHelpBtn')?.addEventListener('click',()=>setTimeout(refreshDiag,60));
 
 // desktop header buttons (always reachable, even when the touch shell is hidden)
 document.getElementById('deskLayoutBtn')?.addEventListener('click',()=>{
-  localStorage.setItem('ss_ui','touch');
+  localStorage.setItem(PP_BUILD.storageKey('ss_ui'),'touch');
   touchCtrl.applyLayout(true);
   Toast.ok('Touch layout — tabs are at the bottom of the screen');
 });
 document.getElementById('deskTutBtn')?.addEventListener('click',()=>tutorial.start());
 
 // one-off touch hint
-if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem('ss_hint')){
+if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){
   setTimeout(()=>{
     Toast.ok('Tip: drag the compass to steer, drag the depth column to dive');
-    localStorage.setItem('ss_hint','1');
+    localStorage.setItem(PP_BUILD.storageKey('ss_hint'),'1');
   },2600);
 }
 
@@ -244,6 +245,7 @@ if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem('ss_hin
     downloadCurrent(filename='periscope-current.png'){return saveDataUrl(this.captureCurrentDataUrl(),filename);},
     captureScenarioDataUrl(name,opts={}){const s=makeScenario(name,opts),map=name==='map-labels'||name==='map-harbor-approach',harbor=name==='map-harbor-approach',center=harbor?{xNm:(s.playerSub.position.xNm+s.world.harbor.center.xNm)/2,yNm:(s.playerSub.position.yNm+s.world.harbor.center.yNm)/2}:{...s.playerSub.position};return capture(s,{strategy:opts.strategy||null,zoom:map?(Number(opts.zoom)||(harbor?54:72)):null,center:map?center:null});},
     downloadScenario(name,opts={}){const strategy=String(opts.strategy||'').toLowerCase(),suffix=strategy?`-${strategy}`:'';return saveDataUrl(this.captureScenarioDataUrl(name,opts),opts.filename||`periscope-${name}${suffix}.png`);},
+    build(){return{channel:PP_BUILD.channel,isDev:PP_BUILD.isDev,path:location.pathname,storagePrefix:PP_BUILD.storagePrefix,serviceWorker:navigator.serviceWorker?.controller?.scriptURL||null};},
     audio:{
       // Audio review never mutates simulation state. Use it to audition a
       // recipe immediately after a code change instead of playing a patrol.
