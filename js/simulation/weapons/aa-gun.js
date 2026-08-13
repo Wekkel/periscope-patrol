@@ -7,6 +7,7 @@ class SimEngineAAGun extends SimEngineDeckGun {
 
   manageAutomaticAA(){
     const W=this.state.world, sub=this.state.playerSub, env=W.environment, G=this.state.weapons.deckGun;
+    const aaDefault=getSubmarineProfile(sub.profileId).weapons.aaGun.ammo;
     const aircraft=W.aircraft||[];
     const active=aircraft.filter(a=>a.side!=='FRIENDLY'&&a.seenBySub&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'));
     const close=active.some(a=>distNm(a.position,sub.position)<=1.25);
@@ -19,7 +20,7 @@ class SimEngineAAGun extends SimEngineDeckGun {
     }
     // Doctrine remains DIVE. The gun is only an automatic last-ditch fallback
     // if the skipper has stayed on the surface until an attacker is close.
-    if(!close||diveOrdered||G?.manned||sub.depthFeet>8||env.seaState>0.82||(W.aaAmmo??1200)<=0) return;
+    if(!close||diveOrdered||G?.manned||sub.depthFeet>8||env.seaState>0.82||(W.aaAmmo??aaDefault)<=0) return;
     W.aaManned=true;
     this.notify('Air attack close — AA crew manning the 20 mm automatically. A dive ordered now will pause briefly while they clear the hatch.','warn');
   }
@@ -35,7 +36,7 @@ class SimEngineAAGun extends SimEngineDeckGun {
 
   updateAAGun(dt){
     const W=this.state.world, sub=this.state.playerSub, env=W.environment;
-    if(W.aaAmmo===undefined) W.aaAmmo=1200;              // ready-use lockers, rounds
+    if(W.aaAmmo===undefined) W.aaAmmo=getSubmarineProfile(sub.profileId).weapons.aaGun.ammo; // legacy-save migration
     this.manageAutomaticAA();
     if(!W.aaManned) return;
     if(sub.mode==='SUNK'){W.aaManned=false;return;}

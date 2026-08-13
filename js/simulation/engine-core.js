@@ -909,11 +909,12 @@ class SimEngineCore{
      close, surfaced and slow. */
   performFriendlyPortService(portName){
     const s=this.state,sub=s.playerSub,W=s.weapons,d=sub.damage;
+    const fresh=materializeFreshSubmarine(sub.profileId,s.tdc.torpedoSpecKey),weaponProfile=fresh.weapons;
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.chargeRate=0;
-    W.torpedoInventory=16;
+    W.torpedoInventory=weaponProfile.torpedoInventory;
     for(const t of W.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;t.specKey=s.tdc.torpedoSpecKey;}
-    if(W.deckGun)W.deckGun.ammo=120;
-    s.world.aaAmmo=1200;
+    if(W.deckGun)W.deckGun.ammo=weaponProfile.deckGun.ammo;
+    s.world.aaAmmo=weaponProfile.aaGun.ammo;
     Object.assign(d,{hullIntegrity:100,flooding:0,ballastDamage:0,motorDamage:0,rudderDamage:0,
       periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
       pumpActive:false,pumpTripped:false,pumpLoadSec:0,damageControlActive:false,
@@ -1009,9 +1010,11 @@ class SimEngineCore{
     Toast.show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
     this.log(`Patrol score: ${patrolScore} | Career total: ${camp.totalScore}`,'warn');
     audio.event?.('PATROL_COMPLETE');
-    // Rearm and refuel
+    // Rearm and refuel. Static store capacity comes from the submarine profile;
+    // mutable tube state remains in the patrol state.
+    const fresh=materializeFreshSubmarine(sub.profileId,this.state.tdc.torpedoSpecKey);
     sub.propulsion.fuel=100; sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
-    W.torpedoInventory=16;
+    W.torpedoInventory=fresh.weapons.torpedoInventory;
     for(const t of W.tubes){t.status='LOADED_DRY';t.reloadProgress=1;}
     sub.damage.hullIntegrity=clamp(sub.damage.hullIntegrity+25,0,100);
     sub.damage.flooding=0;
@@ -1025,12 +1028,16 @@ class SimEngineCore{
     const key=areaKey||keys[Math.floor(Math.random()*keys.length)];
     const area=PATROL_AREAS[key];
     const s=this.state;
+    const identity=resolveGameIdentity(s);
+    const campaignProfile=getCampaignProfile(identity.campaignProfileId);
+    const fresh=materializeFreshSubmarine(identity.submarineProfileId,s.tdc?.torpedoSpecKey);
+    const subProfile=fresh.profile,weaponProfile=fresh.weapons;
     const prevTotal=Number(s.campaign.totalScore)||0;
     const prevPatrol=s.campaign.patrolNumber||1;
     const prevHistoricalProfile=s.campaign.historicalProfile||null;
     const pristineBootstrap=prevPatrol===1&&s.campaign.missionStatus==='PATROL'&&(s.time.elapsedSeconds||0)===0&&!s.campaign.primaryMission;
     const nextPatrol=pristineBootstrap?1:prevPatrol+1;
-    const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||'1943-08-17';
+    const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||campaignProfile.defaultStartDate;
     const careerStart=`${patrolStartDate} 06:00`;
 
     // Patch 10.5: a patrol is a lifecycle boundary. No tactical clock, transit,
@@ -1043,7 +1050,7 @@ class SimEngineCore{
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];s.world.nextDcId=0;
     s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
     s.world.aircraft=[];s.world.knuckles=[];s.world.atmosphere=null;s.world.missionObjects=[];
-    s.world.aaManned=false;s.world.aaAmmo=1200;s.world.aaKills=0;s.world.aaHurt=0;
+    s.world.aaManned=false;s.world.aaAmmo=weaponProfile.aaGun.ammo;s.world.aaKills=0;s.world.aaHurt=0;
     delete s.world.ultra;delete s.world.ultraAt;
     s.weapons.activeTorpedoes=[]; s.weapons.explosions=[]; s.weapons.hits=[];
     s.world.enemy={alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
@@ -1065,6 +1072,8 @@ class SimEngineCore{
     s.tdc.gyroAngle=null;s.tdc.tubeTurnDeg=null;s.tdc.launchBank=null;s.tdc.launchGeometry=null;s.tdc.solutionCourse=null;s.tdc.interceptRunNm=null;s.tdc.predictedMissNm=null;
     s.tdc.angleOnBow=null;s.tdc.timeToImpactSec=null;s.tdc.solutionQuality=0;s.tdc.status='NO TARGET';s.tdc.autoTrack=true;s.tdc.trackSource='PLOT';
     s.campaign={
+      theaterId:identity.theaterId,playerFactionId:identity.playerFactionId,
+      campaignProfileId:identity.campaignProfileId,
       patrolArea:key,score:0,scenarioSeed:Math.floor(Math.random()*9999),
       missionStatus:'PATROL',patrolNumber:nextPatrol,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
       historyId:`p${nextPatrol}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
@@ -1080,13 +1089,14 @@ class SimEngineCore{
     // fresh boat for a fresh patrol — otherwise you inherit a wrecked, empty
     // (or sunk) submarine from the previous one
     const sub=s.playerSub;
+    sub.profileId=subProfile.id;sub.dimensions={...subProfile.dimensions};
     sub.position=area.start?{...area.start}:{xNm:0,yNm:0};
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
     sub.stealth.silentRunning=false;sub.stealth.acousticSignature=0;
-    Object.assign(sub.damage,{hullIntegrity:100,flooding:0,ballastDamage:0,motorDamage:0,
+    Object.assign(sub.damage,{hullIntegrity:100,crushDepthFeet:subProfile.damage.crushDepthFeet,flooding:0,ballastDamage:0,motorDamage:0,
       rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
       crewFatigue:0,oxygen:100,airCriticalSec:0,pumpActive:false,pumpTripped:false,pumpLoadSec:0,
       damageControlActive:false,repairPriority:'FLOODING',driveBankOffline:false,damageEventSeq:0,
@@ -1094,9 +1104,12 @@ class SimEngineCore{
     sub.inShallowWater=false;sub.groundingRisk=false;sub.inShallowWarned=false;
     s.map.estimatedPosition={...sub.position};
     sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.suction=0;sub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
-    s.weapons.torpedoInventory=16;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
-    s.weapons.deckGun={manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
-    for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;t.specKey=s.tdc.torpedoSpecKey;}
+    s.weapons.torpedoInventory=weaponProfile.torpedoInventory;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
+    s.weapons.deckGun={manned:false,ammo:weaponProfile.deckGun.ammo,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
+    // Rebuild the tube bank from the profile at the patrol lifecycle boundary.
+    // This is behavior-neutral for Silversides but prevents future boats from
+    // inheriting the Gato six-tube geometry by accident.
+    s.weapons.tubes=fresh.tubes;
     s.tactical.periscopeBearing=90;s.tactical.periscopeZoom=1;s.tactical.bridgeBearing=sub.heading;s.tactical.bridgeBinoculars=false;s.tactical.bridgeZoom=0;s.tactical.bridgeMarkedId=null;
     s.tactical.soundBearing=sub.heading;s.tactical.soundDisplay='PASSIVE';
     s.world.sound=null;s.world.radar=null;

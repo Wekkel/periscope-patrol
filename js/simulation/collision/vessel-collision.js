@@ -122,7 +122,8 @@ class SimEngineCollision extends SimEngineASW {
     const normalKn=Math.abs(rv.x*hit.normal.x+rv.y*hit.normal.y)*3600;
     const angleDeg=relKn>0.01?radToDeg(Math.asin(clamp(normalKn/relKn,0,1))):0;
     const mass=HullGeometry.massTons(ship);
-    const damage=clamp(0.35+0.65*Math.pow(Math.max(0,normalKn),1.55)*Math.sqrt(mass/2424),0.35,95);
+    const subMass=Math.max(1,sub.dimensions?.massTons||getSubmarineProfile(sub.profileId).dimensions.massTons);
+    const damage=clamp(0.35+0.65*Math.pow(Math.max(0,normalKn),1.55)*Math.sqrt(mass/subMass),0.35,95);
     return{relativeSpeedKnots:relKn,normalSpeedKnots:normalKn,impactAngleDeg:angleDeg,massTons:mass,damage};
   }
 

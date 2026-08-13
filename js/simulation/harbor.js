@@ -9,7 +9,8 @@ class SimEngineHarbor extends SimEngineCore {
     const W=this.state.world, G=this.state.weapons, C=this.state.campaign;
     if(!Array.isArray(C.optionalObjectives)) C.optionalObjectives=[]; // migrate pre-Phase-2 saves
     if(W.harborInitialized===undefined) W.harborInitialized=false; // migrate old saves
-    if(!G.deckGun) G.deckGun={manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
+    const subProfile=getSubmarineProfile(this.state.playerSub?.profileId);
+    if(!G.deckGun) G.deckGun={manned:false,ammo:subProfile.weapons.deckGun.ammo,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
     G.deckGun.shells=G.deckGun.shells||[];G.deckGun.splashes=G.deckGun.splashes||[];
     if(!W.harborInitialized) this.setupHarbor(C.patrolArea);
     if(W.harbor) this.ensureHarborIntel();

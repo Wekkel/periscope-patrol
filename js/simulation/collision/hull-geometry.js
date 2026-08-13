@@ -2,14 +2,11 @@
 // Shared 2-D collision geometry for every surface-vessel interaction. The deck
 // gun uses the same oriented hull rectangle as physical vessel collisions.
 const HullGeometry=(()=>{
-  const NM_PER_YARD=0.9144/1852;
   // Historical contact schema calls the field `lengthYards`, but authored ship
   // lengths are feet (destroyer ~350, merchant ~420, tanker ~520). Rendering
   // already uses feet; collision geometry must use the same physical hull or
   // weapons/collisions can register well outside the visible ship.
   const NM_PER_FOOT=0.3048/1852;
-  const SUB_LENGTH_YD=311.75/3; // Gato-class overall length
-  const SUB_BEAM_YD=27.3/3;
 
   const axes=h=>{
     const r=degToRad(h.heading||0),fx=Math.sin(r),fy=-Math.cos(r);
@@ -52,10 +49,14 @@ const HullGeometry=(()=>{
       draftFeet:draftFeet(c),massTons:massTons(c),source:c};
   }
   function subHull(sub,position=sub.position,heading=sub.heading){
+    // New patrols materialize dimensions on playerSub. Legacy v1 saves may not
+    // have them, so fall back through the Pacific-default profile until the
+    // formal save-schema migration stamps an explicit submarine identity.
+    const profile=getSubmarineProfile(sub?.profileId),dims=sub?.dimensions||profile.dimensions;
     return{kind:'SUB',id:'OWN_SUB',position:{...position},heading:heading||0,
-      halfLengthNm:SUB_LENGTH_YD*NM_PER_YARD*0.5,
-      halfBeamNm:SUB_BEAM_YD*NM_PER_YARD*0.5,
-      verticalHalfFeet:9,massTons:2424,source:sub};
+      halfLengthNm:dims.lengthFt*NM_PER_FOOT*0.5,
+      halfBeamNm:dims.beamFt*NM_PER_FOOT*0.5,
+      verticalHalfFeet:dims.verticalHalfFeet,massTons:dims.massTons,source:sub};
   }
   function motionHull(h,start,end,startHeading=h.heading,endHeading=startHeading){
     return{...h,start:{...start},end:{...end},heading:normDeg(startHeading+shortDelta(startHeading,endHeading)*0.5)};
