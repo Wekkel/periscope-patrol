@@ -78,8 +78,10 @@ window.addEventListener('keydown',e=>{
   if(k==='-'){canvasView.zoomAt(1/1.2,innerWidth/2,innerHeight/2);}
 });
 
-// audio needs a user gesture
-document.addEventListener('pointerdown',()=>{audio.ensure();audio.playOpeningCue?.();},{once:true});
+// Audio needs a user gesture. The title identity belongs to a true app opening:
+// play it once after unlock, then let MISSION_START fade it instead of replaying
+// it every time the player starts another patrol in the same app session.
+document.addEventListener('pointerdown',()=>{audio.ensure();audio.playTitleCue?.('START');},{once:true});
 
 // Audio settings are profile-independent device preferences: a phone and a
 // tablet may need very different output levels. Keep them outside patrol saves.
