@@ -437,3 +437,18 @@ The 1941 Atlantic slice now owns a concrete `NORTH_ATLANTIC_1941` climate identi
 ## Atlantic DEV patch 18 — vessel visual pass
 
 Atlantic vessel identity now reaches dedicated shared-renderer model keys. The Flower-class escort, freighter/tramp/cargo-liner/coaster/tanker variants and Type VIIC ownship casing no longer borrow Pacific patrol-craft/Gato silhouettes. These are recognition-grade Canvas2D vector models, deliberately not museum meshes; all damage, sinking, wake and LOD mechanics remain shared. The Type VIIC forward deck-gun mount and visible casing proportions are selected from the submarine profile's `visualModelKey`, while Pacific keeps the existing fleet-boat deck path.
+
+## Atlantic DEV patch 19 — campaign picker UI regression
+
+The DEV-only theater/campaign `<select>` is created while `ScenarioSelector` is
+constructed, before `picker.js` has loaded.  The per-render enhancement therefore
+cannot wrap that first instance, while the older PRIMARY MISSION select is repaired
+later by `Picker.enhanceAll()` in bootstrap.  Android consequently opened its native
+system selector for THEATER / CAMPAIGN.
+
+Patch 19 adds `campaignProfileSelect` to that bootstrap enhancement pass and gives
+it the same explicit in-app picker footprint as PRIMARY MISSION.  Subsequent
+`renderCards()` calls continue to enhance newly-created instances directly.  This
+is a DEV UI regression fix only; no campaign, simulation or production behavior is
+changed.
+
