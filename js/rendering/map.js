@@ -91,7 +91,11 @@ class CanvasView extends CanvasViewSound {
     // use a real contact, a hydrophone bearing or an ULTRA plot to find it.
     if(Object.keys(state.world.contactTracks).length===0){
       ctx.fillStyle='rgba(245,198,92,0.68)';ctx.font=this.fnt(8.5);ctx.textAlign='center';
-      ctx.fillText(state.world.ultra?'NO CURRENT CONTACTS — work the ULTRA plot':'NO CURRENT CONTACTS — listen, look, or wait for intelligence',w/2,h-Math.round(14*k));
+      /* Keep chart prose in its own bottom lane. The scale bar lives at the
+         waterline immediately below it; sharing h-14/h-16 made the two labels
+         physically overwrite one another on both mobile and desktop maps. */
+      const noticeY=h-Math.round(38*k);
+      ctx.fillText(state.world.ultra?'NO CURRENT CONTACTS — work the ULTRA plot':'NO CURRENT CONTACTS — listen, look, or wait for intelligence',w/2,noticeY);
       ctx.textAlign='left';
     }
 
@@ -100,8 +104,12 @@ class CanvasView extends CanvasViewSound {
     const nice=[0.5,1,2,5,10,20,50,100];
     let nm=nice[0];
     for(const n of nice){if(n*pxPerNm<=targetPx) nm=n;}
-    const touchInset=(typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch')?92*k:0;
-    const sbw=nm*pxPerNm, sbx=w-pad-touchInset-sbw, sby=h-Math.round(16*k);
+    const touchLayout=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    /* MAP owns the bottom-right scale lane, but desktop also keeps the 110 px
+       gyro repeater there. Reserve its footprint; on touch the gyro moves to
+       the top and the smaller inset instead clears the right action controls. */
+    const rightHudInset=(touchLayout?92:126)*k;
+    const sbw=nm*pxPerNm, sbx=w-pad-rightHudInset-sbw, sby=h-Math.round(16*k);
     ctx.strokeStyle='rgba(215,245,231,.65)';ctx.lineWidth=Math.max(1,1.5*k);
     ctx.beginPath();ctx.moveTo(sbx,sby);ctx.lineTo(sbx+sbw,sby);
     ctx.moveTo(sbx,sby-4*k);ctx.lineTo(sbx,sby+4*k);

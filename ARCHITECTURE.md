@@ -31,9 +31,7 @@ Nothing lower in this list needs to import something above it; the final boot co
 ### Core and data
 
 - `js/core/utilities.js` — math, units and shared formatting helpers.
-- `js/data/game-catalog.js` — explicit theater/faction/campaign/submarine identity profiles.
-- `js/data/torpedo-data.js` — torpedo specifications, dud modes and stores readout helpers.
-- `js/data/pacific-terrain-data.js` — compact Pacific coastline geometry plus the one-entry lazy patrol-terrain cache.
+- `js/data/torpedo-data.js` — torpedo specs/dud modes, coastline source geometry and the one-entry lazy patrol-terrain cache.
 - `js/data/campaign-data.js` — patrol-area metadata only; do not eagerly call `buildTerrain()` here.
 - `js/navigation/route-geometry.js` — water-route/polyline geometry, including one-way progress for mission-critical routes.
 - `js/simulation/weapons/tdc-math.js` — the single source of truth for TDC launch/intercept geometry (settling run + finite gyro turn + final leg).
@@ -79,7 +77,7 @@ Files:
 ### UI, controllers, persistence and boot
 
 - `js/ui/briefing.js`, `scenario-selector.js`, `toast.js`, `dom-view.js`, `picker.js`, `helm-gauges.js` — UI concerns.
-- `js/controllers/touch-controller.js`, `bridge-controller.js` — input/control routing.
+- `js/controllers/touch-controller.js`, `bridge-controller.js` — input/control routing. The browser UI deliberately has two shells: coarse-pointer/mobile devices use the touch shell, while a fine-pointer desktop browser uses the cockpit shell. Desktop command families are presentation-only tabs (`HELM`, `TDC`, `WEAPONS`, `NAV`); they must never duplicate or fork simulation commands. The canonical controls/IDs remain the same and are merely grouped for reachability.
 - `js/audio/audio-engine.js` — Web Audio behavior.
 - `js/persistence/save-system.js`, `autosave.js` — manual saves, autosave/resume and versioned portable player-profile backup/import.
 - `js/tutorial/tutorial.js` — training patrol/tutorial flow.
@@ -133,51 +131,4 @@ Service-worker caches need the same separation. `sw.js` is maintained manually b
 The nested same-origin deployment is an explicitly temporary development experiment, not an architectural promise. Separate manifest IDs and names help Chrome distinguish installs, but they do not create independent origins: site-data clearing/uninstall prompts, quotas, permissions and other origin-scoped browser state can still couple the two builds. Before DEV installation, export the production player profile. If the target Android devices do not keep the installs predictably distinct, move DEV to a separate origin (preferred) or at minimum a non-overlapping deployment path rather than adding browser/device hacks.
 
 The build channel is a development convenience, not access control. Do not add hardware fingerprinting or treat `/dev/` as secret. Atlantic feature visibility may key from `PP_BUILD.isDev`, but all security assumptions must remain zero-trust because the complete client-side code is public.
-
-## Atlantic Phase 1 — explicit theater/content boundary
-
-Phase 1 is intentionally Pacific-only. Its purpose is to prove that the existing
-game can run through explicit theater/faction/submarine identities before any
-German or Atlantic data is introduced.
-
-### Terrain ownership
-
-Pacific coastline literals and the lazy one-active-area terrain cache now live
-in `js/data/pacific-terrain-data.js`. `js/data/torpedo-data.js` owns weapon data
-only. Future Atlantic geography must live in its own theater module and must not
-be eagerly concatenated with the Pacific dataset. Preserve the one-active-area
-cache so additional theaters do not multiply startup work or retained processed
-terrain on Helios-class hardware.
-
-### Game identity catalog
-
-`js/data/game-catalog.js` is the deliberately small configuration boundary for
-theater, faction, campaign and submarine identity. New Pacific states carry
-`campaign.theaterId`, `campaign.playerFactionId`, `campaign.campaignProfileId`
-and `playerSub.profileId`; legacy saves may omit them and are interpreted as the
-Pacific defaults by `resolveGameIdentity()`.
-
-Keep tactical relationship (`side`) separate from historical identity
-(`factionId`). Hot AI loops should continue to reason about FRIENDLY/ENEMY, not
-branch on nation names. A new patrol is a lifecycle boundary, so replacing
-`state.campaign` must preserve the resolved identity fields.
-
-### Submarine profile materialization
-
-Static Silversides/Gato dimensions, tube geometry, starting reserve stores,
-deck-gun/AA capacities and crush-depth baseline are authored in
-`SUBMARINE_PROFILES`. `materializeFreshSubmarine()` copies those values into the
-ordinary mutable runtime state at patrol creation/reset. Collision and weapon
-hot paths therefore keep their existing cheap state reads rather than traversing
-catalog objects each frame.
-
-Mutable values — current ammunition, damage, RPM, fuel, battery, flooded-tube
-state, repairs and similar patrol history — never belong back in the immutable
-profile. Legacy saves without `playerSub.dimensions` fall back through
-`getSubmarineProfile()` until a later formal schema migration stamps identity.
-
-The Phase 1 golden-master rule is strict: Pacific behavior must remain
-functionally identical except for additive identity/profile fields. Do not add
-Atlantic catalog entries until deterministic Pacific state/terrain regression
-tests pass.
 

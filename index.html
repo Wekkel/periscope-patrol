@@ -275,9 +275,13 @@
       <span>T+<strong id="clock">00000</strong>s</span>
       <span>MODE:<strong id="mode">--</strong></span>
       <span>STA:<strong id="station">--</strong></span>
-      <span>TIME:<strong id="timescale">1x</strong></span>
+      <span class="desk-timescale-readout">TIME:<strong id="timescale">1x</strong></span>
       <span>AREA:<strong id="hArea">--</strong></span>
       <span>SCORE:<strong id="hScore">0</strong></span>
+      <div class="desk-time-picker" title="Time scale / transit skip">
+        <span>TIME</span>
+        <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
+      </div>
       <button id="deskLayoutBtn" title="Switch to the touch layout">⇄ TOUCH UI</button>
       <button id="deskTutBtn" title="Start the training patrol">🎓 TRAINING</button>
     </div>
@@ -285,6 +289,13 @@
 
   <!-- LEFT BRIDGE -->
   <aside id="deskBridge" class="panel">
+    <nav id="deskCommandTabs" class="desk-command-tabs" aria-label="Desktop command groups">
+      <button type="button" data-cmd="helm" class="active">HELM</button>
+      <button type="button" data-cmd="firecontrol">TDC</button>
+      <button type="button" data-cmd="weapons">WEAPONS</button>
+      <button type="button" data-cmd="nav">NAV</button>
+    </nav>
+    <section class="desk-cmd-pane active" data-desk-cmd="helm">
     <div class="ptitle">Bridge Commands</div>
     <div class="cgroup">
       <label><span>Ordered Heading</span><strong id="orderedHeadingValue">090°</strong></label>
@@ -308,8 +319,7 @@
       <button id="silentButton">Toggle Silent Running</button>
       <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
       <button id="pumpButton">Toggle Pumps</button>
-      <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
-    </div>
+          </div>
     <div class="ptitle" style="margin-top:8px;">Damage Control Priority</div>
     <div class="cgroup" id="deskRepairPriority">
       <button id="dcFloodButton" class="on">Flooding</button>
@@ -318,6 +328,8 @@
       <button id="dcOpticsButton">Optics / Fire Control</button>
       <div class="note" id="deskDcNote">Repair parties deploy automatically; one priority receives most of their effort.</div>
     </div>
+    </section>
+    <section class="desk-cmd-pane" data-desk-cmd="firecontrol">
     <div class="ptitle" style="margin-top:8px;">Periscope</div>
     <div class="cgroup">
       <button id="scopeLeftButton">◄ Rotate Left (←)</button>
@@ -341,6 +353,8 @@
       <button id="sendScopeToTdcButton">Send Scope → TDC (auto)</button>
       <div class="note" id="tdcSolutionNote">No solution.</div>
     </div>
+    </section>
+    <section class="desk-cmd-pane" data-desk-cmd="weapons">
     <div class="ptitle">Weapons</div>
     <div class="cgroup">
       <select id="torpTypeSelect" style="width:100%;background:#102a31;border:1px solid var(--line);color:var(--ink);padding:5px;font-family:inherit;font-size:11px;">
@@ -382,6 +396,8 @@
       <button id="deckGunFireButton" class="danger">💥 Fire Deck Gun</button>
       <div id="deckGunStatus" class="note">Enter the GUN station while surfaced; the crew mans and secures the gun automatically.</div>
     </div>
+    </section>
+    <section class="desk-cmd-pane" data-desk-cmd="nav">
     <div class="ptitle">Navigation</div>
     <div class="cgroup">
       <button id="clearPlotButton">Clear Map Plot</button>
@@ -392,17 +408,18 @@
       <button id="saveGameButton">💾 Save Game</button>
       <div class="note">Hotkeys: 1=Tactical 2=Scope 3=Map 4=Deck Gun 5=Bridge 6=Sound Space=Pause S=Silent E=Blow P=Pumps ←/→=Scope H=Port M=Mission</div>
     </div>
+    </section>
   </aside>
 
   <!-- CENTER CANVAS — shared canvas element lives here -->
   <section id="deskCanvas" class="panel">
     <div id="stationTabs">
-      <button id="stationTactical" class="active">Tactical</button>
-      <button id="stationBridge">Bridge</button>
-      <button id="stationSound">Sound</button>
-      <button id="stationPeriscope">Periscope</button>
-      <button id="stationMap">Map</button>
-      <button id="stationDeckGun">Deck Gun</button>
+      <button id="stationTactical" class="active">TAC</button>
+      <button id="stationBridge">BRG</button>
+      <button id="stationSound">SND</button>
+      <button id="stationPeriscope">SCOPE</button>
+      <button id="stationMap">MAP</button>
+      <button id="stationDeckGun">GUN</button>
     </div>
     <div id="bridgeControls" aria-label="Bridge watch controls">
       <button id="bridgeBino">🔭 <span>Binoculars</span></button>
@@ -730,9 +747,7 @@
 </div><!-- end touchShell -->
 
 <script src="./js/core/utilities.js"></script>
-<script src="./js/data/game-catalog.js"></script>
 <script src="./js/data/torpedo-data.js"></script>
-<script src="./js/data/pacific-terrain-data.js"></script>
 <script src="./js/data/campaign-data.js"></script>
 <script src="./js/navigation/route-geometry.js"></script>
 <script src="./js/simulation/collision/hull-geometry.js"></script>
