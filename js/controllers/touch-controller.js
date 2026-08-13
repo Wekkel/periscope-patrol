@@ -211,7 +211,10 @@ class TouchCtrl{
     btn('soundLeft',()=>{D({type:'ROTATE_SOUND',deltaDeg:-5});buzz(6);});
     btn('soundRight',()=>{D({type:'ROTATE_SOUND',deltaDeg:5});buzz(6);});
     btn('soundMark',()=>{D({type:'SOUND_MARK_BEARING'});buzz(10);});
-    btn('soundEcho',()=>{D({type:'SOUND_ECHO_RANGE'});buzz([12,30,12]);});
+    // soundEcho is intentionally NOT rebound here. BridgeController owns the
+    // button on every layout so touch devices use the same two-step ACTIVE QC
+    // confirmation as desktop. A second touch listener would transmit on the
+    // first tap and silently defeat the warning.
     btn('soundRadar',()=>{D({type:'TOGGLE_SOUND_DISPLAY'});buzz(10);});
     btn('oSilent', ()=>{D({type:'TOGGLE_SILENT_RUNNING'});buzz(12);});
     btn('oLock',   ()=>{D({type:'PERISCOPE_SELECT_CENTER_CONTACT'});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(12);});
