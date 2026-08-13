@@ -12,7 +12,7 @@ class SimEngine extends SimEngineCareer {
       trackIds:ids,mainTrackIds,visualIds,visualMainIds,visualAswIds,aswBands,
       alert:s.world.enemy.alertState,
       hull:s.playerSub.damage.hullIntegrity,
-      air:(s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub&&!a._wearManaged).length,
+      air:(s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub).length,
       // Attack state is safety-critical even when the aeroplane was already
       // known before transit began (or the lookout/radar has not yet promoted
       // it to a fresh contact count). This is a deliberate arcade safety net.
@@ -91,7 +91,7 @@ class SimEngine extends SimEngineCareer {
     if(!(w.visualMainIds||[]).length&&visualMain.length) return 'convoy sighted';
     if(newVisual.some(id=>byId.get(id)?.convoyId!=='MAIN')) return 'contact now visual';
     for(const id of ids){const c=byId.get(id),tr=tracks[id];if(!c||!isASWCombatant(c)||!tr||tr.confidence<=.02)continue;const r=tr.rangeEstimateNm??99,band=r<=1.5?3:r<=3?2:r<=6?1:0;if(band>(w.aswBands?.[id]??band))return band>=3?'escort inside 1.5 nm':band>=2?'escort inside 3 nm':'escort inside 6 nm';}
-    if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub&&!a._wearManaged).length>w.air) return 'aircraft';
+    if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub).length>w.air) return 'aircraft';
     if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length>(w.airDanger||0)) return 'aircraft attack';
     if(s.world.ultra&&!w.ultra) return 'an ULTRA intercept';
     if(s.map.plottedCourse.length<w.wp) return 'a waypoint reached';
@@ -143,28 +143,24 @@ class SimEngine extends SimEngineCareer {
 
   // ── CORE PHYSICS ──
   updateSub(dt){
-    const sub=this.state.playerSub,lost=()=>this.boatIsLost?.();
-    this.captureCollisionFrame();
-    this.updateBridgeDiveSequence?.(dt);
-    this.updateHeading(sub,dt); this.updateDepth(sub,dt); this.updatePropulsion(sub,dt);
-    this.updatePosition(sub,dt);
-    this.applyTerrainEffects(sub,dt);if(lost())return;
+    const sub=this.state.playerSub,sunk=sub.mode==='SUNK';
+    if(!sunk){
+      this.captureCollisionFrame();this.updateBridgeDiveSequence?.(dt);this.updateHeading(sub,dt);this.updateDepth(sub,dt);this.updatePropulsion(sub,dt);this.updatePosition(sub,dt);this.applyTerrainEffects(sub,dt);
+    }else{
+      // The battle may continue after loss for observation/AAR purposes, but a
+      // destroyed boat is not an invisible 9-knot powered object in that world.
+      sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.propulsion.chargeRate=0;sub.verticalSpeedFps=0;sub.maneuveringThrust=0;sub.rudder=0;
+    }
     this.updateWeather?.(dt);
     this.updateTrafficDirector?.(dt);
-    this.updateWorld(dt); this.updateVesselCollisions(dt);if(lost())return;
-    this.updateSigs(sub); this.updateHarbor(dt);if(lost())return;
+    this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.updateHarbor(dt);
     this.updateDetection(dt); this.updateSoundRadar?.(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
-    this.updateEnemyAI(dt);if(lost())return;
-    this.updateAircraft(dt);if(lost())return;
-    this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
+    this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
     this.updateBattleAtmosphere?.(dt);
     this.updateMissionFramework?.(dt);
-    if(this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length) this.steerWaypoint(false);
-    this.updateDmg(sub,dt);if(lost())return;
-    this.updateDmgCtrl(sub,dt);if(lost())return;
+    if(!sunk&&this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length)this.steerWaypoint(false);
+    if(!sunk){this.updateDmg(sub,dt);this.updateDmgCtrl(sub,dt);this.checkMissionObjectives();this.checkPortArrival(dt);this.updateModeAfter(sub);}
     this.updateWarnings(sub);
-    this.checkMissionObjectives(); this.checkPortArrival(dt);
-    this.updateModeAfter(sub);
     this.updateAfterActionRecorder?.(dt);
     if(this.state.tactical.activeStation==='BRIDGE'&&!bridgeCanUse(this.state)){
       this.state.tactical.activeStation='MAP';this.state.tactical.bridgeBinoculars=false;
@@ -306,6 +302,7 @@ class SimEngine extends SimEngineCareer {
   }
 
   updatePosition(sub,dt){
+    if(sub.bottomed||sub.mode==='SUNK')return;
     const d=knotsNmSec(sub.propulsion.speedKnots)*dt; const r=degToRad(sub.heading);
     sub.position.xNm+=Math.sin(r)*d; sub.position.yNm-=Math.cos(r)*d;
   }
@@ -697,8 +694,9 @@ class SimEngine extends SimEngineCareer {
     else if(d.hullIntegrity<60) W.push({level:'warn',text:'HULL DAMAGED'});
     if(d.flooding>0.65) W.push({level:'critical',text:'FLOODING CRITICAL'});
     else if(d.flooding>0.25) W.push({level:'warn',text:'FLOODING'});
-    if(d.oxygen<20) W.push({level:'critical',text:'LOW OXYGEN'});
-    else if(d.oxygen<45) W.push({level:'warn',text:'OXYGEN FALLING'});
+    if(d.oxygen<8) W.push({level:'critical',text:'AIR CRITICAL'});
+    else if(d.oxygen<20) W.push({level:'critical',text:'AIR FOUL'});
+    else if(d.oxygen<45) W.push({level:'warn',text:'AIR QUALITY FALLING'});
     if(e.alertState==='ATTACKING') W.push({level:'critical',text:'ESCORT ATTACK RUN'});
     else if(e.alertState==='SEARCHING') W.push({level:'warn',text:'ESCORTS SEARCHING'});
     const H=this.state.world.harbor;

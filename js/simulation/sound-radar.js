@@ -155,17 +155,14 @@ class SimEngineSoundRadar extends SimEngineSensors{
     let best=null,q=0;
     for(const c of W.contacts||[]){const x=soundBaseQuality(s,c);if(x>q){q=x;best=c;}}
     if(!best||q<SOUND_ROOM.operatorMinQuality)return;
-    const scale=Math.max(1,s.time.timeScale||1),baseMin=SOUND_ROOM.operatorReportMinSec+(1-q)*25;
-    // Preserve a readable wall-clock dwell at high time compression.
-    const min=Math.max(baseMin,scale*4.0);if(now-S.lastOperatorAt<min)return;
+    const min=SOUND_ROOM.operatorReportMinSec+(1-q)*25;if(now-S.lastOperatorAt<min)return;
     const obs=passiveSoundObservation(s,best,q),near=(W.contacts||[]).filter(c=>c!==best&&!c.sunk&&!c.stationary&&soundBaseQuality(s,c)>.12&&Math.abs(shortDelta(obs.bearing,bearingBetween(s.playerSub.position,c.position)))<28);
     let detail;
     if((best.speedKnots||0)>14||best.type==='ESCORT'||best.type==='WARSHIP'||best.type==='PATROL_CRAFT')detail='High-speed screws — probable escort.';
     else if(near.length)detail='Multiple screws. Slow cadence.';
     else detail=(best.speedKnots||0)>9?'Steady screws. Moderate cadence.':'Slow screws. Heavy cadence.';
     const text=`SOUND — screws bearing ${fmtDeg(obs.bearing)} · ${detail}`;
-    const dwell=Math.max(7,Math.min(100,scale*3.0));
-    S.lastOperatorAt=now;S.lastOperatorReport={t:now,until:now+dwell,text,bearing:obs.bearing,quality:q};
+    S.lastOperatorAt=now;S.lastOperatorReport={t:now,until:now+9,wallUntil:(typeof performance!=='undefined'?performance.now():Date.now())+3600,text,bearing:obs.bearing,quality:q};
     this.log(text); // intentionally not notify(): operator chatter must not interrupt play
   }
 
@@ -178,7 +175,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     const bearing=normDeg(bearingBetween(s.playerSub.position,c.position)+(_soundHashUnit(seed,tag,41)*2-1)*errMax);
     const mark={t:now,own:{...s.playerSub.position},bearing,quality:q};
     const arr=S.bearingMarks[c.id]||(S.bearingMarks[c.id]=[]);arr.push(mark);if(arr.length>8)arr.splice(0,arr.length-8);
-    let tr=W.contactTracks[c.id];const beforeUnc=Number.isFinite(tr?.positionUncertaintyNm)?tr.positionUncertaintyNm:null;
+    let tr=W.contactTracks[c.id];
     if(!tr){const o=passiveSoundObservation(s,c,q);tr={id:c.id,typeEstimate:'UNKNOWN',bearing:o.bearing,rangeEstimateNm:o.rangeNm,courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:.18,source:'HYDROPHONE',lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards,plotPosition:{...o.position},lastFixPosition:{...o.position},lastFixTime:now,plotUpdatedAt:now,positionFixAt:now,positionSource:'HYDROPHONE',positionConfidence:.28,positionUncertaintyNm:.8};W.contactTracks[c.id]=tr;}
     tr.soundBearingMarks=arr.slice(-4);tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.18)+.07,0,.92);tr.lastSensorSource='SOUND BEARING';
     const tri=triangulateSoundMarks(arr.filter(m=>now-m.t<420));
@@ -190,14 +187,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
         tr.positionUncertaintyNm=tr.soundUncertaintyNm;tr.positionConfidence=clamp(.72-tr.soundUncertaintyNm*.08,.48,.72);tr.positionSource='SOUND TRIANGULATION';tr.source='SOUND TRIANGULATION';
       }
     }
-    const quality=q>.66?'GOOD':q>.38?'FAIR':'WEAK';
-    this.log(`SOUND mark ${arr.length} — ${fmtDeg(bearing)} · ${quality}${tri?` · plot cross ${tr.rangeEstimateNm.toFixed(1)} nm`:''}.`);
-    if(tri&&tr.positionSource==='SOUND TRIANGULATION'){
-      const after=tr.positionUncertaintyNm;
-      this.notify(`SOUND CROSS — track uncertainty ${beforeUnc!=null?beforeUnc.toFixed(2)+' → ':''}${after.toFixed(2)} nm. TDC track improved.`,'ok');
-    }else if(arr.length===1){
-      this.notify(`SOUND MARK ${fmtDeg(bearing)} — ${quality}. Move the boat and mark again for a cross-bearing fix.`,'ok');
-    }
+    this.log(`SOUND mark ${arr.length} — ${fmtDeg(bearing)}${tri?` · plot cross ${tr.rangeEstimateNm.toFixed(1)} nm`:''}.`);
     return tr;
   }
 

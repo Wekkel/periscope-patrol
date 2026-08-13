@@ -83,6 +83,7 @@ class SimEngineDamage extends SimEngineCollision {
     const sub=this.state.playerSub,dm=sub.damage,d=Math.max(0,Number(amount)||0);
     dm.damageEventSeq=(dm.damageEventSeq||0)+1;
     const seq=dm.damageEventSeq,seed=(this.state.campaign.scenarioSeed||1)+seq*7919;
+    this.state.world.ownHitVisual={t:this.state.time.elapsedSeconds||0,wallAt:(typeof performance!=='undefined'?performance.now():Date.now()),amount:d,seq};
 
     // Preserve the pre-Phase-3 hull/basic-system damage law exactly.
     dm.hullIntegrity=clamp(dm.hullIntegrity-d,0,100);
@@ -143,13 +144,11 @@ class SimEngineDamage extends SimEngineCollision {
     else d.oxygen=clamp(d.oxygen+dt*0.15,0,100);
     if(sub.stealth.silentRunning)d.crewFatigue=clamp(d.crewFatigue+dt/900,0,1);
     else d.crewFatigue=clamp(d.crewFatigue-dt/1500,0,1);
-    // 'oxygen' remains the save-compatible scalar, but gameplay treats it as
-    // overall breathable-air quality (CO2/heat/humidity included). Extremely
-    // stale air now has a consequence without an arcade instant-death switch:
-    // crew fatigue rises, degrading repair and gunnery performance already.
-    if(sub.depthFeet>8&&d.oxygen<15)d.crewFatigue=clamp(d.crewFatigue+dt/900*(1-d.oxygen/15),0,1);
-    if(sub.depthFeet>8&&d.oxygen<10&&!d._airCriticalNoted){d._airCriticalNoted=true;this.notify('AIR QUALITY CRITICAL — crew efficiency is falling. Surface and ventilate when tactically possible.','bad');}
-    if(sub.depthFeet<=8&&d.oxygen>30)d._airCriticalNoted=false;
+    // 'oxygen' remains the serialized field for save compatibility, but the UI
+    // treats it as overall breathable-air quality (O2 depletion + CO2/staleness).
+    if(sub.depthFeet>8&&d.oxygen<20)d.crewFatigue=clamp(d.crewFatigue+dt*(d.oxygen<8?1/520:1/1150),0,1);
+    d.airCriticalSec=d.oxygen<=1?Math.max(0,(d.airCriticalSec||0)+dt):Math.max(0,(d.airCriticalSec||0)-dt*3);
+    if(d.airCriticalSec>120&&sub.mode!=='SUNK'){sub.mode='SUNK';this.state.campaign.missionStatus='LOST';this.log('AIR EXHAUSTED — crew incapacitated. Boat lost.','bad');}
 
     // Pumps remain a captain's choice because they are noisy. Damage lowers
     // capacity; a badly hurt pump can trip once under sustained heavy load.

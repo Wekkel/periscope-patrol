@@ -131,18 +131,22 @@ class SimEngineSensors extends SimEngineIntel {
       const interval=baseInterval*(hist?.sonarIntervalFactor||1);
       esc.pingTimer=interval;esc.lastPingAt=now;pinged++;
       const rng=distNm(esc.position,sub.position),sea=clamp(env.seaState||0,0,1),audibleRange=clamp(8.5*(1-sea*.22)*(belowLayer?.68:1),4.2,8.8),depthHear=sub.depthFeet>8?1:.32;
-      const heard=rng<audibleRange;
-      if(heard){const lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear;audio.playSonarPing(bearingBetween(sub.position,esc.position),sub.heading,undefined,lvl);}
-      A.pingEvents=A.pingEvents||[];
-      A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN',
-        heardBySub:heard,heardAtMs:heard?(typeof performance!=='undefined'?performance.now():Date.now()):null});
-      if(A.pingEvents.length>80)A.pingEvents.shift();
+      if(rng<audibleRange){
+        const brg=bearingBetween(sub.position,esc.position),lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear;
+        W.sound=W.sound||{};W.sound.lastEnemyPingVisual={t:now,wallAt:(typeof performance!=='undefined'?performance.now():Date.now()),escortId:esc.id,position:{...esc.position},bearing:brg,rangeNm:rng};
+        audio.playSonarPing(brg,sub.heading,undefined,lvl);
+      }
+      A.pingEvents=A.pingEvents||[];A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN'});if(A.pingEvents.length>80)A.pingEvents.shift();
 
       const dead=rng<SONAR.deadZoneNm;let p=0;
       if(!blind&&!dead&&rng<SONAR.maxRangeNm){
         const activeEcho=.82+.18*clamp(sub.propulsion.speedKnots/7,0,1); // stopping helps passive stealth far more than an active echo
         const layerFactor=belowLayer?.21:1,ownship=escortSonarOwnshipFactor(esc,sub.position);
-        p=.94*clamp(1-(rng-SONAR.deadZoneNm)/(SONAR.maxRangeNm-SONAR.deadZoneNm),0,1)*layerFactor*activeEcho
+        // A motionless boat settled into a soft bottom can merge with bottom
+        // return. It is harder to range, not magically invisible; sand gives
+        // less protection than mud and any other acoustic modifiers still apply.
+        const bottomReturn=sub.bottomed?(sub.bottomType==='MUD'?.42:sub.bottomType==='SAND'?.54:.68):1;
+        p=.94*clamp(1-(rng-SONAR.deadZoneNm)/(SONAR.maxRangeNm-SONAR.deadZoneNm),0,1)*layerFactor*activeEcho*bottomReturn
           *(1-clamp(env.seaState,0,1)*.30)*(sub.stealth.silentRunning?.96:1)*ownship;
         esc.sonarBaffled=ownship<.42;
       }else esc.sonarBaffled=false;
