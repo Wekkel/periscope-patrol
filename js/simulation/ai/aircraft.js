@@ -175,7 +175,10 @@ class SimEngineAircraft extends SimEngineEnemyAI {
 
   updateAircraft(dt){
     const W=this.state.world, sub=this.state.playerSub, env=W.environment;
-    const now=this.state.time.elapsedSeconds;
+    const now=this.state.time.elapsedSeconds,campaignProfileId=this.state.campaign?.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId;
+    const airDoctrine=getCampaignDoctrineProfile(campaignProfileId)?.air;
+    if(!airDoctrine?.hostile||!airDoctrine?.friendly)return;
+    const hostileDoctrine=airDoctrine.hostile,friendlyDoctrine=airDoctrine.friendly;
     W.aircraft=W.aircraft||[];
     W.airThreat=W.airThreat||{level:env.airThreat===undefined?0.5:env.airThreat,alarmedAt:-999,airWarningOn:true,sdOn:true};
     const air=W.airThreat;
@@ -190,44 +193,36 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     // ── does a patrol turn up? ──
     air.nextCheck=(air.nextCheck||0)-dt;
     if(air.nextCheck<=0){
-      air.nextCheck=90;
-      const nearLand=W.terrain.some(f=>f.points&&f.points.some(p=>distNm(sub.position,p)<26));
+      const D=hostileDoctrine;air.nextCheck=D.checkSec;
+      const nearLand=W.terrain.some(f=>f.points&&f.points.some(p=>distNm(sub.position,p)<D.nearLandRadiusNm));
       const day=clamp(env.daylight,0,1);
-      // hunters are sent out after an attack, and they fly by day near land
-      const stirred=W.enemy.alertState!=='UNAWARE'?1.7:1;
-      const surfaced=sub.depthFeet<10?1.5:1;
-      let chance=0.020*air.level*stirred*surfaced*(0.35+day*0.85)*(nearLand?1.8:0.55);
-      const localWx=weatherAtPosition(this.state,sub.position),friendly=nearestFriendly(sub.position);
+      // Campaign doctrine decides patrol pressure; detection/attack mechanics
+      // remain shared and still depend on actual local conditions.
+      const stirred=W.enemy.alertState!=='UNAWARE'?D.alertedFactor:1;
+      const surfaced=sub.depthFeet<10?D.surfacedFactor:1;
+      let chance=D.baseChance*air.level*stirred*surfaced*(D.dayBase+day*D.dayFactor)*(nearLand?D.nearLandFactor:D.openWaterFactor);
+      const localWx=weatherAtPosition(this.state,sub.position),friendly=nearestFriendly(sub.position),P=D.friendlyPort;
       chance*=(1-clamp(localWx.seaState,0,1)*0.35)*localWx.aircraftFactor;
       /* A friendly service port represents a locally controlled anchorage, not
-         a magic force field. Routine Japanese reconnaissance/ASW searches are
-         nevertheless very unlikely to orbit directly overhead: fighters, AA
-         and harbour warning nets make the inner approaches expensive. Aircraft
+         a magic force field. Routine hostile reconnaissance/ASW searches are
+         nevertheless much less likely in defended inner approaches. Aircraft
          already committed to an attack are not deleted or made harmless. */
       if(friendly&&W.enemy.alertState==='UNAWARE'){
-        if(friendly.rngNm<=6)chance=0;
-        else if(friendly.rngNm<=12)chance*=.18;
-        else if(friendly.rngNm<=18)chance*=.55;
-      }else if(friendly&&friendly.rngNm<=6)chance*=.35;
-      if(W.aircraft.filter(a=>a.side!=='FRIENDLY').length>=2) chance=0;
+        if(friendly.rngNm<=P.unawareBlockNm)chance=0;
+        else if(friendly.rngNm<=P.unawareInnerNm)chance*=P.unawareInnerFactor;
+        else if(friendly.rngNm<=P.unawareOuterNm)chance*=P.unawareOuterFactor;
+      }else if(friendly&&friendly.rngNm<=P.alertedInnerNm)chance*=P.alertedInnerFactor;
+      if(W.aircraft.filter(a=>a.side!=='FRIENDLY').length>=D.maxConcurrent) chance=0;
       if(Math.random()<chance){
-        const bear=Math.random()*360, rng=12+Math.random()*6;
+        const bear=Math.random()*360, rng=D.spawnRangeMinNm+Math.random()*D.spawnRangeSpreadNm;
         const r=degToRad(bear),hunt=(W.enemy.alertState!=='UNAWARE'&&W.enemy.lastKnownSubPosition)?W.enemy.lastKnownSubPosition:sub.position;
+        const rosterRoll=Math.random(),template=D.roster.find(x=>x.before===undefined||rosterRoll<x.before)||D.roster[D.roster.length-1];
         W.aircraft.push({
-          id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,side:'ENEMY',
-          ...(()=>{const r=Math.random();
-            /* Keep the game-readable split simple rather than inventing a
-               per-squadron loadout database: large maritime patrol flying boats
-               carry aerial depth charges; the bomber/floatplane contacts use
-               ordinary bombs. The ordnance changes warning/timing, not spawn
-               frequency. */
-            return r<0.42?{name:'Type 97 flying boat',kind:'FLYING_BOAT',ordnance:'DEPTH_CHARGE'}
-                 :r<0.72?{name:'Nakajima B5N',kind:'BOMBER',ordnance:'BOMB'}
-                        :{name:'Aichi E13A',kind:'FLOATPLANE',ordnance:'BOMB'};})(),
+          id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,side:'ENEMY',name:template.name,kind:template.kind,ordnance:template.ordnance,
           position:{xNm:hunt.xNm+Math.sin(r)*rng,yNm:hunt.yNm-Math.cos(r)*rng},
-          heading:normDeg(bear+180+(Math.random()-0.5)*40),
-          speedKnots:115+Math.random()*70, state:'SEARCHING',
-          bombs:2+Math.floor(Math.random()*3), runTimer:0, spotted:false, seenBySub:false,
+          heading:normDeg(bear+180+(Math.random()-0.5)*D.headingJitterDeg),
+          speedKnots:D.speedMinKn+Math.random()*D.speedSpreadKn, state:'SEARCHING',
+          bombs:D.bombMin+Math.floor(Math.random()*D.bombExtraExclusive), runTimer:0, spotted:false, seenBySub:false,
           bornAt:now
         });
       }
@@ -235,24 +230,24 @@ class SimEngineAircraft extends SimEngineEnemyAI {
 
     /* Friendly aircraft are deliberately a tiny ambient layer, not a second
        air-war simulation. One local patrol at most can cross the tactical
-       bubble. This gives Allied-controlled waters life without multiplying
+       bubble. This gives friendly-controlled waters life without multiplying
        update cost on the Helios G88 or granting the player permanent air cover. */
-    air.friendlyNextCheck=(air.friendlyNextCheck??(240+Math.random()*180))-dt;
+    const F=friendlyDoctrine;
+    air.friendlyNextCheck=(air.friendlyNextCheck??(F.initialCheckBaseSec+Math.random()*F.initialCheckSpreadSec))-dt;
     if(air.friendlyNextCheck<=0){
-      air.friendlyNextCheck=300+Math.random()*240;
+      air.friendlyNextCheck=F.repeatCheckBaseSec+Math.random()*F.repeatCheckSpreadSec;
       const friendlyLocal=W.aircraft.some(a=>a.side==='FRIENDLY'&&!a.shotDown);
-      const area=this.state.campaign?.patrolArea||'';
-      const deepEnemy=/Truk|Kii Suido|Yellow Sea/.test(area);
+      const area=this.state.campaign?.patrolArea||'',deepEnemy=F.blockedAreas.includes(area);
       const day=clamp(env.daylight,0,1);
-      if(!friendlyLocal&&!deepEnemy&&day>.18&&Math.random()<.32){
-        const bear=Math.random()*360,rng=7+Math.random()*6,r=degToRad(bear);
-        const fp=Math.random()<.62?{name:'Allied PBY Catalina',kind:'FLYING_BOAT',speed:115}:{name:'Allied fighter patrol',kind:'FIGHTER',speed:175};
+      if(!friendlyLocal&&!deepEnemy&&day>F.minDaylight&&Math.random()<F.spawnChance){
+        const bear=Math.random()*360,rng=F.spawnRangeMinNm+Math.random()*F.spawnRangeSpreadNm,r=degToRad(bear);
+        const rosterRoll=Math.random(),fp=F.roster.find(x=>x.before===undefined||rosterRoll<x.before)||F.roster[F.roster.length-1];
         W.aircraft.push({
           id:`FAIR-${(W.nextFriendlyAirId=(W.nextFriendlyAirId||0)+1)}`,side:'FRIENDLY',
           name:fp.name,kind:fp.kind,ordnance:'NONE',
           position:{xNm:sub.position.xNm+Math.sin(r)*rng,yNm:sub.position.yNm-Math.cos(r)*rng},
-          heading:normDeg(bear+135+(Math.random()-.5)*70),speedKnots:fp.speed,
-          state:'FRIENDLY_PATROL',seenBySub:false,bornAt:now,legTimer:55+Math.random()*80,
+          heading:normDeg(bear+F.headingOffsetDeg+(Math.random()-.5)*F.headingJitterDeg),speedKnots:fp.speed,
+          state:'FRIENDLY_PATROL',seenBySub:false,bornAt:now,legTimer:F.legBaseSec+Math.random()*F.legSpreadSec,
           contactReportAt:-999,interceptAt:-999
         });
       }
@@ -263,7 +258,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     for(const a of W.aircraft){
       const rng=distNm(a.position,sub.position),friendly=nearestFriendly(a.position);
       if(a.side==='FRIENDLY'){
-        // Allied patrols never participate in the hostile aircraft state
+        // Friendly patrols never participate in the hostile aircraft state
         // machine below. Keeping this branch self-contained is an important
         // safety boundary: a new affiliation must never accidentally acquire
         // the player as an attack target simply because it shares a renderer.
@@ -273,7 +268,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
           a.seenBySub=true;
           this.log(`Lookouts identify ${a.name} — friendly aircraft, bearing ${fmtDeg(bearingBetween(sub.position,a.position))}.`,'ok');
         }
-        // A fighter patrol can statistically drive off a nearby Japanese
+        // A fighter patrol can statistically drive off a nearby hostile
         // aircraft. No bullets/secondary physics are spawned offscreen.
         if(a.kind==='FIGHTER'&&now-(a.interceptAt||-999)>22){
           const hostile=W.aircraft.find(x=>x!==a&&x.side!=='FRIENDLY'&&!x.shotDown&&x.state!=='DEPARTING'&&distNm(a.position,x.position)<3.8);
@@ -291,7 +286,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
           if(c&&Math.random()<dt*.02){
             a.contactReportAt=now;
             const br=bearingBetween(sub.position,c.position),rr=distNm(sub.position,c.position);
-            this.log(`FOX SCHEDULE — Allied patrol aircraft reports enemy warship roughly ${rr.toFixed(0)} nm on bearing ${fmtDeg(br)}.`,'ok');
+            this.log(`${F.reportPrefix} — ${F.reportActor} reports enemy warship roughly ${rr.toFixed(0)} nm on bearing ${fmtDeg(br)}.`,'ok');
           }
         }
         const friendlyAge=now-(a.bornAt||now);

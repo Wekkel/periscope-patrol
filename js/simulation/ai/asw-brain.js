@@ -13,22 +13,30 @@ const ASW_SCREEN_STATIONS=Object.freeze({
 function aswYear(dateLike){
   const m=String(dateLike||'').match(/(19\d{2})/);return m?+m[1]:1943;
 }
-function aswAreaRisk(areaKey){
-  return areaKey==='Truk Approaches'||areaKey==='Luzon Strait'?1:areaKey==='Java Sea'?-1:0;
+function aswDoctrine(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  return getCampaignDoctrineProfile(profileId)?.asw||null;
 }
-function aswEscortCount(areaKey,merchantCount,opts={}){
-  let n=merchantCount<=2?1:merchantCount<=4?2:3;
-  n+=aswAreaRisk(areaKey);
-  const y=aswYear(opts.startDate);if(y>=1944)n++;else if(y<=1942)n--;
-  const d=String(opts.difficulty||'').toUpperCase();if(d==='HARD')n++;else if(d==='EASY')n--;
-  return clamp(n,1,4);
+function aswAreaRisk(areaKey,profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  return Number(aswDoctrine(profileId)?.areaRisk?.[areaKey]||0);
 }
-function aswScreenRoles(count,areaKey,opts={}){
-  if(count<=1)return['FORWARD_SCREEN'];
-  if(count===2)return['FORWARD_SCREEN','REAR_GUARD'];
-  if(count===3)return['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK'];
-  const scout=aswAreaRisk(areaKey)>0||String(opts.difficulty||'').toUpperCase()==='HARD'||aswYear(opts.startDate)>=1944;
-  return['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK',scout?'ROAMING_SCOUT':'REAR_GUARD'];
+function aswEscortCount(areaKey,merchantCount,opts={},profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  const D=aswDoctrine(profileId),C=D?.escortCount;if(!C)return 1;
+  const band=C.merchantBands?.find(x=>x.max===undefined||merchantCount<=x.max);
+  let n=Number(band?.count??1)+aswAreaRisk(areaKey,profileId);
+  const y=aswYear(opts.startDate);
+  for(const m of C.yearModifiers||[])if((m.from===undefined||y>=m.from)&&(m.through===undefined||y<=m.through))n+=Number(m.add||0);
+  n+=Number(C.difficultyModifiers?.[String(opts.difficulty||'').toUpperCase()]||0);
+  return clamp(n,Number(C.min??1),Number(C.max??4));
+}
+function aswScreenRoles(count,areaKey,opts={},profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  const D=aswDoctrine(profileId);if(!D)return['FORWARD_SCREEN'];
+  const base=[...(D.screenRoles?.[count]||D.screenRoles?.[4]||['FORWARD_SCREEN'])];
+  const R=D.roamingScout,y=aswYear(opts.startDate),difficulty=String(opts.difficulty||'').toUpperCase();
+  if(R&&count>Number(R.replaceIndex??3)){
+    const scout=aswAreaRisk(areaKey,profileId)>=Number(R.minAreaRisk??1)||difficulty===String(R.difficulty||'').toUpperCase()||y>=Number(R.fromYear??9999);
+    if(scout)base[Number(R.replaceIndex??3)]=R.role||'ROAMING_SCOUT';
+  }
+  return base.slice(0,count);
 }
 
 class SimEngineASWBrain extends SimEngineWeather{
@@ -52,7 +60,8 @@ class SimEngineASWBrain extends SimEngineWeather{
     if(!Number.isFinite(A.prosecutionHardDeadlineAt))A.prosecutionHardDeadlineAt=-1;
     if(!Array.isArray(A.pingEvents))A.pingEvents=[];
     const escorts=W.contacts.filter(c=>isASWCombatant(c));
-    const fallback=aswScreenRoles(escorts.length,this.state.campaign.patrolArea,{startDate:this.state.campaign.startDate,difficulty:this.state.campaign.difficulty});
+    const campaign=this.state.campaign||{},fallback=aswScreenRoles(escorts.length,campaign.patrolArea,
+      {startDate:campaign.startDate,difficulty:campaign.difficulty},campaign.campaignProfileId);
     for(let i=0;i<escorts.length;i++){
       const x=escorts[i];
       if(!ASW_SCREEN_STATIONS[x.screenRole])x.screenRole=fallback[i]||'REAR_GUARD';

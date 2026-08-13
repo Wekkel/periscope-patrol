@@ -448,6 +448,60 @@ const US_PACIFIC_SPECIAL_OPERATIONS_PROFILE=Object.freeze({
   })
 });
 
+
+/* Campaign doctrine owns theater-specific force posture and aircraft rosters.
+   The AI still owns detection, pursuit, attack and formation mechanics; these
+   values only answer questions such as how heavily an area is screened and
+   which patrol aircraft can appear there. Keeping the authored Pacific names
+   here prevents future Atlantic work from teaching generic AI about Japan. */
+const US_PACIFIC_DOCTRINE_PROFILE=Object.freeze({
+  id:'us-pacific-doctrine-v1',
+  asw:Object.freeze({
+    areaRisk:Object.freeze({'Truk Approaches':1,'Luzon Strait':1,'Java Sea':-1}),
+    escortCount:Object.freeze({
+      merchantBands:Object.freeze([
+        Object.freeze({max:2,count:1}),Object.freeze({max:4,count:2}),Object.freeze({count:3})
+      ]),
+      yearModifiers:Object.freeze([
+        Object.freeze({through:1942,add:-1}),Object.freeze({from:1944,add:1})
+      ]),
+      difficultyModifiers:Object.freeze({EASY:-1,HARD:1}),
+      min:1,max:4
+    }),
+    screenRoles:Object.freeze({
+      1:Object.freeze(['FORWARD_SCREEN']),
+      2:Object.freeze(['FORWARD_SCREEN','REAR_GUARD']),
+      3:Object.freeze(['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK']),
+      4:Object.freeze(['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK','REAR_GUARD'])
+    }),
+    roamingScout:Object.freeze({minAreaRisk:1,difficulty:'HARD',fromYear:1944,role:'ROAMING_SCOUT',replaceIndex:3})
+  }),
+  air:Object.freeze({
+    hostile:Object.freeze({
+      checkSec:90,baseChance:.020,alertedFactor:1.7,surfacedFactor:1.5,dayBase:.35,dayFactor:.85,
+      nearLandRadiusNm:26,nearLandFactor:1.8,openWaterFactor:.55,maxConcurrent:2,
+      spawnRangeMinNm:12,spawnRangeSpreadNm:6,headingJitterDeg:40,speedMinKn:115,speedSpreadKn:70,
+      bombMin:2,bombExtraExclusive:3,
+      friendlyPort:Object.freeze({unawareBlockNm:6,unawareInnerNm:12,unawareInnerFactor:.18,unawareOuterNm:18,unawareOuterFactor:.55,alertedInnerNm:6,alertedInnerFactor:.35}),
+      roster:Object.freeze([
+        Object.freeze({before:.42,name:'Type 97 flying boat',kind:'FLYING_BOAT',ordnance:'DEPTH_CHARGE'}),
+        Object.freeze({before:.72,name:'Nakajima B5N',kind:'BOMBER',ordnance:'BOMB'}),
+        Object.freeze({name:'Aichi E13A',kind:'FLOATPLANE',ordnance:'BOMB'})
+      ])
+    }),
+    friendly:Object.freeze({
+      initialCheckBaseSec:240,initialCheckSpreadSec:180,repeatCheckBaseSec:300,repeatCheckSpreadSec:240,
+      blockedAreas:Object.freeze(['Truk Approaches','Kii Suido / Honshu Approaches','Yellow Sea']),
+      minDaylight:.18,spawnChance:.32,spawnRangeMinNm:7,spawnRangeSpreadNm:6,headingOffsetDeg:135,headingJitterDeg:70,
+      legBaseSec:55,legSpreadSec:80,reportPrefix:'FOX SCHEDULE',reportActor:'Allied patrol aircraft',
+      roster:Object.freeze([
+        Object.freeze({before:.62,name:'Allied PBY Catalina',kind:'FLYING_BOAT',speed:115}),
+        Object.freeze({name:'Allied fighter patrol',kind:'FIGHTER',speed:175})
+      ])
+    })
+  })
+});
+
 const CAMPAIGN_PROFILES=Object.freeze({
   'us-pacific':Object.freeze({
     id:'us-pacific',
@@ -463,7 +517,8 @@ const CAMPAIGN_PROFILES=Object.freeze({
     primaryConvoyProfile:US_PACIFIC_PRIMARY_CONVOY_PROFILE,
     ambientTrafficProfile:US_PACIFIC_AMBIENT_TRAFFIC_PROFILE,
     missionProfile:US_PACIFIC_MISSION_PROFILE,
-    specialOperationsProfile:US_PACIFIC_SPECIAL_OPERATIONS_PROFILE
+    specialOperationsProfile:US_PACIFIC_SPECIAL_OPERATIONS_PROFILE,
+    doctrineProfile:US_PACIFIC_DOCTRINE_PROFILE
   })
 });
 
@@ -487,6 +542,12 @@ function getCampaignMissionProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfi
 
 function getCampaignSpecialOperationsProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   return CAMPAIGN_PROFILES[profileId]?.specialOperationsProfile||null;
+}
+
+function getCampaignDoctrineProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  /* Doctrine is campaign-authored. Do not hide an incomplete future theater by
+     silently borrowing Pacific escort posture or Japanese aircraft rosters. */
+  return CAMPAIGN_PROFILES[profileId]?.doctrineProfile||null;
 }
 
 function getCampaignHarborOperationProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){

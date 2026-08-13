@@ -1238,8 +1238,9 @@ class SimEngineCore{
     // move it between one and four. Their normal stations rotate with the
     // convoy frame; the ASW brain temporarily reassigns tactical roles later.
     const areaKey=options.areaKey||Object.keys(PATROL_AREAS).find(k=>PATROL_AREAS[k]===area)||this.state.campaign.patrolArea;
-    const numEscorts=Math.min(escortTemplates.length,aswEscortCount(areaKey,numMerchants,options));
-    const screenRoles=aswScreenRoles(numEscorts,areaKey,options);
+    const campaignProfileId=this.state.campaign?.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId;
+    const numEscorts=Math.min(escortTemplates.length,aswEscortCount(areaKey,numMerchants,options,campaignProfileId));
+    const screenRoles=aswScreenRoles(numEscorts,areaKey,options,campaignProfileId);
     for(let i=0;i<numEscorts;i++){
       const role=screenRoles[i]||'REAR_GUARD',off=ASW_SCREEN_STATIONS[role]||{fwd:0,side:0},t=escortTemplates[i];
       contacts.push({...t,

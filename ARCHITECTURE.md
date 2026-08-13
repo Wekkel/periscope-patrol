@@ -32,7 +32,7 @@ Nothing lower in this list needs to import something above it; the final boot co
 
 - `js/core/utilities.js` — math, units and shared formatting helpers.
 - `js/data/torpedo-data.js` — torpedo specs, dud modes and torpedo-load helpers.
-- `js/data/game-catalog.js` — explicit theater/faction/campaign/submarine identity profiles, additive surface-vessel identity profiles, mission-critical convoy composition and boat-specific sensor presentation. Runtime vessel contacts now separate `gameplayType`, `factionId`, `vesselProfileId` and `modelKey`; legacy `type` remains a compatibility alias while older saves are normalized on load.
+- `js/data/game-catalog.js` — explicit theater/faction/campaign/submarine identity profiles, additive surface-vessel identity profiles, mission-critical convoy composition, campaign doctrine/aircraft rosters and boat-specific sensor presentation. Runtime vessel contacts now separate `gameplayType`, `factionId`, `vesselProfileId` and `modelKey`; legacy `type` remains a compatibility alias while older saves are normalized on load.
 - `js/data/pacific-terrain-data.js` — Pacific coastline source geometry and the one-entry lazy patrol-terrain cache.
 - `js/data/campaign-data.js` — patrol-area metadata only; do not eagerly call `buildTerrain()` here.
 - `js/navigation/route-geometry.js` — water-route/polyline geometry, including one-way progress for mission-critical routes.
@@ -52,13 +52,14 @@ Files:
 - `js/simulation/harbor.js` — harbor geometry/behavior.
 - `js/simulation/weapons/torpedoes.js` — tubes, launch, run, hit/miss handling.
 - `js/simulation/ai/enemy-ai.js` — enemy alert/search behavior.
-- `js/simulation/ai/aircraft.js` — air threat and attack behavior.
+- `js/simulation/ai/aircraft.js` — shared aircraft detection/attack/motion behavior; campaign doctrine supplies force posture and roster content.
 - `js/simulation/weapons/deck-gun.js` — 3-inch/50 gun state, laying, firing, shell damage.
 - `js/simulation/weapons/aa-gun.js` — 20 mm AA behavior.
 - `js/simulation/radio-intel.js` — radio/ULTRA/intelligence flow.
 - `js/simulation/sensors.js` — lookout, visual/acoustic contact tracking and signatures. Electronic contact fixes use generic `ACTIVE_ECHO` / `SURFACE_RADAR` IDs; legacy `QC ECHO` / `SJ RADAR` values are normalized for old-save compatibility.
 - `js/simulation/sound-radar.js` — passive-sound/active-echo/surface-radar operation. It maps the current historical US fit data onto generic runtime capability fields while retaining legacy `sd*`/`sj*` aliases until the later campaign/equipment-by-date migration.
-- `js/simulation/ai/escort-asw.js` — escort ASW behavior.
+- `js/simulation/ai/asw-brain.js` — shared escort search/doctrine mechanics; campaign doctrine supplies area risk, escort-count and screen-role policy.
+- `js/simulation/ai/escort-asw.js` — escort ASW sensor/prosecution behavior.
 - `js/simulation/physics-navigation.js` — transit watch, submarine movement/physics/navigation and final `SimEngine` class.
 - `js/simulation/day-night.js` — day/night cycle helper.
 
@@ -128,6 +129,12 @@ The active campaign owns player-facing mission definitions and the patrol-area m
 `MISSION_PRIMARY_TYPES` remains the small set of engine mechanics currently implemented. A campaign may expose only a subset through its mission profile. Missing mission data for a future campaign should fail explicitly rather than falling back to Pacific orders.
 
 Concrete mission actors are campaign content as well. The `us-pacific` mission profile now owns the high-value intercept variants, Truk-specific reconnaissance contact IDs, fallback reconnaissance/escort/harbor vessels and the lifeguard survivor template. `mission-framework.js` may choose, place, track and score these objects, but it must not know Japanese vessel names or Pacific contact IDs. When a mission reassigns an existing vessel to a different tactical class, refresh `gameplayType`, `vesselProfileId` and `modelKey` together with legacy `type`; otherwise a visually promoted carrier/tanker can retain stale merchant identity from the source convoy contact.
+
+### Campaign doctrine / air-force boundary
+
+Campaign doctrine is authored content; tactical detection and pursuit remain shared mechanics. `US_PACIFIC_DOCTRINE_PROFILE` owns the current Pacific ASW area-risk table, escort-count/year/difficulty modifiers, screen-role policy, hostile Japanese aircraft roster and friendly Allied patrol roster/area exclusions. `asw-brain.js` may calculate and assign screen positions, but it must not know that Truk/Luzon are high-risk or Java is low-risk. `aircraft.js` may spawn, detect, attack, evade and move aircraft, but it must not contain Japanese/Allied aircraft names or Pacific area exclusions.
+
+The profile is intentionally small and literal. Do not build a generic air-war database: a future Atlantic campaign only needs to author the doctrine values and aircraft roster required by its vertical slice. Historical war-progression multipliers such as `aswSkill` and `airThreatFactor` remain in the dated campaign historical model; doctrine supplies the force/content policy around those already-materialized factors.
 
 ### Theater special-operation boundary
 
