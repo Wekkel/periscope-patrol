@@ -1,0 +1,172 @@
+name: Deploy production + Atlantic DEV to Pages
+
+# Bootstrap safety rule: Phase 0B is manual-only. Adding this file while the
+# existing site still publishes directly from main must not start a premature
+# Pages deployment. After Settings → Pages has been switched to GitHub Actions,
+# run this workflow manually from MAIN. A later Phase 0C patch enables automatic
+# deployment on main pushes once the dual-PWA setup has passed device testing.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "periscope-pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Never let an experimental branch execute the Pages deployment recipe.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout production (main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: prod
+
+      - name: Checkout Atlantic DEV
+        uses: actions/checkout@v4
+        with:
+          ref: atlantic-dev
+          path: ad
+
+      - name: Compose production root and /dev/
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf site
+          mkdir -p site
+
+          # Keep repository/Actions metadata out of the public artifact.
+          rsync -a --exclude='.git' --exclude='.github' prod/ site/
+          mkdir -p site/dev
+          rsync -a --exclude='.git' --exclude='.github' ad/ site/dev/
+          touch site/.nojekyll
+          if find site -type l -print -quit | grep -q .; then
+            echo 'Pages artifact contains a symbolic link; refusing deployment.' >&2
+            exit 1
+          fi
+
+          export REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          export AD_SHA="$(git -C ad rev-parse --short=8 HEAD)"
+
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+
+          site = Path('site')
+          dev = site / 'dev'
+          repo = os.environ['REPO_NAME']
+          ad_sha = os.environ['AD_SHA']
+
+          # Failsafe: Phase 0's manual service-worker split MUST already exist
+          # in both branches before this workflow is allowed to publish /dev/.
+          for label, path in [('production', site/'sw.js'), ('Atlantic DEV', dev/'sw.js')]:
+              text = path.read_text(encoding='utf-8')
+              if 'periscope-patrol-prod-' not in text or 'periscope-patrol-dev-' not in text:
+                  raise SystemExit(f'{label} sw.js is missing the Phase 0 cache-family isolation')
+
+          # The DEV manifest is generated only in the Pages artifact. Source
+          # remains shared, avoiding a permanent manifest merge conflict.
+          manifest_path = dev / 'manifest.webmanifest'
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          manifest['name'] = 'Periscope Patrol DEV'
+          manifest['short_name'] = 'PP DEV'
+          manifest['id'] = f'/{repo}/dev/'
+          manifest['start_url'] = './index.html'
+          manifest['scope'] = './'
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
+
+          # Make the development app unmistakable before JavaScript even runs
+          # and ask crawlers not to index experimental content. This is not an
+          # access-control mechanism; /dev/ is still public by design.
+          index_path = dev / 'index.html'
+          html = index_path.read_text(encoding='utf-8')
+          html = re.sub(r'<title>.*?</title>', '<title>Periscope Patrol DEV</title>', html, count=1, flags=re.S)
+          html = re.sub(
+              r'<meta\s+name="apple-mobile-web-app-title"\s+content="[^"]*"\s*/?>',
+              '<meta name="apple-mobile-web-app-title" content="Periscope DEV"/>',
+              html, count=1, flags=re.I
+          )
+          if 'name="robots"' not in html:
+              html = html.replace(
+                  '<meta name="theme-color" content="#04090b"/>',
+                  '<meta name="theme-color" content="#04090b"/>\n  <meta name="robots" content="noindex,nofollow,noarchive"/>',
+                  1
+              )
+          index_path.write_text(html, encoding='utf-8')
+
+          # AD must refresh its offline shell after every AD commit without
+          # creating permanent VERSION conflicts between main and atlantic-dev.
+          # Production keeps the source VERSION exactly as maintained by owner.
+          dev_sw = dev / 'sw.js'
+          sw = dev_sw.read_text(encoding='utf-8')
+          m = re.search(r"const\s+VERSION\s*=\s*(['\"])([^'\"]+)\1", sw)
+          if not m:
+              raise SystemExit('Could not locate VERSION in DEV sw.js')
+          base_version = re.sub(r'-ad-[0-9a-f]+$', '', m.group(2), flags=re.I)
+          generated = f'{base_version}-ad-{ad_sha}'
+          sw, n = re.subn(
+              r"const\s+VERSION\s*=\s*(['\"])[^'\"]+\1",
+              f"const VERSION = '{generated}'",
+              sw, count=1
+          )
+          if n != 1:
+              raise SystemExit('DEV service-worker VERSION patch failed')
+          dev_sw.write_text(sw, encoding='utf-8')
+
+          # Static integrity checks: a Pages deploy should fail loudly rather
+          # than publish a partially copied game or a mistaken DEV identity.
+          def validate(root: Path, expected_dev: bool):
+              index = (root/'index.html').read_text(encoding='utf-8')
+              scripts = re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', index, flags=re.I)
+              missing = []
+              for src in scripts:
+                  if re.match(r'^[a-z]+:', src, flags=re.I) or src.startswith('//'):
+                      continue
+                  clean = src.split('?',1)[0].split('#',1)[0]
+                  if not (root/clean).resolve().is_file():
+                      missing.append(src)
+              if missing:
+                  raise SystemExit(f'{root}: missing script assets: {missing}')
+              mf = json.loads((root/'manifest.webmanifest').read_text(encoding='utf-8'))
+              if expected_dev:
+                  if mf.get('name') != 'Periscope Patrol DEV' or not str(mf.get('id','')).endswith('/dev/'):
+                      raise SystemExit('DEV manifest identity check failed')
+                  if '-ad-' not in (root/'sw.js').read_text(encoding='utf-8'):
+                      raise SystemExit('DEV service-worker build token missing')
+              else:
+                  if mf.get('name') != 'Periscope Patrol' or mf.get('id') != f'/{repo}/':
+                      raise SystemExit('Production manifest identity was unexpectedly altered')
+
+          validate(site, False)
+          validate(dev, True)
+          print(f'Pages artifact OK: production + Atlantic DEV {generated}')
+          PY
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./site
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
