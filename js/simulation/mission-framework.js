@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════ MEGA PACIFIC — MISSION FRAMEWORK
+// ═══════════════════════════════════════════════════ MISSION FRAMEWORK
 // Mission rules reuse the same world truth as normal patrol play. A critical
 // target may be abstracted outside the tactical bubble for performance, but it
 // keeps one identity and one route state; mission code must never respawn or
@@ -8,32 +8,12 @@ const MISSION_PRIMARY_TYPES=[
   'SPECIAL_TRANSPORT','MINELAYING','SHADOW_REPORT','ESCORT_HUNT','HARBOR_STRIKE',
   'RECON_INSERTION','RECON_EXTRACTION','WEATHER_AMBUSH'
 ];
-const MISSION_DEFINITIONS={
-  CONVOY_INTERDICTION:{title:'CONVOY INTERDICTION',reward:900,
-    briefing:'Hunt enemy merchant traffic in the assigned patrol area. Locate the convoy, neutralize a meaningful share of shipping, survive the escort response and return.'},
-  HIGH_VALUE_INTERCEPT:{title:'HIGH VALUE INTERCEPT',reward:1700,
-    briefing:'Intelligence places a high-value ship on a known shipping route. Reports are imperfect but the target is persistent; intercept, identify and destroy or mission-kill it.'},
-  RECONNAISSANCE:{title:'ANCHORAGE RECONNAISSANCE',reward:1500,
-    briefing:'Approach the enemy anchorage, visually identify the assigned targets and withdraw. Weapons are discretionary; opening fire will compromise the reconnaissance.'},
-  LIFEGUARD:{title:'LIFEGUARD',reward:1900,
-    briefing:'Take station near a scheduled carrier strike. Locate a downed airman with bridge watch or SJ radar, recover him on the surface, then return.'},
-  SPECIAL_TRANSPORT:{title:'SPECIAL TRANSPORT / COASTWATCHERS',reward:1750,
-    briefing:'Make a night rendezvous close to enemy-held coast, remain surfaced and nearly stopped while the coastwatcher party and supplies go ashore, then clear the area.'},
-  MINELAYING:{title:'MINELAYING',reward:1650,
-    briefing:'Reach the assigned shipping lane or harbor approach and lay the complete pattern. Mine release is automatic once the boat is correctly positioned, submerged, slow and aligned.'},
-  SHADOW_REPORT:{title:'SHADOW & REPORT',reward:1550,
-    briefing:'Find the assigned convoy and shadow it without provoking the escort screen. Build a useful movement report, transmit it automatically when complete, then return.'},
-  ESCORT_HUNT:{title:'ESCORT HUNT',reward:2100,
-    briefing:'COMSUBPAC has prioritized a named Japanese destroyer or escort. Locate, identify and sink or mission-kill that warship.'},
-  HARBOR_STRIKE:{title:'HARBOR STRIKE',reward:2600,
-    briefing:'Penetrate the enemy anchorage, neutralize the assigned high-value unit and withdraw outside the harbor defenses.'},
-  RECON_INSERTION:{title:'RECON PARTY INSERTION',reward:2050,
-    briefing:'Land a reconnaissance party on an enemy-held coast at night. Surface nearly stopped at the rendezvous, complete the transfer, then clear the coast.'},
-  RECON_EXTRACTION:{title:'RECON PARTY EXTRACTION',reward:2200,
-    briefing:'Recover an Allied reconnaissance/coastwatcher party from enemy-held coast. Make the night pickup surfaced and nearly stopped, then escape before the patrol response closes.'},
-  WEATHER_AMBUSH:{title:'SQUALL AMBUSH',reward:1800,
-    briefing:'Use poor visibility as concealment. Locate the convoy and score a hit while rain, squall or darkness materially reduces visual range.'}
-};
+function _missionProfile(state){
+  const id=state?.campaign?.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId;
+  return typeof getCampaignMissionProfile==='function'?getCampaignMissionProfile(id):null;
+}
+function _missionDefinition(state,type){return _missionProfile(state)?.definitions?.[type]||null;}
+
 
 function _missionHash(seed,text){
   let h=((Number(seed)||1)*2654435761)>>>0;for(const ch of String(text||'')){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)>>>0;}
@@ -62,7 +42,7 @@ function _missionNearEnemyPort(engine,rangeNm=2.2){
   if(!port)return{port:null,pos:_missionSafePoint(engine,sub.position,sub.heading,12,30)};
   const out=bearingBetween(port.pos,sub.position);return{port,pos:_missionSafePoint(engine,port.pos,out,rangeNm,20)};
 }
-function _missionLabel(type){return MISSION_DEFINITIONS[type]?.title||String(type||'PATROL').replaceAll('_',' ');}
+function _missionLabel(state,type){return _missionDefinition(state,type)?.title||String(type||'PATROL').replaceAll('_',' ');}
 function _missionShipNeutralized(c){
   if(!c)return false;if(c.sunk)return true;const D=typeof ensureShipDamage==='function'?ensureShipDamage(c):c.shipDamage;
   return !!(D&&(D.abandoned||D.founderingAt!=null||D.propulsion>=.90||D.flotation>=.94));
@@ -119,7 +99,7 @@ function missionBriefingText(state){
   else if(m.type==='MINELAYING')extra=` Pattern: ${m.mineCount||12} mines; release interval is automatic.`;
   else if(m.type==='SHADOW_REPORT')extra=' Hold the convoy at a useful shadowing range without a firm enemy prosecution.';
   else if(m.type==='WEATHER_AMBUSH')extra=' A long-lived squall has been reported near the shipping lane. Poor visibility or darkness must materially cover the successful attack.';
-  return `${m.briefing||MISSION_DEFINITIONS[m.type]?.briefing||''}${extra}`;
+  return `${m.briefing||_missionDefinition(state,m.type)?.briefing||''}${extra}`;
 }
 function missionProgressText(state){
   const m=state?.campaign?.primaryMission;if(!m)return'';
@@ -136,7 +116,7 @@ function missionProgressText(state){
     const ships=Math.max(0,m.neutralizedShips||0),shipGoal=Math.max(1,m.requiredNeutralizedShips||2),tons=Math.max(0,m.neutralizedTonnage||0),initial=Math.max(1,m.initialMerchantTonnage||1),pct=Math.round(tons/initial*100),goal=Math.round((m.requiredNeutralizedTonnagePct||.45)*100);
     return`Neutralized ${ships}/${shipGoal} ships · ${pct}%/${goal}% convoy tonnage`;
   }
-  return _missionLabel(m.type);
+  return _missionLabel(state,m.type);
 }
 
 (function installMissionFramework(){
@@ -144,30 +124,23 @@ function missionProgressText(state){
   Object.assign(SimEngine.prototype,{
     ensureMissionFramework(){
       const s=this.state,c=s.campaign,W=s.world;c.optionalObjectives=Array.isArray(c.optionalObjectives)?c.optionalObjectives:[];W.missionObjects=Array.isArray(W.missionObjects)?W.missionObjects:[];
-      if(!MISSION_PRIMARY_TYPES.includes(c.missionType))c.missionType='CONVOY_INTERDICTION';
-      if(!c.primaryMission){const d=MISSION_DEFINITIONS[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true};}
+      const profile=_missionProfile(s);if(!profile)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no mission profile`);
+      if(!MISSION_PRIMARY_TYPES.includes(c.missionType)||!profile.definitions?.[c.missionType])c.missionType=profile.defaultMissionType||'CONVOY_INTERDICTION';
+      if(!c.primaryMission){const d=profile.definitions[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true};}
       const ids=c.missionType==='CONVOY_INTERDICTION'?['locate','attack','evade','return']:[];if(ids.length&&(c.objectives||[]).every(o=>!o.id))(c.objectives||[]).forEach((o,i)=>o.id=ids[i]||`objective-${i+1}`);
       return c.primaryMission;
     },
 
     chooseMissionType(requested='AUTO'){
-      if(MISSION_PRIMARY_TYPES.includes(requested))return requested;
-      const c=this.state.campaign,area=c.patrolArea,seed=c.scenarioSeed||1;
-      const pools={
-        'Truk Approaches':['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','RECONNAISSANCE','HARBOR_STRIKE','MINELAYING','LIFEGUARD','SHADOW_REPORT','WEATHER_AMBUSH'],
-        'Java Sea':['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','SPECIAL_TRANSPORT','RECON_INSERTION','MINELAYING','RECONNAISSANCE','WEATHER_AMBUSH','SHADOW_REPORT'],
-        'Yellow Sea':['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','MINELAYING','SHADOW_REPORT','WEATHER_AMBUSH'],
-        'Kii Suido / Honshu Approaches':['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','RECONNAISSANCE','MINELAYING','SHADOW_REPORT','WEATHER_AMBUSH'],
-        'East China Sea / Formosa Approaches':['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','SHADOW_REPORT','WEATHER_AMBUSH','LIFEGUARD','MINELAYING'],
-        'Sulu Sea / Tawi-Tawi':['CONVOY_INTERDICTION','ESCORT_HUNT','RECON_INSERTION','RECON_EXTRACTION','SPECIAL_TRANSPORT','SHADOW_REPORT','WEATHER_AMBUSH'],
-        'Kurile / Hokkaido Approaches':['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','LIFEGUARD','WEATHER_AMBUSH','SHADOW_REPORT']
-      };
-      const pool=pools[area]||['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','RECONNAISSANCE','LIFEGUARD','SPECIAL_TRANSPORT','MINELAYING','SHADOW_REPORT','ESCORT_HUNT','RECON_INSERTION','RECON_EXTRACTION','WEATHER_AMBUSH'];
+      const c=this.state.campaign,profile=_missionProfile(this.state);if(!profile)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no mission profile`);
+      if(MISSION_PRIMARY_TYPES.includes(requested)&&profile.definitions?.[requested])return requested;
+      const area=c.patrolArea,seed=c.scenarioSeed||1,pool=(profile.missionPoolsByArea?.[area]||profile.defaultMissionPool||[]).filter(type=>MISSION_PRIMARY_TYPES.includes(type)&&profile.definitions?.[type]);
+      if(!pool.length)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no missions for ${area||'UNKNOWN AREA'}`);
       return pool[Math.floor(_missionHash(seed,`${area}:${c.patrolNumber}:mission`)*pool.length)%pool.length];
     },
 
     configureMission(requested='AUTO',options={}){
-      const s=this.state,c=s.campaign,W=s.world,type=this.chooseMissionType(requested),d=MISSION_DEFINITIONS[type],now=s.time.elapsedSeconds||0;
+      const s=this.state,c=s.campaign,W=s.world,type=this.chooseMissionType(requested),d=_missionDefinition(s,type),now=s.time.elapsedSeconds||0;if(!d)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no definition for mission ${type}`);
       c.missionType=type;c.primaryMission={type,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:now};c.optionalObjectives=[];W.missionObjects=[];
       const m=c.primaryMission,setObjs=rows=>{c.objectives=rows.map(([id,text])=>({id,text,done:false,failed:false}));};
       if(type==='CONVOY_INTERDICTION'){

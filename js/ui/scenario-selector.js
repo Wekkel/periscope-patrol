@@ -68,7 +68,10 @@ class ScenarioSelector{
 
   renderCards(){
     const c=document.getElementById('stabPatrol');if(!c)return;
-    const missionOpts=[['AUTO','AUTO — varied patrol orders'],...(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).map(k=>[k,(typeof MISSION_DEFINITIONS!=='undefined'&&MISSION_DEFINITIONS[k]?.title)||k.replaceAll('_',' ')])];
+    const state=this.game?.getSnapshot?.(),missionProfile=typeof getCampaignMissionProfile==='function'?getCampaignMissionProfile(state?.campaign?.campaignProfileId):null;
+    const missionTypes=(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).filter(k=>missionProfile?.definitions?.[k]);
+    const missionOpts=[['AUTO','AUTO — varied patrol orders'],...missionTypes.map(k=>[k,missionProfile.definitions[k].title||k.replaceAll('_',' ')])];
+    const missionHint=missionProfile?.autoDescription||'One primary mission per patrol. AUTO chooses orders appropriate to the selected patrol area.';
     c.innerHTML=Object.entries(PATROL_AREAS).map(([name,area])=>{
       const dl=String(area.difficulty||'MEDIUM').toUpperCase(),d=dl==='HARD'?{l:dl,cls:'diff-hard',s:'★★★'}:dl==='EASY'?{l:dl,cls:'diff-easy',s:'★☆☆'}:{l:dl,cls:'diff-med',s:'★★☆'};
       return `<div class="area-card${name===this.selArea?' selected':''}" data-area="${name}">
@@ -83,7 +86,7 @@ class ScenarioSelector{
         </div>
         <span class="area-diff ${d.cls}">${d.s} ${d.l}</span>
       </div>`;
-    }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">One primary mission per patrol. AUTO chooses orders that suit the selected Pacific area.</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
+    }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">${missionHint}</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
     const ms=c.querySelector('#missionTypeSelect');if(ms){ms.addEventListener('change',()=>{this.selMission=ms.value;});if(typeof Picker!=='undefined')Picker.enhance(ms);}
     c.querySelectorAll('.area-card').forEach(card=>{
       card.addEventListener('click',()=>{

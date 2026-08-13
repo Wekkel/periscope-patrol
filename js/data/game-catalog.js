@@ -14,7 +14,7 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=5;
+const PP_CATALOG_VERSION=6;
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
@@ -321,6 +321,54 @@ const US_PACIFIC_AMBIENT_TRAFFIC_PROFILE=Object.freeze({
   })
 });
 
+
+
+/* Mission assignment and player-facing orders belong to the campaign profile.
+   The mission framework below this data owns mechanics (intercept, lifeguard,
+   minelaying, shadowing, etc.); it must not know Pacific area names, COMSUBPAC
+   wording or which mission mix is appropriate to a specific theater. */
+const US_PACIFIC_MISSION_PROFILE=Object.freeze({
+  id:'us-pacific-missions-v1',
+  defaultMissionType:'CONVOY_INTERDICTION',
+  autoDescription:'One primary mission per patrol. AUTO chooses orders that suit the selected Pacific area.',
+  definitions:Object.freeze({
+    CONVOY_INTERDICTION:Object.freeze({title:'CONVOY INTERDICTION',reward:900,
+      briefing:'Hunt enemy merchant traffic in the assigned patrol area. Locate the convoy, neutralize a meaningful share of shipping, survive the escort response and return.'}),
+    HIGH_VALUE_INTERCEPT:Object.freeze({title:'HIGH VALUE INTERCEPT',reward:1700,
+      briefing:'Intelligence places a high-value ship on a known shipping route. Reports are imperfect but the target is persistent; intercept, identify and destroy or mission-kill it.'}),
+    RECONNAISSANCE:Object.freeze({title:'ANCHORAGE RECONNAISSANCE',reward:1500,
+      briefing:'Approach the enemy anchorage, visually identify the assigned targets and withdraw. Weapons are discretionary; opening fire will compromise the reconnaissance.'}),
+    LIFEGUARD:Object.freeze({title:'LIFEGUARD',reward:1900,
+      briefing:'Take station near a scheduled carrier strike. Locate a downed airman with bridge watch or SJ radar, recover him on the surface, then return.'}),
+    SPECIAL_TRANSPORT:Object.freeze({title:'SPECIAL TRANSPORT / COASTWATCHERS',reward:1750,
+      briefing:'Make a night rendezvous close to enemy-held coast, remain surfaced and nearly stopped while the coastwatcher party and supplies go ashore, then clear the area.'}),
+    MINELAYING:Object.freeze({title:'MINELAYING',reward:1650,
+      briefing:'Reach the assigned shipping lane or harbor approach and lay the complete pattern. Mine release is automatic once the boat is correctly positioned, submerged, slow and aligned.'}),
+    SHADOW_REPORT:Object.freeze({title:'SHADOW & REPORT',reward:1550,
+      briefing:'Find the assigned convoy and shadow it without provoking the escort screen. Build a useful movement report, transmit it automatically when complete, then return.'}),
+    ESCORT_HUNT:Object.freeze({title:'ESCORT HUNT',reward:2100,
+      briefing:'COMSUBPAC has prioritized a named Japanese destroyer or escort. Locate, identify and sink or mission-kill that warship.'}),
+    HARBOR_STRIKE:Object.freeze({title:'HARBOR STRIKE',reward:2600,
+      briefing:'Penetrate the enemy anchorage, neutralize the assigned high-value unit and withdraw outside the harbor defenses.'}),
+    RECON_INSERTION:Object.freeze({title:'RECON PARTY INSERTION',reward:2050,
+      briefing:'Land a reconnaissance party on an enemy-held coast at night. Surface nearly stopped at the rendezvous, complete the transfer, then clear the coast.'}),
+    RECON_EXTRACTION:Object.freeze({title:'RECON PARTY EXTRACTION',reward:2200,
+      briefing:'Recover an Allied reconnaissance/coastwatcher party from enemy-held coast. Make the night pickup surfaced and nearly stopped, then escape before the patrol response closes.'}),
+    WEATHER_AMBUSH:Object.freeze({title:'SQUALL AMBUSH',reward:1800,
+      briefing:'Use poor visibility as concealment. Locate the convoy and score a hit while rain, squall or darkness materially reduces visual range.'})
+  }),
+  missionPoolsByArea:Object.freeze({
+    'Truk Approaches':Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','RECONNAISSANCE','HARBOR_STRIKE','MINELAYING','LIFEGUARD','SHADOW_REPORT','WEATHER_AMBUSH']),
+    'Java Sea':Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','SPECIAL_TRANSPORT','RECON_INSERTION','MINELAYING','RECONNAISSANCE','WEATHER_AMBUSH','SHADOW_REPORT']),
+    'Yellow Sea':Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','MINELAYING','SHADOW_REPORT','WEATHER_AMBUSH']),
+    'Kii Suido / Honshu Approaches':Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','RECONNAISSANCE','MINELAYING','SHADOW_REPORT','WEATHER_AMBUSH']),
+    'East China Sea / Formosa Approaches':Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','SHADOW_REPORT','WEATHER_AMBUSH','LIFEGUARD','MINELAYING']),
+    'Sulu Sea / Tawi-Tawi':Object.freeze(['CONVOY_INTERDICTION','ESCORT_HUNT','RECON_INSERTION','RECON_EXTRACTION','SPECIAL_TRANSPORT','SHADOW_REPORT','WEATHER_AMBUSH']),
+    'Kurile / Hokkaido Approaches':Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','LIFEGUARD','WEATHER_AMBUSH','SHADOW_REPORT'])
+  }),
+  defaultMissionPool:Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','RECONNAISSANCE','LIFEGUARD','SPECIAL_TRANSPORT','MINELAYING','SHADOW_REPORT','ESCORT_HUNT','RECON_INSERTION','RECON_EXTRACTION','WEATHER_AMBUSH'])
+});
+
 const CAMPAIGN_PROFILES=Object.freeze({
   'us-pacific':Object.freeze({
     id:'us-pacific',
@@ -334,7 +382,8 @@ const CAMPAIGN_PROFILES=Object.freeze({
     defaultStartDate:'1943-08-17',
     historicalModel:US_PACIFIC_HISTORICAL_MODEL,
     primaryConvoyProfile:US_PACIFIC_PRIMARY_CONVOY_PROFILE,
-    ambientTrafficProfile:US_PACIFIC_AMBIENT_TRAFFIC_PROFILE
+    ambientTrafficProfile:US_PACIFIC_AMBIENT_TRAFFIC_PROFILE,
+    missionProfile:US_PACIFIC_MISSION_PROFILE
   })
 });
 
@@ -347,6 +396,13 @@ const DEFAULT_GAME_IDENTITY=Object.freeze({
 
 function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   return CAMPAIGN_PROFILES[profileId]||CAMPAIGN_PROFILES[DEFAULT_GAME_IDENTITY.campaignProfileId];
+}
+
+function getCampaignMissionProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  /* Deliberately no Pacific fallback for a known future campaign. A missing
+     mission profile is an authoring error and must not leak COMSUBPAC orders
+     or Pacific area selection into another theater. */
+  return CAMPAIGN_PROFILES[profileId]?.missionProfile||null;
 }
 
 function getCampaignHistoricalModel(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){

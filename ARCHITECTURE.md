@@ -121,6 +121,12 @@ The active campaign owns the authored hull mix for the primary convoy. `game-cat
 
 Primary convoy composition and ambient traffic are deliberately separate campaign profiles because their persistence contracts differ. `game-catalog.js` now owns both the current `us-pacific` primary-convoy profile and its ambient/distant-world traffic profile. `traffic-director.js` still owns route motion, deterministic spawning, the cheap abstract/tactical LOD boundary and three small manifest primitives (`SINGLE`, `SMALL_CONVOY`, `TASK_GROUP`), but it must not contain Pacific area-density tables, Japanese vessel names, faction sides, lane preferences or base speeds. A future Atlantic campaign must provide its own primary convoy and ambient traffic profiles; missing profiles should fail explicitly rather than silently materializing Pacific shipping.
 
+### Mission assignment / briefing boundary
+
+The active campaign owns player-facing mission definitions and the patrol-area mission mix. `game-catalog.js` contains the current `us-pacific` mission titles, rewards, briefing text, AUTO description and per-area mission pools; `mission-framework.js` owns only the supported mission mechanics and runtime progression. Do not put COMSUBPAC/Japanese wording or Pacific area names back into mission selection logic.
+
+`MISSION_PRIMARY_TYPES` remains the small set of engine mechanics currently implemented. A campaign may expose only a subset through its mission profile. Missing mission data for a future campaign should fail explicitly rather than falling back to Pacific orders. Theater-specific target templates and special mission objects are a separate migration boundary and may still contain Pacific content until their own regression-gated refactor.
+
 ### Lazy patrol terrain
 
 `PATROL_AREAS` is metadata. `getPatrolTerrain(areaKey)` expands only the selected coastline and keeps a one-area terrain cache; the bathymetry cache is invalidated when the selected area changes. This is deliberate for the Helios-class mobile performance target. Adding patrol areas must not reintroduce `terrain: buildTerrain(...)` in every `PATROL_AREAS` entry.
