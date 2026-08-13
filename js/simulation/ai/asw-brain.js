@@ -76,7 +76,7 @@ class SimEngineASWBrain extends SimEngineWeather{
 
   armASWProsecution(reason='CONTACT',restart=false){
     const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0,L=this.aswProsecutionLimits();
-    const strong=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN','COLLISION','EMERGENCY_BLOW','ACTIVE_QC'].includes(reason);
+    const strong=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN','COLLISION','EMERGENCY_BLOW','ACTIVE_ECHO','ACTIVE_QC'].includes(reason);
     const missing=A.prosecutionStartedAt<0||A.prosecutionSoftDeadlineAt<=now||A.prosecutionHardDeadlineAt<=now;
     if(restart||missing||strong){
       A.prosecutionStartedAt=now;A.prosecutionSoftDeadlineAt=now+L.softSec;A.prosecutionHardDeadlineAt=now+L.hardSec;A.prosecutionReason=reason;

@@ -283,9 +283,12 @@ class SimEngineCore{
         // Fix H: auto-set RPM for faster dive if nearly stopped
         if(sub.propulsion.speedKnots<5) sub.propulsion.orderedRpm=350;
         this.log('CRASH DIVE! Flooding ballast tanks.','warn'); audio.playCrashDive(); break;
-      case'TOGGLE_SD_RADAR':{
-        this.ensureSoundRadarState?.();const a=this.state.world.airThreat,R=this.state.world.radar;a.sdOn=!!R?.sdAvailable;
-        this.notify(R?.sdAvailable?'SD air-search radar is crew-managed automatically whenever it can be used.':'No SD air-warning radar is fitted on this patrol date.',R?.sdAvailable?'ok':'warn');break;}
+      case'TOGGLE_AIR_WARNING_RADAR':
+      case'TOGGLE_SD_RADAR':{ // legacy command ID retained for old UI/save integrations
+        this.ensureSoundRadarState?.();const a=this.state.world.airThreat,R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),airUi=sensorUi.airWarningRadar||{};
+        a.airWarningOn=!!R?.airWarningAvailable;a.sdOn=a.airWarningOn;
+        const managed=airUi.crewManagedLabel||airUi.label||'air-warning radar',status=airUi.statusLabel||airUi.label||'air-warning radar';
+        this.notify(R?.airWarningAvailable?`${managed} is crew-managed automatically whenever it can be used.`:`No ${status} is fitted on this patrol date.`,R?.airWarningAvailable?'ok':'warn');break;}
       case'BOTTOM_OUT':{
         if(sub.bottomed){this.unbottom(sub);break;}
         const sea=this.seabedFeet(sub.position);Bathy.ensure(this.state.world.terrain);const kind=Bathy.bottomType(sub.position.xNm,sub.position.yNm);
@@ -387,9 +390,9 @@ class SimEngineCore{
       case'SOUND_MARK_BEARING': this.markSoundBearing?.(); break;
       case'SOUND_ECHO_RANGE': this.echoRange?.(); break;
       case'TOGGLE_SOUND_DISPLAY':{
-        this.ensureSoundRadarState?.();const R=this.state.world.radar;
+        this.ensureSoundRadarState?.();const R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),radarUi=sensorUi.surfaceSearchRadar||{};
         if(this.state.tactical.soundDisplay==='PASSIVE'){
-          if(!R?.sjAvailable){this.notify('SJ surface-search radar is not fitted on this patrol date.','warn');break;}
+          if(!R?.surfaceSearchAvailable){this.notify(`${radarUi.statusLabel||radarUi.label||'Surface-search radar'} is not fitted on this patrol date.`,'warn');break;}
           this.state.tactical.soundDisplay='RADAR';
         }else this.state.tactical.soundDisplay='PASSIVE';
         break;}
@@ -1114,7 +1117,7 @@ class SimEngineCore{
     s.tactical.soundBearing=sub.heading;s.tactical.soundDisplay='PASSIVE';
     s.world.sound=null;s.world.radar=null;
     s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,
-      alarmedAt:-999,sdOn:true,nextCheck:120};
+      alarmedAt:-999,airWarningOn:true,sdOn:true,nextCheck:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
     const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
     s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});

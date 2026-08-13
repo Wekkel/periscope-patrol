@@ -34,7 +34,7 @@ class DomView{
     const bc=document.getElementById('bridgeControls');if(bc)bc.classList.toggle('on',state.tactical.activeStation==='BRIDGE');
     document.getElementById('mapWeatherButton')?.classList.toggle('on',!!state.map.weatherOverlay);
     const sc=document.getElementById('soundControls');if(sc)sc.classList.toggle('on',state.tactical.activeStation==='SOUND');
-    const rb=document.getElementById('soundRadar');if(rb){rb.classList.toggle('on',state.tactical.soundDisplay==='RADAR');const sp=rb.querySelector?.('span');if(sp)sp.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
+    const sensorUi=getPlayerSensorPresentation(state),rb=document.getElementById('soundRadar');if(rb){rb.classList.toggle('on',state.tactical.soundDisplay==='RADAR');const sp=rb.querySelector?.('span');if(sp)sp.textContent=state.tactical.soundDisplay==='RADAR'?(sensorUi.passiveSound?.label||'Passive Sound'):(sensorUi.surfaceSearchRadar?.label||'Surface Radar');}const eb=document.getElementById('soundEcho');if(eb&&!eb.classList.contains('confirm')){const sp=eb.querySelector?.('span');if(sp)sp.textContent=sensorUi.activeEcho?.label||'Active Echo';}
     const bz=bridgeZoomAmount(state),bb=document.getElementById('bridgeBino');if(bb){bb.classList.toggle('on',bz>.05);const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
     const dg=state.weapons.deckGun,ds=document.getElementById('deckGunStatus');
     if(ds&&dg)ds.textContent=`${dg.manned?'CREW TOPSIDE — automatic':'crew secured — enter GUN station to man automatically'} · train ${dg.trainDeg.toFixed(1)}° · elev ${dg.elevationDeg.toFixed(1)}° · ammo ${dg.ammo} · drag 3D view to aim`;

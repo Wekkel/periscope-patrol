@@ -113,7 +113,7 @@
       <div class="hk-row"><span class="hk-key">3</span><span class="hk-desc">Navigation map</span></div>
       <div class="hk-row"><span class="hk-key">4</span><span class="hk-desc">Deck gun</span></div>
       <div class="hk-row"><span class="hk-key">5</span><span class="hk-desc">Surface bridge watch</span></div>
-      <div class="hk-row"><span class="hk-key">6</span><span class="hk-desc">Sound room / SJ radar</span></div>
+      <div class="hk-row"><span class="hk-key">6</span><span class="hk-desc">Sound room / surface radar</span></div>
     </div>
     <div class="hk-section">
       <div class="hk-title">Helm</div>
@@ -431,8 +431,8 @@
       <button id="soundLeft">◀ <span>Train</span></button>
       <button id="soundMark">✚ <span>Mark Bearing</span></button>
       <button id="soundRight">▶ <span>Train</span></button>
-      <button id="soundRadar">⌁ <span>SJ Radar</span></button>
-      <button id="soundEcho" class="sound-active-qc">◉ <span>Active QC</span></button>
+      <button id="soundRadar">⌁ <span>Surface Radar</span></button>
+      <button id="soundEcho" class="sound-active-qc">◉ <span>Active Echo</span></button>
     </div>
     <div id="dayNightBar"><div id="dayNightFill"></div></div>
     <div id="dayNightLabel"></div>
@@ -625,7 +625,7 @@
           <button id="mPumps">💧 Pumps</button>
           <select id="mTimeSel" title="Time scale" style="margin:0;grid-column:1/-1;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
         </div>
-        <div id="mAutoCrewStatus" class="note">AUTO CREW · SD radar · AA · deck-gun crew · damage-control parties</div>
+        <div id="mAutoCrewStatus" class="note">AUTO CREW · air-warning radar · AA · deck-gun crew · damage-control parties</div>
 
         <div class="ptitle" style="margin-top:14px;">Damage Control Priority</div>
         <div class="g2" id="mRepairPriority">
@@ -748,7 +748,9 @@
 
 <script src="./js/core/utilities.js"></script>
 <script src="./js/data/torpedo-data.js"></script>
+<script src="./js/data/game-catalog.js"></script>
 <script src="./js/data/campaign-data.js"></script>
+<script src="./js/data/pacific-terrain-data.js"></script>
 <script src="./js/navigation/route-geometry.js"></script>
 <script src="./js/simulation/collision/hull-geometry.js"></script>
 <script src="./js/simulation/weapons/tdc-math.js"></script>

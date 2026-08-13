@@ -31,7 +31,9 @@ Nothing lower in this list needs to import something above it; the final boot co
 ### Core and data
 
 - `js/core/utilities.js` — math, units and shared formatting helpers.
-- `js/data/torpedo-data.js` — torpedo specs/dud modes, coastline source geometry and the one-entry lazy patrol-terrain cache.
+- `js/data/torpedo-data.js` — torpedo specs, dud modes and torpedo-load helpers.
+- `js/data/game-catalog.js` — explicit theater/faction/campaign/submarine identity profiles plus boat-specific sensor presentation. Simulation uses equipment-neutral capability/fix IDs; historical labels such as SJ/SD/QC belong to the submarine/equipment profile.
+- `js/data/pacific-terrain-data.js` — Pacific coastline source geometry and the one-entry lazy patrol-terrain cache.
 - `js/data/campaign-data.js` — patrol-area metadata only; do not eagerly call `buildTerrain()` here.
 - `js/navigation/route-geometry.js` — water-route/polyline geometry, including one-way progress for mission-critical routes.
 - `js/simulation/weapons/tdc-math.js` — the single source of truth for TDC launch/intercept geometry (settling run + finite gyro turn + final leg).
@@ -54,7 +56,8 @@ Files:
 - `js/simulation/weapons/deck-gun.js` — 3-inch/50 gun state, laying, firing, shell damage.
 - `js/simulation/weapons/aa-gun.js` — 20 mm AA behavior.
 - `js/simulation/radio-intel.js` — radio/ULTRA/intelligence flow.
-- `js/simulation/sensors.js` — lookout, visual/acoustic contact tracking and signatures.
+- `js/simulation/sensors.js` — lookout, visual/acoustic contact tracking and signatures. Electronic contact fixes use generic `ACTIVE_ECHO` / `SURFACE_RADAR` IDs; legacy `QC ECHO` / `SJ RADAR` values are normalized for old-save compatibility.
+- `js/simulation/sound-radar.js` — passive-sound/active-echo/surface-radar operation. It maps the current historical US fit data onto generic runtime capability fields while retaining legacy `sd*`/`sj*` aliases until the later campaign/equipment-by-date migration.
 - `js/simulation/ai/escort-asw.js` — escort ASW behavior.
 - `js/simulation/physics-navigation.js` — transit watch, submarine movement/physics/navigation and final `SimEngine` class.
 - `js/simulation/day-night.js` — day/night cycle helper.
@@ -93,6 +96,12 @@ Files:
 The optical views share a lightweight Canvas2D pseudo-3D world engine. World entities are authored once in world coordinates; station code creates a camera (`position`, `heightM`, `bearingDeg`, `fovDeg`, viewport), then terrain/vessel/atmosphere/effect renderers project through that camera. A shared renderer must not read `state.tactical.periscopeBearing`, deck-gun train or another station-specific bearing to position world geometry. That would recreate the historical bug where terrain stayed visually attached to SCOPE while BRG/GUN turned.
 
 `makeWorldCamera()` / `setWorldCameraBearing()` in `js/rendering/world-geometry.js` are the common boundary. SCOPE, BRG, GUN and impact cameras may add their own HUD/foreground presentation, but world-space objects should not need per-station positioning patches.
+
+### Sensor capability boundary
+
+Sensor simulation must not infer equipment identity from a US-specific display string. `game-catalog.js` owns the boat-specific presentation (`SJ Radar`, `SD Radar`, `Active QC` for the current Gato profile); `sensors.js` owns generic contact-fix semantics; `sound-radar.js` maps dated equipment availability into generic runtime fields and emits the generic `ACTIVE_ECHO` alert reason. The historical US date table is intentionally still in `historical-campaign.js`: moving doctrine/equipment-by-date is a separate Phase-1 patch and should not be mixed into this compatibility refactor.
+
+Legacy serialized track sources `SJ RADAR` and `QC ECHO` are accepted and normalized at read/use boundaries. Do not remove those aliases until the save-schema migration explicitly converts them.
 
 ### Lazy patrol terrain
 

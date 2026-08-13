@@ -732,7 +732,7 @@ class TouchCtrl{
     const bz=bridgeZoomAmount(state);cls('bridgeBino','on',bz>.05);
     const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
-    const sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
+    const sensorUi=getPlayerSensorPresentation(state),sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?(sensorUi.passiveSound?.label||'Passive Sound'):(sensorUi.surfaceSearchRadar?.label||'Surface Radar');}const se=g('soundEcho');if(se&&!se.classList.contains('confirm')){const span=se.querySelector?.('span');if(span)span.textContent=sensorUi.activeEcho?.label||'Active Echo';}
     cls('oSilent','on',sub.stealth.silentRunning);
     cls('oWeather','on',!!state.map.weatherOverlay);
     cls('mapWxChip','on',!!state.map.weatherOverlay);
@@ -810,7 +810,7 @@ class TouchCtrl{
     cls('mDcFlood','on',rp==='FLOODING');cls('mDcProp','on',rp==='PROPULSION');
     cls('mDcSteer','on',rp==='STEERING');cls('mDcOptics','on',rp==='OPTICS_FIRE_CONTROL');
     {const G=state.weapons.deckGun, aa=state.world.aaManned, dc=sub.damage.damageControlActive;
-      set('mAutoCrewStatus',`AUTO CREW · SD RADAR ${sub.depthFeet<12?'ON':'STANDBY'} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
+      set('mAutoCrewStatus',`AUTO CREW · ${(sensorUi.airWarningRadar?.label||'AIR WARNING RADAR').toUpperCase()} ${sub.depthFeet<12?'ON':'STANDBY'} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
       const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);
       set('mDcStatus',`PRIORITY ${repairPriorityLabel(rp)} · ${dc?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · DRIVE BANK OFFLINE':''}`);}
     set('rpmNote',`${p.engineMode} · ${p.speedKnots.toFixed(1)} kn · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);

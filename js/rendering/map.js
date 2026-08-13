@@ -743,7 +743,7 @@ class CanvasView extends CanvasViewSound {
     const src=tr.positionSource||tr.source||'HYDROPHONE';
     const hydro=src==='HYDROPHONE'||src==='SOUND BEARING';
     const triang=src==='SOUND TRIANGULATION';
-    const radar=src==='SJ RADAR'||src==='QC ECHO';
+    const radar=isElectronicRangeFixSource(src);
     const ang=degToRad(hydro?(tr.bearing||0):(tr.courseEstimate||tr.bearing||0))-Math.PI/2;
     const major=uncertaintyR*(hydro?1.85:triang?1.35:1.05);
     const minor=uncertaintyR*(hydro?.34:triang?.54:.72);
@@ -1012,8 +1012,8 @@ class CanvasView extends CanvasViewSound {
         const lenM=shipVisualLengthM(contact,180);
         const angularDeg=visualRange>.02?radToDeg(Math.atan2(lenM,visualRange*NM_M)):99;
         if(lenM<=40&&angularDeg<1.2&&(state?.tactical?.periscopeZoom??1)===1)lines.push('SMALL CRAFT · 6× RECOMMENDED');
-      }else if(isSelected)lines.push(`${tr.source} C${Math.round(conf*100)}% ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);
-      else if(!dense&&!hasTruePos)lines.push(`${tr.source} C${Math.round(conf*100)}%`);
+      }else if(isSelected){const sourceLabel=contactFixSourceDisplayLabel(state,tr.source);lines.push(`${sourceLabel} C${Math.round(conf*100)}% ${stale}s · ${tr.rangeEstimateNm.toFixed(1)}nm`);}
+      else if(!dense&&!hasTruePos){const sourceLabel=contactFixSourceDisplayLabel(state,tr.source);lines.push(`${sourceLabel} C${Math.round(conf*100)}%`);}
       if(isSelected&&tr.damageEstimate)lines.push(tr.damageEstimate);
       const fs=isSelected?10.2:8.2, lh=(isSelected?12:10)*K;
       ctx.font=this.fnt(fs,true);

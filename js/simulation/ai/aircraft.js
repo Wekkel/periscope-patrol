@@ -177,14 +177,15 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     const W=this.state.world, sub=this.state.playerSub, env=W.environment;
     const now=this.state.time.elapsedSeconds;
     W.aircraft=W.aircraft||[];
-    W.airThreat=W.airThreat||{level:env.airThreat===undefined?0.5:env.airThreat,alarmedAt:-999,sdOn:true};
+    W.airThreat=W.airThreat||{level:env.airThreat===undefined?0.5:env.airThreat,alarmedAt:-999,airWarningOn:true,sdOn:true};
     const air=W.airThreat;
     const friendlyPorts=(W.ports||[]).filter(p=>p.side==='FRIENDLY'&&p.pos);
     const nearestFriendly=pos=>{let best=null;for(const port of friendlyPorts){const rngNm=distNm(pos,port.pos);if(!best||rngNm<best.rngNm)best={port,rngNm};}return best;};
-    // Crew-managed arcade assist: SD is not a player toggle.  Whether the
-    // boat actually has the set is determined by patrol date in sound-radar.js.
+    // Crew-managed arcade assist. Equipment presentation comes from the boat
+    // profile; patrol-date availability is mapped to this generic capability by
+    // sound-radar.js. `sdOn` remains only as a legacy save/debug alias.
     this.ensureSoundRadarState?.();
-    air.sdOn=!!W.radar?.sdAvailable;
+    air.airWarningOn=!!W.radar?.airWarningAvailable;air.sdOn=air.airWarningOn;
 
     // ── does a patrol turn up? ──
     air.nextCheck=(air.nextCheck||0)-dt;
@@ -372,8 +373,9 @@ class SimEngineAircraft extends SimEngineEnemyAI {
             seen=true;how=`Bridge lookouts: ${attack?'ATTACKING ':''}AIRCRAFT bearing ${fmtDeg(airBear)}, range ${rng.toFixed(1)} nm`;
           }
         }
-        if(!seen&&surfaced&&air.sdOn&&rng<18&&Math.random()<dt*0.30){
-          seen=true; how=`SD RADAR — air contact, range ${rng.toFixed(0)} miles, no bearing`;
+        if(!seen&&surfaced&&(air.airWarningOn??air.sdOn)&&rng<18&&Math.random()<dt*0.30){
+          const airRadarName=(getPlayerSensorPresentation(this.state).airWarningRadar?.label||'AIR WARNING RADAR').toUpperCase();
+          seen=true; how=`${airRadarName} — air contact, range ${rng.toFixed(0)} miles, no bearing`;
         }else if(!seen&&surfaced&&env.daylight>0.25&&rng<clamp(env.visibilityNm*0.7,4,12)&&Math.random()<dt*0.22){
           seen=true; how=`Lookouts: AIRCRAFT bearing ${fmtDeg(airBear)}, range ${rng.toFixed(1)} nm`;
         }else if(!seen&&!surfaced&&sub.depthFeet<70&&this.state.tactical.activeStation==='PERISCOPE'

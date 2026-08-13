@@ -66,8 +66,8 @@ function createState(areaKey){
     world:{
       contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
       aaManned:false,aaAmmo:weaponProfile.aaGun.ammo,aaKills:0,aaHurt:0,
-      airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,sdOn:true,nextCheck:120},
-      sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,qcLastAt:-999,_tick:0},
+      airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,airWarningOn:true,sdOn:true,nextCheck:120},
+      sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,activeEchoLastAt:-999,qcLastAt:-999,_tick:0},
       radar:null,weatherSystem:null,
       traffic:{version:2,enabled:false,groups:[],nextId:1,clock:0,generated:false},
       radio:{pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0},

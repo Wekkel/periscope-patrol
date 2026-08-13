@@ -3,15 +3,33 @@
 // plot kinematic and let new observations pull it toward a solution at a
 // source-appropriate rate.  This prevents a new hydrophone/radar noise sample
 // from making a 10-knot merchant appear to teleport hundreds of metres.
+// Generic fix-source IDs are deliberately equipment-neutral.  Old saves may
+// still contain the former US-set labels; normalize them at the boundary rather
+// than requiring a destructive save migration.
+const CONTACT_FIX_SOURCE=Object.freeze({ACTIVE_ECHO:'ACTIVE_ECHO',SURFACE_RADAR:'SURFACE_RADAR'});
+function normalizeContactFixSource(source){
+  if(source==='QC ECHO')return CONTACT_FIX_SOURCE.ACTIVE_ECHO;
+  if(source==='SJ RADAR')return CONTACT_FIX_SOURCE.SURFACE_RADAR;
+  return source;
+}
+function isSurfaceRadarFixSource(source){return normalizeContactFixSource(source)===CONTACT_FIX_SOURCE.SURFACE_RADAR;}
+function isElectronicRangeFixSource(source){const s=normalizeContactFixSource(source);return s===CONTACT_FIX_SOURCE.ACTIVE_ECHO||s===CONTACT_FIX_SOURCE.SURFACE_RADAR;}
+function contactFixSourceDisplayLabel(state,source){
+  const s=normalizeContactFixSource(source),ui=getPlayerSensorPresentation(state);
+  if(s===CONTACT_FIX_SOURCE.ACTIVE_ECHO)return ui.activeEcho?.fixLabel||ui.activeEcho?.label||'ACTIVE ECHO';
+  if(s===CONTACT_FIX_SOURCE.SURFACE_RADAR)return ui.surfaceSearchRadar?.fixLabel||ui.surfaceSearchRadar?.label||'SURFACE RADAR';
+  return source;
+}
+
 const CONTACT_PLOT_PROFILE={
   VISUAL:{rank:5,holdSec:10,tauSec:.01,maxCorrectionNmSec:9,posConf:.97,uncertaintyNm:.018},
-  'QC ECHO':{rank:5,holdSec:12,tauSec:.7,maxCorrectionNmSec:.055,posConf:.92,uncertaintyNm:.030},
-  'SJ RADAR':{rank:4,holdSec:6,tauSec:3.0,maxCorrectionNmSec:.0025,posConf:.78,uncertaintyNm:.075},
+  ACTIVE_ECHO:{rank:5,holdSec:12,tauSec:.7,maxCorrectionNmSec:.055,posConf:.92,uncertaintyNm:.030},
+  SURFACE_RADAR:{rank:4,holdSec:6,tauSec:3.0,maxCorrectionNmSec:.0025,posConf:.78,uncertaintyNm:.075},
   'SOUND TRIANGULATION':{rank:3,holdSec:24,tauSec:7,maxCorrectionNmSec:.004,posConf:.66,uncertaintyNm:.22},
   'SOUND BEARING':{rank:2,holdSec:0,tauSec:30,maxCorrectionNmSec:0,posConf:.28,uncertaintyNm:.8},
   HYDROPHONE:{rank:1,holdSec:0,tauSec:30,maxCorrectionNmSec:.0035,posConf:.30,uncertaintyNm:.75}
 };
-function contactPlotProfile(source){return CONTACT_PLOT_PROFILE[source]||CONTACT_PLOT_PROFILE.HYDROPHONE;}
+function contactPlotProfile(source){return CONTACT_PLOT_PROFILE[normalizeContactFixSource(source)]||CONTACT_PLOT_PROFILE.HYDROPHONE;}
 function contactPlotPredicted(tr,now){
   const base=tr.plotPosition||tr.lastFixPosition;if(!base)return null;
   const at=Number.isFinite(tr.plotUpdatedAt)?tr.plotUpdatedAt:(Number.isFinite(tr.lastFixTime)?tr.lastFixTime:now);
@@ -55,7 +73,7 @@ function updateStableContactPlot(state,tr,measurement,source,quality,dt){
     tr.positionConfidence=Number.isFinite(tr.positionConfidence)?lerp(tr.positionConfidence,targetConf,.16):targetConf;
     let targetUnc=incoming.uncertaintyNm;
     if(source==='HYDROPHONE')targetUnc*=lerp(1.8,.65,q);
-    else if(source==='SJ RADAR')targetUnc*=lerp(1.45,.72,q);
+    else if(isSurfaceRadarFixSource(source))targetUnc*=lerp(1.45,.72,q);
     tr.positionUncertaintyNm=Number.isFinite(tr.positionUncertaintyNm)?lerp(tr.positionUncertaintyNm,targetUnc,.20):targetUnc;
   }
   tr.plotPosition={...pos};tr.plotUpdatedAt=now;

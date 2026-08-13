@@ -5,11 +5,11 @@
 const SOUND_ROOM={
   maxPassiveNm:18,
   markConeDeg:16,
-  qcMaxRangeNm:5.5,
-  qcCooldownSec:8,
+  activeEchoMaxRangeNm:5.5,
+  activeEchoCooldownSec:8,
   operatorMinQuality:.16,
   operatorReportMinSec:34,
-  sjSweepSec:2.0
+  surfaceRadarSweepSec:2.0
 };
 
 function _soundDateNumber(date){
@@ -28,7 +28,7 @@ function radarFitForDate(date){
     sjRadarDepthFt:p?p.sjRadarDepthFt:(d>=19440101?48:12),
     sjRangeNm:p?p.sjRangeNm:6.8,
     sjErrorFactor:p?p.sjErrorFactor:1,
-    sjSweepSec:p?p.sjSweepSec:SOUND_ROOM.sjSweepSec,
+    sjSweepSec:p?p.sjSweepSec:SOUND_ROOM.surfaceRadarSweepSec,
     label:p?p.radarLabel:(d<19420401?'NO RADAR FIT':d<19420701?'SD AIR WARNING':'SD + SJ')
   };
 }
@@ -117,9 +117,9 @@ function triangulateSoundMarks(marks){
 }
 
 function radarObservation(state,contact){
-  const seed=state.campaign?.scenarioSeed||1,bucket=Math.floor((state.time?.elapsedSeconds||0)/SOUND_ROOM.sjSweepSec),tag=`SJ:${contact.id}:${bucket}`;
+  const seed=state.campaign?.scenarioSeed||1,bucket=Math.floor((state.time?.elapsedSeconds||0)/SOUND_ROOM.surfaceRadarSweepSec),tag=`SJ:${contact.id}:${bucket}`; // keep legacy hash tag: changing it would alter deterministic Pacific radar noise
   const trueB=bearingBetween(state.playerSub.position,contact.position),trueR=distNm(state.playerSub.position,contact.position);
-  const ef=state.campaign?.historicalProfile?.sjErrorFactor||1;
+  const ef=state.world.radar?.surfaceSearchErrorFactor||state.campaign?.historicalProfile?.sjErrorFactor||1;
   const b=trueB+(_soundHashUnit(seed,tag,31)*2-1)*.28*ef,r=trueR*(1+(_soundHashUnit(seed,tag,32)*2-1)*.008*ef);
   const br=degToRad(b);
   return{bearing:normDeg(b),rangeNm:r,position:{xNm:state.playerSub.position.xNm+Math.sin(br)*r,yNm:state.playerSub.position.yNm-Math.cos(br)*r}};
@@ -139,12 +139,24 @@ class SimEngineSoundRadar extends SimEngineSensors{
     const W=this.state.world,fit=radarFitForDate(this.state.campaign?.startDate||this.state.time?.campaignDate);
     const S=W.sound||(W.sound={});
     S.bearingMarks=S.bearingMarks||{};S.lastOperatorAt=Number.isFinite(S.lastOperatorAt)?S.lastOperatorAt:-999;
-    S.lastOperatorReport=S.lastOperatorReport||null;S.qcLastAt=Number.isFinite(S.qcLastAt)?S.qcLastAt:-999;
+    S.lastOperatorReport=S.lastOperatorReport||null;S.activeEchoLastAt=Number.isFinite(S.activeEchoLastAt)?S.activeEchoLastAt:(Number.isFinite(S.qcLastAt)?S.qcLastAt:-999);S.qcLastAt=S.activeEchoLastAt;
     S._tick=Number.isFinite(S._tick)?S._tick:0;
     const R=W.radar||(W.radar={});
-    R.sdAvailable=fit.sd;R.sjAvailable=fit.sj;R.sjRadarDepthFt=fit.sjRadarDepthFt;R.fitLabel=fit.label;R.sjRangeNm=fit.sjRangeNm||6.8;R.sjErrorFactor=fit.sjErrorFactor||1;R.sjSweepSec=fit.sjSweepSec||SOUND_ROOM.sjSweepSec;
-    R.sjTracks=R.sjTracks||{};R._tick=Number.isFinite(R._tick)?R._tick:0;R.lastSweepAt=Number.isFinite(R.lastSweepAt)?R.lastSweepAt:-999;
-    W.airThreat=W.airThreat||{};W.airThreat.sdOn=!!fit.sd;
+    // Map the still-US-specific historical fit into equipment-neutral runtime
+    // capabilities. Legacy aliases remain writable/readable for existing saves
+    // and debugging, but new simulation/rendering code should use the generic names.
+    R.airWarningAvailable=!!fit.sd;
+    R.surfaceSearchAvailable=!!fit.sj;
+    R.surfaceSearchMastDepthFt=fit.sjRadarDepthFt;
+    R.surfaceSearchRangeNm=fit.sjRangeNm||6.8;
+    R.surfaceSearchErrorFactor=fit.sjErrorFactor||1;
+    R.surfaceSearchSweepSec=fit.sjSweepSec||SOUND_ROOM.surfaceRadarSweepSec;
+    R.fitLabel=fit.label;
+    R.surfaceSearchTracks=R.surfaceSearchTracks||R.sjTracks||{};
+    R._tick=Number.isFinite(R._tick)?R._tick:0;R.lastSweepAt=Number.isFinite(R.lastSweepAt)?R.lastSweepAt:-999;
+    R.sdAvailable=R.airWarningAvailable;R.sjAvailable=R.surfaceSearchAvailable;R.sjRadarDepthFt=R.surfaceSearchMastDepthFt;
+    R.sjRangeNm=R.surfaceSearchRangeNm;R.sjErrorFactor=R.surfaceSearchErrorFactor;R.sjSweepSec=R.surfaceSearchSweepSec;R.sjTracks=R.surfaceSearchTracks;
+    W.airThreat=W.airThreat||{};W.airThreat.airWarningOn=R.airWarningAvailable;W.airThreat.sdOn=W.airThreat.airWarningOn;
     return{S,R,fit};
   }
 
@@ -193,40 +205,41 @@ class SimEngineSoundRadar extends SimEngineSensors{
 
   echoRange(){
     this.ensureSoundRadarState();const s=this.state,W=s.world,S=W.sound,now=s.time.elapsedSeconds;
-    if(now-S.qcLastAt<SOUND_ROOM.qcCooldownSec){this.notify(`QC recharging — ${Math.ceil(SOUND_ROOM.qcCooldownSec-(now-S.qcLastAt))} seconds.`,'warn');return null;}
-    S.qcLastAt=now;audio.playOwnSonarPing?.();
+    const sensorUi=getPlayerSensorPresentation(s),echoName=sensorUi.activeEcho?.shortLabel||sensorUi.activeEcho?.label||'Active echo';
+    if(now-S.activeEchoLastAt<SOUND_ROOM.activeEchoCooldownSec){this.notify(`${echoName} recharging — ${Math.ceil(SOUND_ROOM.activeEchoCooldownSec-(now-S.activeEchoLastAt))} seconds.`,'warn');return null;}
+    S.activeEchoLastAt=now;S.qcLastAt=now;audio.playOwnSonarPing?.();
     // The transmission itself is a datum for enemy hydrophones, whether or not
     // the player's echo comes back.
-    this.alertEscorts('ACTIVE_QC',{...s.playerSub.position},.88);
+    this.alertEscorts('ACTIVE_ECHO',{...s.playerSub.position},.88);
     const sig=this.currentSoundSignal(),c=sig.contact;
-    if(!c||sig.offsetDeg>24||distNm(s.playerSub.position,c.position)>SOUND_ROOM.qcMaxRangeNm){this.notify('QC — NO USEFUL ECHO. Every hydrophone in the area heard that transmission.','bad');return null;}
+    if(!c||sig.offsetDeg>24||distNm(s.playerSub.position,c.position)>SOUND_ROOM.activeEchoMaxRangeNm){this.notify(`${echoName} — NO USEFUL ECHO. Every hydrophone in the area heard that transmission.`,'bad');return null;}
     const seed=s.campaign.scenarioSeed||1,tag=`QC:${c.id}:${Math.floor(now/3)}`,trueR=distNm(s.playerSub.position,c.position),rangeNm=trueR*(1+(_soundHashUnit(seed,tag,51)*2-1)*.018);
     const bearing=normDeg(s.tactical.soundBearing+clamp(shortDelta(s.tactical.soundBearing,bearingBetween(s.playerSub.position,c.position)),-4,4));
     const br=degToRad(bearing),pos={xNm:s.playerSub.position.xNm+Math.sin(br)*rangeNm,yNm:s.playerSub.position.yNm-Math.cos(br)*rangeNm};
     let tr=W.contactTracks[c.id]||{id:c.id,typeEstimate:'UNKNOWN',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards};
-    tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.72),0,1);tr.lastSensorSource='QC ECHO';
-    updateStableContactPlot(s,tr,pos,'QC ECHO',.95,.1);
-    W.contactTracks[c.id]=tr;this.notify(`QC — ECHO RANGE ${rangeNm.toFixed(2)} nm on ${fmtDeg(bearing)}. Transmission heard by the enemy.`,'bad');return tr;
+    tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.72),0,1);tr.lastSensorSource=CONTACT_FIX_SOURCE.ACTIVE_ECHO;
+    updateStableContactPlot(s,tr,pos,CONTACT_FIX_SOURCE.ACTIVE_ECHO,.95,.1);
+    W.contactTracks[c.id]=tr;this.notify(`${echoName} — ECHO RANGE ${rangeNm.toFixed(2)} nm on ${fmtDeg(bearing)}. Transmission heard by the enemy.`,'bad');return tr;
   }
 
-  _updateSJRadar(dt){
+  _updateSurfaceSearchRadar(dt){
     const s=this.state,W=s.world,R=W.radar,sub=s.playerSub,now=s.time.elapsedSeconds;
-    const sweepSec=R.sjSweepSec||SOUND_ROOM.sjSweepSec;R._tick+=dt;if(R._tick<sweepSec)return;R._tick=0;
-    const usable=R.sjAvailable&&sub.depthFeet<=R.sjRadarDepthFt&&sub.mode!=='SUNK';
-    R.active=!!usable;if(!usable){R.sjTracks={};return;}
+    const sweepSec=R.surfaceSearchSweepSec||SOUND_ROOM.surfaceRadarSweepSec;R._tick+=dt;if(R._tick<sweepSec)return;R._tick=0;
+    const usable=R.surfaceSearchAvailable&&sub.depthFeet<=R.surfaceSearchMastDepthFt&&sub.mode!=='SUNK';
+    R.active=!!usable;if(!usable){R.surfaceSearchTracks={};R.sjTracks=R.surfaceSearchTracks;return;}
     R.lastSweepAt=now;const seen={};
     for(const c of W.contacts||[]){
       if(c.sunk)continue;const rng=distNm(sub.position,c.position),size=c.lengthYards||400;
-      const baseMax=c.type==='RAFT'?2.2:clamp(4.5+size/500*1.8+((c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT')?0.5:0),4.7,7.2),max=c.type==='RAFT'?baseMax:baseMax*clamp((R.sjRangeNm||6.8)/6.8,.72,1.28);if(rng>max)continue;
+      const baseMax=c.type==='RAFT'?2.2:clamp(4.5+size/500*1.8+((c.type==='ESCORT'||c.type==='WARSHIP'||c.type==='PATROL_CRAFT')?0.5:0),4.7,7.2),max=c.type==='RAFT'?baseMax:baseMax*clamp((R.surfaceSearchRangeNm||6.8)/6.8,.72,1.28);if(rng>max)continue;
       const o=radarObservation(s,c);seen[c.id]={id:c.id,bearing:o.bearing,rangeNm:o.rangeNm,position:o.position,t:now,strength:clamp(1-rng/max,.15,1)};
       const old=W.contactTracks[c.id],known=(old?.positionSource||old?.source)==='VISUAL'&&old.confidence>.6;
       const tr=old||{id:c.id,typeEstimate:'SURFACE SHIP',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0,contactType:'UNKNOWN',lengthYards:c.lengthYards};
-      tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.70)+.035,0,.92);tr.lastSensorSource='SJ RADAR';
-      updateStableContactPlot(s,tr,o.position,'SJ RADAR',seen[c.id].strength,sweepSec);
+      tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.70)+.035,0,.92);tr.lastSensorSource=CONTACT_FIX_SOURCE.SURFACE_RADAR;
+      updateStableContactPlot(s,tr,o.position,CONTACT_FIX_SOURCE.SURFACE_RADAR,seen[c.id].strength,sweepSec);
       if(!known){tr.typeEstimate=tr.typeEstimate==='UNKNOWN'?'SURFACE SHIP':tr.typeEstimate;tr.contactType=tr.contactType||'UNKNOWN';}
       W.contactTracks[c.id]=tr;
     }
-    R.sjTracks=seen;
+    R.surfaceSearchTracks=seen;R.sjTracks=R.surfaceSearchTracks;
   }
 
   updateSoundRadar(dt){
@@ -236,6 +249,6 @@ class SimEngineSoundRadar extends SimEngineSensors{
         const sig=this.currentSoundSignal();S.monitor={strength:sig.strength,offsetDeg:sig.offsetDeg,cadenceHz:sig.cadenceHz,id:sig.contact?.id||null};audio.setHydrophoneMonitor?.(sig.strength,sig.cadenceHz,sig.offsetDeg);
       }else{S.monitor={strength:0,offsetDeg:180,cadenceHz:0,id:null};audio.stopHydrophoneMonitor?.();}
     }
-    this._updateSJRadar(dt);
+    this._updateSurfaceSearchRadar(dt);
   }
 }

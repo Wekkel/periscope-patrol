@@ -61,6 +61,20 @@ const SUBMARINE_PROFILES=Object.freeze({
       deckGun:Object.freeze({ammo:120}),
       aaGun:Object.freeze({ammo:1200})
     }),
+
+    /* Presentation belongs to the historical boat/equipment profile; simulation
+       code consumes generic capability IDs instead.  This is intentionally a
+       tiny boundary: date/fit doctrine remains in historical-campaign.js until
+       that later Phase-1 step has its own Pacific regression gate. */
+    sensors:Object.freeze({
+      passiveSound:Object.freeze({capabilityId:'PASSIVE_SOUND',label:'Passive Sound'}),
+      activeEcho:Object.freeze({capabilityId:'ACTIVE_ECHO',label:'Active QC',shortLabel:'QC',fixLabel:'QC ECHO'}),
+      surfaceSearchRadar:Object.freeze({
+        capabilityId:'SURFACE_SEARCH_RADAR',label:'SJ Radar',shortLabel:'SJ',fixLabel:'SJ RADAR',statusLabel:'SJ surface-search radar',
+        plotTitle:'SJ SURFACE-SEARCH RADAR',mastLabel:'SJ MAST'
+      }),
+      airWarningRadar:Object.freeze({capabilityId:'AIR_WARNING_RADAR',label:'SD Radar',shortLabel:'SD',crewManagedLabel:'SD air-search radar',statusLabel:'SD air-warning radar'})
+    }),
     damage:Object.freeze({crushDepthFeet:420})
   })
 });
@@ -92,6 +106,16 @@ function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
 
 function getSubmarineProfile(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
   return SUBMARINE_PROFILES[profileId]||SUBMARINE_PROFILES[DEFAULT_GAME_IDENTITY.submarineProfileId];
+}
+
+
+function getSubmarineSensorPresentation(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
+  const profile=getSubmarineProfile(profileId);
+  return profile.sensors||SUBMARINE_PROFILES[DEFAULT_GAME_IDENTITY.submarineProfileId].sensors;
+}
+
+function getPlayerSensorPresentation(state=null){
+  return getSubmarineSensorPresentation(state?.playerSub?.profileId||DEFAULT_GAME_IDENTITY.submarineProfileId);
 }
 
 function resolveGameIdentity(state=null){
