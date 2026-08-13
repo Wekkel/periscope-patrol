@@ -14,7 +14,7 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=4;
+const PP_CATALOG_VERSION=5;
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
@@ -278,6 +278,49 @@ const US_PACIFIC_PRIMARY_CONVOY_PROFILE=Object.freeze({
   ])
 });
 
+
+/* Ambient/distant-world traffic is authored by the active campaign. The
+   traffic director owns cheap abstract motion and tactical materialization;
+   it must not know Pacific area names, Japanese vessel names, faction sides,
+   base speeds or lane preferences. Manifest `style` values are deliberately
+   small engine primitives, not a general-purpose content language. */
+const US_PACIFIC_AMBIENT_TRAFFIC_PROFILE=Object.freeze({
+  id:'us-pacific-ambient-traffic-v1',
+  defaultDensity:8,minDensity:6,maxDensity:12,
+  densityByArea:Object.freeze({
+    'Java Sea':10,'Luzon Strait':11,'Truk Approaches':9,'Solomon Sea':9,'Bismarck Sea':8,'Yellow Sea':11,
+    'Kii Suido / Honshu Approaches':11,'East China Sea / Formosa Approaches':10,'Sulu Sea / Tawi-Tawi':9,'Kurile / Hokkaido Approaches':7
+  }),
+  baseKinds:Object.freeze(['LONE_FREIGHTER','COASTAL_MERCHANT','SMALL_TANKER','FISHING_CRAFT','PATROL_CRAFT','SMALL_CONVOY']),
+  taskGroup:Object.freeze({kind:'TASK_GROUP',chance:.32,replaceFromEnd:2,hashSuffix:'task-group'}),
+  friendlyTraffic:Object.freeze({kind:'FRIENDLY_TRAFFIC',chance:.28,replaceFromEnd:1,hashSuffix:'friendly',excludedAreas:Object.freeze(['Truk Approaches','Kii Suido / Honshu Approaches'])}),
+  kinds:Object.freeze({
+    LONE_FREIGHTER:Object.freeze({label:'lone freighter',side:'ENEMY',speedBase:8,laneBase:0,historicalMerchantSpeed:true,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Lone Freighter',type:'MERCHANT',vesselProfileId:'jp-merchant',displayType:'FREIGHTER',length:Object.freeze({base:330,spread:80,hash:'len'}),tons:Object.freeze({base:3000,spread:1700,hash:'tons'})})})}),
+    COASTAL_MERCHANT:Object.freeze({label:'coastal merchant traffic',side:'ENEMY',speedBase:6.5,laneBase:1.25,historicalMerchantSpeed:true,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Coastal Maru',type:'MERCHANT',vesselProfileId:'jp-coastal-merchant',displayType:'COASTAL FREIGHTER',length:Object.freeze({base:230,spread:70,hash:'len'}),tons:Object.freeze({base:1700,spread:1200,hash:'tons'})})})}),
+    SMALL_TANKER:Object.freeze({label:'small tanker',side:'ENEMY',speedBase:8,laneBase:0,historicalMerchantSpeed:true,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Small Tanker',type:'TANKER',vesselProfileId:'jp-tanker',displayType:'SMALL TANKER',length:Object.freeze({base:330,spread:60,hash:'len'}),tons:Object.freeze({base:4300,spread:1700,hash:'tons'})})})}),
+    FISHING_CRAFT:Object.freeze({label:'local fishing craft',side:'NEUTRAL',speedBase:4.5,laneBase:2.2,historicalMerchantSpeed:false,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Fishing Sampan',type:'JUNK',vesselProfileId:'jp-fishing-craft',displayType:'FISHING SAMPAN',length:Object.freeze({base:45,spread:30,hash:'len'}),tons:Object.freeze({base:70,spread:80,hash:'tons'}),visualProfile:.24,acousticBase:.07})})}),
+    PATROL_CRAFT:Object.freeze({label:'patrol craft',side:'ENEMY',speedBase:14,laneBase:-1,historicalMerchantSpeed:false,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Patrol Craft',type:'PATROL_CRAFT',vesselProfileId:'jp-patrol-craft',displayType:'PATROL CRAFT',length:Object.freeze({base:120,spread:45,hash:'len'}),tons:Object.freeze({base:420,spread:350,hash:'tons'}),visualProfile:.50,acousticBase:.48})})}),
+    SMALL_CONVOY:Object.freeze({label:'small convoy',side:'ENEMY',speedBase:8,laneBase:0,historicalMerchantSpeed:true,manifest:Object.freeze({
+      style:'SMALL_CONVOY',countBase:2,countExtraHash:'count',countExtraAbove:.55,
+      merchant:Object.freeze({namePrefix:'Merchant ',type:'MERCHANT',vesselProfileId:'jp-merchant',displayType:'FREIGHTER',length:Object.freeze({base:300,spread:110}),tons:Object.freeze({base:2500,spread:2300})}),
+      tanker:Object.freeze({name:'Coastal Tanker',type:'TANKER',vesselProfileId:'jp-tanker',displayType:'TANKER',length:350,tons:5000,speedBias:-.3}),tankerIndex:1,tankerHash:'tanker',tankerAbove:.56,
+      guardHash:'guard',guardAbove:.68,guardTypeHash:'guardType',guardTypeAbove:.55,
+      guardHigh:Object.freeze({name:'Kaibokan Escort',type:'KAIBOKAN',vesselProfileId:'jp-kaibokan',displayType:'KAIBOKAN ESCORT',length:255,tons:900,speedBias:2.5,hasSonar:true}),
+      guardLow:Object.freeze({name:'Convoy Patrol Craft',type:'PATROL_CRAFT',vesselProfileId:'jp-patrol-craft',displayType:'PATROL CRAFT',length:135,tons:550,speedBias:3,hasSonar:true})
+    })}),
+    TASK_GROUP:Object.freeze({label:'naval task group',side:'ENEMY',speedBase:17,laneBase:0,historicalMerchantSpeed:false,manifest:Object.freeze({
+      style:'TASK_GROUP',fixed:Object.freeze([
+        Object.freeze({suffix:'A',name:'Task Group Destroyer',type:'DESTROYER',vesselProfileId:'jp-destroyer',displayType:'DESTROYER',length:335,tons:1900,speedBias:4,hasSonar:true}),
+        Object.freeze({suffix:'B',name:'Task Group Kaibokan',type:'KAIBOKAN',vesselProfileId:'jp-kaibokan',displayType:'KAIBOKAN ESCORT',length:285,tons:1250,speedBias:3,hasSonar:true})
+      ]),coreHash:'capital',heavyAbove:.90,carrierAbove:.82,
+      heavy:Object.freeze({suffix:'C',name:'Heavy Cruiser',type:'HEAVY_CRUISER',vesselProfileId:'jp-heavy-cruiser',displayType:'HEAVY CRUISER',length:665,tons:13500,speedBias:2}),
+      carrier:Object.freeze({suffix:'C',name:'Light Carrier',type:'CARRIER',vesselProfileId:'jp-carrier',displayType:'LIGHT CARRIER',length:680,tons:18000,speedBias:1.5}),
+      transportHash:'transport',transportAbove:.5,transport:Object.freeze({suffix:'C',name:'Fast Transport',type:'MERCHANT',vesselProfileId:'jp-transport',displayType:'FAST TRANSPORT',length:360,tons:3600,speedBias:1})
+    })}),
+    FRIENDLY_TRAFFIC:Object.freeze({label:'friendly coastal traffic',side:'FRIENDLY',speedBase:8,laneBase:-1.5,historicalMerchantSpeed:false,manifest:Object.freeze({style:'SINGLE',member:Object.freeze({name:'Allied Coastal Transport',type:'MERCHANT',vesselProfileId:'us-coastal-transport',displayType:'ALLIED COASTAL TRANSPORT',length:280,tons:2200,visualProfile:.75,acousticBase:.24})})})
+  })
+});
+
 const CAMPAIGN_PROFILES=Object.freeze({
   'us-pacific':Object.freeze({
     id:'us-pacific',
@@ -290,7 +333,8 @@ const CAMPAIGN_PROFILES=Object.freeze({
     defaultArea:'Solomon Sea',
     defaultStartDate:'1943-08-17',
     historicalModel:US_PACIFIC_HISTORICAL_MODEL,
-    primaryConvoyProfile:US_PACIFIC_PRIMARY_CONVOY_PROFILE
+    primaryConvoyProfile:US_PACIFIC_PRIMARY_CONVOY_PROFILE,
+    ambientTrafficProfile:US_PACIFIC_AMBIENT_TRAFFIC_PROFILE
   })
 });
 
@@ -314,6 +358,12 @@ function getPrimaryConvoyProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfile
      author convoy data: that would silently spawn Japanese shipping in the
      Atlantic. Unknown IDs are already rejected by the identity validator. */
   return CAMPAIGN_PROFILES[profileId]?.primaryConvoyProfile||null;
+}
+
+function getAmbientTrafficProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  /* As with primary convoys, a future campaign must author its own ambient
+     world. Never disguise missing Atlantic content with Pacific traffic. */
+  return CAMPAIGN_PROFILES[profileId]?.ambientTrafficProfile||null;
 }
 
 function getSubmarineProfile(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
