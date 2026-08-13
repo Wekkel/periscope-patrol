@@ -30,7 +30,11 @@ const PP_BUILD=(()=>{
   const path=(typeof location!=='undefined'&&location.pathname)||'';
   const isDev=/(?:^|\/)dev(?:\/|$)/i.test(path);
   const storagePrefix=isDev?'ppdev_':'';
-  const api={channel:isDev?'atlantic-dev':'production',isDev,storagePrefix,
+  // Atlantic DEV patch number is a human test-build identity, separate from
+  // the service-worker VERSION/cache token. Bump this in every atlantic-dev
+  // patch so a tester can report the exact patch without translating a SHA.
+  const devPatch=isDev?17:null;
+  const api={channel:isDev?'atlantic-dev':'production',isDev,devPatch,storagePrefix,
     storageKey:key=>storagePrefix+String(key)};
   return Object.freeze(api);
 })();
@@ -44,8 +48,4 @@ if(typeof document!=='undefined'){
   }
 }
 
-// Surface-engine hysteresis. These are deliberately a little forgiving: the boat
-// has no snorkel, but a depth controller hovering at 2–5 ft must not strand her.
-const DIESEL_CUTOFF_FT=12;
-const DIESEL_RESTART_FT=8;
 
