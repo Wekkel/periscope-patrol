@@ -179,6 +179,10 @@ class SimEngineASW extends SimEngineASWBrain {
         dc.status='DETONATED';
         const hNm=distNm(dc.position,sub.position);
         const dD=Math.abs(dc.targetDepthFeet-sub.depthFeet);
+        // Loudness follows the listener-to-burst slant distance, including the
+        // vertical separation in the water column. Damage remains its own
+        // pressure model; it is no longer (incorrectly) used as a volume knob.
+        const acousticNm=Math.hypot(hNm,dD/6076.12),audibleNm=1.6;
         // Ship patterns and aerial charges share the same physical depth
         // timing, but an aircraft's single ASW charge is intentionally less
         // lethal and much less accurately set than a destroyer's close pattern.
@@ -195,8 +199,8 @@ class SimEngineASW extends SimEngineASWBrain {
           if(dc.fuseSec>=25)this.log('SOUND — long sink time; the charges were set deep.','warn');
           else if(dc.fuseSec<=11)this.log('SOUND — short sink time; the charges were set shallow.','warn');
         }
-        if(dmg>1){this.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');audio.playDepthCharge(clamp(1-dmg/42,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
-        else{if(air||(dc.patternIndex??0)===0)this.log(`${air?'Aerial depth charge':'Depth-charge pattern'} detonating nearby.`,'warn');audio.playDepthCharge(0.9);particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
+        if(dmg>1){this.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');if(acousticNm<audibleNm)audio.playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
+        else{if(air||(dc.patternIndex??0)===0)this.log(`${air?'Aerial depth charge':'Depth-charge pattern'} detonating nearby.`,'warn');if(acousticNm<audibleNm)audio.playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
       }
     }
     W.depthCharges=W.depthCharges.filter(dc=>dc.status==='SINKING'||dc.ageSec<dc.fuseSec+6);

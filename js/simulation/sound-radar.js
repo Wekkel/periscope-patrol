@@ -194,7 +194,9 @@ class SimEngineSoundRadar extends SimEngineSensors{
   echoRange(){
     this.ensureSoundRadarState();const s=this.state,W=s.world,S=W.sound,now=s.time.elapsedSeconds;
     if(now-S.qcLastAt<SOUND_ROOM.qcCooldownSec){this.notify(`QC recharging — ${Math.ceil(SOUND_ROOM.qcCooldownSec-(now-S.qcLastAt))} seconds.`,'warn');return null;}
-    S.qcLastAt=now;audio.playOwnSonarPing?.();
+    S.qcLastAt=now;
+    S.qcVisual={bearing:normDeg(s.tactical.soundBearing||0),at:now,wallAt:typeof performance!=='undefined'?performance.now():Date.now()};
+    audio.playOwnSonarPing?.();
     // The transmission itself is a datum for enemy hydrophones, whether or not
     // the player's echo comes back.
     this.alertEscorts('ACTIVE_QC',{...s.playerSub.position},.88);

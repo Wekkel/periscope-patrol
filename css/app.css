@@ -635,6 +635,7 @@
     #soundControls.on{display:flex;}
     #soundControls button{width:auto;min-width:68px;margin:0;padding:8px 8px;font-size:9.5px;min-height:38px;background:rgba(7,34,26,.94);}
     #soundControls button span{margin-left:2px;}
+    #soundControls #soundEcho.confirm{border-color:#ef6a58;color:#fff;background:rgba(126,25,20,.96);box-shadow:0 0 0 1px rgba(239,106,88,.65) inset,0 0 14px rgba(239,106,88,.32);}
     #soundRadar.on{border-color:#6fe08f;color:#aef7c3;background:rgba(8,54,28,.92);}
     html[data-lay="touch"] #soundControls{left:6px;right:6px;bottom:8px;justify-content:stretch;gap:3px;}
     html[data-lay="touch"] #soundControls button{flex:1;min-width:0;min-height:46px;padding:5px 2px;font-size:9px;}

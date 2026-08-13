@@ -157,12 +157,21 @@ class SimEngineASWBrain extends SimEngineWeather{
     return q;
   }
 
+  freshStrongASWCue(s=null){
+    const A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0,source=A.datum?.source||A.lastCue;
+    if(!['ACTIVE_QC','ACTIVE_ECHO'].includes(source)||now-(A.datumAt||-999)>48)return false;
+    // A solution's age is the only knowledge-safe timestamp available on old
+    // saves. The new acoustic cue wins only when it is actually newer; a fresh
+    // visual/sonar fix remains superior.
+    return !s||!Number.isFinite(s.ageSec)||(A.datumAt||-999)>now-s.ageSec+2;
+  }
+
   aswDatum(leadSec=0){
     const e=this.state.world.enemy,A=this.ensureASWState();
     const s=e.solution&&!e.solution.decoy?e.solution:null;
-    const base=s?{xNm:s.xNm,yNm:s.yNm}:{...(A.datum||e.searchCenter||e.lastKnownSubPosition||{})};
+    const cueWins=this.freshStrongASWCue(s),base=!cueWins&&s?{xNm:s.xNm,yNm:s.yNm}:{...(A.datum||e.searchCenter||e.lastKnownSubPosition||{})};
     if(!Number.isFinite(base.xNm)||!Number.isFinite(base.yNm))return null;
-    const crs=s?.courseDeg??A.estimatedCourseDeg,spd=s?.speedKn??A.estimatedSpeedKn;
+    const crs=cueWins?A.estimatedCourseDeg:(s?.courseDeg??A.estimatedCourseDeg),spd=cueWins?A.estimatedSpeedKn:(s?.speedKn??A.estimatedSpeedKn);
     if(leadSec>0&&Number.isFinite(crs)&&Number.isFinite(spd)){
       const d=knotsNmSec(clamp(spd,0,14))*leadSec,r=degToRad(crs);
       base.xNm+=Math.sin(r)*d;base.yNm-=Math.cos(r)*d;
@@ -255,7 +264,7 @@ class SimEngineASWBrain extends SimEngineWeather{
       if(escorts.some(x=>x.aswRole!=='SCREEN'&&x.aswRole!=='DAMAGED_GUARD'))this.assignASWRoles(null,true);
       return;
     }
-    if(e.solution&&!e.solution.decoy){
+    if(e.solution&&!e.solution.decoy&&!this.freshStrongASWCue(e.solution)){
       A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;
       A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:e.solution.errNm||.05,source:A.lastFixSource||'PLOT'};
     }
