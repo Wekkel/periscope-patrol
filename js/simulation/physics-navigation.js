@@ -311,7 +311,7 @@ class SimEngine extends SimEngineCareer {
   // rate-limited: an escort works up to about 4°/s, a loaded merchant 1.3°/s.
   steerShip(c,dt){
     const D=ensureShipDamage(c);
-    const base=SHIP_TURN_RATE[c.type]||1.2;
+    const base=SHIP_TURN_RATE[vesselGameplayType(c)]||1.2;
     const rate=base*clamp(c.speedKnots/10,0.22,1.0)*shipDamageTurnFactor(c); // damaged rudder loses authority
     const ordered=c.desiredHeading===undefined?c.heading:c.desiredHeading;
     const biased=normDeg(ordered+(D?.rudderBiasDeg||0));
@@ -320,14 +320,14 @@ class SimEngine extends SimEngineCareer {
     // A badly jammed rudder is a persistent casualty, not random steering
     // noise. The ship circles one way until the damage state changes.
     if(D&&Math.abs(D.rudderJam)>.15&&D.steering>.80)targetRate=D.rudderJam*rate;
-    const angAcc=(SHIP_TURN_ACCEL[c.type]||.7)*clamp(c.speedKnots/6,.35,1)*clamp(.35+shipDamageTurnFactor(c),.25,1);
+    const angAcc=(SHIP_TURN_ACCEL[vesselGameplayType(c)]||.7)*clamp(c.speedKnots/6,.35,1)*clamp(.35+shipDamageTurnFactor(c),.25,1);
     c.turnRateDegSec=Number.isFinite(c.turnRateDegSec)?c.turnRateDegSec:0;
     c.turnRateDegSec+=clamp(targetRate-c.turnRateDegSec,-angAcc*dt,angAcc*dt);
     let turn=c.turnRateDegSec*dt;
     if(!(D&&Math.abs(D.rudderJam)>.15&&D.steering>.80)&&Math.abs(turn)>Math.abs(d)){turn=d;c.turnRateDegSec=0;}
     c.heading=normDeg(c.heading+turn);
     if(!(D&&Math.abs(D.rudderJam)>.15)&&Math.abs(d)<.08&&Math.abs(c.turnRateDegSec)<.08)c.turnRateDegSec=0;
-    const acc=SHIP_ACCEL[c.type]||0.10;
+    const acc=SHIP_ACCEL[vesselGameplayType(c)]||0.10;
     let want=c.desiredSpeed===undefined?c.speedKnots:c.desiredSpeed;
     if(D){const cap=(c.baseSpeed??Math.max(c.speedKnots,want))*shipDamageSpeedFactor(c);want=Math.min(want,cap);}
     const ds=want-c.speedKnots;

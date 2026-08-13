@@ -32,7 +32,7 @@ Nothing lower in this list needs to import something above it; the final boot co
 
 - `js/core/utilities.js` — math, units and shared formatting helpers.
 - `js/data/torpedo-data.js` — torpedo specs, dud modes and torpedo-load helpers.
-- `js/data/game-catalog.js` — explicit theater/faction/campaign/submarine identity profiles plus boat-specific sensor presentation. Simulation uses equipment-neutral capability/fix IDs; historical labels such as SJ/SD/QC belong to the submarine/equipment profile.
+- `js/data/game-catalog.js` — explicit theater/faction/campaign/submarine identity profiles, additive surface-vessel identity profiles and boat-specific sensor presentation. Runtime vessel contacts now separate `gameplayType`, `factionId`, `vesselProfileId` and `modelKey`; legacy `type` remains a compatibility alias while older saves are normalized on load.
 - `js/data/pacific-terrain-data.js` — Pacific coastline source geometry and the one-entry lazy patrol-terrain cache.
 - `js/data/campaign-data.js` — patrol-area metadata only; do not eagerly call `buildTerrain()` here.
 - `js/navigation/route-geometry.js` — water-route/polyline geometry, including one-way progress for mission-critical routes.
@@ -102,6 +102,12 @@ The optical views share a lightweight Canvas2D pseudo-3D world engine. World ent
 Sensor simulation must not infer equipment identity from a US-specific display string. `game-catalog.js` owns the boat-specific presentation (`SJ Radar`, `SD Radar`, `Active QC` for the current Gato profile); `sensors.js` owns generic contact-fix semantics; `sound-radar.js` maps dated equipment availability into generic runtime fields and emits the generic `ACTIVE_ECHO` alert reason. The historical US date table is intentionally still in `historical-campaign.js`: moving doctrine/equipment-by-date is a separate Phase-1 patch and should not be mixed into this compatibility refactor.
 
 Legacy serialized track sources `SJ RADAR` and `QC ECHO` are accepted and normalized at read/use boundaries. Do not remove those aliases until the save-schema migration explicitly converts them.
+
+### Surface-vessel identity boundary
+
+A contact's historical identity must not be inferred from one overloaded `type` string. `game-catalog.js` stamps four orthogonal fields: `gameplayType` for movement/combat classification, `factionId` for historical allegiance, `vesselProfileId` for the authored hull/profile identity, and `modelKey` for lightweight rendering. Existing Pacific contacts still retain their original `type` value byte-for-byte as a legacy alias, so untouched systems and old saves behave as before.
+
+`side` deliberately remains the cheap tactical FRIENDLY/ENEMY/NEUTRAL relationship used by current AI; it is not a substitute for `factionId`. New theaters should author explicit profile/faction IDs at contact creation. During the migration window, `materializeVesselIdentity()` may infer the current Pacific defaults for legacy contacts, and `SaveSystem` stamps the additive identity on load without a destructive schema bump. Physical movement/classification and shared vessel rendering should prefer `gameplayType` / `modelKey`; do not add a German or Allied Atlantic hull by inventing another meaning for legacy `type`.
 
 ### Lazy patrol terrain
 

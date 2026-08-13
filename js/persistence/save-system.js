@@ -48,7 +48,16 @@ const SaveSystem={
   },
 
   _normalizeLoadedState(state){
-    if(!state)return state;const obs=state.tactical?.impactObservation;if(obs){state.tactical.impactObservation=null;if((state.time?.timeScale??0)===0)state.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}return state;
+    if(!state)return state;const obs=state.tactical?.impactObservation;if(obs){state.tactical.impactObservation=null;if((state.time?.timeScale??0)===0)state.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}
+    // Phase-1 vessel identity is additive. Old saves keep their exact `type`
+    // values; we stamp the new orthogonal fields on load rather than bumping
+    // the serialized schema for a non-destructive metadata extension.
+    if(typeof materializeVesselIdentity==='function'){
+      for(const c of state.world?.contacts||[])materializeVesselIdentity(c,state);
+      for(const g of state.world?.traffic?.groups||[])for(const c of g?.savedMembers||[])materializeVesselIdentity(c,state);
+      for(const c of state.world?.traffic?.primaryGroup?.savedMembers||[])materializeVesselIdentity(c,state);
+    }
+    return state;
   },
 
   _careerDefault(){return{version:2,totalScore:0,totalTonnage:0,totalShips:0,patrolHistory:[],commendations:[],legacyPatrols:0};},

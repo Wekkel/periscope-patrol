@@ -130,7 +130,7 @@ SHIP_MODELS.MERCHANT_COASTAL={
   parts:[{t:'b',x:0,y:5.5,z:-15,w:11,h:7,d:21,c:'house',big:1},{t:'b',x:0,y:12.5,z:-13,w:8,h:3,d:9,c:'top'},{t:'f',x:0,y:11,z:-29,r:2,h:8,c:'funnel',rake:.05,big:1},{t:'b',x:0,y:5.5,z:26,w:9,h:2.7,d:12,c:'house'}],
   masts:[{x:0,y:6,z:20,h:18,yard:5},{x:0,y:6,z:-24,h:16,yard:4}],smoke:{x:0,y:19,z:-29}
 };
-function shipVisualModelKey(c){if(!c)return'MERCHANT';if(!['MERCHANT','TROOP'].includes(c.type))return c.type;const d=String(c.displayType||'').toUpperCase();if(d.includes('COASTAL'))return'MERCHANT_COASTAL';if(d.includes('TRANSPORT')||d.includes('TROOP'))return'MERCHANT_ISLAND';let h=0;for(const ch of String(c.id||c.name||''))h=(h*33+ch.charCodeAt(0))>>>0;return['MERCHANT','MERCHANT_FORECASTLE','MERCHANT_ISLAND'][h%3];}
+function shipVisualModelKey(c){return typeof vesselModelKey==='function'?vesselModelKey(c):(c?.type||'MERCHANT');}
 SHIP_MODELS.TROOP=SHIP_MODELS.MERCHANT_ISLAND;
 /* Distinct warship silhouettes. These stay deliberately low-poly/vector: class
    identity comes from proportions, turrets, funnels and flight deck rather than

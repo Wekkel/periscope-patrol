@@ -1266,6 +1266,9 @@ class SimEngineCore{
         sonarContact:false,sonarContactUntil:-1,sonarMisses:0,dcRemaining:28+Math.floor(Math.random()*20)
       });
     }
+    // Phase 1 vessel identity: keep legacy `type` untouched, but stamp the
+    // orthogonal fields future theaters need before the contact enters runtime.
+    for(const c of contacts)materializeVesselIdentity(c,this.state);
     return contacts;
   }
 

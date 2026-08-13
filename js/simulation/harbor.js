@@ -48,10 +48,10 @@ class SimEngineHarbor extends SimEngineCore {
     if(!W.contacts.some(c=>c.harborTarget)){
       const put=(id,name,type,displayType,brg,rng,length,tons,value,profile=1)=>{
         const r=degToRad(brg);
-        W.contacts.push({id,name,type,displayType,lengthYards:length,visualProfile:profile,
+        W.contacts.push(materializeVesselIdentity({id,name,type,displayType,lengthYards:length,visualProfile:profile,
           acousticBase:0.05,tonsFactor:tons,harborValue:value,harborTarget:true,stationary:true,
           position:{xNm:H.center.xNm+Math.sin(r)*rng,yNm:H.center.yNm-Math.cos(r)*rng},
-          heading:normDeg(brg+85),speedKnots:0,desiredSpeed:0,baseSpeed:0,convoyRole:'HARBOR'});
+          heading:normDeg(brg+85),speedKnots:0,desiredSpeed:0,baseSpeed:0,convoyRole:'HARBOR'},this.state));
       };
       put('H-01','Fleet Oiler','TANKER','FLEET OILER',205,0.72,560,10500,2600,1.12);
       put('H-02','Army Transport','MERCHANT','TROOP TRANSPORT',318,0.62,500,7600,2200,1.02);

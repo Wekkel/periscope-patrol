@@ -26,19 +26,20 @@ const HullGeometry=(()=>{
     const p=h.position||h.center||{xNm:0,yNm:0};
     return{...h,start:{...p},end:{...p}};
   };
-  const beamRatio=c=>['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c.type)?10.5:7.2;
+  const gameplayType=c=>typeof vesselGameplayType==='function'?vesselGameplayType(c):String(c?.gameplayType||c?.type||'MERCHANT').toUpperCase();
+  const beamRatio=c=>['ESCORT','WARSHIP','PATROL_CRAFT'].includes(gameplayType(c))?10.5:7.2;
   const draftFeet=c=>{
     if(c.draftFeet!=null)return c.draftFeet;
     if(/CARRIER/i.test(c.displayType||''))return 31;
     if(/CRUISER/i.test(c.displayType||''))return 23;
-    if(['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c.type))return 15;
-    if(c.type==='TANKER')return 36;
+    if(['ESCORT','WARSHIP','PATROL_CRAFT'].includes(gameplayType(c)))return 15;
+    if(gameplayType(c)==='TANKER')return 36;
     return clamp(24+((c.lengthYards||400)-350)*0.025,22,32);
   };
   const massTons=c=>{
     if(c.massTons!=null)return c.massTons;
     if(c.tonsFactor>0)return c.tonsFactor;
-    if(['ESCORT','WARSHIP','PATROL_CRAFT'].includes(c.type))return clamp((c.lengthYards||320)*6.4,420,2800);
+    if(['ESCORT','WARSHIP','PATROL_CRAFT'].includes(gameplayType(c)))return clamp((c.lengthYards||320)*6.4,420,2800);
     return clamp((c.lengthYards||400)*10,2200,8000);
   };
 
@@ -148,19 +149,19 @@ const closestApproach=HullGeometry.closestApproach;
 const SURFACE_COMBATANT_TYPES=new Set(['ESCORT','WARSHIP','PATROL_CRAFT','DESTROYER','KAIBOKAN','HEAVY_CRUISER','CARRIER']);
 const ASW_COMBATANT_TYPES=new Set(['ESCORT','WARSHIP','PATROL_CRAFT','DESTROYER','KAIBOKAN']);
 function isSurfaceCombatant(c){
-  return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&SURFACE_COMBATANT_TYPES.has(c.type);
+  return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&SURFACE_COMBATANT_TYPES.has(vesselGameplayType(c));
 }
 function hasSonar(c){
   if(!isSurfaceCombatant(c))return false;
   if(c.hasSonar!==undefined)return !!c.hasSonar;
   // Heavy cruisers/carriers may fight on the surface but are not silently
   // promoted into destroyer-grade ASW searchers just because they are armed.
-  return ASW_COMBATANT_TYPES.has(c.type);
+  return ASW_COMBATANT_TYPES.has(vesselGameplayType(c));
 }
 function canProsecuteSubmarine(c){
   if(!isSurfaceCombatant(c)||!hasSonar(c))return false;
   return (c.dcRemaining===undefined?28:c.dcRemaining)>0;
 }
 function isASWCombatant(c){return isSurfaceCombatant(c)&&hasSonar(c);}
-function isEscortLike(c){return !!c&&ASW_COMBATANT_TYPES.has(c.type)&&isSurfaceCombatant(c);}
+function isEscortLike(c){return !!c&&ASW_COMBATANT_TYPES.has(vesselGameplayType(c))&&isSurfaceCombatant(c);}
 

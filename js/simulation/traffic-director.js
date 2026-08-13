@@ -167,7 +167,7 @@ function _trafficFormation(i){
     materializePrimaryConvoy(g,path){
       const s=this.state,W=s.world;if(!g||g.state!=='ABSTRACT'||!g.savedMembers?.length)return false;
       const q=routeAdvanceOneWay(path,g.routeS||0,0),off=_trafficSideOffset(q.pos,q.heading,0),r=degToRad(q.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r),ids=[];
-      for(const saved of g.savedMembers){const c=JSON.parse(JSON.stringify(saved)),f=c._trafficPrimaryFwd||0,side=c._trafficPrimarySide||0;delete c._trafficPrimaryFwd;delete c._trafficPrimarySide;c.position={xNm:off.xNm+fx*f+sx*side,yNm:off.yNm+fy*f+sy*side};c.heading=q.heading;c.desiredHeading=q.heading;c.speedKnots=clamp(c.speedKnots||c.baseSpeed||g.speedKnots,0,30);c.desiredSpeed=c.baseSpeed||c.speedKnots;W.contacts.push(c);if(W.contactTracks[c.id])W.contactTracks[c.id].worldContactAbstract=false;ids.push(c.id);}
+      for(const saved of g.savedMembers){const c=JSON.parse(JSON.stringify(saved)),f=c._trafficPrimaryFwd||0,side=c._trafficPrimarySide||0;delete c._trafficPrimaryFwd;delete c._trafficPrimarySide;c.position={xNm:off.xNm+fx*f+sx*side,yNm:off.yNm+fy*f+sy*side};c.heading=q.heading;c.desiredHeading=q.heading;c.speedKnots=clamp(c.speedKnots||c.baseSpeed||g.speedKnots,0,30);c.desiredSpeed=c.baseSpeed||c.speedKnots;materializeVesselIdentity(c,s);W.contacts.push(c);if(W.contactTracks[c.id])W.contactTracks[c.id].worldContactAbstract=false;ids.push(c.id);}
       g.memberIds=ids;g.state='TACTICAL';g.position={...off};g.heading=q.heading;g.routeDir=q.dir;g.materializedAt=s.time.elapsedSeconds||0;W.convoyLeg=q.dir;this.assignASWRoles?.(null,true);return true;
     },
 
@@ -195,7 +195,7 @@ function _trafficFormation(i){
           desiredHeading:q.heading,speedKnots:clamp(g.speedKnots+d.speedBias+(_trafficHash(g.seed,`spd:${i}`)-.5)*.35,2,26),
           baseSpeed:clamp(g.speedKnots+d.speedBias,2,26),desiredSpeed:clamp(g.speedKnots+d.speedBias,2,26),trafficAmbient:true,trafficGroupId:g.id,
           convoyId:`TRAFFIC-${g.id}`,convoyRole:'TRAFFIC',formationIndex:i,trafficFormationFwd:o.fwd,trafficFormationSide:o.side};
-        W.contacts.push(contact);if(W.contactTracks[id])W.contactTracks[id].worldContactAbstract=false;g.memberIds.push(id);
+        materializeVesselIdentity(contact,s);W.contacts.push(contact);if(W.contactTracks[id])W.contactTracks[id].worldContactAbstract=false;g.memberIds.push(id);
       }
       g.state='TACTICAL';g.materializedAt=s.time.elapsedSeconds||0;T.materializeCount=(T.materializeCount||0)+1;return g;
     },

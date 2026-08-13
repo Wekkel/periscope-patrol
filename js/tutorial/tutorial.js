@@ -209,12 +209,12 @@ class Tutorial{
     g.update(0.001);                       // drain the command queue
     const s=g.getSnapshot();
     s.time.elapsedSeconds=0;s.time.timeScale=1;
-    s.world.contacts=[{
+    s.world.contacts=[materializeVesselIdentity({
       id:'TGT-1',name:'Kaiyo Maru',type:'MERCHANT',lengthYards:430,
       visualProfile:1.05,acousticBase:0.42,tonsFactor:5000,
       position:{xNm:2.6,yNm:-3.4},heading:262,speedKnots:8,
       convoyRole:'MERCHANT',formationIndex:0
-    }];
+    },s)];
     s.world.contactTracks={};s.world.depthCharges=[];
     s.weapons.activeTorpedoes=[];s.weapons.hits=[];s.weapons.duds=[];s.weapons.explosions=[];
     s.weapons.torpedoInventory=16;
@@ -391,7 +391,7 @@ class Tutorial{
     if(!c){
       const b=degToRad(sub.heading),d=.82;c={id:'GUN-T',name:'Training Hulk',type:'MERCHANT',displayType:'TARGET HULK',lengthYards:145,visualProfile:.9,acousticBase:.1,tonsFactor:0,trainingHulk:true,
         position:{xNm:sub.position.xNm+Math.sin(b)*d,yNm:sub.position.yNm-Math.cos(b)*d},heading:normDeg(sub.heading+90),speedKnots:0,desiredSpeed:0,stationary:true,side:'ENEMY'};
-      W.contacts.push(c);
+      materializeVesselIdentity(c,s);W.contacts.push(c);
     }
     W.contactTracks[c.id]={id:c.id,typeEstimate:'TARGET HULK',affiliation:'ENEMY',bearing:bearingBetween(sub.position,c.position),rangeEstimateNm:distNm(sub.position,c.position),
       courseEstimate:c.heading,speedEstimateKnots:0,confidence:1,source:'VISUAL',lastSensorSource:'VISUAL',lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards,
@@ -405,13 +405,13 @@ class Tutorial{
     s.world.contacts=s.world.contacts.filter(c=>c.id!=='GUN-T');delete s.world.contactTracks?.['GUN-T'];
     if(s.world.contacts.some(c=>c.id==='ESC-T')) return;
     const b=degToRad(normDeg(sub.heading+150));
-    s.world.contacts.push({
+    s.world.contacts.push(materializeVesselIdentity({
       id:'ESC-T',name:'Patrol Vessel',type:'ESCORT',lengthYards:290,
       visualProfile:0.7,acousticBase:0.6,tonsFactor:0,
       position:{xNm:sub.position.xNm+Math.sin(b)*2.4,yNm:sub.position.yNm-Math.cos(b)*2.4},
       heading:normDeg(sub.heading-30),speedKnots:14,
       convoyRole:'ESCORT_FWD',formationIndex:0,zigzagPhase:0,zigzagTimer:0,dcRemaining:24+Math.floor(Math.random()*18)
-    });
+    },s));
     s.world.enemy.alertState='SEARCHING';
     s.world.enemy.alertTimerSec=0;
     s.world.enemy.lastKnownSubPosition={...sub.position};
