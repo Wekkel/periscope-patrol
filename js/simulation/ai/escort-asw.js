@@ -17,7 +17,12 @@ class SimEngineASW extends SimEngineASWBrain {
       }
       this.assignASWRoles(null,true);
     }
-    if(e.alertState==='UNAWARE'){
+    const informedIds=Array.isArray(e.alertedEscortIds)?e.alertedEscortIds:[];
+    const locallyInformed=!informedIds.length||informedIds.includes(esc.id);
+    if(e.alertState==='UNAWARE'||!locallyInformed){
+      // Enemy knowledge is local. An escort that has not observed the attack
+      // and has not received a convoy signal/radio report keeps screening; it
+      // must not inherit the shared ASW datum merely because another escort did.
       const tgt=this.screenTarget(esc);
       if(tgt){
         const err=distNm(esc.position,tgt);esc.desiredHeading=bearingBetween(esc.position,tgt);
@@ -35,7 +40,7 @@ class SimEngineASW extends SimEngineASWBrain {
 
     if(e.alertState==='SEARCHING'){
       const A=this.ensureASWState(),now=this.state.time.elapsedSeconds,cueAge=now-(A.datumAt||-999);
-      const hotCue=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_DUD','DECK_GUN'].includes(A.lastCue);
+      const hotCue=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN'].includes(A.lastCue);
       const canSpeculate=role==='PROSECUTOR'&&hotCue&&cueAge<420&&(esc.dcRemaining===undefined||esc.dcRemaining>=SONAR.patternSize)
         &&esc.speculativeCueGeneration!==A.cueGeneration;
       const tgt=(canSpeculate?this.aswDatum(18):null)||this.searchTarget(esc)||this.screenTarget(esc);

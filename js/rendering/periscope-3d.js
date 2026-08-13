@@ -1779,11 +1779,14 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
           fg.addColorStop(1,'rgba(255,200,90,0)');
           ctx.fillStyle=fg;ctx.beginPath();ctx.arc(p.x,p.y-12*sc,rr,0,Math.PI*2);ctx.fill();
         }
-        // 2 ─ fireball: three rising blobs, hot core → orange → sooty red
+        // 2 ─ fireball: three rising blobs, hot core → orange → sooty red.
+        // Keep the flame mass lower than the separate smoke pall: a torpedo
+        // hit throws flame above the hull, but the orange ball should not climb
+        // into the sky like the later buoyant smoke column.
         if(age<3.0){
           const f=age/3.0, a=Math.pow(1-f,1.3);
           for(let i=2;i>=0;i--){
-            const off=(i-1)*14*sc*big, rise=(14+f*34+i*6)*sc*big;
+            const off=(i-1)*14*sc*big, rise=(11+f*27+i*5)*sc*big;
             const rr=Math.max(2,(12+f*40)*sc*big*(1-i*0.18));
             const gr=ctx.createRadialGradient(p.x+off*0.5,p.y-rise,0,p.x+off*0.5,p.y-rise,rr);
             gr.addColorStop(0,`rgba(255,246,200,${a})`);
@@ -1829,14 +1832,21 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
             }
           }
         }
-        // 4 ─ expanding foam ring on the surface
+        // 4 ─ expanding foam ring on the surface. The ring belongs to the
+        // sea plane and may touch the horizon, but it must never be drawn in
+        // the sky above it. Screen-space clipping is cheaper and more robust
+        // than trying to fake perspective by deforming the ellipse itself.
         if(age<6){
           const rg=Math.max(2,(6+age*22)*sc*big), a=clamp(1-age/6,0,1);
+          ctx.save();
+          const hy=Number.isFinite(cam.horizonY)?cam.horizonY:0;
+          ctx.beginPath();ctx.rect(0,hy,cam.viewW||this.w||ctx.canvas?.width||4096,(cam.viewH||this.h||ctx.canvas?.height||4096)-hy);ctx.clip();
           ctx.strokeStyle=`rgba(240,250,252,${a*0.5})`;
           ctx.lineWidth=Math.max(1,rg*0.10);
           ctx.beginPath();ctx.ellipse(p.x,p.y,rg,Math.max(1,rg*0.24),0,0,Math.PI*2);ctx.stroke();
           ctx.strokeStyle=`rgba(240,250,252,${a*0.22})`;
           ctx.beginPath();ctx.ellipse(p.x,p.y,rg*0.66,Math.max(1,rg*0.16),0,0,Math.PI*2);ctx.stroke();
+          ctx.restore();
         }
         // 5 ─ thrown debris, dark, ballistic
         if(age<2.4&&this.quality>0.4){
@@ -1867,8 +1877,10 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         ctx.fillStyle=`rgba(232,246,255,${a*0.55})`;
         ctx.fillRect(p.x-Math.max(1,3*sc),p.y-(12+age*10)*sc,Math.max(1.5,6*sc),(12+age*10)*sc);
         const rg=Math.max(1.5,(3+age*10)*sc);
+        ctx.save();const hy=Number.isFinite(cam.horizonY)?cam.horizonY:0;
+        ctx.beginPath();ctx.rect(0,hy,cam.viewW||this.w||ctx.canvas?.width||4096,(cam.viewH||this.h||ctx.canvas?.height||4096)-hy);ctx.clip();
         ctx.strokeStyle=`rgba(232,246,255,${a*0.35})`;ctx.lineWidth=1;
-        ctx.beginPath();ctx.ellipse(p.x,p.y,rg,rg*0.24,0,0,Math.PI*2);ctx.stroke();
+        ctx.beginPath();ctx.ellipse(p.x,p.y,rg,rg*0.24,0,0,Math.PI*2);ctx.stroke();ctx.restore();
       }
       if(age<3.5&&e.label){
         ctx.fillStyle=dud?`rgba(245,198,92,${1-age/3.5})`:`rgba(255,214,130,${1-age/3.5})`;

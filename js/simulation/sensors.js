@@ -91,7 +91,7 @@ class SimEngineSensors extends SimEngineIntel {
     const now=this.state.time.elapsedSeconds;if(anySeen)e.visualHoldUntil=now+25;
     e.visualOnSub=now<(e.visualHoldUntil||0)&&sub.depthFeet<30;e.periscopeSighted=now<(e.visualHoldUntil||0)&&sub.depthFeet>=30;
     if(anySeen){
-      const {esc,r,what}=nearestSeen,hull=sub.depthFeet<30,err=hull?.02:.055;
+      const {esc,r,what}=nearestSeen,hull=sub.depthFeet<30,err=hull?.02:.055;this.markEscortAlerted?.(esc);
       e.solution={xNm:sub.position.xNm+(Math.random()-.5)*2*err,yNm:sub.position.yNm+(Math.random()-.5)*2*err,
         courseDeg:normDeg(sub.heading+(hull?(Math.random()-.5)*5:(Math.random()-.5)*40)),speedKn:clamp(sub.propulsion.speedKnots*(.88+Math.random()*.24),0,12),
         depthFt:hull?clamp(sub.depthFeet+(Math.random()-.5)*8,0,40):sub.depthFeet+(Math.random()-.5)*50,errNm:err,ageSec:0,source:'VISUAL'};
@@ -120,7 +120,11 @@ class SimEngineSensors extends SimEngineIntel {
       const s=e.solution,r=degToRad(s.courseDeg||0),d=knotsNmSec(s.speedKn||0)*dt;s.xNm+=Math.sin(r)*d;s.yNm-=Math.cos(r)*d;
       s.errNm=(s.errNm||.03)+dt*.0055;s.ageSec=(s.ageSec||0)+dt;
     }
-    const escorts=W.contacts.filter(c=>isASWCombatant(c)),blind=now<(e.sonarBlindUntil||0);let pinged=0,fixes=0;
+    const allEscorts=W.contacts.filter(c=>isASWCombatant(c)),alertedIds=Array.isArray(e.alertedEscortIds)?e.alertedEscortIds:[];
+    // Once a local report has a known recipient, only those escorts join the
+    // active ping/search cycle. Old saves or legacy alert paths with no list
+    // retain the previous all-screen behaviour as a compatibility fallback.
+    const escorts=alertedIds.length?allEscorts.filter(c=>alertedIds.includes(c.id)):allEscorts,blind=now<(e.sonarBlindUntil||0);let pinged=0,fixes=0;
     for(const esc of escorts){
       if(esc.sonarContact&&now>(esc.sonarContactUntil||-1))esc.sonarContact=false;
       esc.pingTimer=(Number.isFinite(esc.pingTimer)?esc.pingTimer:Math.random()*7)-dt;if(esc.pingTimer>0)continue;

@@ -76,7 +76,7 @@ class SimEngineASWBrain extends SimEngineWeather{
 
   armASWProsecution(reason='CONTACT',restart=false){
     const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0,L=this.aswProsecutionLimits();
-    const strong=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_DUD','DECK_GUN','COLLISION','EMERGENCY_BLOW','ACTIVE_QC'].includes(reason);
+    const strong=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN','COLLISION','EMERGENCY_BLOW','ACTIVE_QC'].includes(reason);
     const missing=A.prosecutionStartedAt<0||A.prosecutionSoftDeadlineAt<=now||A.prosecutionHardDeadlineAt<=now;
     if(restart||missing||strong){
       A.prosecutionStartedAt=now;A.prosecutionSoftDeadlineAt=now+L.softSec;A.prosecutionHardDeadlineAt=now+L.hardSec;A.prosecutionReason=reason;
@@ -141,7 +141,7 @@ class SimEngineASWBrain extends SimEngineWeather{
   }
 
   cueEstimate(pos,conf=0.5,reason='NOISE'){
-    const base={SHIP_HIT:.07,TORPEDO_DUD:.16,TORPEDO_LAUNCH:.28,EMERGENCY_BLOW:.18,
+    const base={SHIP_HIT:.07,TORPEDO_DUD:.16,TORPEDO_LAUNCH:.28,TORPEDO_SIGHTED:.22,EMERGENCY_BLOW:.18,
       DECK_GUN:.12,COLLISION:.05,AIR_ATTACK:.34,NOISE:.46}[reason]??.32;
     const maxErr=base*clamp(1.35-conf*.55,.65,1.25),a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*maxErr;
     return{xNm:pos.xNm+Math.cos(a)*r,yNm:pos.yNm+Math.sin(a)*r,errNm:maxErr};
@@ -199,6 +199,8 @@ class SimEngineASWBrain extends SimEngineWeather{
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     if(!force&&now-A.lastRoleAssignAt<8)return;
     const escorts=W.contacts.filter(c=>isASWCombatant(c));if(!escorts.length)return;
+    const informedIds=Array.isArray(e.alertedEscortIds)?e.alertedEscortIds.filter(id=>escorts.some(x=>x.id===id)):[];
+    if(Array.isArray(e.alertedEscortIds)&&e.alertedEscortIds.length)e.alertedEscortIds=informedIds;
     const straggler=this.damagedGuardShip();
     let guard=null;
     if(straggler&&escorts.length>=2){
@@ -206,7 +208,15 @@ class SimEngineASWBrain extends SimEngineWeather{
         escorts.slice().sort((a,b)=>distNm(a.position,straggler.position)-distNm(b.position,straggler.position))[0];
     }
     for(const x of escorts){delete x.guardShipId;if(x===guard){x.guardShipId=straggler.id;x.aswRole='DAMAGED_GUARD';}}
-    const active=escorts.filter(x=>x!==guard);
+    const responders=e.alertState!=='UNAWARE'&&informedIds.length
+      ?escorts.filter(x=>informedIds.includes(x.id))
+      :escorts;
+    const active=responders.filter(x=>x!==guard);
+    // Uninformed escorts stay on the convoy screen. This keeps the shared ASW
+    // plot as an implementation detail rather than a telepathic fleet network.
+    if(e.alertState!=='UNAWARE'&&informedIds.length){
+      for(const x of escorts)if(x!==guard&&!informedIds.includes(x.id)){x.aswRole='SCREEN';x.aswExpended=false;}
+    }
     if(e.alertState==='UNAWARE'||!this.aswDatum()){
       for(const x of active){x.aswRole='SCREEN';x.aswExpended=false;}A.lastRoleAssignAt=now;
       A.roles=Object.fromEntries(escorts.map(x=>[x.id,x.aswRole]));return;

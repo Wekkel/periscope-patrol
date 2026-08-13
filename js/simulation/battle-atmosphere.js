@@ -116,6 +116,23 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       }
     },
 
+    noteTacticalSignal(from,to,alert=true){
+      if(!from?.id||!to?.id)return false;
+      const s=this.state,env=s.world.environment||{};
+      // Flags/lamps are represented as a visible atmosphere cue only in low
+      // light, where a short directed lamp signal is actually readable to the
+      // player. Daytime visual signalling is still handled by AI knowledge but
+      // is not rendered as a glowing arcade beacon.
+      if((env.daylight??1)>.32)return false;
+      const A=this.ensureBattleAtmosphereState(),now=s.time.elapsedSeconds||0;
+      if(now-(from.lastVisibleSignalAt||-999)<12)return false;
+      from.lastVisibleSignalAt=now;
+      const pattern=alert?[0,.20,.42,.59,.96,1.15]:[0,.34,.82];
+      A.signals.push({id:`SIG-${A.nextId++}`,fromId:from.id,toId:to.id,at:now,until:now+2.0,pattern,alert:!!alert,reason:'TACTICAL_RELAY'});
+      if(A.signals.length>BATTLE_MAX_SIGNALS)A.signals.shift();
+      return true;
+    },
+
     updateBattleSignals(dt){
       const s=this.state,A=this.ensureBattleAtmosphereState(),now=s.time.elapsedSeconds,env=s.world.environment;if((env.daylight||0)>.28)return;
       if(now-(A.lastSignalAt||-999)<26)return;

@@ -217,7 +217,19 @@ class SimEngineIntel extends SimEngineAAGun {
         reportedAt:this.state.time.elapsedSeconds-(m.intel.ageSec||0),
         receivedAt:this.state.time.elapsedSeconds,label:m.subject};
       delete W.contactTracks['ULTRA'];
-      Toast.ok('ULTRA intercept plotted — steer to cut her off');
+      const T=this.state.time||{},compressed=!!T.transitUntil||(T.timeScale||1)>1;
+      if(compressed){
+        // Do not let a long skip manufacture a vertical stack of identical
+        // green ULTRA toasts. Keep one queued item and update its count; the
+        // patrol log still retains every individual radio message above.
+        const u=this.state.ui=this.state.ui||{},q=u.toasts=u.toasts||[];
+        let item=null,itemIndex=-1;for(let i=q.length-1;i>=0;i--){if(q[i]?.tag==='ULTRA_INTERCEPT'){item=q[i];itemIndex=i;break;}}
+        if(item){
+          item.count=(item.count||1)+1;item.msg=`${item.count}× ULTRA intercepts plotted — latest plot shown on MAP`;
+          item.seq=(u.toastSeq=(u.toastSeq||0)+1);q.splice(itemIndex,1);q.push(item); // latest repeated signal stays at the tail
+        } else q.push({msg:'ULTRA intercept plotted — steer to cut her off',kind:'ok',tag:'ULTRA_INTERCEPT',count:1,seq:(u.toastSeq=(u.toastSeq||0)+1)});
+        if(q.length>40)q.splice(0,q.length-40);
+      }else Toast.ok('ULTRA intercept plotted — steer to cut her off');
     }
     if(m.airThreat){W.airThreat=W.airThreat||{};W.airThreat.level=m.airThreat;}
     if(m.score) this.state.campaign.score+=m.score;

@@ -236,6 +236,11 @@ class SimEngineTorpedoes extends SimEngineHarbor {
         const alongNow=dx*fx+dy*fy,lateralNow=dx*px+dy*py;
         const gap=Math.hypot(Math.max(0,Math.abs(alongNow)-H.halfLengthNm),Math.max(0,Math.abs(lateralNow)-H.halfBeamNm));
         if(!near||gap<near.gap)near={c,gap,along:alongNow,lateral:lateralNow,halfL:H.halfLengthNm,halfB:H.halfBeamNm};
+        // Steam-torpedo wakes are not invisible. A merchant lookout in good
+        // daylight may occasionally spot an approaching bubble track close
+        // enough to order a last-moment evasive turn. Electric fish do not get
+        // this visual giveaway. The AI helper owns probability/knowledge rules.
+        this.maybeMerchantSpotTorpedo?.(t,c,gap);
         const swept=this.torpedoShipSweepHit(t,prevPos,c);if(!swept)continue;
         {
           const {impactPosition,shipPosition,shipHeading,along,lateral,lenNm}=swept;

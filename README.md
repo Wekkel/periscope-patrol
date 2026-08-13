@@ -78,7 +78,7 @@ The sound room is intentionally skipper-level rather than a separate sonar minig
 - `Train ◀ / ▶` or dragging rotates the hydrophone listening bearing.
 - `✚ Mark Bearing` records a passive line of bearing. It does not transmit and does not reveal the boat.
 - Repeated passive marks after ownship has changed position can improve/triangulate the chart plot.
-- `◉ Echo Range` sends an active QC pulse. It can give a strong short-range range fix, but nearby escorts can hear the transmission. Treat it as the acoustic equivalent of ringing a bell underwater.
+- `Active QC` is deliberately a two-step action: the first press warns that an active ping can disclose the submarine, and a second `Confirm Ping` press sends the pulse. It can give a strong short-range range fix, but nearby escorts can hear the transmission. Treat it as the acoustic equivalent of ringing a bell underwater.
 - `SJ Radar` is available only on patrol dates where the boat has the historical fit.
 
 Ownship noise matters. Slowing or stopping the shafts improves passive listening; silent running further reduces the boat's acoustic signature.
@@ -160,7 +160,7 @@ Aircraft can search for and attack a surfaced submarine. Diving remains the prim
 
 Surface traffic distinguishes small patrol/subchaser craft, kaibokan/escort vessels, destroyers, heavy cruisers and carriers rather than rendering every warship as a merchant-shaped placeholder. The heavier classes use their own lightweight Canvas2D/pseudo-3D silhouettes while sharing the same world/collision/damage model.
 
-Friendly surface traffic is part of the local world. Visually identified friendly/neutral contacts are labelled separately, enemy surface combatants can engage a nearby Allied transport, and the transport will attempt to evade rather than pass through a hostile patrol as scenery. A deliberately sparse friendly-air layer can also produce an Allied PBY or fighter patrol in appropriate areas; these aircraft never enter the hostile attack state machine. Fighters may statistically drive off a nearby hostile aircraft and patrol aircraft can provide a rough contact report without creating an exact MAP track.
+Friendly surface traffic is part of the local world. Visually identified friendly/neutral contacts are labelled separately, enemy surface combatants can engage a nearby Allied transport, and the transport will attempt to evade rather than pass through a hostile patrol as scenery. Enemy merchants and tankers are not passive targets either: a ship that is hit, sees a nearby attack, or occasionally spots the visible wake of an approaching steam torpedo can order an emergency turn and speed. Within a convoy, attack warnings can propagate locally by visual signalling or, once an actual attack justifies breaking radio silence, by radio to a nearby escort; unrelated distant escorts are not granted magical knowledge of the event. A deliberately sparse friendly-air layer can also produce an Allied PBY or fighter patrol in appropriate areas; these aircraft never enter the hostile attack state machine. Fighters may statistically drive off a nearby hostile aircraft and patrol aircraft can provide a rough contact report without creating an exact MAP track.
 
 ## Training patrol
 

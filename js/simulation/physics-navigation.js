@@ -384,12 +384,12 @@ class SimEngine extends SimEngineCareer {
       // Apply scatter behaviour if a convoy merchant was alerted. Harbour
       // targets never scatter: they are moored prizes, not convoy traffic.
       if(c.scattering&&!isSurfaceCombatant(c)&&!c.harborTarget){
-        const scatterAge=elapsed-(c.alertedAt||0);
-        if(scatterAge<90){
+        const scatterAge=elapsed-(c.alertedAt||0),scatterDuration=Math.max(30,Number(c.scatterDurationSec)||90);
+        if(scatterAge<scatterDuration){
           c.desiredHeading=c.scatterHeading;
           c.desiredSpeed=c.scatterSpeed;
         } else {
-          c.scattering=false;
+          c.scattering=false;c.scatterDurationSec=0;
           c.desiredSpeed=c.baseSpeed||c.speedKnots*0.75;
         }
       }
