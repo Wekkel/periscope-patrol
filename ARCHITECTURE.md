@@ -287,3 +287,39 @@ normalization in a UI/audio side path.
 instead of asking the Pacific terrain provider to invent an unknown map. Real
 Atlantic coastline/port geography should be added only when a concrete vertical
 slice needs it, preserving the one-selected-area / low-memory terrain rule.
+
+
+### Phase-2 patch 12 — first Atlantic convoy world slice
+
+The `german-atlantic-1941` campaign now owns its first mission-critical surface
+world content: a representative late-1941 Allied convoy plus a deliberately
+minimal close-escort doctrine. This is not a named HX/SC convoy reconstruction.
+The engine should be able to prove non-Pacific materialization before the game
+spends complexity on exact sailing manifests, national merchant mixes, named
+escort groups or Atlantic ambient traffic.
+
+`GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE` owns nine merchant/tanker slots
+and three Flower-class escort identities. Merchant size/tonnage mix is authored
+gameplay data within plausible wartime bands, not a claim that one historical
+convoy contained those exact hulls. Contemporary U-boat KTBs support the
+existing 7–9 knot area speed band, with 8 knots repeatedly appearing in convoy
+plots. Flower corvettes are a historically appropriate Atlantic close-escort
+class, but the first slice reuses the existing low-cost `PATROL_CRAFT` render
+mesh. `vesselProfileId='uk-flower-corvette-1941'` is the historical/gameplay
+identity; `modelKey='PATROL_CRAFT'` is only a temporary rendering choice and
+must not be confused with a finished Flower-class 3-D model.
+
+The campaign also authors `GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE`. Its one-to-
+three-escort screen is intentionally representative gameplay doctrine rather
+than a universal claim about every September 1941 escort group. It is enough to
+exercise the existing ASW role/state machine without importing Japanese area
+risk or Pacific aircraft. Aircraft remain absent from this first Atlantic
+slice; they should be added only with a dated Atlantic air doctrine.
+
+The traffic director still requires explicit campaign ownership, so Atlantic
+has an authored zero-density ambient profile. This is intentional. A zero
+profile is preferable to either a Pacific fallback or invented background
+shipping: patch 12 proves the mission-critical convoy can pass tactical →
+abstract → tactical LOD while preserving British vessel identity. Ambient
+freighters, independents, stragglers and other U-boats can be introduced later
+when they support concrete Atlantic gameplay.

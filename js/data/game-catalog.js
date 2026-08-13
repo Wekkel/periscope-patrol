@@ -14,7 +14,7 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=9;
+const PP_CATALOG_VERSION=10;
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
@@ -174,7 +174,15 @@ const VESSEL_PROFILES=Object.freeze({
   'jp-carrier':Object.freeze({id:'jp-carrier',factionId:'japan',gameplayType:'CARRIER',modelKey:'CARRIER'}),
   'jp-fishing-craft':Object.freeze({id:'jp-fishing-craft',factionId:null,gameplayType:'JUNK',modelKey:'JUNK'}),
   'us-coastal-transport':Object.freeze({id:'us-coastal-transport',factionId:'usa',gameplayType:'MERCHANT',modelKey:'MERCHANT_COASTAL'}),
-  'us-life-raft':Object.freeze({id:'us-life-raft',factionId:'usa',gameplayType:'RAFT',modelKey:'RAFT'})
+  'us-life-raft':Object.freeze({id:'us-life-raft',factionId:'usa',gameplayType:'RAFT',modelKey:'RAFT'}),
+
+  // Phase-2 Atlantic identity profiles. The first vertical slice deliberately
+  // reuses the existing lightweight merchant/tanker/patrol-craft geometry;
+  // modelKey is a rendering choice, not a claim that the hull mesh is yet a
+  // historically faithful Flower-class silhouette.
+  'uk-merchant-1941':Object.freeze({id:'uk-merchant-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'MERCHANT'}),
+  'uk-tanker-1941':Object.freeze({id:'uk-tanker-1941',factionId:'britain',gameplayType:'TANKER',modelKey:'TANKER'}),
+  'uk-flower-corvette-1941':Object.freeze({id:'uk-flower-corvette-1941',factionId:'britain',gameplayType:'ESCORT',modelKey:'PATROL_CRAFT'})
 });
 
 function getVesselProfile(profileId){return profileId?VESSEL_PROFILES[profileId]||null:null;}
@@ -380,6 +388,47 @@ const US_PACIFIC_PRIMARY_CONVOY_PROFILE=Object.freeze({
   ])
 });
 
+
+/* First playable-world Atlantic content. The 1941 slice is intentionally a
+   representative convoy rather than a reconstruction of one named HX/SC
+   sailing. U-boat KTBs repeatedly record convoy speeds around 8 knots; the
+   Flower class is documented as a core Atlantic close escort. Exact merchant
+   hull mix and escort-group composition remain gameplay-authored until a later
+   named-convoy scenario needs stricter historical reconstruction. */
+const GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE=Object.freeze({
+  id:'german-atlantic-1941-primary-convoy-v1',
+  merchantTemplates:Object.freeze([
+    Object.freeze({id:'AM-01',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'FREIGHTER',lengthYards:410,visualProfile:.94,acousticBase:.34,tonsFactor:4800}),
+    Object.freeze({id:'AM-02',name:'Atlantic Tanker',type:'TANKER',vesselProfileId:'uk-tanker-1941',side:'ENEMY',displayType:'TANKER',lengthYards:500,visualProfile:1.08,acousticBase:.44,tonsFactor:7200}),
+    Object.freeze({id:'AM-03',name:'Tramp Steamer',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'FREIGHTER',lengthYards:350,visualProfile:.86,acousticBase:.30,tonsFactor:3300}),
+    Object.freeze({id:'AM-04',name:'Cargo Liner',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'CARGO SHIP',lengthYards:455,visualProfile:1.00,acousticBase:.37,tonsFactor:5900}),
+    Object.freeze({id:'AM-05',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'FREIGHTER',lengthYards:390,visualProfile:.91,acousticBase:.33,tonsFactor:4200}),
+    Object.freeze({id:'AM-06',name:'Atlantic Tanker',type:'TANKER',vesselProfileId:'uk-tanker-1941',side:'ENEMY',displayType:'TANKER',lengthYards:470,visualProfile:1.04,acousticBase:.42,tonsFactor:6400}),
+    Object.freeze({id:'AM-07',name:'Coaster in Convoy',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'SMALL FREIGHTER',lengthYards:325,visualProfile:.80,acousticBase:.27,tonsFactor:2700}),
+    Object.freeze({id:'AM-08',name:'Cargo Steamer',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'CARGO SHIP',lengthYards:405,visualProfile:.93,acousticBase:.34,tonsFactor:4600}),
+    Object.freeze({id:'AM-09',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'FREIGHTER',lengthYards:435,visualProfile:.97,acousticBase:.36,tonsFactor:5300})
+  ]),
+  escortTemplates:Object.freeze([
+    Object.freeze({id:'AE-01',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
+    Object.freeze({id:'AE-02',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
+    Object.freeze({id:'AE-03',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true})
+  ]),
+  formationOffsets:Object.freeze([
+    Object.freeze({fwd:0,side:0}),
+    Object.freeze({fwd:-1.0,side:-.72}),Object.freeze({fwd:-1.0,side:.72}),
+    Object.freeze({fwd:-2.0,side:-1.44}),Object.freeze({fwd:-2.0,side:0}),Object.freeze({fwd:-2.0,side:1.44}),
+    Object.freeze({fwd:-3.0,side:-1.08}),Object.freeze({fwd:-3.0,side:0}),Object.freeze({fwd:-3.0,side:1.08})
+  ])
+});
+
+/* The distant-ocean director requires an authored profile even when this first
+   Atlantic slice deliberately has no extra ambient groups. Keeping density at
+   zero proves fail-closed theater ownership without inventing background
+   shipping before its gameplay purpose is designed. */
+const GERMAN_ATLANTIC_1941_AMBIENT_TRAFFIC_PROFILE=Object.freeze({
+  id:'german-atlantic-1941-ambient-traffic-v1',
+  defaultDensity:0,minDensity:0,maxDensity:0,baseKinds:Object.freeze([]),kinds:Object.freeze({})
+});
 
 /* Ambient/distant-world traffic is authored by the active campaign. The
    traffic director owns cheap abstract motion and tactical materialization;
@@ -610,6 +659,29 @@ const US_PACIFIC_DOCTRINE_PROFILE=Object.freeze({
   })
 });
 
+/* Minimal 1941 Atlantic close-escort doctrine for the convoy slice. This is a
+   gameplay-readable representative screen, not a claim that every September
+   1941 convoy sailed with this exact escort-group strength. Flower corvettes
+   are historically appropriate close escorts; aircraft and later radar/HF-DF
+   layers are intentionally absent from this first slice. */
+const GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE=Object.freeze({
+  id:'german-atlantic-1941-doctrine-v1',
+  asw:Object.freeze({
+    areaRisk:Object.freeze({'North Atlantic Convoy Lanes':0}),
+    escortCount:Object.freeze({
+      merchantBands:Object.freeze([
+        Object.freeze({max:5,count:2}),Object.freeze({max:7,count:2}),Object.freeze({count:3})
+      ]),
+      yearModifiers:Object.freeze([]),difficultyModifiers:Object.freeze({EASY:-1,HARD:0}),min:1,max:3
+    }),
+    screenRoles:Object.freeze({
+      1:Object.freeze(['FORWARD_SCREEN']),
+      2:Object.freeze(['FORWARD_SCREEN','REAR_GUARD']),
+      3:Object.freeze(['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK'])
+    })
+  })
+});
+
 /* Routine radio traffic is campaign presentation layered over generic
    receive/copy/intelligence mechanics. Internal `world.ultra` naming remains a
    Phase-1 save/runtime compatibility detail; player-facing terminology comes
@@ -679,7 +751,10 @@ const CAMPAIGN_PROFILES=Object.freeze({
     patrolAreaIds:Object.freeze(['North Atlantic Convoy Lanes']),
     defaultStartDate:'1941-09-01',
     historicalModel:GERMAN_ATLANTIC_1941_HISTORICAL_MODEL,
-    developmentStage:'FOUNDATION_ONLY'
+    primaryConvoyProfile:GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE,
+    ambientTrafficProfile:GERMAN_ATLANTIC_1941_AMBIENT_TRAFFIC_PROFILE,
+    doctrineProfile:GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE,
+    developmentStage:'CONVOY_SLICE'
   })
 });
 
