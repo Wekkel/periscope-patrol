@@ -98,6 +98,10 @@ window.addEventListener('pointerdown',e=>{
   if(e.pointerType&&e.pointerType!=='touch') return;
   if(document.documentElement.dataset.lay!=='desk') return;
   if(localStorage.getItem(PP_BUILD.storageKey('ss_ui'))==='desk') return;      // explicit user choice — respect it
+  /* Hybrid Windows laptops can legitimately receive a touch pointer while a
+     fine mouse/trackpad remains the primary control. Do not tear down their
+     desktop cockpit merely because the screen was touched once. */
+  if(window.matchMedia?.('(pointer:fine)').matches&&window.innerWidth>=900) return;
   localStorage.setItem(PP_BUILD.storageKey('ss_ui'),'touch');
   touchCtrl.applyLayout(true);
   Toast.ok('Touch detected — switched to the touch layout');
@@ -129,6 +133,34 @@ document.getElementById('deskLayoutBtn')?.addEventListener('click',()=>{
   Toast.ok('Touch layout — tabs are at the bottom of the screen');
 });
 document.getElementById('deskTutBtn')?.addEventListener('click',()=>tutorial.start());
+
+// Desktop command families. The old desktop shell stacked every skipper control
+// into one very tall sidebar. On a laptop that made essential controls depend on
+// scroll position and visually competed with the tactical picture. Keep the same
+// DOM controls and command handlers, but expose one command family at a time.
+// Station changes select the most relevant family; the player's manual choice is
+// remembered per PROD/DEV build without changing simulation state.
+const DESK_CMD_KEY=PP_BUILD.storageKey('ss_deskcmd');
+function setDeskCommandPane(name,persist=true){
+  const panes=[...document.querySelectorAll('.desk-cmd-pane')];
+  if(!panes.some(p=>p.dataset.deskCmd===name)) name='helm';
+  panes.forEach(p=>p.classList.toggle('active',p.dataset.deskCmd===name));
+  document.querySelectorAll('#deskCommandTabs [data-cmd]').forEach(b=>b.classList.toggle('active',b.dataset.cmd===name));
+  if(persist){try{localStorage.setItem(DESK_CMD_KEY,name);}catch(_){}}
+}
+document.querySelectorAll('#deskCommandTabs [data-cmd]').forEach(b=>b.addEventListener('click',()=>setDeskCommandPane(b.dataset.cmd)));
+let initialDeskCmd='helm';
+try{initialDeskCmd=localStorage.getItem(DESK_CMD_KEY)||'helm';}catch(_){}
+setDeskCommandPane(initialDeskCmd,false);
+const deskCmdForStation={
+  stationTactical:'weapons', stationBridge:'helm', stationSound:'firecontrol',
+  stationPeriscope:'firecontrol', stationMap:'nav', stationDeckGun:'weapons'
+};
+for(const [id,pane] of Object.entries(deskCmdForStation)){
+  document.getElementById(id)?.addEventListener('click',()=>{
+    if(document.documentElement.dataset.lay==='desk') setDeskCommandPane(pane);
+  });
+}
 
 // one-off touch hint
 if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){

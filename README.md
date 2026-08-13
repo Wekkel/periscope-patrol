@@ -30,7 +30,9 @@ The central view can be switched between six stations without loading a new page
 - `MAP` — navigation chart, bathymetry, terrain, ports, plotted waypoints, missions, contacts, weather overlay and tactical plotting.
 - `GUN` — manually trained and elevated 3-inch deck-gun sight with crew range lay, shell ballistics, splashes and ship damage.
 
-The lower interface is divided into four skipper-level tabs: `View`, `Helm`, `Attack` and `Status`.
+On touch devices the lower interface is divided into four skipper-level tabs: `View`, `Helm`, `Attack` and `Status`. Desktop/laptop browsers use a dedicated cockpit layout instead: the tactical canvas stays central, time scale/transit skip is permanently available in the top bar, and the left command column is divided into `HELM`, `TDC`, `WEAPONS` and `NAV` groups instead of stacking every control into one long panel. Each desktop column scrolls within its own viewport, so browser chrome or a short laptop screen cannot strand controls off-screen.
+
+The layout selector is capability-aware: coarse-pointer phones/tablets default to touch UI, while a wide browser with a fine mouse/trackpad uses desktop UI even on hybrid touchscreen laptops. The explicit layout switch remains available when a player prefers the other shell.
 
 ## Visual contacts, SCOPE and MAP
 

@@ -22,10 +22,16 @@ class TouchCtrl{
     const forced=(new URLSearchParams(location.search).get('ui'))||localStorage.getItem(PP_BUILD.storageKey('ss_ui'));
     if(forced==='touch') return true;
     if(forced==='desk')  return false;
-    const mq=window.matchMedia?window.matchMedia('(pointer:coarse)').matches:false;
-    const coarse=mq||('ontouchstart' in window)||(navigator.maxTouchPoints||0)>0;
-    const portrait=window.innerHeight>window.innerWidth;
-    return coarse||portrait||window.innerWidth<1024;
+    const mm=q=>window.matchMedia?window.matchMedia(q).matches:false;
+    const coarse=mm('(pointer:coarse)')||('ontouchstart' in window)||(navigator.maxTouchPoints||0)>0;
+    const fine=mm('(pointer:fine)');
+    /* A laptop can expose touch points as well as a mouse/trackpad. Treating
+       every such hybrid as a phone was why wide browser windows sometimes got
+       the mobile shell. A fine pointer plus usable width is a desktop cockpit;
+       genuinely coarse devices keep the touch shell regardless of orientation. */
+    if(fine&&window.innerWidth>=900) return false;
+    if(coarse&&!fine) return true;
+    return window.innerWidth<1024;
   }
 
   syncViewport(){

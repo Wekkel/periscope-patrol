@@ -77,7 +77,7 @@ Files:
 ### UI, controllers, persistence and boot
 
 - `js/ui/briefing.js`, `scenario-selector.js`, `toast.js`, `dom-view.js`, `picker.js`, `helm-gauges.js` — UI concerns.
-- `js/controllers/touch-controller.js`, `bridge-controller.js` — input/control routing.
+- `js/controllers/touch-controller.js`, `bridge-controller.js` — input/control routing. The browser UI deliberately has two shells: coarse-pointer/mobile devices use the touch shell, while a fine-pointer desktop browser uses the cockpit shell. Desktop command families are presentation-only tabs (`HELM`, `TDC`, `WEAPONS`, `NAV`); they must never duplicate or fork simulation commands. The canonical controls/IDs remain the same and are merely grouped for reachability.
 - `js/audio/audio-engine.js` — Web Audio behavior.
 - `js/persistence/save-system.js`, `autosave.js` — manual saves, autosave/resume and versioned portable player-profile backup/import.
 - `js/tutorial/tutorial.js` — training patrol/tutorial flow.
