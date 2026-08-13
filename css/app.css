@@ -768,6 +768,17 @@
       max-width:56%;}
     #tdcChip.on{display:block;}
     #tdcChip b{color:var(--ink);}
+
+    /* MAP weather is an information chip as well as the overlay toggle. Keeping
+       it at the otherwise unused top-right edge frees one large circular control
+       and makes the current local weather visible without opening the overlay. */
+    #mapWxChip{display:none;position:absolute;z-index:6;top:8px;right:8px;width:auto;height:30px;margin:0;padding:0 10px;
+      border:1px solid var(--line);border-radius:15px;background:rgba(6,16,20,.86);color:var(--muted);
+      font:700 9.5px/1 var(--mono);letter-spacing:.55px;white-space:nowrap;backdrop-filter:blur(3px);
+      box-shadow:0 2px 10px rgba(0,0,0,.38);}
+    html[data-lay="touch"][data-station="MAP"] #mapWxChip{display:flex;align-items:center;justify-content:center;}
+    html[data-lay="touch"][data-station="MAP"] #mapWxChip.on{border-color:var(--alert);color:var(--alert);background:rgba(60,44,10,.88);}
+    html[data-lay="touch"][data-station="MAP"] #oWeather{display:none!important;}
     html[data-lay="touch"] #dayNightBar,
     html[data-lay="touch"] #dayNightLabel{display:none;}
 

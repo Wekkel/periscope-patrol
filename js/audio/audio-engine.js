@@ -50,7 +50,11 @@ class AudioEngine{
     for(const name of Object.keys(this.mixTargets)){
       const raw=clamp(Number(profile[name]??1),0,1.35);this.mixTargets[name]=raw;
       const target=(name==='world'||name==='machinery')?raw*duck:raw;
-      this._bus(name)?.gain.setTargetAtTime(target,now,.16);
+      // World/machinery beds should crossfade when entering/leaving SILENT or
+      // surfacing. Alert ducking remains fast in duck(), so this does not blunt
+      // combat warnings or spoken command priority.
+      const tau=(name==='world'||name==='machinery') ? .34 : .16;
+      this._bus(name)?.gain.setTargetAtTime(target,now,tau);
     }
   }
 
@@ -80,21 +84,34 @@ class AudioEngine{
     // Submerged ambience is intentionally machinery/pressure rather than a
     // broadband hiss. A single PeriodicWave supplies the approved low engine
     // hum while a very dark reusable-noise layer gives the hull/water mass.
-    const real=new Float32Array(6),imag=new Float32Array([0,1,.68,.34,.17,.08]);
+    // Keep the electric-motor/hull bed dark. The earlier harmonic stack had a
+    // conspicuous synthetic 'buzz'; this spectrum keeps a low mechanical body
+    // while leaving enough harmonics for small phone speakers to reproduce it.
+    const real=new Float32Array(6),imag=new Float32Array([0,1,.24,.08,.025,.008]);
     const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();
-    o.setPeriodicWave(ctx.createPeriodicWave(real,imag,{disableNormalization:false}));o.frequency.value=30.5;
-    f.type='lowpass';f.frequency.value=260;f.Q.value=.45;g.gain.value=0;o.connect(f);f.connect(g);g.connect(this._bus('machinery'));o.start();
+    o.setPeriodicWave(ctx.createPeriodicWave(real,imag,{disableNormalization:false}));o.frequency.value=29;
+    f.type='lowpass';f.frequency.value=190;f.Q.value=.38;g.gain.value=0;o.connect(f);f.connect(g);g.connect(this._bus('machinery'));o.start();
     const n=this._noiseSource(999),nf=ctx.createBiquadFilter(),ng=ctx.createGain();nf.type='lowpass';nf.frequency.value=240;nf.Q.value=.35;ng.gain.value=0;
     n.connect(nf);nf.connect(ng);ng.connect(this._bus('machinery'));n.start(0,Math.random()*1.7);
     this.ambientOsc=o;this.ambientGain=g;this.ambientNoiseSource=n;this.ambientNoiseGain=ng;
   }
 
-  setAmbient(depthFt,silent){
-    if(!this.ambientGain||!this.ctx)return;const now=this.ctx.currentTime,submerged=depthFt>8,deep=clamp((depthFt-45)/190,0,1);
-    const hum=submerged?(silent?.0075:.021)*(1+deep*.26):.0015;
-    const water=submerged?(silent?.0032:.008)*(1+deep*.35):0;
-    this.ambientGain.gain.setTargetAtTime(hum,now,.55);this.ambientNoiseGain?.gain.setTargetAtTime(water,now,.65);
-    if(this.ambientOsc)this.ambientOsc.frequency.setTargetAtTime(30.5+deep*3.2,now,1.1);
+  setAmbient(depthFt,silent,propulsion=null){
+    if(!this.ambientGain||!this.ctx)return;
+    const now=this.ctx.currentTime,submerged=depthFt>8,deep=clamp((depthFt-45)/190,0,1);
+    const rpm=clamp((Number(propulsion?.actualRpm)||0)/450,0,1);
+    // Electric motors remain audible in silent running: quiet is tension, not a
+    // dead soundtrack. Both level and pitch follow ACTUAL rpm, so helm changes
+    // have the same physical lag the player sees on the tachometer.
+    const drive=.56+rpm*.66;
+    const hum=submerged?(silent?.0105:.0165)*drive*(1+deep*.18):.0008;
+    const water=submerged?(silent?.0036:.0062)*(.80+rpm*.22)*(1+deep*.25):0;
+    this.ambientGain.gain.setTargetAtTime(hum,now,.82);
+    this.ambientNoiseGain?.gain.setTargetAtTime(water,now,.95);
+    if(this.ambientOsc){
+      const hz=25.5+rpm*15.5+deep*1.6;
+      this.ambientOsc.frequency.setTargetAtTime(hz,now,silent?.62:.38);
+    }
   }
 
   _route(node,bearingDeg=null,ownHeading=0,destination='system'){
@@ -327,6 +344,14 @@ class AudioEngine{
 
   playShellSplash(distanceFactor=.5){this.ensure();const v=clamp(.28*(1-distanceFactor*.65),.05,.28);this._white(.32,v,null,0,'weapons');setTimeout(()=>this._noise(.5,52,'sine',v*.55,null,0,'weapons'),20);}
   playShellImpact(bearingDeg=null,ownHeading=0,power=1){this.ensure();const v=clamp(power,.2,1);this.duck(88,420);this._noise(.08,52,'sawtooth',.55*v,bearingDeg,ownHeading,'weapons');setTimeout(()=>this._white(.8,.38*v,bearingDeg,ownHeading,'weapons'),20);}
+  playDeckGunImpact(distanceFactor=.5){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    // Fall-of-shot is deliberately range-scaled. A distant hit is a small dark
+    // crack/thump, not the same close explosion merely played at full volume.
+    const d=clamp(Number(distanceFactor)||0,0,1),v=clamp(.34*(1-d*.76),.055,.34);
+    this._filteredNoise(.055,.42*v,{type:'bandpass',freq:420,q:.48,attack:.001},null,0,'weapons');
+    this._filteredNoise(.46,.78*v,{type:'lowpass',freq:170,q:.55,attack:.004},null,0,'weapons');
+  }
   playCreak(){this.ensure();this._noise(.55,86,'sine',.09,null,0,'machinery');setTimeout(()=>this._noise(.7,54,'sine',.055,null,0,'machinery'),180);}
 
   _ensureBattleLoops(){
@@ -337,7 +362,12 @@ class AudioEngine{
     seaF.type='lowpass';seaF.frequency.value=700;rainF.type='highpass';rainF.frequency.value=1100;seaG.gain.value=0;rainG.gain.value=0;
     src.connect(seaF);seaF.connect(seaG);seaG.connect(this._bus('world'));src.connect(rainF);rainF.connect(rainG);rainG.connect(this._bus('world'));src.start();
     this.battleNoiseSource=src;this.seaGain=seaG;this.rainGain=rainG;
-    const diesel=this.ctx.createOscillator(),dg=this.ctx.createGain();diesel.type='sawtooth';diesel.frequency.value=32;dg.gain.value=0;diesel.connect(dg);dg.connect(this._bus('machinery'));diesel.start();this.dieselOsc=diesel;this.dieselGain=dg;
+    // One reusable diesel voice. A triangle through a dark low-pass reads as a
+    // heavy low-speed engine rather than an electronic saw wave, while remaining
+    // far cheaper than a looping sample on low-end Android hardware.
+    const diesel=this.ctx.createOscillator(),df=this.ctx.createBiquadFilter(),dg=this.ctx.createGain();
+    diesel.type='triangle';diesel.frequency.value=28;df.type='lowpass';df.frequency.value=220;df.Q.value=.42;dg.gain.value=0;
+    diesel.connect(df);df.connect(dg);dg.connect(this._bus('machinery'));diesel.start();this.dieselOsc=diesel;this.dieselFilter=df;this.dieselGain=dg;
   }
 
   _setTorpedoMonitor(state){
@@ -381,7 +411,15 @@ class AudioEngine{
     // perspective. Never let rain/wind turn the periscope into an open bridge.
     const seaLevel=outside?(.006+sea*.028):(internalSurface?(.0015+sea*.004):0),rainLevel=outside?rain*.038:(internalSurface?rain*.001:0);
     this.seaGain?.gain.setTargetAtTime(seaLevel,now,.5);this.rainGain?.gain.setTargetAtTime(rainLevel,now,.4);
-    const diesel=sub.propulsion?.engineMode==='DIESEL'&&sub.depthFeet<10;const rpm=clamp(sub.propulsion.actualRpm/450,0,1),dieselLevel=diesel?(outside?(.006+rpm*.018):(.0035+rpm*.010)):0;if(this.dieselGain)this.dieselGain.gain.setTargetAtTime(dieselLevel,now,.35);if(this.dieselOsc)this.dieselOsc.frequency.setTargetAtTime(28+clamp(sub.propulsion.actualRpm||0,0,450)*.045,now,.35);
+    const diesel=sub.propulsion?.engineMode==='DIESEL'&&sub.depthFeet<10;
+    const rpm=clamp((Number(sub.propulsion?.actualRpm)||0)/450,0,1);
+    // Surface diesels should dominate the own-boat machinery bed. The slower
+    // gain/frequency response gives the big engines audible inertia without
+    // changing simulation acceleration or AI noise calculations.
+    const dieselLevel=diesel?(outside?(.015+rpm*.036):(.010+rpm*.026)):0;
+    if(this.dieselGain)this.dieselGain.gain.setTargetAtTime(dieselLevel,now,.72);
+    if(this.dieselOsc)this.dieselOsc.frequency.setTargetAtTime(25.5+clamp(sub.propulsion.actualRpm||0,0,450)*.052,now,.62);
+    if(this.dieselFilter)this.dieselFilter.frequency.setTargetAtTime(150+rpm*115,now,.70);
     const wall=Date.now();if(sub.depthFeet>170&&wall-this.lastCreak>clamp(12000-sub.depthFeet*14,4500,10000)){this.lastCreak=wall;this.playCreak();}
     this._setTorpedoMonitor(state);this._setNearbyEscortMachinery(state);
   }

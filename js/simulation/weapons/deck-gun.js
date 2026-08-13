@@ -1,3 +1,9 @@
+// USN OP 811 (1943) gives 14,600 yd as the 3-inch/50's maximum range.
+// Keep this as one authoritative gameplay limit so LAY, FIRE, HUD and shell
+// lifetime cannot disagree and silently lose rounds at extreme range.
+const DECK_GUN_MAX_RANGE_NM=14600/2025;
+globalThis.DECK_GUN_MAX_RANGE_NM=DECK_GUN_MAX_RANGE_NM;
+
 class SimEngineDeckGun extends SimEngineAircraft {
   deckGunTarget(){
     const id=this.state.tactical.selectedTrackId||this.state.tdc.targetId;
@@ -46,7 +52,11 @@ class SimEngineDeckGun extends SimEngineAircraft {
     if(!G.manned){this.notify('Deck gun is not manned.','warn');return;}
     if(!c){this.notify('No selected surface target for the gun. Tap a visible ship first.','warn');return;}
     const r0=distNm(sub.position,c.position);
-    if(r0>Math.max(5,this.state.world.environment.visibilityNm*1.05)){this.notify('Target is beyond useful visual gun range.','warn');return;}
+    if(r0>DECK_GUN_MAX_RANGE_NM){
+      this.notify(`Target ${c.id} at ${r0.toFixed(1)} nm — beyond 3\"/50 maximum range (${DECK_GUN_MAX_RANGE_NM.toFixed(1)} nm).`,'warn');return;
+    }
+    const usefulVisualRange=Math.min(DECK_GUN_MAX_RANGE_NM,Math.max(5,this.state.world.environment.visibilityNm*1.05));
+    if(r0>usefulVisualRange){this.notify('Target is beyond useful visual gun range.','warn');return;}
     // Iterate flight time and target motion. This is a crew estimate, not magic
     // aim assist: sea state and dispersion still have to be bracketed by eye.
     let pred={...c.position},tof=r0*NM_M/820,ballistic=null;
@@ -74,6 +84,11 @@ class SimEngineDeckGun extends SimEngineAircraft {
     if(sub.depthFeet>8){G.manned=false;this.notify('Deck awash — gun crew driven below.','warn');return;}
     if(G.ammo<=0){this.notify('Deck gun magazine empty.','warn');return;}
     if(now-(G.lastFireAt??-999)<1.35){this.notify('Gun crew still loading.','warn');return;}
+    const tgt=this.deckGunTarget();
+    if(tgt){
+      const r=distNm(sub.position,tgt.position);
+      if(r>DECK_GUN_MAX_RANGE_NM){this.notify(`Target ${tgt.id} at ${r.toFixed(1)} nm — beyond 3\"/50 maximum range (${DECK_GUN_MAX_RANGE_NM.toFixed(1)} nm).`,'warn');return;}
+    }
     const sea=clamp(this.state.world.environment.seaState||0,0,1);
     const fatigue=clamp(sub.damage.crewFatigue||0,0,1);
     const wx=weatherAtPosition(this.state,sub.position);
@@ -138,9 +153,9 @@ class SimEngineDeckGun extends SimEngineAircraft {
     const hr=degToRad(c.heading||0),fx=Math.sin(hr),fy=-Math.cos(hr),sx=Math.cos(hr),sy=Math.sin(hr);
     const impactPos={xNm:c.position.xNm+fx*(hit.along||0)+sx*(hit.lateral||0),yNm:c.position.yNm+fy*(hit.along||0)+sy*(hit.lateral||0)};
     const impactZ=Math.max(.2,hit.z||3.5),now=this.state.time.elapsedSeconds;
-    G.impactFlash={position:{...impactPos},zM:impactZ,startedAt:now,until:now+1.15,power:1};
+    G.impactFlash={position:{...impactPos},zM:impactZ,startedAt:now,until:now+0.72,power:.72};
     this.state.weapons.explosions.push({position:{...impactPos},zM:impactZ,ageSec:0,maxAgeSec:5,label:'GUN HIT'});
-    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);audio.playDeckGunImpact?.(clamp(distNm(this.state.playerSub.position,impactPos)/3,0,1));
+    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);audio.playDeckGunImpact?.(clamp(distNm(this.state.playerSub.position,impactPos)/DECK_GUN_MAX_RANGE_NM,0,1));
     this.alertEscorts('SHIP_HIT',{...c.position},1);
     updateShipDamage(this,c,0);
     const condition=shipDamageCondition(c);
@@ -166,7 +181,9 @@ class SimEngineDeckGun extends SimEngineAircraft {
     G.splashes=(G.splashes||[]).filter(sp=>sp.age<4);
     const alive=[];
     for(const sh of G.shells||[]){
-      if(sh.age>12)continue;
+      // The old 12 s expiry deleted legitimate long-range rounds before they
+      // reached the sea. Keep enough lifetime for every allowed 3-inch shot.
+      if(sh.age>24)continue;
       const prev={xNm:sh.xNm,yNm:sh.yNm,zM:sh.zM};
       // light drag: enough to make long shots require a little more elevation,
       // without turning this into an artillery computer.
@@ -180,6 +197,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
       if(sh.zM<=0){
         const f=clamp(prev.zM/(prev.zM-sh.zM||1),0,1),pos={xNm:prev.xNm+(sh.xNm-prev.xNm)*f,yNm:prev.yNm+(sh.yNm-prev.yNm)*f};
         G.splashes.push({position:pos,age:0});G.lastFall={text:this.deckGunFallText(pos,sh.bearing),until:this.state.time.elapsedSeconds+3.5};
+        audio.playShellSplash?.(clamp(distNm(sub.position,pos)/DECK_GUN_MAX_RANGE_NM,0,1));
         continue;
       }
       alive.push(sh);

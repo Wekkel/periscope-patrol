@@ -397,9 +397,14 @@ class SimEngine extends SimEngineCareer {
       const d=knotsNmSec(c.speedKnots)*dt; const r=degToRad(c.heading);
       const prev={...c.position};
       c.position.xNm+=Math.sin(r)*d; c.position.yNm-=Math.cos(r)*d;
-      // No surface ship is allowed to cut a corner through an island. This is
-      // a last safety net behind the water-route steering, including escorts.
-      if(Bathy.feet(c.position.xNm,c.position.yNm)<24){
+      // No surface ship is allowed to cut a corner through an island. Bathy is
+      // deliberately coarse for speed and can miss Kii Suido's narrow rendered
+      // islands, so exact terrain polygons are authoritative for local contacts.
+      // Tactical contact counts are bounded; this one point test stays cheap.
+      const exactLand=this.checkTerrainCollision?.(c)?.collision===true;
+      const mid={position:{xNm:(prev.xNm+c.position.xNm)/2,yNm:(prev.yNm+c.position.yNm)/2}};
+      const crossedLand=this.checkTerrainCollision?.(mid)?.collision===true;
+      if(exactLand||crossedLand||Bathy.feet(c.position.xNm,c.position.yNm)<24){
         c.position=prev;c.speedKnots*=0.72;
         const route=(this.state.world.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);
         if(path&&path.length>1){const pr=routeProject(path,prev),aim=routeAdvance(path,pr.s,this.state.world.convoyLeg||1,1.0);c.desiredHeading=bearingBetween(prev,aim.pos);}

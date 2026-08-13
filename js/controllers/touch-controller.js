@@ -179,6 +179,7 @@ class TouchCtrl{
     btn('oCenter', ()=>{this.cv.recenter(this.game.getSnapshot().playerSub);Toast.ok('Map centred on ownship');});
     btn('oClear',  ()=>D({type:'MAP_CLEAR_PLOT'}));
     btn('oWeather',()=>{D({type:'TOGGLE_MAP_WEATHER'});buzz(8);});
+    btn('mapWxChip',()=>{D({type:'TOGGLE_MAP_WEATHER'});buzz(8);});
     btn('oScopeL', ()=>D({type:'ROTATE_PERISCOPE',deltaDeg:-5}));
     btn('oScopeR', ()=>D({type:'ROTATE_PERISCOPE',deltaDeg:5}));
     btn('oScopeZ', ()=>D({type:'TOGGLE_PERISCOPE_ZOOM'}));
@@ -725,6 +726,17 @@ class TouchCtrl{
     const sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
     cls('oSilent','on',sub.stealth.silentRunning);
     cls('oWeather','on',!!state.map.weatherOverlay);
+    cls('mapWxChip','on',!!state.map.weatherOverlay);
+    const wxLabel=g('mapWxLabel');
+    if(wxLabel){
+      // weatherAtPosition includes local squalls rather than merely repeating the
+      // patrol's base forecast. Fall back safely for old/imported save states.
+      const wx=(typeof weatherAtPosition==='function'&&state.world?.weatherSystem)
+        ? weatherAtPosition(state,sub.position)
+        : {stage:state.world?.environment?.weather||'CLEAR',visibilityNm:state.world?.environment?.visibilityNm};
+      const stage=String(wx.stage||'CLEAR').replace(/_/g,' '),vis=Number(wx.visibilityNm);
+      wxLabel.textContent=`WX ${stage}${Number.isFinite(vis)?` · ${vis.toFixed(1)} NM`:''}`;
+    }
     cls('oGunFire','ready',!!state.weapons.deckGun?.manned&&state.weapons.deckGun.ammo>0);
 
     // fire button + TDC chip

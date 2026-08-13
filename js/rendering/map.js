@@ -130,16 +130,21 @@ class CanvasView extends CanvasViewSound {
     const own=state.playerSub?.position,K=this.k,z=this.zoom,env=state.world?.environment||{};
     if(!own||!Number.isFinite(z)||z<=0)return;
     ctx.save();
-    // Always show a compact chart cue when the layer is enabled. A nearby
-    // weather cell can be outside the current pan/zoom, and without this cue
-    // the player cannot tell a working overlay from a dead button.
-    const wx=String(env.weather||'CLEAR').replace(/_/g,' '),vis=Number(env.visibilityNm);
-    const label=`WX OVERLAY ON · ${wx}${Number.isFinite(vis)?` · VIS ${vis.toFixed(1)} NM`:''}`;
-    ctx.font=this.fnt(7.5,true);ctx.textAlign='right';
-    const tw=ctx.measureText(label).width+14*K,tx=w-8*K,ty=8*K;
-    ctx.fillStyle='rgba(4,15,18,.78)';this.rr(ctx,tx-tw,ty,tw,19*K,4*K);ctx.fill();
-    ctx.strokeStyle='rgba(177,204,211,.34)';ctx.lineWidth=Math.max(.8,K);ctx.stroke();
-    ctx.fillStyle='rgba(190,220,218,.88)';ctx.fillText(label,tx-7*K,ty+13*K);ctx.textAlign='left';
+    // Desktop needs an explicit chart cue when the layer is enabled. Touch MAP
+    // already has the always-visible #mapWxChip in this exact corner; drawing a
+    // second canvas label underneath it made the two controls compete for the
+    // same pixels on phones. Debug/offscreen renderers have no document and
+    // therefore keep the desktop cue by default.
+    const touchMap=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    if(!touchMap){
+      const wx=String(env.weather||'CLEAR').replace(/_/g,' '),vis=Number(env.visibilityNm);
+      const label=`WX OVERLAY ON · ${wx}${Number.isFinite(vis)?` · VIS ${vis.toFixed(1)} NM`:''}`;
+      ctx.font=this.fnt(7.5,true);ctx.textAlign='right';
+      const tw=ctx.measureText(label).width+14*K,tx=w-8*K,ty=8*K;
+      ctx.fillStyle='rgba(4,15,18,.78)';this.rr(ctx,tx-tw,ty,tw,19*K,4*K);ctx.fill();
+      ctx.strokeStyle='rgba(177,204,211,.34)';ctx.lineWidth=Math.max(.8,K);ctx.stroke();
+      ctx.fillStyle='rgba(190,220,218,.88)';ctx.fillText(label,tx-7*K,ty+13*K);ctx.textAlign='left';
+    }
     const cells=state?.world?.weatherSystem?.cells;
     if(!Array.isArray(cells)||!cells.length){ctx.restore();return;}
     for(const c of cells.slice(0,3)){
