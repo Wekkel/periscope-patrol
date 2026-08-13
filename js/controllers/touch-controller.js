@@ -19,7 +19,7 @@ class TouchCtrl{
 
   /* ── layout selection ── */
   isTouchLayout(){
-    const forced=(new URLSearchParams(location.search).get('ui'))||localStorage.getItem('ss_ui');
+    const forced=(new URLSearchParams(location.search).get('ui'))||localStorage.getItem(PP_BUILD.storageKey('ss_ui'));
     if(forced==='touch') return true;
     if(forced==='desk')  return false;
     const mq=window.matchMedia?window.matchMedia('(pointer:coarse)').matches:false;

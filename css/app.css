@@ -486,6 +486,7 @@
       -webkit-tap-highlight-color:transparent;}
     .verchip:active{color:var(--ok);border-color:var(--ok);}
     .verchip.upd{color:var(--alert);border-color:var(--alert);opacity:1;}
+    .verchip.dev{color:var(--alert);border-color:rgba(245,198,92,.72);background:rgba(74,51,8,.35);opacity:1;}
 
     /* ── UPDATE BAR ── */
     #updBar{position:fixed;left:8px;right:8px;z-index:80;display:none;
