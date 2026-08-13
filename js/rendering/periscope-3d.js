@@ -97,7 +97,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
     const t=viewState.time.elapsedSeconds,dl=env.daylight,wx=env.weather||'CLEAR';
     this.drawSky3D(ctx,w,h,cam,viewState,dl,wx,t);
-    this.drawSea3D(ctx,w,h,cam,dl,env.seaState,wx,t,env);
+    this.drawSea3D(ctx,w,h,cam,dl,env.seaState,wx,t);
     this.drawTerrain3D(ctx,cam,viewState,dl);
     this.drawImpactTorpedoTrack(ctx,cam,obs,impactAge,dl,env);
     this.drawWeatherCells3D?.(ctx,cam,viewState,dl,t);
@@ -199,7 +199,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const dl=env.daylight, sea=env.seaState;
     const wx=env.weather||'CLEAR';
     this.drawSky3D(ctx,w,h,cam,state,dl,wx,t);
-    this.drawSea3D(ctx,w,h,cam,dl,sea,wx,t,env);
+    this.drawSea3D(ctx,w,h,cam,dl,sea,wx,t);
     this.drawTerrain3D(ctx,cam,state,dl);
     this.drawWeatherCells3D?.(ctx,cam,state,dl,t);
     this.drawBattleAtmosphereBack?.(ctx,cam,state,dl,t);
@@ -221,28 +221,15 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   /* ── SKY: gradient, sun/moon, clouds, stars ── */
   drawSky3D(ctx,w,h,cam,state,dl,wx,t){
     this.sunScreen=null;this.celestialIsMoon=false;this.celestialPathStrength=0;
-    const hy=cam.horizonY,env=state.world.environment||{},atlantic=env.visualTone==='NORTH_ATLANTIC';
+    const hy=cam.horizonY;
     const g=ctx.createLinearGradient(0,Math.max(0,hy-cam.r*2),0,hy);
-    const storm=atlantic||weatherIsWet(wx)||wx==='BUILDING CLOUD'||wx==='CLEARING';
-    // Continuous night → twilight → day blend. Atlantic keeps its own cold,
-    // low-contrast palette; the Pacific branch below is byte-for-byte the old
-    // colour math so shared rendering does not visually regress production.
-    const dayTop=atlantic?[54,65,74]:(storm?[74,85,96]:[47,111,158]),
-          dayMid=atlantic?[91,102,108]:(storm?[106,116,124]:[127,179,212]),
-          dayHor=atlantic?[139,148,150]:(storm?[141,148,154]:[207,230,242]);
-    const skyTop=dayPhaseRgb(dl,atlantic?[2,6,11]:[3,6,15],atlantic?[22,30,40]:[27,39,64],dayTop),
-          skyMid=dayPhaseRgb(dl,atlantic?[8,15,22]:[7,19,34],atlantic?[72,65,70]:[122,79,92],dayMid),
-          skyHor=dayPhaseRgb(dl,atlantic?[22,33,42]:[18,36,58],atlantic?[144,107,91]:[224,146,92],dayHor);
+    const storm=weatherIsWet(wx)||wx==='BUILDING CLOUD'||wx==='CLEARING';
+    // Continuous night → twilight → day blend. Hard palette thresholds made
+    // the last red dusk frame snap visibly into a blue-black night frame.
+    const dayTop=storm?[74,85,96]:[47,111,158],dayMid=storm?[106,116,124]:[127,179,212],dayHor=storm?[141,148,154]:[207,230,242];
+    const skyTop=dayPhaseRgb(dl,[3,6,15],[27,39,64],dayTop),skyMid=dayPhaseRgb(dl,[7,19,34],[122,79,92],dayMid),skyHor=dayPhaseRgb(dl,[18,36,58],[224,146,92],dayHor);
     g.addColorStop(0,rgbCss(skyTop));g.addColorStop(.62,rgbCss(skyMid));g.addColorStop(1,rgbCss(skyHor));
     ctx.fillStyle=g;ctx.fillRect(0,hy-cam.r*2.2,w,cam.r*2.2+2);
-    if(atlantic){
-      // Cheap layered stratus: screen-space veil is intentional diffuse cloud,
-      // not a trackable object. Moving frontal cells are still world-anchored.
-      const a=clamp((env.cloudCover||.62)*(.16+.16*(1-dl)),.08,.30);
-      const sg=ctx.createLinearGradient(0,Math.max(0,hy-cam.r*1.75),0,hy);
-      sg.addColorStop(0,`rgba(55,64,70,${a*.35})`);sg.addColorStop(.58,`rgba(82,90,94,${a})`);sg.addColorStop(1,'rgba(110,116,117,0)');
-      ctx.fillStyle=sg;ctx.fillRect(0,Math.max(0,hy-cam.r*1.8),w,cam.r*1.8);
-    }
 
     // stars — low cloud/rain can erase the celestial references entirely.
     const cloudCover=clamp(state.world.environment.cloudCover||0,0,1);
@@ -358,7 +345,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   }
 
   /* ── SEA: perspective wave rows, glitter path, whitecaps ── */
-  drawSea3D(ctx,w,h,cam,dl,seaState,wx,t,env=null){
+  drawSea3D(ctx,w,h,cam,dl,seaState,wx,t){
     const hy=cam.horizonY;
     /* Real water is two different things at once. Out at the horizon you see
        it at a grazing angle and it is all mirror — it takes whatever colour
@@ -366,11 +353,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
        fails (Fresnel), and you get the sea's own colour: dark, saturated,
        green-blue. Painters knew this centuries before Fresnel wrote it down.
        So the gradient runs light-far to dark-near, not the other way. */
-    const atlantic=env?.visualTone==='NORTH_ATLANTIC';
-    const far=atlantic?dayPhaseRgb(dl,[7,13,20],[52,56,63],[76,96,104])
-      :dayPhaseRgb(dl,[12,20,34],[66,52,64],wx==='STORM'||wx==='RAIN'?[74,84,92]:[52,88,110]);
-    const near=atlantic?dayPhaseRgb(dl,[1,5,9],[10,16,22],[7,28,34])
-      :dayPhaseRgb(dl,[2,7,14],[10,16,30],[8,37,50]);
+    const far=dayPhaseRgb(dl,[12,20,34],[66,52,64],wx==='STORM'||wx==='RAIN'?[74,84,92]:[52,88,110]);
+    const near=dayPhaseRgb(dl,[2,7,14],[10,16,30],[8,37,50]);
     const g=ctx.createLinearGradient(0,hy,0,cam.cy+cam.r);
     g.addColorStop(0,`rgb(${far[0]},${far[1]},${far[2]})`);
     g.addColorStop(0.30,`rgb(${Math.round(far[0]*0.45+near[0]*0.55)},${Math.round(far[1]*0.45+near[1]*0.55)},${Math.round(far[2]*0.45+near[2]*0.55)})`);
@@ -380,8 +364,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     // the sky mirrored in a band just below the horizon — the sea always
     // carries the sky's colour where the reflection angle is shallowest
     const bandH=cam.r*0.16;
-    const skyRef=atlantic?(dl>0.55?'140,151,154':dl>0.22?'132,116,108':'22,35,45')
-                :dl>0.55?(wx==='STORM'||wx==='RAIN'?'150,158,166':'168,205,228')
+    const skyRef=dl>0.55?(wx==='STORM'||wx==='RAIN'?'150,158,166':'168,205,228')
                 :dl>0.22?'196,140,110':'20,36,58';
     const rb=ctx.createLinearGradient(0,hy,0,hy+bandH);
     rb.addColorStop(0,`rgba(${skyRef},${dl>0.22?0.26:0.18})`);
@@ -424,17 +407,12 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const bot=cam.cy+cam.r;
     // three wave trains: [world dir rad, wavelength m, speed m/s, amp share]
     const rough=0.22+seaState*0.78;
-    // Atlantic gets longer, heavier swell components without adding any extra
-    // rows or particles; cost stays the same on the Helios-class test device.
-    const TR=atlantic?[[degToRad(298),110,7.4,0.58],
-                       [degToRad(326),58,5.1,0.28],
-                       [degToRad(260),18,3.0,0.14]]
-                     :[[degToRad(292),74,6.2,0.52],
-                       [degToRad(318),41,4.4,0.30],
-                       [degToRad(255),13,2.6,0.18]];
+    const TR=[[degToRad(292),74,6.2,0.52],
+              [degToRad(318),41,4.4,0.30],
+              [degToRad(255),13,2.6,0.18]];
     for(const tr of TR){tr[4]=Math.cos(tr[0]);tr[5]=Math.sin(tr[0]);
       tr[6]=Math.PI*2/tr[1];tr[7]=tr[6]*tr[2];}
-    const ampM=atlantic?(0.32+seaState*2.65):(0.25+seaState*2.3);                       // significant height, m
+    const ampM=(0.25+seaState*2.3);                       // significant height, m
     // light comes from the sun's side of the sky; at night, faintly from the moon
     const lx=this.sunScreen?clamp((this.sunScreen.x-cam.cx)/cam.r,-1,1):0.3;
     const contr=(dl>0.5?1:dl>0.2?0.7:0.45)*(wx==='FOG'?0.5:1);
@@ -520,10 +498,9 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
     // haze band at the horizon
     const hz=ctx.createLinearGradient(0,hy-cam.r*0.12,0,hy+cam.r*0.10);
-    const hc=atlantic?(dl>0.5?'168,181,184':dl>0.2?'119,113,118':'24,36,46')
-      :(dl>0.5?'190,215,230':dl>0.2?'120,110,120':'22,34,52');
+    const hc=dl>0.5?'190,215,230':dl>0.2?'120,110,120':'22,34,52';
     hz.addColorStop(0,`rgba(${hc},0)`);
-    hz.addColorStop(0.5,`rgba(${hc},${wx==='FOG'?0.75:(atlantic?0.48:0.35)})`);
+    hz.addColorStop(0.5,`rgba(${hc},${wx==='FOG'?0.75:0.35})`);
     hz.addColorStop(1,`rgba(${hc},0)`);
     ctx.fillStyle=hz;ctx.fillRect(0,hy-cam.r*0.12,w,cam.r*0.22);
   }

@@ -461,16 +461,11 @@
     /* PRIMARY MISSION uses the same in-app picker as the other touch selects.
        The native Android picker remains hidden, while this button keeps the
        same footprint and visual hierarchy as the old field. */
-    .pk > #missionTypeSelect + .pk-btn,
-    .pk > #campaignProfileSelect + .pk-btn{min-width:250px;max-width:min(100%,430px);justify-content:space-between;
+    .pk > #missionTypeSelect + .pk-btn{min-width:250px;max-width:min(100%,430px);justify-content:space-between;
       padding:10px 12px;font-size:11px;color:var(--ink);background:linear-gradient(180deg,#0d2229,#071216);
       border-color:var(--line);}
-    .pk > #missionTypeSelect + .pk-btn.open,
-    .pk > #campaignProfileSelect + .pk-btn.open{border-color:var(--alert);color:var(--alert);box-shadow:0 0 0 1px rgba(245,198,92,.14) inset;}
-    @media(max-width:520px){
-      .pk:has(#missionTypeSelect),.pk:has(#campaignProfileSelect){width:100%;}
-      .pk > #missionTypeSelect + .pk-btn,.pk > #campaignProfileSelect + .pk-btn{width:100%;min-width:0;}
-    }
+    .pk > #missionTypeSelect + .pk-btn.open{border-color:var(--alert);color:var(--alert);box-shadow:0 0 0 1px rgba(245,198,92,.14) inset;}
+    @media(max-width:520px){.pk:has(#missionTypeSelect){width:100%;}.pk > #missionTypeSelect + .pk-btn{width:100%;min-width:0;}}
 
     #briefingOverlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;
       display:flex;align-items:center;justify-content:center;padding:14px;}

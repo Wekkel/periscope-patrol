@@ -130,7 +130,7 @@ SHIP_MODELS.MERCHANT_COASTAL={
   parts:[{t:'b',x:0,y:5.5,z:-15,w:11,h:7,d:21,c:'house',big:1},{t:'b',x:0,y:12.5,z:-13,w:8,h:3,d:9,c:'top'},{t:'f',x:0,y:11,z:-29,r:2,h:8,c:'funnel',rake:.05,big:1},{t:'b',x:0,y:5.5,z:26,w:9,h:2.7,d:12,c:'house'}],
   masts:[{x:0,y:6,z:20,h:18,yard:5},{x:0,y:6,z:-24,h:16,yard:4}],smoke:{x:0,y:19,z:-29}
 };
-function shipVisualModelKey(c){return typeof vesselModelKey==='function'?vesselModelKey(c):(c?.type||'MERCHANT');}
+function shipVisualModelKey(c){if(!c)return'MERCHANT';if(!['MERCHANT','TROOP'].includes(c.type))return c.type;const d=String(c.displayType||'').toUpperCase();if(d.includes('COASTAL'))return'MERCHANT_COASTAL';if(d.includes('TRANSPORT')||d.includes('TROOP'))return'MERCHANT_ISLAND';let h=0;for(const ch of String(c.id||c.name||''))h=(h*33+ch.charCodeAt(0))>>>0;return['MERCHANT','MERCHANT_FORECASTLE','MERCHANT_ISLAND'][h%3];}
 SHIP_MODELS.TROOP=SHIP_MODELS.MERCHANT_ISLAND;
 /* Distinct warship silhouettes. These stay deliberately low-poly/vector: class
    identity comes from proportions, turrets, funnels and flight deck rather than
@@ -170,59 +170,6 @@ SHIP_MODELS.CARRIER={
     {t:'f',x:10,y:11,z:-42,r:3.1,h:15,c:'funnel',rake:.12,big:1}],
   masts:[{x:9.5,y:24,z:-10,h:22,yard:8}],smoke:{x:10,y:30,z:-42}
 };
-
-/* Atlantic 1941 silhouettes. These are deliberately economical recognition
-   models: bridge/forecastle/funnel/mast proportions carry identity while the
-   shared shaded hull renderer supplies perspective, damage, smoke and wakes. */
-SHIP_MODELS.FLOWER_CORVETTE_1941={
-  len:62.5,beam:10.1,fb:4.25,
-  hull:[[-.50,.34],[-.43,.74],[-.28,.96],[-.02,1],[.22,.94],[.37,.70],[.47,.31],[.50,.04]],
-  parts:[
-    {t:'b',x:0,y:4.25,z:20,w:7.0,h:2.0,d:16,c:'house',big:1},{t:'b',x:0,y:6.25,z:22,w:4.8,h:1.5,d:5,c:'gun',big:1},
-    {t:'b',x:0,y:4.25,z:7,w:8.2,h:6.0,d:11,c:'house',big:1},{t:'b',x:0,y:10.25,z:8,w:5.4,h:2.5,d:6,c:'top',big:1},
-    {t:'f',x:0,y:4.5,z:-3,r:2.0,h:9.5,c:'funnel',rake:.06,big:1},
-    {t:'b',x:0,y:4.25,z:-16,w:6.4,h:2.3,d:11,c:'house'},
-    {t:'b',x:-2.3,y:4.35,z:-25,w:1.6,h:.8,d:10,c:'dark'},{t:'b',x:2.3,y:4.35,z:-25,w:1.6,h:.8,d:10,c:'dark'}
-  ],
-  masts:[{x:0,y:10.5,z:5,h:15,yard:4.8}],smoke:{x:0,y:15,z:-3}
-};
-SHIP_MODELS.ATLANTIC_FREIGHTER={
-  len:122,beam:16.8,fb:6.6,hull:SHIP_MODELS.MERCHANT.hull,
-  parts:[{t:'b',x:0,y:6.6,z:45,w:12,h:4.2,d:16,c:'house'},
-    {t:'b',x:0,y:6.6,z:-34,w:14.0,h:8.2,d:24,c:'house',big:1},{t:'b',x:0,y:14.8,z:-32,w:9.2,h:3.8,d:10,c:'top',big:1},
-    {t:'f',x:0,y:14,z:-47,r:2.7,h:11,c:'funnel',rake:.07,big:1},
-    {t:'b',x:0,y:6.6,z:23,w:9,h:1.6,d:15,c:'dark'},{t:'b',x:0,y:6.6,z:3,w:9,h:1.6,d:15,c:'dark'},{t:'b',x:0,y:6.6,z:-16,w:9,h:1.6,d:13,c:'dark'}],
-  masts:[{x:0,y:6.8,z:31,h:25,yard:8},{x:0,y:14,z:-39,h:20,yard:6}],smoke:{x:0,y:26,z:-47}
-};
-SHIP_MODELS.ATLANTIC_TRAMP={
-  len:105,beam:15.2,fb:6.1,hull:SHIP_MODELS.MERCHANT.hull,
-  parts:[{t:'b',x:0,y:6.1,z:37,w:10.5,h:3.6,d:13,c:'house'},
-    {t:'b',x:0,y:6.1,z:-24,w:13,h:8.0,d:20,c:'house',big:1},{t:'b',x:0,y:14.1,z:-22,w:8,h:3.5,d:9,c:'top'},
-    {t:'f',x:0,y:13,z:-35,r:2.35,h:10,c:'funnel',rake:.10,big:1},
-    {t:'b',x:0,y:6.1,z:15,w:8,h:1.5,d:13,c:'dark'},{t:'b',x:0,y:6.1,z:-4,w:8,h:1.5,d:13,c:'dark'}],
-  masts:[{x:0,y:6.3,z:26,h:22,yard:7},{x:0,y:12,z:-29,h:18,yard:5}],smoke:{x:0,y:23,z:-35}
-};
-SHIP_MODELS.ATLANTIC_CARGO_LINER={
-  len:139,beam:18.5,fb:7.0,hull:SHIP_MODELS.MERCHANT.hull,
-  parts:[{t:'b',x:0,y:7,z:34,w:13,h:6.5,d:26,c:'house',big:1},{t:'b',x:0,y:13.5,z:35,w:9,h:4,d:13,c:'top',big:1},
-    {t:'f',x:0,y:13,z:15,r:2.7,h:12,c:'funnel',rake:.06,big:1},{t:'f',x:0,y:13,z:-7,r:2.5,h:11,c:'funnel',rake:.06,big:1},
-    {t:'b',x:0,y:7,z:-43,w:13,h:5,d:19,c:'house'},{t:'b',x:0,y:7,z:-22,w:9,h:1.5,d:15,c:'dark'}],
-  masts:[{x:0,y:13,z:46,h:23,yard:8},{x:0,y:7,z:-39,h:21,yard:7}],smoke:{x:0,y:27,z:4}
-};
-SHIP_MODELS.ATLANTIC_COASTER={
-  len:78,beam:12.5,fb:5.2,hull:SHIP_MODELS.MERCHANT.hull,
-  parts:[{t:'b',x:0,y:5.2,z:-15,w:10.5,h:7,d:19,c:'house',big:1},{t:'b',x:0,y:12.2,z:-13,w:7.2,h:3,d:8,c:'top'},
-    {t:'f',x:0,y:11,z:-27,r:1.9,h:8,c:'funnel',rake:.05,big:1},{t:'b',x:0,y:5.2,z:21,w:8,h:2.2,d:12,c:'house'}],
-  masts:[{x:0,y:5.5,z:16,h:17,yard:5}],smoke:{x:0,y:19,z:-27}
-};
-SHIP_MODELS.ATLANTIC_TANKER={
-  len:146,beam:19.2,fb:5.9,hull:SHIP_MODELS.TANKER.hull,
-  parts:[{t:'b',x:0,y:5.9,z:-53,w:15.5,h:9,d:20,c:'house',big:1},{t:'b',x:0,y:14.9,z:-50,w:11.5,h:3.8,d:11,c:'top',big:1},
-    {t:'f',x:0,y:14,z:-64,r:2.8,h:11,c:'funnel',rake:.06,big:1},{t:'b',x:0,y:8,z:-16,w:2.0,h:.7,d:78,c:'dark'},
-    {t:'b',x:0,y:5.9,z:59,w:11,h:3.5,d:12,c:'house'}],
-  masts:[{x:0,y:6,z:38,h:18},{x:0,y:14,z:-55,h:16}],smoke:{x:0,y:26,z:-64}
-};
-
 // Legacy saves may still say WARSHIP/ESCORT. Keep those keys valid, but new
 // content should use the explicit class types above.
 SHIP_MODELS.WARSHIP=SHIP_MODELS.DESTROYER;
