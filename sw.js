@@ -97,7 +97,7 @@ const SHELL = [
   './js/simulation/historical-campaign.js',
   './js/simulation/battle-atmosphere.js',
   './js/rendering/battle-atmosphere.js',
-  './js/audio/audio-director.js'.
+  './js/audio/audio-director.js',
   './js/data/game-catalog.js',
   './js/data/pacific-terrain-data.js'
 ];
