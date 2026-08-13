@@ -578,16 +578,29 @@ const GERMAN_ATLANTIC_1941_MISSION_PROFILE=Object.freeze({
       mode:'CONTACT_KEEPER',
       objectiveTexts:Object.freeze({
         locate:'Find the reported convoy',develop:'Develop convoy course and speed',
-        shadow:'Maintain contact without firm escort prosecution',report:'Transmit contact report to B.d.U.',return:'Return to base'
+        shadow:'Maintain contact without firm escort prosecution',report:'Transmit contact report to B.d.U.',
+        release:'Copy B.d.U. attack order',approach:'Gain a night surface attack position',return:'Return to base'
       }),
       locateConfidence:.08,developConfidence:.42,developRequiredSec:90,
       shadowRequiredSec:360,shadowMinNm:2.8,shadowMaxNm:8.5,
       reportTransmitSec:25,reportMaxDepthFt:12,
-      briefingSuffix:' A useful report requires a developed track and several minutes of safe shadowing. When the report is ready, come to the surface/antenna depth long enough to transmit.',
+      attackOrderDelaySec:45,attackOrderCommand:'CONTACT_KEEPER_ATTACK_RELEASE',
+      attackOrderType:'B.D.U.',attackOrderSubject:'ATTACK ORDER',
+      attackOrderText:'Contact report received. Maintain contact. Boats in position are released to attack after dark.',
+      attackOrderAnnounce:'Radio room: priority B.d.U. signal is up. Antenna depth to copy the attack order.',
+      // Gameplay tuning for the 1941 slice, not literal Kriegsmarine regulation distances/timings.
+      nightApproachMaxDaylight:.18,nightApproachSurfaceDepthFt:12,
+      nightApproachMinNm:.8,nightApproachMaxNm:3.5,nightApproachForwardMinNm:.15,nightApproachLateralMaxNm:2.6,
+      nightApproachHoldSec:30,
+      briefingSuffix:' A useful report requires a developed track and several minutes of safe shadowing. When the report is ready, come to the surface/antenna depth long enough to transmit. After B.d.U. replies, preserve contact until darkness and work ahead of the convoy for a surfaced attack approach.',
       developedNotice:'CONTACT DEVELOPED — course and speed are reliable enough to begin the shadow report.',
       reportReadyNotice:'CONTACT REPORT READY — come to the surface and hold the antenna up to transmit to B.d.U.',
-      reportSentNotice:'CONTACT REPORT TRANSMITTED — B.d.U. acknowledges. Other U-boats are being directed toward the convoy.',
+      reportSentNotice:'CONTACT REPORT TRANSMITTED — other U-boats are being directed toward the convoy. Stand by for B.d.U. orders.',
       reportLog:'Convoy contact report transmitted to B.d.U.',
+      attackOrderCopiedNotice:'B.D.U. ATTACK ORDER COPIED — maintain contact and attack after dark.',
+      attackOrderLog:'B.d.U. attack order copied. Contact keeper released to attack after dark.',
+      nightApproachNotice:'NIGHT SURFACE ATTACK POSITION — ahead of the convoy and inside the screen. Attack at discretion.',
+      nightApproachLog:'Night surface attack position gained ahead of the convoy.',
       supportMinBoats:1,supportMaxBoats:3,supportEtaMin:35,supportEtaSpreadMin:55
     })
   })
@@ -814,7 +827,7 @@ const CAMPAIGN_PROFILES=Object.freeze({
     missionProfile:GERMAN_ATLANTIC_1941_MISSION_PROFILE,
     doctrineProfile:GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE,
     radioIntelProfile:GERMAN_ATLANTIC_1941_RADIO_INTEL_PROFILE,
-    devSelectable:true,developmentStage:'CONTACT_KEEPER_SLICE'
+    devSelectable:true,developmentStage:'NIGHT_SURFACE_APPROACH_SLICE'
   })
 });
 

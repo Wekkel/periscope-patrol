@@ -6,6 +6,14 @@ class SimEngineIntel extends SimEngineAAGun {
     const R=W.radio;
 
     if(!R.pending){
+      // Mission-authored priority traffic uses the same antenna-depth/copying
+      // contract as routine radio. The mission may queue a reply, but it does not
+      // become player knowledge until this receiver actually copies the signal.
+      const priority=Array.isArray(R.priority)?R.priority:null;
+      if(priority?.length){
+        const i=priority.findIndex(x=>x&&now>=(x.eligibleAt||0));
+        if(i>=0){const q=priority.splice(i,1)[0];R.pending={...(q.signal||{})};this.log(q.announce||'Radio room: priority signal is up. Antenna depth to copy it.','warn');return;}
+      }
       // A campaign-authored harbor report is a broadcast like any other: knowing
       // that the transmitter is up is not the same as copying the message. Once
       // its window opens, give it a near-term radio slot but never create mission

@@ -357,3 +357,41 @@ boat's torpedo spec across factions, terrain-less open ocean stays terrain-less,
 and air-warning state is rebuilt from the selected submarine profile. Historical
 scenario launches explicitly return to the default Pacific identity so a user
 cannot strand a Pacific scenario inside the Atlantic campaign by switching tabs.
+
+
+### Phase-2 patch 14 — B.d.U. attack order and night surface approach
+
+CONTACT KEEPER no longer ends when the outbound movement report is transmitted.
+For the Atlantic 1941 profile only, the report schedules one campaign-authored
+priority B.d.U. reply through the existing radio receiver. The order is not
+telepathic mission state: it becomes player knowledge only after the normal
+antenna-depth / 40-second copy path has received it. `world.radio.priority` is a
+lazy mission queue and is absent from untouched Pacific state.
+
+The player must then preserve contact until darkness and gain a surfaced attack
+position ahead of the convoy. This is deliberately a gameplay abstraction of
+late-1941 night surface doctrine, not an exact reconstruction of a single
+historical attack drill. Contemporary KTBs show contact keepers operating at the
+limit of visibility, B.d.U. issuing approach/initiation orders, commanders
+waiting for sufficient darkness, and night brightness/moonlight affecting the
+attack decision. The German commander's handbook likewise treats the night
+surface attack as a positioning/course problem forward of the target's beam.
+The profile therefore authors broad tuning thresholds (daylight, depth, range,
+forward/lateral geometry and a short hold time); none should be presented as a
+literal Kriegsmarine regulation distance.
+
+The mission framework only verifies campaign-authored approach geometry and
+whether the existing enemy state has firm contact. It does not add a second
+stealth/detection model. Weather, moon, visual range, escort lookouts and enemy
+knowledge remain owned by the existing shared world/AI systems. When the
+position is held long enough the mission marks `attackPositionReady` but remains
+ACTIVE: torpedo attack, escort reaction and withdrawal are intentionally left
+for the next vertical-slice step rather than declaring victory before a weapon
+is fired.
+
+Patch-13 saves that completed CONTACT KEEPER at report transmission are migrated
+narrowly on first mission-framework ensure: if the patrol has not already been
+completed at port, the mission is reopened with the new `release` and `approach`
+objectives. Any reward already credited by patch 13 is retained and flagged so
+it cannot be awarded twice. New patch-14 patrols do not complete or credit the
+mission at report transmission.

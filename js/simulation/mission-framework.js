@@ -35,6 +35,60 @@ function _missionHash(seed,text){
 }
 function _missionObj(c,id){return (c.objectives||[]).find(o=>o.id===id);}
 function _missionSetDone(c,id,done=true){const o=_missionObj(c,id);if(o)o.done=!!done;return o;}
+
+/* CONTACT KEEPER v2 extends the Phase-2 report-only slice into an attack-order
+   and night-surface-approach slice. Keep this as a narrow save migration rather
+   than teaching generic mission code about B.d.U. or Atlantic doctrine. */
+function _missionEnsureContactKeeperV2(state){
+  const c=state?.campaign,m=c?.primaryMission,content=_missionContent(state,'shadowReport');
+  if(!m||m.type!=='SHADOW_REPORT'||content?.mode!=='CONTACT_KEEPER'||!content.attackOrderCommand)return m;
+  const prevVersion=Number(m.contactKeeperVersion||1);
+  if(prevVersion>=2&&_missionObj(c,'release')&&_missionObj(c,'approach'))return m; // hot-path: migration already complete
+  const t=content.objectiveTexts||{},wanted=[
+    ['locate',t.locate||'Locate the assigned convoy'],['develop',t.develop||'Develop convoy course and speed'],
+    ['shadow',t.shadow||'Shadow the convoy without firm enemy contact'],['report',t.report||'Complete the movement report'],
+    ['release',t.release||'Copy attack order'],['approach',t.approach||'Gain a night surface attack position'],
+    ['return',t.return||'Return to base']
+  ];
+  const old=new Map((c.objectives||[]).filter(o=>o?.id).map(o=>[o.id,o]));
+  c.objectives=wanted.map(([id,text])=>{const o=old.get(id);return o?{...o,text}:{id,text,done:false,failed:false};});
+  const defaults={contactKeeperVersion:2,attackOrderCommand:content.attackOrderCommand,attackOrderQueued:false,
+    attackOrderCopied:false,attackReleasedAt:null,approachSeconds:0,approachRequired:content.nightApproachHoldSec||30,
+    approachMaxDaylight:content.nightApproachMaxDaylight??.18,approachSurfaceDepthFt:content.nightApproachSurfaceDepthFt||12,
+    approachMinNm:content.nightApproachMinNm||.8,approachMaxNm:content.nightApproachMaxNm||3.5,
+    approachForwardMinNm:content.nightApproachForwardMinNm??.15,approachLateralMaxNm:content.nightApproachLateralMaxNm||2.6,
+    attackPositionReady:false};
+  for(const [k,v] of Object.entries(defaults))if(m[k]===undefined)m[k]=v;
+  // Patch 13 completed CONTACT KEEPER at report transmission. If such a save is
+  // loaded before final port return, reopen only this mission continuation. The
+  // already credited reward is retained and cannot be awarded a second time.
+  if(prevVersion<2&&_missionObj(c,'report')?.done&&Number.isFinite(m.reportedAt)&&m.result==='SUCCESS'&&c.missionStatus!=='COMPLETED'){
+    m.result='ACTIVE';m.completedAt=null;m.failReason=null;c.missionStatus='PATROL';m.legacyReportRewardCredited=!!m.rewardCredited;
+  }
+  m.contactKeeperVersion=2;
+  return m;
+}
+function _missionQueuePrioritySignal(state,m,content,now){
+  if(!state?.world||!m||!content?.attackOrderCommand)return false;
+  const R=state.world.radio=state.world.radio||{pending:null,inbox:[],unread:0,nextBroadcast:240,copying:0};
+  const cmd=content.attackOrderCommand,already=R.pending?.missionCommand===cmd||(R.inbox||[]).some(x=>x?.missionCommand===cmd)||(R.priority||[]).some(x=>x?.signal?.missionCommand===cmd);
+  if(already){m.attackOrderQueued=true;return false;}
+  const delay=Math.max(0,content.attackOrderDelaySec||0),eligibleAt=now+delay;
+  R.priority=Array.isArray(R.priority)?R.priority:[];
+  R.priority.push({eligibleAt,tag:cmd,announce:content.attackOrderAnnounce,signal:{type:content.attackOrderType||'INFO',subject:content.attackOrderSubject||'ATTACK ORDER',text:content.attackOrderText||'Attack order.',missionCommand:cmd}});
+  // Keep routine traffic from occupying the receiver immediately before the
+  // priority reply. This affects only campaigns that explicitly queue it.
+  R.nextBroadcast=Math.max(Number(R.nextBroadcast)||0,delay+75);
+  m.attackOrderQueued=true;m.attackOrderEligibleAt=eligibleAt;return true;
+}
+function _missionContactKeeperGeometry(state,m){
+  const W=state?.world,sub=state?.playerSub,g=W?.traffic?.primaryGroup;if(!W||!sub)return null;
+  let center=g?.position||null,heading=Number(g?.heading);
+  if(!center){const ships=(W.contacts||[]).filter(x=>x?.convoyId==='MAIN'&&!x.sunk);if(ships.length){center={xNm:ships.reduce((n,x)=>n+x.position.xNm,0)/ships.length,yNm:ships.reduce((n,x)=>n+x.position.yNm,0)/ships.length};heading=Number(ships[0]?.heading);}}
+  if(!center||!Number.isFinite(heading))return null;
+  const dx=sub.position.xNm-center.xNm,dy=sub.position.yNm-center.yNm,r=degToRad(heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
+  return{center,heading,rangeNm:Math.hypot(dx,dy),forwardNm:dx*fx+dy*fy,lateralNm:Math.abs(dx*sx+dy*sy),daylight:W.environment?.daylight??1};
+}
 function _missionSafePoint(engine,origin,bearingDeg,distanceNm,minDepthFt=24){
   const A=engine.areaBounds?.(),base=origin||engine.state.playerSub.position;
   for(let ring=0;ring<5;ring++)for(let side=0;side<12;side++){
@@ -126,7 +180,21 @@ function missionProgressText(state){
   if(m.type==='SHADOW_REPORT'){
     const content=_missionContent(state,'shadowReport');
     if(content?.mode==='CONTACT_KEEPER'){
-      if(_missionObj(state.campaign,'report')?.done)return'Contact report sent — B.d.U. coordinating other boats';
+      _missionEnsureContactKeeperV2(state);
+      if(_missionObj(state.campaign,'approach')?.done)return'NIGHT ATTACK POSITION — attack at discretion';
+      if(_missionObj(state.campaign,'release')?.done){
+        const q=_missionContactKeeperGeometry(state,m),dark=(state.world.environment?.daylight??1)<=(m.approachMaxDaylight??.18);
+        if(!dark)return'ATTACK RELEASED · maintain contact and wait for darkness';
+        if(!q)return'NIGHT APPROACH · regain convoy position';
+        if(state.playerSub.depthFeet>(m.approachSurfaceDepthFt||12))return`NIGHT APPROACH · surface · convoy ${q.rangeNm.toFixed(1)} nm`;
+        if(q.rangeNm>(m.approachMaxNm||3.5))return`NIGHT APPROACH · close surfaced · convoy ${q.rangeNm.toFixed(1)} nm`;
+        if(q.rangeNm<(m.approachMinNm||.8))return`NIGHT APPROACH · too close · open range`;
+        if(q.forwardNm<(m.approachForwardMinNm??.15))return`NIGHT APPROACH · get ahead of convoy · ${q.rangeNm.toFixed(1)} nm`;
+        if(q.lateralNm>(m.approachLateralMaxNm||2.6))return`NIGHT APPROACH · work toward convoy track · ${q.rangeNm.toFixed(1)} nm`;
+        if(state.world.enemy?.alertState==='ATTACKING'||state.world.enemy?.contactHeld)return'NIGHT APPROACH · escort has firm contact — break prosecution';
+        return`NIGHT APPROACH · hold attack position ${Math.round(m.approachSeconds||0)}/${Math.ceil(m.approachRequired||30)} sec`;
+      }
+      if(_missionObj(state.campaign,'report')?.done){const waiting=state.world.radio?.pending?.missionCommand===m.attackOrderCommand;return waiting?'B.d.U. priority signal up · antenna depth to copy':'Contact report sent · stand by for B.d.U. attack order';}
       if(m.reportReady)return`Report ready · transmit surfaced ${Math.round(m.reportTransmitSeconds||0)}/${Math.ceil(m.reportTransmitRequired||25)} sec`;
       if(_missionObj(state.campaign,'develop')?.done)return`Contact held ${Math.round((m.shadowSeconds||0)/60)}/${Math.ceil((m.shadowRequired||360)/60)} min · ${m.detected?'escort alerted':'keep outside prosecution'}`;
       if(_missionObj(state.campaign,'locate')?.done)return`Developing contact ${Math.round(m.developSeconds||0)}/${Math.ceil(m.developRequired||90)} sec`;
@@ -152,6 +220,7 @@ function missionProgressText(state){
       if(!MISSION_PRIMARY_TYPES.includes(c.missionType)||!profile.definitions?.[c.missionType])c.missionType=profile.defaultMissionType||'CONVOY_INTERDICTION';
       if(!c.primaryMission){const d=profile.definitions[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true};}
       const ids=c.missionType==='CONVOY_INTERDICTION'?['locate','attack','evade','return']:[];if(ids.length&&(c.objectives||[]).every(o=>!o.id))(c.objectives||[]).forEach((o,i)=>o.id=ids[i]||`objective-${i+1}`);
+      _missionEnsureContactKeeperV2(s);
       return c.primaryMission;
     },
 
@@ -191,8 +260,8 @@ function missionProgressText(state){
       }else if(type==='SHADOW_REPORT'){
         const content=_missionContent(s,'shadowReport');
         if(content?.mode==='CONTACT_KEEPER'){
-          const t=content.objectiveTexts||{};setObjs([['locate',t.locate||'Locate the assigned convoy'],['develop',t.develop||'Develop convoy course and speed'],['shadow',t.shadow||'Shadow the convoy without firm enemy contact'],['report',t.report||'Complete the movement report'],['return',t.return||'Return to friendly port']]);
-          Object.assign(m,{developSeconds:0,developRequired:content.developRequiredSec||90,developConfidence:content.developConfidence||.42,locateConfidence:content.locateConfidence||.08,shadowSeconds:0,shadowRequired:content.shadowRequiredSec||360,shadowMinNm:content.shadowMinNm||2.8,shadowMaxNm:content.shadowMaxNm||8.5,reportTransmitSeconds:0,reportTransmitRequired:content.reportTransmitSec||25,reportMaxDepthFt:content.reportMaxDepthFt||12,reportReady:false,detected:false});
+          const t=content.objectiveTexts||{};setObjs([['locate',t.locate||'Locate the assigned convoy'],['develop',t.develop||'Develop convoy course and speed'],['shadow',t.shadow||'Shadow the convoy without firm enemy contact'],['report',t.report||'Complete the movement report'],['release',t.release||'Copy attack order'],['approach',t.approach||'Gain a night surface attack position'],['return',t.return||'Return to friendly port']]);
+          Object.assign(m,{contactKeeperVersion:2,developSeconds:0,developRequired:content.developRequiredSec||90,developConfidence:content.developConfidence||.42,locateConfidence:content.locateConfidence||.08,shadowSeconds:0,shadowRequired:content.shadowRequiredSec||360,shadowMinNm:content.shadowMinNm||2.8,shadowMaxNm:content.shadowMaxNm||8.5,reportTransmitSeconds:0,reportTransmitRequired:content.reportTransmitSec||25,reportMaxDepthFt:content.reportMaxDepthFt||12,reportReady:false,detected:false,attackOrderCommand:content.attackOrderCommand,attackOrderQueued:false,attackOrderCopied:false,attackReleasedAt:null,approachSeconds:0,approachRequired:content.nightApproachHoldSec||30,approachMaxDaylight:content.nightApproachMaxDaylight??.18,approachSurfaceDepthFt:content.nightApproachSurfaceDepthFt||12,approachMinNm:content.nightApproachMinNm||.8,approachMaxNm:content.nightApproachMaxNm||3.5,approachForwardMinNm:content.nightApproachForwardMinNm??.15,approachLateralMaxNm:content.nightApproachLateralMaxNm||2.6,attackPositionReady:false});
         }else{setObjs([['locate','Locate the assigned convoy'],['shadow','Shadow the convoy without firm enemy contact'],['report','Complete the movement report'],['return','Return to friendly port']]);Object.assign(m,{shadowSeconds:0,shadowRequired:480,shadowMinNm:2.2,shadowMaxNm:8.0,detected:false});}
       }else if(type==='ESCORT_HUNT'){
         setObjs([['locate','Reach the reported escort area'],['identify','Identify the assigned warship'],['neutralize','Sink or disable the assigned escort'],['return','Return to friendly port']]);const content=_missionContent(s,'escortHunt'),combatants=_missionMainCombatants(this),preferred=content?.preferredGameplayTypes||[];let t=combatants.find(x=>preferred.includes(vesselGameplayType(x)))||combatants[0];if(!t){const spec=content?.fallbackTarget;if(!spec)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no escort-hunt target content`);const q=_missionRoutePoint(this,16),pos={...q.pos};t={...spec,position:pos,heading:q.heading,desiredHeading:q.heading};materializeVesselIdentity(t,s);W.contacts.push(t);}t.missionRole='ESCORT_HUNT_TARGET';const targetType=vesselGameplayType(t);t.name=content?.targetNamesByGameplayType?.[targetType]||content?.targetNamesByGameplayType?.default||t.name;Object.assign(m,{targetId:t.id,targetLabel:t.displayType||t.name,intelSeq:0,nextIntelAt:now});_missionRefreshIntel(this,m,true);
@@ -235,7 +304,10 @@ function missionProgressText(state){
           const developed=known&&(best.confidence||0)>=(m.developConfidence||.42)&&Number.isFinite(best.courseEstimate)&&Number.isFinite(best.speedEstimateKnots);
           if(!_missionObj(c,'develop')?.done){if(developed&&safe&&inBand)m.developSeconds+=dt;else m.developSeconds=Math.max(0,m.developSeconds-dt*.35);if(m.developSeconds>=m.developRequired){_missionSetDone(c,'develop');this.captainLog?.('CONVOY_CONTACT_DEVELOPED','Convoy course and speed developed for contact-keeper report.',{},'convoy-contact-developed');this.notify(content.developedNotice,'ok');}}
           if(_missionObj(c,'develop')?.done&&!m.reportReady){if(known&&safe&&inBand)m.shadowSeconds+=dt;else if(W.enemy.alertState==='ATTACKING'){m.detected=true;m.shadowSeconds=Math.max(0,m.shadowSeconds-dt*.22);}if(m.shadowSeconds>=m.shadowRequired){_missionSetDone(c,'shadow');m.reportReady=true;this.notify(content.reportReadyNotice,'warn');this._missionStopTransit('contact report ready');}}
-          if(m.reportReady&&!_missionObj(c,'report')?.done){const canTransmit=sub.depthFeet<=(m.reportMaxDepthFt||12)&&sub.damage.hullIntegrity>5&&safe;if(canTransmit)m.reportTransmitSeconds+=dt;else if(sub.depthFeet>(m.reportMaxDepthFt||12))m.reportTransmitSeconds=Math.max(0,m.reportTransmitSeconds-dt*.5);if(m.reportTransmitSeconds>=m.reportTransmitRequired){_missionSetDone(c,'report');m.reportedAt=now;const lo=content.supportMinBoats||1,hi=Math.max(lo,content.supportMaxBoats||lo),n=lo+Math.min(hi-lo,Math.floor(_missionHash(c.scenarioSeed,`contact-support:${c.patrolNumber}`)*(hi-lo+1))),eta=Math.round((content.supportEtaMin||35)+_missionHash(c.scenarioSeed,`contact-eta:${c.patrolNumber}`)*(content.supportEtaSpreadMin||55));W.cooperativeSubmarines={mode:'ABSTRACT',count:n,status:'CONVERGING',etaMinutes:eta,reportedAt:now,campaignProfileId:c.campaignProfileId};this.captainLog?.('CONTACT_REPORT_SENT',content.reportLog||'Convoy contact report transmitted.',{supportBoats:n,etaMinutes:eta},'contact-report-sent');this.notify(content.reportSentNotice,'ok');this._missionFinish(true);}}
+          if(m.reportReady&&!_missionObj(c,'report')?.done){const canTransmit=sub.depthFeet<=(m.reportMaxDepthFt||12)&&sub.damage.hullIntegrity>5&&safe;if(canTransmit)m.reportTransmitSeconds+=dt;else if(sub.depthFeet>(m.reportMaxDepthFt||12))m.reportTransmitSeconds=Math.max(0,m.reportTransmitSeconds-dt*.5);if(m.reportTransmitSeconds>=m.reportTransmitRequired){_missionSetDone(c,'report');m.reportedAt=now;const lo=content.supportMinBoats||1,hi=Math.max(lo,content.supportMaxBoats||lo),n=lo+Math.min(hi-lo,Math.floor(_missionHash(c.scenarioSeed,`contact-support:${c.patrolNumber}`)*(hi-lo+1))),eta=Math.round((content.supportEtaMin||35)+_missionHash(c.scenarioSeed,`contact-eta:${c.patrolNumber}`)*(content.supportEtaSpreadMin||55));W.cooperativeSubmarines={mode:'ABSTRACT',count:n,status:'CONVERGING',etaMinutes:eta,reportedAt:now,campaignProfileId:c.campaignProfileId};_missionQueuePrioritySignal(s,m,content,now);this.captainLog?.('CONTACT_REPORT_SENT',content.reportLog||'Convoy contact report transmitted.',{supportBoats:n,etaMinutes:eta},'contact-report-sent');this.notify(content.reportSentNotice,'ok');this._missionStopTransit('contact report sent');}}
+          if(_missionObj(c,'report')?.done&&!m.attackOrderQueued&&!_missionObj(c,'release')?.done)_missionQueuePrioritySignal(s,m,content,now);
+          if(_missionObj(c,'report')?.done&&!_missionObj(c,'release')?.done){const copied=(W.radio?.inbox||[]).find(x=>x?.missionCommand===m.attackOrderCommand);if(copied){_missionSetDone(c,'release');m.attackOrderCopied=true;m.attackReleasedAt=copied.time||now;if(W.cooperativeSubmarines)W.cooperativeSubmarines.status='ATTACK_RELEASED';this.captainLog?.('BDU_ATTACK_ORDER',content.attackOrderLog||'Attack order copied.',{supportBoats:W.cooperativeSubmarines?.count||0},'bdu-attack-order');this.notify(content.attackOrderCopiedNotice||'ATTACK ORDER COPIED','ok');this._missionStopTransit('B.d.U. attack order copied');}}
+          if(_missionObj(c,'release')?.done&&!_missionObj(c,'approach')?.done){const q=_missionContactKeeperGeometry(s,m),dark=(W.environment?.daylight??1)<=(m.approachMaxDaylight??.18),surfaced=sub.depthFeet<=(m.approachSurfaceDepthFt||12),positioned=!!q&&q.rangeNm>=(m.approachMinNm||.8)&&q.rangeNm<=(m.approachMaxNm||3.5)&&q.forwardNm>=(m.approachForwardMinNm??.15)&&q.lateralNm<=(m.approachLateralMaxNm||2.6),contact=known,safeApproach=W.enemy.alertState!=='ATTACKING'&&!W.enemy.contactHeld;if(dark&&surfaced&&positioned&&contact&&safeApproach)m.approachSeconds+=dt;else m.approachSeconds=Math.max(0,m.approachSeconds-dt*.4);if(m.approachSeconds>=m.approachRequired){_missionSetDone(c,'approach');m.attackPositionReady=true;m.attackPositionAt=now;if(W.cooperativeSubmarines)W.cooperativeSubmarines.status='ATTACK_IN_PROGRESS';this.captainLog?.('NIGHT_ATTACK_POSITION',content.nightApproachLog||'Night surface attack position gained.',{rangeNm:q?.rangeNm,forwardNm:q?.forwardNm,lateralNm:q?.lateralNm},'night-attack-position');this.notify(content.nightApproachNotice||'NIGHT ATTACK POSITION — attack at discretion.','ok');this._missionStopTransit('night attack position');}}
         }else{const g=W.traffic?.primaryGroup,center=g?.position||(_missionMainMerchants(this)[0]?.position),rng=center?distNm(sub.position,center):Infinity,known=Object.keys(W.contactTracks||{}).some(id=>{const x=_missionContact(this,id);return x?.convoyId==='MAIN'&&W.contactTracks[id].confidence>.08;});if(known)_missionSetDone(c,'locate');const safe=W.enemy.alertState!=='ATTACKING'&&!W.enemy.contactHeld,inBand=rng>=m.shadowMinNm&&rng<=m.shadowMaxNm;if(known&&safe&&inBand){m.shadowSeconds+=dt;if(m.shadowSeconds>=m.shadowRequired){_missionSetDone(c,'shadow');_missionSetDone(c,'report');this.captainLog?.('CONVOY_SHADOWED','Convoy movement report completed without a firm enemy prosecution.',{minutes:Math.round(m.shadowSeconds/60)},'convoy-shadowed');this._missionFinish(true);}}else if(W.enemy.alertState==='ATTACKING'){m.detected=true;m.shadowSeconds=Math.max(0,m.shadowSeconds-dt*.22);}}
       }else if(m.type==='WEATHER_AMBUSH'){
         const merchants=_missionMainMerchants(this),known=Object.keys(W.contactTracks||{}).some(id=>{const x=_missionContact(this,id);return x?.convoyId==='MAIN'&&W.contactTracks[id].confidence>.08;});if(known)_missionSetDone(c,'locate');const near=merchants.slice().sort((a,b)=>distNm(sub.position,a.position||{xNm:999,yNm:999})-distNm(sub.position,b.position||{xNm:999,yNm:999}))[0],cover=near&&_missionWeatherAmbushCondition(s,near);_missionSetDone(c,'cover',!!cover);const hits=s.weapons.hits||[];for(let i=m.hitBaseline||0;i<hits.length;i++){const hit=hits[i],t=_missionContact(this,hit.contactId);if(t?.convoyId==='MAIN'&&_missionWeatherAmbushCondition(s,t)){m.coveredHit=true;_missionSetDone(c,'attack');this.captainLog?.('WEATHER_AMBUSH','Successful attack made under concealment of poor visibility.',{contactId:t.id},'weather-ambush');this._missionFinish(true);break;}}m.hitBaseline=hits.length;
