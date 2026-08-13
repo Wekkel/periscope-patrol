@@ -137,7 +137,9 @@ class BridgeController{
   }
   confirmActiveEcho(){
     const now=performance.now(),btn=document.getElementById('soundEcho'),state=this.game.getSnapshot();
-    const sensorUi=getPlayerSensorPresentation(state),activeEchoLabel=sensorUi.activeEcho?.label||'Active Echo';
+    const sensorUi=getPlayerSensorPresentation(state);
+    if(!sensorUi.activeEcho)return;
+    const activeEchoLabel=sensorUi.activeEcho.label||'Active Echo';
     if(now<this._qcConfirmUntil){
       this._qcConfirmUntil=0;if(this._qcConfirmTimer){clearTimeout(this._qcConfirmTimer);this._qcConfirmTimer=null;}
       btn?.classList.remove('confirm');if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent=activeEchoLabel;}

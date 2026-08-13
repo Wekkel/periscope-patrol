@@ -23,8 +23,36 @@ const TORPEDO_SPECS = {
     warheadKg:272, reliability:0.88, acousticPenalty:0.01, // nearly silent
     dudChanceBase:0.12, isElectric:true, visibleWake:false,
     note:'Electric — near-silent. No wake. Slow.'
+  },
+  /* Type VIIC 1941 vertical-slice weapons. Wartime British technical summaries
+     give G7e ~30 kn / 5,400 yd and G7a fast setting ~44 kn / 6,500 yd. The
+     ~280 kg warhead figure varies by source/definition; reliability/dud values
+     below are provisional gameplay baselines pending the dedicated torpedo pass. */
+  'g7e-t2': {
+    shortName:'G7E', name:'G7e T2 Electric', speedKnots:30, maxRangeNm:2.67,
+    warheadKg:280, reliability:0.86, acousticPenalty:0.01,
+    dudChanceBase:0.14, isElectric:true, visibleWake:false,
+    note:'Electric, trackless torpedo. 1941 Atlantic baseline.'
+  },
+  'g7a-t1-fast': {
+    shortName:'G7A', name:'G7a T1 Fast', speedKnots:44, maxRangeNm:3.21,
+    warheadKg:280, reliability:0.86, acousticPenalty:0.07,
+    dudChanceBase:0.14, visibleWake:true,
+    note:'Steam torpedo, fast setting. Visible track.'
   }
 };
+
+function torpedoSpecKeysForState(state){
+  const campaignId=state?.campaign?.campaignProfileId;
+  const model=typeof getCampaignHistoricalModel==='function'?getCampaignHistoricalModel(campaignId):null;
+  const keys=(model?.equipment?.torpedoes||[]).map(x=>x.specKey).filter(k=>TORPEDO_SPECS[k]);
+  return keys.length?keys:Object.keys(TORPEDO_SPECS);
+}
+function torpedoOptionLabel(specKey){
+  const sp=TORPEDO_SPECS[specKey];if(!sp)return String(specKey||'TORPEDO');
+  return `${sp.name} — ${sp.speedKnots}kn / ${Number(sp.maxRangeNm).toFixed(sp.maxRangeNm%1?2:0)}nm`;
+}
+
 
 const DUD_MODES = {
   historical: 1.0,  // full historical dud rate

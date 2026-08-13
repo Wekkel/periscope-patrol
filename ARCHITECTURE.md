@@ -243,3 +243,47 @@ purity. The next theater should add only the concrete data/mechanics required by
 the Type VII vertical slice; if that work exposes a genuinely shared missing
 contract, add it then with a Pacific regression gate rather than pre-building a
 generic framework.
+
+### Phase-2 patch 11 — Atlantic / Type VIIC bootstrap boundary
+
+Phase 2 begins with an intentionally non-playable Atlantic foundation rather
+than a copied Pacific scenario. `ATLANTIC_1941_GAME_IDENTITY` selects the
+`german-atlantic-1941` campaign and `type-viic-1941` submarine profile for
+deterministic development tests, but the normal Pacific scenario selector only
+renders patrol areas authored by its active campaign. Do not expose the
+Atlantic campaign as a normal patrol until it has its own convoy, mission,
+doctrine/escort and return-loop content.
+
+The first Atlantic slice is anchored to late 1941. The Type VIIC profile uses
+contemporary German handbook / Allied examination data for the dimensions,
+submerged displacement used by the collision model, five-tube arrangement,
+maximum fourteen-torpedo load, 8.8 cm / 2 cm ammunition and broad maximum
+speeds. G7e T2 and G7a T1 fast-setting specifications are likewise authored as
+separate torpedo specs. The current reserve magazine remains the game's cheap
+undifferentiated reload pool; modelling historically exact mixed rack loads is
+not a prerequisite for this bootstrap patch.
+
+Historical-source confidence must remain visible in data comments. In
+particular, the German Type VIIC handbook gives a 100 m construction depth and
+105 m pressure-dock test but does not provide one universal operational/collapse
+limit in the referenced table. The engine nevertheless requires a finite
+failure boundary, so the Type VIIC `crushDepthFeet` is explicitly tagged
+`crushDepthProvisional:true`. It must not be presented as an exact historical
+collapse depth until a stronger source and gameplay decision exist. The
+lightweight fuel/battery response coefficients are also provisional gameplay
+calibration; profile ownership is proven now, exact endurance calibration comes
+with the playable vertical slice.
+
+The 1941 boat has only authored passive GHG hydrophones at this stage. Generic
+sensor UI/controller code must treat missing capabilities as genuinely absent:
+no fallback Active Echo or surface-radar control may appear, and the engine
+must reject an active-echo command if no such set is fitted. Likewise, helm,
+engine-command and machinery-audio RPM scaling must read the materialized
+submarine propulsion characteristics rather than retaining Gato's 450-rpm
+normalization in a UI/audio side path.
+
+`North Atlantic Convoy Lanes` is deliberately an open-ocean bootstrap area with
+`terrainKey:null`. `createState()` therefore materializes an empty terrain list
+instead of asking the Pacific terrain provider to invent an unknown map. Real
+Atlantic coastline/port geography should be added only when a concrete vertical
+slice needs it, preserving the one-selected-area / low-memory terrain rule.

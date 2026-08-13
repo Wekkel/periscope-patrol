@@ -259,7 +259,7 @@ class SimEngineCore{
         }
         break;
       case'SET_ENGINE_RPM':{
-        const rpm=clamp(cmd.rpm,0,450);sub.propulsion.orderedRpm=rpm;
+        const maxRpm=sub.propulsion?.characteristics?.normalizedMaxRpm??450,rpm=clamp(cmd.rpm,0,maxRpm);sub.propulsion.orderedRpm=rpm;
         /* Commands are still processed while the simulation is paused. Until
            now an ALL STOP issued in that state left the last integrated 13 kn
            speed and screw-noise value frozen on screen indefinitely. A paused

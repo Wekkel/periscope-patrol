@@ -32,10 +32,12 @@ class HelmGauges{
     const s=this.game.getSnapshot(), sub=s.playerSub, p=sub.propulsion;
     const seabed=sub.seabedFeet??3000, crush=sub.damage.crushDepthFeet||420;
     const test=crush*0.73;
-    const surf=p.engineMode==='DIESEL', ms=surf?18:8.5;
-    const knots=r=>ms*(1-Math.exp(-clamp(r,0,450)/170));
+    const pc=p.characteristics||{},surf=p.engineMode==='DIESEL',
+      maxRpm=pc.normalizedMaxRpm??450,response=pc.rpmResponse??170,
+      surfaceMax=pc.maxSurfaceSpeedKn??18,submergedMax=pc.maxSubmergedSpeedKn??8.5,ms=surf?surfaceMax:submergedMax;
+    const knots=r=>ms*(1-Math.exp(-clamp(r,0,maxRpm)/response));
     const noise=r=>{const kn=knots(r);
-      return clamp(((r/450)*0.6+Math.pow(kn/18,2)*0.8)*(sub.depthFeet>65?0.85:1),0,1.5);};
+      return clamp(((r/maxRpm)*0.6+Math.pow(kn/surfaceMax,2)*0.8)*(sub.depthFeet>65?0.85:1),0,1.5);};
     const maxDepth=Math.max(0,Math.min(crush-10,seabed-25));
 
     if(key==='depth') return {
@@ -85,14 +87,14 @@ class HelmGauges{
     }
 
     return {
-      key,start:135,sweep:270,wrap:false,gain:1,max:450,unit:'RPM',
+      key,start:135,sweep:270,wrap:false,gain:1,max:maxRpm,unit:'RPM',
       ordered:p.orderedRpm, actual:p.actualRpm,
-      limit:[0,450], detents:[0,120,200,250,350,450], step:[25,100],
-      bells:[[0,'STOP'],[120,'SLOW'],[200,'2/3'],[250,'STD'],[350,'FULL'],[450,'FLANK']],
+      limit:[0,maxRpm], detents:[0,120,200,250,350,maxRpm], step:[25,100],
+      bells:[[0,'STOP'],[120,'SLOW'],[200,'2/3'],[250,'STD'],[350,'FULL'],[maxRpm,'FLANK']],
       send:v=>this.game.dispatch({type:'SET_ENGINE_RPM',rpm:Math.round(v)}),
       big:p.speedKnots.toFixed(1), danger:false,
       legend:[p.engineMode==='DIESEL'?'DIESEL':'BATTERY','RPM'],
-      ctx:{knots,noise,ms,surf,silent:sub.stealth.silentRunning},
+      ctx:{knots,noise,ms,surf,silent:sub.stealth.silentRunning,maxRpm,response},
       lines:(()=>{
         const out=[[`${p.actualRpm.toFixed(0)} rpm`,'dim']], n=sub.stealth.acousticSignature;
         out.push([`noise ${(n*100).toFixed(0)}% — ${n>0.6?'heard for miles':n>0.35?'audible to an escort':'quiet'}`,
@@ -323,19 +325,19 @@ class HelmGauges{
     if(G.key==='power'){
       const C=G.ctx;
       let rAud=null,rLoud=null;
-      for(let r=0;r<=450;r+=5){const n=C.noise(r);
+      for(let r=0;r<=C.maxRpm;r+=5){const n=C.noise(r);
         if(rAud===null&&n>0.35)rAud=r; if(rLoud===null&&n>0.60)rLoud=r;}
-      if(rAud!==null){arc(rAud,rLoud??450,rOut*0.93,rOut);ctx.fillStyle='rgba(245,198,92,.55)';ctx.fill();}
-      if(rLoud!==null){arc(rLoud,450,rOut*0.93,rOut);ctx.fillStyle='rgba(239,106,88,.72)';ctx.fill();}
+      if(rAud!==null){arc(rAud,rLoud??C.maxRpm,rOut*0.93,rOut);ctx.fillStyle='rgba(245,198,92,.55)';ctx.fill();}
+      if(rLoud!==null){arc(rLoud,C.maxRpm,rOut*0.93,rOut);ctx.fillStyle='rgba(239,106,88,.72)';ctx.fill();}
       if(C.surf){
-        let rStop=450;
-        for(let r=0;r<=450;r+=5){ if(clamp(1-Math.pow(r/450,2)*1.15,0,1)<0.05){rStop=r;break;} }
+        let rStop=C.maxRpm;
+        for(let r=0;r<=C.maxRpm;r+=5){ if(clamp(1-Math.pow(r/C.maxRpm,2)*1.15,0,1)<0.05){rStop=r;break;} }
         arc(0,rStop,rIn*0.72,rIn*0.80);ctx.fillStyle='rgba(111,224,143,.30)';ctx.fill();
       }
-      const NORM=1-Math.exp(-450/170);
+      const NORM=1-Math.exp(-C.maxRpm/C.response);
       for(let k=2;k<=Math.floor(C.ms);k+=2){
-        const r=-170*Math.log(1-(k/C.ms)*NORM);
-        if(!isFinite(r)||r>450) continue;
+        const r=-C.response*Math.log(1-(k/C.ms)*NORM);
+        if(!isFinite(r)||r>C.maxRpm) continue;
         const a=A(r);
         ctx.strokeStyle='rgba(143,179,168,.55)';ctx.lineWidth=Math.max(1,R*0.007);
         ctx.beginPath();

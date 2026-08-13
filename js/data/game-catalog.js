@@ -14,7 +14,7 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=8;
+const PP_CATALOG_VERSION=9;
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
@@ -22,12 +22,20 @@ const THEATER_PROFILES=Object.freeze({
     displayName:'The Pacific',
     terrainProvider:'pacific',
     defaultCampaignId:'us-pacific'
+  }),
+  atlantic:Object.freeze({
+    id:'atlantic',
+    displayName:'The Atlantic',
+    terrainProvider:'open-ocean',
+    defaultCampaignId:'german-atlantic-1941'
   })
 });
 
 const FACTION_PROFILES=Object.freeze({
   usa:Object.freeze({id:'usa',displayName:'United States Navy',shortName:'USN'}),
-  japan:Object.freeze({id:'japan',displayName:'Imperial Japanese Navy',shortName:'IJN'})
+  japan:Object.freeze({id:'japan',displayName:'Imperial Japanese Navy',shortName:'IJN'}),
+  germany:Object.freeze({id:'germany',displayName:'Kriegsmarine',shortName:'KM'}),
+  britain:Object.freeze({id:'britain',displayName:'Royal Navy',shortName:'RN'})
 });
 
 const SUBMARINE_PROFILES=Object.freeze({
@@ -89,6 +97,58 @@ const SUBMARINE_PROFILES=Object.freeze({
       })
     }),
     damage:Object.freeze({crushDepthFeet:420})
+  }),
+
+  /* Phase 2 vertical-slice foundation. Technical dimensions, tube arrangement,
+     maximum torpedo load and gun ammunition are sourced from contemporary
+     Type VIIC handbooks / Allied examinations. Propulsion response, fuel and
+     battery coefficients remain intentionally lightweight gameplay parameters;
+     they are isolated here so later calibration cannot leak into the Gato.
+
+     The German handbook states 100 m construction depth and a 105 m pressure-
+     dock test, but does not publish one universal operational failure depth.
+     `crushDepthFeet` therefore remains an explicit provisional gameplay limit,
+     not a claim of a historically exact collapse depth. */
+  'type-viic-1941':Object.freeze({
+    id:'type-viic-1941',
+    displayName:'Type VIIC U-boat',
+    className:'Type VIIC',
+    hullNumber:null,
+    factionId:'germany',
+    theaterId:'atlantic',
+    dimensions:Object.freeze({lengthFt:220,beamFt:20,verticalHalfFeet:7.5,massTons:883}),
+    weapons:Object.freeze({
+      defaultTorpedoSpecKey:'g7e-t2',
+      // Five loaded tubes + nine reserve weapons = the documented maximum 14.
+      torpedoInventory:9,
+      tubes:Object.freeze([
+        Object.freeze({id:1,pos:'FWD',gyroAngle:0}),
+        Object.freeze({id:2,pos:'FWD',gyroAngle:0}),
+        Object.freeze({id:3,pos:'FWD',gyroAngle:0}),
+        Object.freeze({id:4,pos:'FWD',gyroAngle:0}),
+        Object.freeze({id:5,pos:'AFT',gyroAngle:180})
+      ]),
+      deckGun:Object.freeze({ammo:205}),
+      aaGun:Object.freeze({ammo:1500})
+    }),
+    sensors:Object.freeze({
+      passiveSound:Object.freeze({capabilityId:'PASSIVE_SOUND',label:'GHG Hydrophones',shortLabel:'GHG'})
+    }),
+    propulsion:Object.freeze({
+      dieselCutoffFt:12,dieselRestartFt:8,maxSurfaceSpeedKn:17.8,maxSubmergedSpeedKn:8.0,interceptFlankSpeedKn:17.2,
+      normalizedMaxRpm:480,rpmResponse:180,driveBankRpmCap:340,silentRpmCap:120,crashDiveRpmCap:220,
+      driveBankSpeedFactor:.72,silentSpeedFactor:.72,
+      fuel:Object.freeze({idlePctPerHour:.08,loadPctPerHour:3.0,generatorExtraPctPerHour:.35,emptySpeedFactor:.1}),
+      battery:Object.freeze({
+        chargeBasePctPerSec:.009,chargeLoadSquaredFactor:1.15,taperPower:3,taperWeight:.75,taperMin:.22,
+        silentHotelPctPerHour:.90,hotelPctPerHour:1.25,propulsionPctPerHour:98.75,propulsionExponent:2.06,
+        pumpPctPerHour:1.0,electricalDamageLoadFactor:.35,emptySpeedFactor:.05,emptyRpmFactor:.1
+      })
+    }),
+    damage:Object.freeze({
+      constructionDepthFeet:328,pressureDockTestDepthFeet:344,
+      crushDepthFeet:500,crushDepthProvisional:true
+    })
   })
 });
 
@@ -263,6 +323,34 @@ const US_PACIFIC_HISTORICAL_MODEL=Object.freeze({
       Object.freeze({before:19430101,multiply:Object.freeze({trafficDensityFactor:1.08})})
     ])
   })
+});
+
+/* First Atlantic historical slice: deliberately narrow, late 1941. This is
+   enough to prove a German campaign/boat can materialize without borrowing US
+   equipment. Convoy doctrine, Allied escorts and aircraft are authored in later
+   Phase-2 patches rather than guessed here. */
+const GERMAN_ATLANTIC_1941_HISTORICAL_MODEL=Object.freeze({
+  id:'german-atlantic-1941-history-v1',
+  defaultDate:'1941-09-01',
+  eraBands:Object.freeze([Object.freeze({label:'ATLANTIC 1941'})]),
+  // Reliability calibration remains a later research/gameplay task. The model
+  // keeps the neutral factor so individual torpedo specs own the current baseline.
+  torpedoDudBands:Object.freeze([Object.freeze({value:1.00})]),
+  equipment:Object.freeze({
+    sensors:Object.freeze({}),
+    radarFitLabelBands:Object.freeze([Object.freeze({label:'NO RADAR FIT'})]),
+    torpedoes:Object.freeze([
+      Object.freeze({specKey:'g7e-t2'}),
+      Object.freeze({specKey:'g7a-t1-fast'})
+    ]),
+    defaultTorpedoLoadLabel:'G7E / G7A LOAD'
+  }),
+  progressionBands:Object.freeze([Object.freeze({values:Object.freeze({
+    soundFactor:1.00,aswSkill:1.00,sonarIntervalFactor:1.00,sonarErrorFactor:1.00,depthChargeErrorFactor:1.00,
+    airThreatFactor:1.00,trafficDensityFactor:1.00,merchantTonnageFactor:1.00,merchantSpeedBonus:0,
+    primaryMerchantCountFactor:1.00,surfaceOpportunity:1.00
+  })})]),
+  areaProgression:Object.freeze({})
 });
 
 /* Mission-critical convoy composition is campaign data. The simulation owns
@@ -578,6 +666,20 @@ const CAMPAIGN_PROFILES=Object.freeze({
     specialOperationsProfile:US_PACIFIC_SPECIAL_OPERATIONS_PROFILE,
     doctrineProfile:US_PACIFIC_DOCTRINE_PROFILE,
     radioIntelProfile:US_PACIFIC_RADIO_INTEL_PROFILE
+  }),
+  'german-atlantic-1941':Object.freeze({
+    id:'german-atlantic-1941',
+    displayName:'German North Atlantic — 1941',
+    theaterId:'atlantic',
+    playerFactionId:'germany',
+    opposingFactionIds:Object.freeze(['britain']),
+    submarineProfileId:'type-viic-1941',
+    commandName:'B.d.U.',
+    defaultArea:'North Atlantic Convoy Lanes',
+    patrolAreaIds:Object.freeze(['North Atlantic Convoy Lanes']),
+    defaultStartDate:'1941-09-01',
+    historicalModel:GERMAN_ATLANTIC_1941_HISTORICAL_MODEL,
+    developmentStage:'FOUNDATION_ONLY'
   })
 });
 
@@ -586,6 +688,15 @@ const DEFAULT_GAME_IDENTITY=Object.freeze({
   playerFactionId:'usa',
   campaignProfileId:'us-pacific',
   submarineProfileId:'gato-silversides'
+});
+
+// Explicit opt-in identity for deterministic Phase-2 tests. It is intentionally
+// not wired into the public scenario selector until the Atlantic loop exists.
+const ATLANTIC_1941_GAME_IDENTITY=Object.freeze({
+  theaterId:'atlantic',
+  playerFactionId:'germany',
+  campaignProfileId:'german-atlantic-1941',
+  submarineProfileId:'type-viic-1941'
 });
 
 function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){

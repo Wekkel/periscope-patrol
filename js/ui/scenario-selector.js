@@ -70,11 +70,13 @@ class ScenarioSelector{
 
   renderCards(){
     const c=document.getElementById('stabPatrol');if(!c)return;
-    const state=this.game?.getSnapshot?.(),missionProfile=typeof getCampaignMissionProfile==='function'?getCampaignMissionProfile(state?.campaign?.campaignProfileId):null;
+    const state=this.game?.getSnapshot?.(),campaign=typeof getCampaignProfile==='function'?getCampaignProfile(state?.campaign?.campaignProfileId):null,
+      missionProfile=typeof getCampaignMissionProfile==='function'?getCampaignMissionProfile(state?.campaign?.campaignProfileId):null,
+      areaIds=Array.isArray(campaign?.patrolAreaIds)?campaign.patrolAreaIds:Object.keys(PATROL_AREAS);
     const missionTypes=(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).filter(k=>missionProfile?.definitions?.[k]);
     const missionOpts=[['AUTO','AUTO — varied patrol orders'],...missionTypes.map(k=>[k,missionProfile.definitions[k].title||k.replaceAll('_',' ')])];
     const missionHint=missionProfile?.autoDescription||'One primary mission per patrol. AUTO chooses orders appropriate to the selected patrol area.';
-    c.innerHTML=Object.entries(PATROL_AREAS).map(([name,area])=>{
+    c.innerHTML=areaIds.map(name=>[name,PATROL_AREAS[name]]).filter(([,area])=>!!area).map(([name,area])=>{
       const dl=String(area.difficulty||'MEDIUM').toUpperCase(),d=dl==='HARD'?{l:dl,cls:'diff-hard',s:'★★★'}:dl==='EASY'?{l:dl,cls:'diff-easy',s:'★☆☆'}:{l:dl,cls:'diff-med',s:'★★☆'};
       return `<div class="area-card${name===this.selArea?' selected':''}" data-area="${name}">
         <h3>${name.toUpperCase()}</h3>

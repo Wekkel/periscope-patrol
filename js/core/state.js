@@ -35,10 +35,10 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
   const fresh=materializeFreshSubmarine(identity.submarineProfileId);
   const subProfile=fresh.profile,weaponProfile=fresh.weapons;
   const startDate=campaignProfile.defaultStartDate;
-  // MEGA PACIFIC: patrol metadata stays cheap at boot; only the selected chart
-  // expands its terrain/bathymetry. Never reintroduce area.terrain here or the
-  // ten-map catalogue will all be built on low-memory devices before play starts.
-  const terrain=getPatrolTerrain(area.terrainKey||resolvedAreaKey);
+  // Terrain remains lazy: Pacific expands only its selected chart, while an
+  // explicitly terrain-less open-ocean area materializes no coastline at all.
+  // Never rebuild a whole theater catalogue here on low-memory devices.
+  const terrain=area.terrainKey?getPatrolTerrain(area.terrainKey):[];
   return{
     time:{elapsedSeconds:0,timeScale:1,campaignDate:startDate},
     log:[{t:0,level:'info',message:`Patrol commenced. Area: ${resolvedAreaKey}. Good hunting.`}],
@@ -82,7 +82,7 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
     world:{
       contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
       aaManned:false,aaAmmo:weaponProfile.aaGun.ammo,aaKills:0,aaHurt:0,
-      airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,airWarningOn:true,sdOn:true,nextCheck:120},
+      airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,airWarningOn:!!subProfile.sensors.airWarningRadar,sdOn:!!subProfile.sensors.airWarningRadar,nextCheck:120},
       sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,activeEchoLastAt:-999,qcLastAt:-999,_tick:0},
       radar:null,weatherSystem:null,
       traffic:{version:2,enabled:false,groups:[],nextId:1,clock:0,generated:false},

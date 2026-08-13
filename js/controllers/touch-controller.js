@@ -298,7 +298,7 @@ class TouchCtrl{
       D({type:'SET_ENGINE_RPM',rpm:v});const el=g('mRpm');if(el)el.value=v;buzz(10);
     },{passive:true}));
     document.querySelectorAll('#opSpeed [data-rstep]').forEach(b=>b.addEventListener('click',()=>{
-      const v=clamp(ordRpm()+ +b.dataset.rstep,0,450);this._press(b);
+      const maxRpm=this.game.getSnapshot().playerSub.propulsion?.characteristics?.normalizedMaxRpm??450,v=clamp(ordRpm()+ +b.dataset.rstep,0,maxRpm);this._press(b);
       D({type:'SET_ENGINE_RPM',rpm:v});const el=g('mRpm');if(el)el.value=v;buzz(8);
     },{passive:true}));
     btn('opCrash',()=>{D({type:'CRASH_DIVE'});this.setDepthSlider(150);buzz([20,40,20]);closePad();});
@@ -665,7 +665,7 @@ class TouchCtrl{
     if(hsel&&hsel!==document.activeElement&&+hsel.value!==state.time.timeScale){
       hsel.value=String(state.time.timeScale);hsel._pkLabel?.();
     }
-    const torpSel=g('mTorpSel');if(torpSel){for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
+    const torpSel=g('mTorpSel');if(torpSel){const keys=torpedoSpecKeysForState(state),oldKeys=[...(torpSel.options||[])].map(o=>o.value);if(keys.join('|')!==oldKeys.join('|'))torpSel.innerHTML=keys.map(k=>`<option value="${k}">${torpedoOptionLabel(k)}</option>`).join('');for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
     set('mScore',state.campaign.score.toLocaleString());
 
     // alert strip
@@ -686,7 +686,9 @@ class TouchCtrl{
       ? `SILENT · ${p.actualRpm.toFixed(0)}rpm`
       : (Math.abs(p.orderedRpm-p.actualRpm)<8?'':`→${p.orderedRpm.toFixed(0)}rpm`));
     if(this.pad){
-      const kn=(p.engineMode==='DIESEL'?18:8.5)*(1-Math.exp(-clamp(p.orderedRpm,0,450)/170));
+      const pc=p.characteristics||{},maxKn=p.engineMode==='DIESEL'?(pc.maxSurfaceSpeedKn??18):(pc.maxSubmergedSpeedKn??8.5),
+        maxRpm=pc.normalizedMaxRpm??450,response=pc.rpmResponse??170,
+        kn=maxKn*(1-Math.exp(-clamp(p.orderedRpm,0,maxRpm)/response));
       set('opDepthVal',`${sub.orderedDepthFeet.toFixed(0)} ft`);
       set('opSpeedVal',`${p.orderedRpm.toFixed(0)} rpm`);
       set('opNow',this.pad==='depth'
@@ -706,6 +708,7 @@ class TouchCtrl{
       if(bb) bb.textContent=sub.bottomed?'⚓ Come Off the Bottom':'⚓ Lie on the Bottom';
       set('opSpeedNote',`about ${kn.toFixed(1)} kn ordered · ${p.engineMode==='DIESEL'?'diesels — charging fastest at low revs':'battery '+p.battery.toFixed(0)+'% — flank drains it fast'}`);
     }
+    {const maxRpm=p.characteristics?.normalizedMaxRpm??450;document.querySelectorAll('#mRpm,#rpmInput').forEach(el=>el.max=String(maxRpm));for(const root of ['#paneHelm','#opSpeed']){const bs=[...document.querySelectorAll(`${root} [data-rpm]`)];if(bs.length){const flank=bs.reduce((a,b)=>(+b.dataset.rpm>+a.dataset.rpm?b:a));if(/flank/i.test(flank.textContent||''))flank.dataset.rpm=String(maxRpm);}}}
     qv('qHdg',fmtDeg(sub.heading));
     qv('qSpd',sub.stealth.silentRunning?`${p.speedKnots.toFixed(1)}kn · SILENT`:`${p.speedKnots.toFixed(1)}kn`,sub.stealth.silentRunning?'w':'');
     {const ts=torpedoStoresStatus(state);qv('qTorp',`${ts.total}·${ts.loadShort}`,ts.total<4?'w':'');}
@@ -732,7 +735,7 @@ class TouchCtrl{
     const bz=bridgeZoomAmount(state);cls('bridgeBino','on',bz>.05);
     const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
-    const sensorUi=getPlayerSensorPresentation(state),sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?(sensorUi.passiveSound?.label||'Passive Sound'):(sensorUi.surfaceSearchRadar?.label||'Surface Radar');}const se=g('soundEcho');if(se&&!se.classList.contains('confirm')){const span=se.querySelector?.('span');if(span)span.textContent=sensorUi.activeEcho?.label||'Active Echo';}
+    const sensorUi=getPlayerSensorPresentation(state),sr=g('soundRadar');if(sr){sr.style.display=sensorUi.surfaceSearchRadar?'':'none';const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?(sensorUi.passiveSound?.label||'Passive Sound'):(sensorUi.surfaceSearchRadar?.label||'Surface Radar');}const se=g('soundEcho');if(se){se.style.display=sensorUi.activeEcho?'':'none';if(!se.classList.contains('confirm')){const span=se.querySelector?.('span');if(span)span.textContent=sensorUi.activeEcho?.label||'Active Echo';}}
     cls('oSilent','on',sub.stealth.silentRunning);
     cls('oWeather','on',!!state.map.weatherOverlay);
     cls('mapWxChip','on',!!state.map.weatherOverlay);
@@ -810,7 +813,8 @@ class TouchCtrl{
     cls('mDcFlood','on',rp==='FLOODING');cls('mDcProp','on',rp==='PROPULSION');
     cls('mDcSteer','on',rp==='STEERING');cls('mDcOptics','on',rp==='OPTICS_FIRE_CONTROL');
     {const G=state.weapons.deckGun, aa=state.world.aaManned, dc=sub.damage.damageControlActive;
-      set('mAutoCrewStatus',`AUTO CREW · ${(sensorUi.airWarningRadar?.label||'AIR WARNING RADAR').toUpperCase()} ${sub.depthFeet<12?'ON':'STANDBY'} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
+      const airCrew=sensorUi.airWarningRadar?` · ${sensorUi.airWarningRadar.label.toUpperCase()} ${sub.depthFeet<12?'ON':'STANDBY'}`:'';
+      set('mAutoCrewStatus',`AUTO CREW${airCrew} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
       const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);
       set('mDcStatus',`PRIORITY ${repairPriorityLabel(rp)} · ${dc?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · DRIVE BANK OFFLINE':''}`);}
     set('rpmNote',`${p.engineMode} · ${p.speedKnots.toFixed(1)} kn · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);
@@ -829,7 +833,7 @@ class TouchCtrl{
           :'No target. Lock a contact from the scope or the map, or enter a manual solution below.';
         if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');}
       }
-      {const ts=torpedoStoresStatus(state);set('mTorpStores',`${ts.total} aboard · ${ts.loaded} loaded (${ts.loadedText}) · ${ts.reserve} reserve · reload ${ts.loadShort} · ${ts.ready} READY`);}
+      {const ts=torpedoStoresStatus(state),fwd=state.weapons.tubes.filter(t=>t.pos==='FWD').map(t=>t.id),aft=state.weapons.tubes.filter(t=>t.pos==='AFT').map(t=>t.id);set('mTorpStores',`${ts.total} aboard · ${ts.loaded} loaded (${ts.loadedText}) · ${ts.reserve} reserve · reload ${ts.loadShort} · ${ts.ready} READY`);set('mFloodFwd',`Flood Fwd ${fwd.join('-')}`);set('mFloodAft',`Flood Aft ${aft.join('-')}`);}
       html('mTubes',W.tubes.map(t=>{
         const st=t.status==='READY'?'ready':t.status==='EMPTY'?'empty':'flooded';
         const sub2=t.status==='READY'?'FIRE':t.status==='EMPTY'?`${Math.round(t.reloadProgress*100)}%`:'FLOOD';

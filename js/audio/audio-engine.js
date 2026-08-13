@@ -99,7 +99,7 @@ class AudioEngine{
   setAmbient(depthFt,silent,propulsion=null){
     if(!this.ambientGain||!this.ctx)return;
     const now=this.ctx.currentTime,submerged=depthFt>8,deep=clamp((depthFt-45)/190,0,1);
-    const rpm=clamp((Number(propulsion?.actualRpm)||0)/450,0,1);
+    const maxRpm=propulsion?.characteristics?.normalizedMaxRpm??450,rpm=clamp((Number(propulsion?.actualRpm)||0)/maxRpm,0,1);
     // Electric motors remain audible in silent running: quiet is tension, not a
     // dead soundtrack. Both level and pitch follow ACTUAL rpm, so helm changes
     // have the same physical lag the player sees on the tachometer.
@@ -412,13 +412,13 @@ class AudioEngine{
     const seaLevel=outside?(.006+sea*.028):(internalSurface?(.0015+sea*.004):0),rainLevel=outside?rain*.038:(internalSurface?rain*.001:0);
     this.seaGain?.gain.setTargetAtTime(seaLevel,now,.5);this.rainGain?.gain.setTargetAtTime(rainLevel,now,.4);
     const diesel=sub.propulsion?.engineMode==='DIESEL'&&sub.depthFeet<10;
-    const rpm=clamp((Number(sub.propulsion?.actualRpm)||0)/450,0,1);
+    const maxRpm=sub.propulsion?.characteristics?.normalizedMaxRpm??450,rpm=clamp((Number(sub.propulsion?.actualRpm)||0)/maxRpm,0,1);
     // Surface diesels should dominate the own-boat machinery bed. The slower
     // gain/frequency response gives the big engines audible inertia without
     // changing simulation acceleration or AI noise calculations.
     const dieselLevel=diesel?(outside?(.015+rpm*.036):(.010+rpm*.026)):0;
     if(this.dieselGain)this.dieselGain.gain.setTargetAtTime(dieselLevel,now,.72);
-    if(this.dieselOsc)this.dieselOsc.frequency.setTargetAtTime(25.5+clamp(sub.propulsion.actualRpm||0,0,450)*.052,now,.62);
+    if(this.dieselOsc)this.dieselOsc.frequency.setTargetAtTime(25.5+clamp(sub.propulsion.actualRpm||0,0,maxRpm)/maxRpm*23.4,now,.62);
     if(this.dieselFilter)this.dieselFilter.frequency.setTargetAtTime(150+rpm*115,now,.70);
     const wall=Date.now();if(sub.depthFeet>170&&wall-this.lastCreak>clamp(12000-sub.depthFeet*14,4500,10000)){this.lastCreak=wall;this.playCreak();}
     this._setTorpedoMonitor(state);this._setNearbyEscortMachinery(state);
