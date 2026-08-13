@@ -917,7 +917,7 @@ class TouchCtrl{
         :'<div class="intel-empty">Nothing held. Listen on the hydrophones, sweep with the scope, and come shallow for the broadcast.</div>');
 
       html('mRadio',R.inbox.length?R.inbox.map((m,i)=>
-        `<div class="log-entry"><b style="color:${m.type==='ULTRA'?'var(--ok)':(m.type==='WARNING'||m.type==='SPECIAL INTELLIGENCE')?'var(--alert)':'var(--ink)'}">`+
+        `<div class="log-entry"><b style="color:${m.intel?'var(--ok)':(m.type==='WARNING'||m.type==='SPECIAL INTELLIGENCE')?'var(--alert)':'var(--ink)'}">`+
         `${m.type} · ${m.subject}</b>${i===0?'<span class="sig-new">LATEST</span>':''}`+
         `<span class="sig-age">${agef(now2-(m.time||now2))} ago</span><br>${m.text}</div>`).join('')
         :'<span style="color:var(--dim)">No traffic copied yet. Come shallower than 42 ft when the broadcast is up.</span>');

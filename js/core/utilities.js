@@ -44,8 +44,4 @@ if(typeof document!=='undefined'){
   }
 }
 
-// Surface-engine hysteresis. These are deliberately a little forgiving: the boat
-// has no snorkel, but a depth controller hovering at 2–5 ft must not strand her.
-const DIESEL_CUTOFF_FT=12;
-const DIESEL_RESTART_FT=8;
 

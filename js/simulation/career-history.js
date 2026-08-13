@@ -141,6 +141,7 @@ class SimEngineCareer extends SimEngineDamage {
     return Object.freeze({
       version:CAREER_RECORD_VERSION,id:c.historyId,
       patrolNumber:c.patrolNumber||1,area:c.patrolArea||'UNKNOWN',missionName:c.missionName||c.primaryMission?.title||null,
+      theaterId:c.theaterId||null,playerFactionId:c.playerFactionId||null,campaignProfileId:c.campaignProfileId||null,submarineProfileId:s.playerSub?.profileId||null,
       missionType:c.missionType||c.primaryMission?.type||'CONVOY_INTERDICTION',primaryMission:_careerClone(c.primaryMission||null),
       historicalProfile:_careerClone(c.historicalProfile||null),equipment:_careerClone(c.equipment||null),
       startDate:c._careerStartDate,
@@ -154,7 +155,7 @@ class SimEngineCareer extends SimEngineDamage {
       torpedoesFired:Math.max(0,(W.nextTorpedoId||1)-1),torpedoHits:torpHits,torpedoDuds:(W.duds||[]).length,
       deckGunRounds:Number(G.shots)||0,deckGunHits:Number(G.hits)||0,aircraftKills:Number(s.world.aaKills)||0,
       optionalObjectives:_careerClone(opts),
-      harborRaid:I?.raid?_careerClone(I.raid):null,
+      specialOperationId:I?.operationId||null,harborRaid:I?.raid?_careerClone(I.raid):null,
       hullAtEnd:Number(meta.hullAtEnd!==undefined?meta.hullAtEnd:s.playerSub.damage.hullIntegrity),
       aircraftEvaded:Number(c.afterAction?.aircraftEvaded)||0,
       importantEvents:_careerClone(c.importantEvents),

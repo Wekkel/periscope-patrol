@@ -14,7 +14,7 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=7;
+const PP_CATALOG_VERSION=8;
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
@@ -74,6 +74,20 @@ const SUBMARINE_PROFILES=Object.freeze({
       }),
       airWarningRadar:Object.freeze({capabilityId:'AIR_WARNING_RADAR',label:'SD Radar',shortLabel:'SD',crewManagedLabel:'SD air-search radar',statusLabel:'SD air-warning radar'})
     }),
+    /* These values are the existing lightweight gameplay model for Silversides,
+       not a detailed diesel/electric plant simulation. They live on the boat
+       profile so a Type VII does not inherit Gato speed/endurance by accident. */
+    propulsion:Object.freeze({
+      dieselCutoffFt:12,dieselRestartFt:8,maxSurfaceSpeedKn:18,maxSubmergedSpeedKn:8.5,interceptFlankSpeedKn:17.5,
+      normalizedMaxRpm:450,rpmResponse:170,driveBankRpmCap:320,silentRpmCap:120,crashDiveRpmCap:220,
+      driveBankSpeedFactor:.72,silentSpeedFactor:.72,
+      fuel:Object.freeze({idlePctPerHour:.08,loadPctPerHour:3.0,generatorExtraPctPerHour:.35,emptySpeedFactor:.1}),
+      battery:Object.freeze({
+        chargeBasePctPerSec:.009,chargeLoadSquaredFactor:1.15,taperPower:3,taperWeight:.75,taperMin:.22,
+        silentHotelPctPerHour:.90,hotelPctPerHour:1.25,propulsionPctPerHour:98.75,propulsionExponent:2.06,
+        pumpPctPerHour:1.0,electricalDamageLoadFactor:.35,emptySpeedFactor:.05,emptyRpmFactor:.1
+      })
+    }),
     damage:Object.freeze({crushDepthFeet:420})
   })
 });
@@ -125,7 +139,7 @@ function inferVesselFactionId(v,state=null){
   if(v?.side==='FRIENDLY')return state?.campaign?.playerFactionId||DEFAULT_GAME_IDENTITY.playerFactionId;
   if(v?.side==='ENEMY'||v?.side==null){
     const campaign=getCampaignProfile(state?.campaign?.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId);
-    return campaign?.opposingFactionIds?.[0]||'japan';
+    return campaign?.opposingFactionIds?.[0]||null;
   }
   return null;
 }
@@ -396,7 +410,12 @@ const US_PACIFIC_MISSION_PROFILE=Object.freeze({
       fallbackTarget:Object.freeze({id:'HS-01',name:'Anchorage Naval Auxiliary',type:'MERCHANT',vesselProfileId:'jp-merchant',displayType:'NAVAL AUXILIARY',lengthYards:455,tonsFactor:5600,visualProfile:1.0,acousticBase:.05,side:'ENEMY',speedKnots:0,baseSpeed:0,desiredSpeed:0,stationary:true,convoyRole:'ANCHORAGE',convoyId:'HARBOR_STRIKE'})
     }),
     lifeguard:Object.freeze({
-      survivor:Object.freeze({name:'Downed Airman',type:'RAFT',vesselProfileId:'us-life-raft',displayType:'LIFE RAFT',lengthYards:7,tonsFactor:0,visualProfile:.12,acousticBase:0,side:'FRIENDLY',speedKnots:0,baseSpeed:0,desiredSpeed:0,stationary:true,convoyId:'LIFEGUARD',convoyRole:'SURVIVOR',missionRole:'SURVIVOR'})
+      survivor:Object.freeze({name:'Downed Airman',type:'RAFT',vesselProfileId:'us-life-raft',displayType:'LIFE RAFT',lengthYards:7,tonsFactor:0,visualProfile:.12,acousticBase:0,side:'FRIENDLY',speedKnots:0,baseSpeed:0,desiredSpeed:0,stationary:true,convoyId:'LIFEGUARD',convoyRole:'SURVIVOR',missionRole:'SURVIVOR'}),
+      airmanDownLog:'Carrier strike reports an airman down in the lifeguard sector.',
+      airmanDownNotice:'LIFEGUARD — AIRMAN DOWN. Search the assigned sector by bridge watch or SJ radar.',
+      locatedNotice:'LIFEGUARD — LIFE RAFT LOCATED. Close surfaced and slow for recovery.',
+      stationPrefix:'LIFEGUARD STATION — on station. Carrier strike expected in about ',
+      stationSuffix:' minutes.'
     })
   })
 });
@@ -436,6 +455,7 @@ const US_PACIFIC_SPECIAL_OPERATIONS_PROFILE=Object.freeze({
       })
     }),
     intel:Object.freeze({eligibleBaseSec:480,eligibleSpreadSec:420}),
+    careerAward:Object.freeze({id:'truk-penetration',title:'Successful Truk penetration'}),
     radioSignal:Object.freeze({
       type:'SPECIAL INTELLIGENCE',subject:'TRUK ANCHORAGE',
       text:"HEAVY UNIT REPORTED AT TRUK ANCHORAGE. DEPARTURE UNKNOWN. ATTACK AT COMMANDING OFFICER'S DISCRETION."
@@ -502,6 +522,39 @@ const US_PACIFIC_DOCTRINE_PROFILE=Object.freeze({
   })
 });
 
+/* Routine radio traffic is campaign presentation layered over generic
+   receive/copy/intelligence mechanics. Internal `world.ultra` naming remains a
+   Phase-1 save/runtime compatibility detail; player-facing terminology comes
+   from this profile so another theater never inherits US Pacific wording. */
+const US_PACIFIC_RADIO_INTEL_PROFILE=Object.freeze({
+  id:'us-pacific-radio-intel-v1',
+  routine:Object.freeze({shippingCeiling:.50,airCeiling:.68,lifeguardCeiling:.82}),
+  shipping:Object.freeze({
+    type:'ULTRA',sourceLabel:'ULTRA',estimateLabel:'ULTRA estimate',mapFixLabel:'ULTRA fix',mapEstimateLabel:'ULTRA — ESTIMATED CONVOY',
+    subject:'ENEMY SHIPPING REPORTED',amplifyingSubject:'ENEMY SHIPPING — AMPLIFYING REPORT',
+    missionQualification:' This is the assigned patrol convoy.',
+    ambientQualification:" This report is not guaranteed to be the patrol's primary target.",
+    transitStopText:'an ULTRA intercept',toastTag:'ULTRA_INTERCEPT',
+    toastSingle:'ULTRA intercept plotted — steer to cut her off',
+    toastPluralNoun:'ULTRA intercepts plotted — latest plot shown on MAP',
+    noContactsPrompt:'NO CURRENT CONTACTS — work the ULTRA plot'
+  }),
+  air:Object.freeze({
+    type:'WARNING',subject:'AIR ACTIVITY',
+    textPrefix:'Enemy air patrols reported over ',
+    textSuffix:'. Remain submerged during daylight where practicable.'
+  }),
+  lifeguard:Object.freeze({
+    type:'ORDERS',subject:'LIFEGUARD STATION',
+    text:'Carrier strike scheduled. Take lifeguard station and report. Any airman recovered counts toward the patrol.',
+    score:250
+  }),
+  weather:Object.freeze({
+    type:'INFO',subject:'WEATHER',
+    text:'Front moving through the area within the next twelve hours. Expect reduced visibility and rising sea.'
+  })
+});
+
 const CAMPAIGN_PROFILES=Object.freeze({
   'us-pacific':Object.freeze({
     id:'us-pacific',
@@ -512,13 +565,19 @@ const CAMPAIGN_PROFILES=Object.freeze({
     submarineProfileId:'gato-silversides',
     commandName:'COMSUBPAC',
     defaultArea:'Solomon Sea',
+    patrolAreaIds:Object.freeze([
+      'Solomon Sea','Bismarck Sea','Luzon Strait','Truk Approaches','Java Sea',
+      'Yellow Sea','Kii Suido / Honshu Approaches','East China Sea / Formosa Approaches',
+      'Sulu Sea / Tawi-Tawi','Kurile / Hokkaido Approaches'
+    ]),
     defaultStartDate:'1943-08-17',
     historicalModel:US_PACIFIC_HISTORICAL_MODEL,
     primaryConvoyProfile:US_PACIFIC_PRIMARY_CONVOY_PROFILE,
     ambientTrafficProfile:US_PACIFIC_AMBIENT_TRAFFIC_PROFILE,
     missionProfile:US_PACIFIC_MISSION_PROFILE,
     specialOperationsProfile:US_PACIFIC_SPECIAL_OPERATIONS_PROFILE,
-    doctrineProfile:US_PACIFIC_DOCTRINE_PROFILE
+    doctrineProfile:US_PACIFIC_DOCTRINE_PROFILE,
+    radioIntelProfile:US_PACIFIC_RADIO_INTEL_PROFILE
   })
 });
 
@@ -530,7 +589,9 @@ const DEFAULT_GAME_IDENTITY=Object.freeze({
 });
 
 function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
-  return CAMPAIGN_PROFILES[profileId]||CAMPAIGN_PROFILES[DEFAULT_GAME_IDENTITY.campaignProfileId];
+  // Omitted ID means the current default; an explicit unknown ID is an authoring
+  // or save-compatibility error and must never masquerade as the Pacific campaign.
+  return CAMPAIGN_PROFILES[profileId]||null;
 }
 
 function getCampaignMissionProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
@@ -548,6 +609,10 @@ function getCampaignDoctrineProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProf
   /* Doctrine is campaign-authored. Do not hide an incomplete future theater by
      silently borrowing Pacific escort posture or Japanese aircraft rosters. */
   return CAMPAIGN_PROFILES[profileId]?.doctrineProfile||null;
+}
+
+function getCampaignRadioIntelProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  return CAMPAIGN_PROFILES[profileId]?.radioIntelProfile||null;
 }
 
 function getCampaignHarborOperationProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
@@ -572,13 +637,16 @@ function getAmbientTrafficProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfil
 }
 
 function getSubmarineProfile(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
-  return SUBMARINE_PROFILES[profileId]||SUBMARINE_PROFILES[DEFAULT_GAME_IDENTITY.submarineProfileId];
+  // As with campaigns, an explicit future/unknown boat must fail closed rather
+  // than silently materializing Silversides with the wrong historical identity.
+  return SUBMARINE_PROFILES[profileId]||null;
 }
 
 
 function getSubmarineSensorPresentation(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
   const profile=getSubmarineProfile(profileId);
-  return profile.sensors||SUBMARINE_PROFILES[DEFAULT_GAME_IDENTITY.submarineProfileId].sensors;
+  if(!profile)throw new Error(`Unknown submarine profile: ${profileId}`);
+  return profile.sensors;
 }
 
 function getPlayerSensorPresentation(state=null){
@@ -617,4 +685,23 @@ function validateGameIdentity(identity){
     errors.push(`Submarine ${sub.id} belongs to ${sub.theaterId}, not ${x.theaterId}`);
 
   return{ok:errors.length===0,errors,identity:{...x}};
+}
+
+function materializeGameIdentity(state){
+  /* Lifecycle/save boundary for the Phase-1 identity migration. Legacy Pacific
+     saves may omit all four IDs, so resolve them once to the historical default
+     and stamp them into state. Explicit invalid/mismatched IDs fail here instead
+     of leaking Pacific/Silversides data through a fallback getter. */
+  if(!state?.campaign||!state?.playerSub)throw new Error('Game state has no campaign/submarine identity boundary.');
+  const identity=resolveGameIdentity(state),validation=validateGameIdentity(identity);
+  if(!validation.ok)throw new Error(`Invalid game identity: ${validation.errors.join('; ')}`);
+  const campaign=getCampaignProfile(identity.campaignProfileId);
+  state.campaign.theaterId=identity.theaterId;
+  state.campaign.playerFactionId=identity.playerFactionId;
+  state.campaign.campaignProfileId=identity.campaignProfileId;
+  state.playerSub.profileId=identity.submarineProfileId;
+  if(!state.campaign.patrolArea)state.campaign.patrolArea=campaign.defaultArea;
+  if(Array.isArray(campaign.patrolAreaIds)&&!campaign.patrolAreaIds.includes(state.campaign.patrolArea))
+    throw new Error(`Patrol area ${state.campaign.patrolArea} does not belong to campaign ${campaign.id}.`);
+  return identity;
 }

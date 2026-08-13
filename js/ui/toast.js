@@ -91,6 +91,6 @@ const Toast = {
 
 function transitStopToastKind(why){
   if(/waypoint reached|friendly port approach|shoaling water — take the conn/i.test(why)) return 'warn';
-  if(/ULTRA|new orders|new contact|battery|fuel|air is going bad/i.test(why)) return 'warn';
+  if(/ULTRA|intelligence intercept|new orders|new contact|battery|fuel|air is going bad/i.test(why)) return 'warn';
   return 'bad';
 }

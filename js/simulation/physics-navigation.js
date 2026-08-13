@@ -36,7 +36,7 @@ class SimEngine extends SimEngineCareer {
      way home. The bathymetry box is the chart, so that is the boundary. */
   /* The patrol area is the charted box. Everything else keys off this: the
      boundary drawn on the map, the transit interrupt, where contacts are
-     allowed to be, and where an ULTRA plot may fall. */
+     allowed to be, and where a decoded intelligence plot may fall. */
   areaBounds(){
     const B=Bathy.ensure(this.state.world.terrain);
     if(!B) return null;
@@ -93,7 +93,7 @@ class SimEngine extends SimEngineCareer {
     for(const id of ids){const c=byId.get(id),tr=tracks[id];if(!c||!isASWCombatant(c)||!tr||tr.confidence<=.02)continue;const r=tr.rangeEstimateNm??99,band=r<=1.5?3:r<=3?2:r<=6?1:0;if(band>(w.aswBands?.[id]??band))return band>=3?'escort inside 1.5 nm':band>=2?'escort inside 3 nm':'escort inside 6 nm';}
     if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub).length>w.air) return 'aircraft';
     if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING')).length>(w.airDanger||0)) return 'aircraft attack';
-    if(s.world.ultra&&!w.ultra) return 'an ULTRA intercept';
+    if(s.world.ultra&&!w.ultra) return getCampaignRadioIntelProfile(s.campaign.campaignProfileId)?.shipping?.transitStopText||'a shipping intelligence intercept';
     if(s.map.plottedCourse.length<w.wp) return 'a waypoint reached';
     if(s.campaign.missionStatus!==w.status) return 'new orders';
     if(s.playerSub.propulsion.battery<12&&!w.batLow) return 'the battery is low';
@@ -220,84 +220,47 @@ class SimEngine extends SimEngineCareer {
 
   updatePropulsion(sub,dt){
     const p=sub.propulsion;
-    /* A fleet boat has no snorkel. The main induction — the great mushroom
-       valve abaft the conning tower — is the only way the diesels can breathe,
-       and it shuts the instant she goes under. The Dutch had already built the
-       thing (Wichers' snuiver, on the O-21 class, 1938); the Germans found it
-       on the boats they took at Rotterdam, shrugged, and only fitted the
-       Schnorchel in 1944 when Allied aircraft made surfacing suicide. The
-       American boats fought the whole Pacific war without one. So: down is
-       batteries, and only the surface charges them.
-       A little hysteresis so she does not chatter at the changeover depth. */
+    // Characteristics are materialized once at patrol/load boundaries. The
+    // fallback below repairs isolated legacy/test state once, then the hot loop
+    // reads only the ordinary runtime object.
+    const C=p.characteristics||(p.characteristics=materializeSubmarinePropulsionCharacteristics(sub.profileId));
+    const F=C.fuel,B=C.battery;
     const wasSub=p.engineMode==='ELECTRIC';
-    /* Gameplay tolerance: Silversides still has no snorkel, but a boat that is
-       effectively awash must not be stranded because the depth controller is
-       hovering a few feet below zero. Diesels stay on down to 12 ft and, once
-       secured, come back by 8 ft. Periscope depth remains battery-only. */
-    const subm=wasSub?sub.depthFeet>DIESEL_RESTART_FT:sub.depthFeet>DIESEL_CUTOFF_FT;
+    const subm=wasSub?sub.depthFeet>C.dieselRestartFt:sub.depthFeet>C.dieselCutoffFt;
     p.engineMode=subm?'ELECTRIC':'DIESEL';
     if(subm&&!wasSub) this.log('Main induction closed — diesels secured, answering on the motors. No snorkel in this boat: she cannot charge until she is on the roof.','warn');
     else if(!subm&&wasSub) this.log('Surfaced — induction open, diesels on line. Battery charging.','warn');
     const dmg=sub.damage, me=1-dmg.motorDamage*0.8, ee=1-(dmg.electricalDamage||0)*0.34;
     let rpm=p.orderedRpm;
-    if(dmg.driveBankOffline) rpm=Math.min(rpm,320);
-    if(sub.stealth.silentRunning) rpm=Math.min(rpm,120);
-    if(sub.mode==='CRASH_DIVING') rpm=Math.min(rpm,220);
+    if(dmg.driveBankOffline) rpm=Math.min(rpm,C.driveBankRpmCap);
+    if(sub.stealth.silentRunning) rpm=Math.min(rpm,C.silentRpmCap);
+    if(sub.mode==='CRASH_DIVING') rpm=Math.min(rpm,C.crashDiveRpmCap);
     p.actualRpm=lerp(p.actualRpm,rpm,clamp(dt*0.7,0,1));
-    const ms=subm?8.5:18, bank=dmg.driveBankOffline?.72:1, rc=1-Math.exp(-p.actualRpm/170);
-    p.speedKnots=ms*rc*(sub.stealth.silentRunning?0.72:1)*me*ee*bank;
-    const rl=p.actualRpm/450;
+    const ms=subm?C.maxSubmergedSpeedKn:C.maxSurfaceSpeedKn, bank=dmg.driveBankOffline?C.driveBankSpeedFactor:1, rc=1-Math.exp(-p.actualRpm/C.rpmResponse);
+    p.speedKnots=ms*rc*(sub.stealth.silentRunning?C.silentSpeedFactor:1)*me*ee*bank;
+    const rl=p.actualRpm/C.normalizedMaxRpm;
     if(p.engineMode==='DIESEL'){
-      /* FUEL. The old rule burned linearly with revolutions and emptied the
-         bunkers in twelve and a half hours of cruising — you could not cross
-         a patrol area without limping home, which is nothing like a fleet
-         boat. A Gato carried 94,000 gallons and had a designed radius of
-         11,000 miles at 10 knots; she was away for six weeks.
-         Resistance goes as the square of speed and power as the cube, so
-         that is the law used here, scaled so a patrol is comfortable but
-         flank speed is a decision rather than a default:
-             ~0.6 %/h at a 10-knot cruise   → about 170 hours
-             ~3.1 %/h at flank              → about 32 hours
-         Fast transit is now what it should be: expensive, not forbidden. */
-      p.fuel=clamp(p.fuel-(0.08+Math.pow(rl,3)*3.0)*dt/3600,0,100);
-      /* Four diesels, and the screws have first call on them. Whatever is left
-         over goes to the generators — which is why a boat charges fastest
-         loafing along on two engines and hardly at all at flank, and why the
-         last of the charge crawls in as the cells gas up. From flat it was the
-         best part of four hours on the roof under the moon. Every skipper in
-         the Pacific hated that arithmetic. */
-      const share=clamp(1-rl*rl*1.15,0,1);
-      const taper=clamp(1-Math.pow(p.battery/100,3)*0.75,0.22,1);
-      const chg=p.fuel>0?0.009*share*taper*clamp(1-(dmg.electricalDamage||0)*.55,.32,1):0;
+      p.fuel=clamp(p.fuel-(F.idlePctPerHour+Math.pow(rl,3)*F.loadPctPerHour)*dt/3600,0,100);
+      const share=clamp(1-rl*rl*B.chargeLoadSquaredFactor,0,1);
+      const taper=clamp(1-Math.pow(p.battery/100,B.taperPower)*B.taperWeight,B.taperMin,1);
+      const chg=p.fuel>0?B.chargeBasePctPerSec*share*taper*clamp(1-(dmg.electricalDamage||0)*.55,.32,1):0;
       if(chg>0&&p.battery<100){
         p.battery=clamp(p.battery+chg*dt,0,100);
-        p.fuel=clamp(p.fuel-share*0.35*dt/3600,0,100);  // the generators drink too — ~1.4% for a full charge
+        p.fuel=clamp(p.fuel-share*F.generatorExtraPctPerHour*dt/3600,0,100);
       }
       p.chargeRate=chg;
-      if(p.fuel<=0)p.speedKnots*=0.1;
+      if(p.fuel<=0)p.speedKnots*=F.emptySpeedFactor;
     }
     else{
       p.chargeRate=0;
-      /* BATTERY ENDURANCE. Express every load as percentage-points per
-         simulated hour. The old per-second constants unintentionally made a
-         stopped boat consume 54% of a full battery each hour. Fleet boats
-         could remain submerged for many hours at very low power, while high
-         motor power exhausted the cells quickly. This curve preserves that
-         characteristic without making quiet waiting unplayable:
-             STOP                         ~80 h from full
-             120 rpm / ~4 kn              ~13 h
-             250 rpm / ~6.5 kn            ~3.3 h
-             450 rpm / ~8 kn              ~1 h
-         Silent running trims non-essential hotel load; dewatering pumps add a
-         small real electrical cost. Electrical casualties increase all load. */
       const motorLoad=clamp(rl,0,1);
-      const hotelPerHour=sub.stealth.silentRunning?0.90:1.25;
-      const propulsionPerHour=98.75*Math.pow(motorLoad,2.06);
-      const pumpPerHour=(dmg.pumpActive&&!dmg.pumpTripped)?1.0:0;
-      const electricalFactor=1+(dmg.electricalDamage||0)*0.35;
+      const hotelPerHour=sub.stealth.silentRunning?B.silentHotelPctPerHour:B.hotelPctPerHour;
+      const propulsionPerHour=B.propulsionPctPerHour*Math.pow(motorLoad,B.propulsionExponent);
+      const pumpPerHour=(dmg.pumpActive&&!dmg.pumpTripped)?B.pumpPctPerHour:0;
+      const electricalFactor=1+(dmg.electricalDamage||0)*B.electricalDamageLoadFactor;
       const drainPerHour=(hotelPerHour+propulsionPerHour+pumpPerHour)*electricalFactor;
       p.battery=clamp(p.battery-drainPerHour*dt/3600,0,100);
-      if(p.battery<=0){p.speedKnots*=0.05;p.actualRpm*=0.1;}
+      if(p.battery<=0){p.speedKnots*=B.emptySpeedFactor;p.actualRpm*=B.emptyRpmFactor;}
     }
   }
 
@@ -630,7 +593,8 @@ class SimEngine extends SimEngineCareer {
     const sf=sub.depthFeet<8?1:0; const pf=sub.depthFeet>=8&&sub.depthFeet<=65?0.16:0;
     const wx=weatherAtPosition(this.state,sub.position);
     sub.stealth.visualProfile=(sf+pf)*wx.subVisualFactor;
-    const rn=sub.propulsion.actualRpm/450; const sn=Math.pow(sub.propulsion.speedKnots/18,2);
+    const C=sub.propulsion.characteristics||(sub.propulsion.characteristics=materializeSubmarinePropulsionCharacteristics(sub.profileId));
+    const rn=sub.propulsion.actualRpm/C.normalizedMaxRpm; const sn=Math.pow(sub.propulsion.speedKnots/C.maxSurfaceSpeedKn,2);
     const sm=sub.stealth.silentRunning?0.38:1; const dm=sub.depthFeet>65?0.85:1;
     const pn=sub.damage.pumpActive?0.12:0; const fn=sub.damage.flooding*0.15;const mn=sub.maneuveringThrust||0;
     sub.stealth.acousticSignature=clamp((rn*0.6+sn*0.8)*sm*dm+pn+fn+mn,0,1.5);

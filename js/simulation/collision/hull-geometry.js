@@ -50,10 +50,11 @@ const HullGeometry=(()=>{
       draftFeet:draftFeet(c),massTons:massTons(c),source:c};
   }
   function subHull(sub,position=sub.position,heading=sub.heading){
-    // New patrols materialize dimensions on playerSub. Legacy v1 saves may not
-    // have them, so fall back through the Pacific-default profile until the
-    // formal save-schema migration stamps an explicit submarine identity.
-    const profile=getSubmarineProfile(sub?.profileId),dims=sub?.dimensions||profile.dimensions;
+    // New patrols and normalized legacy saves carry explicit submarine identity.
+    // Isolated callers may omit materialized dimensions, but an unknown profile
+    // must fail rather than silently borrowing another theater's boat.
+    const profile=getSubmarineProfile(sub?.profileId),dims=sub?.dimensions||profile?.dimensions;
+    if(!dims)throw new Error(`Missing hull dimensions for submarine profile ${sub?.profileId||'UNKNOWN'}`);
     return{kind:'SUB',id:'OWN_SUB',position:{...position},heading:heading||0,
       halfLengthNm:dims.lengthFt*NM_PER_FOOT*0.5,
       halfBeamNm:dims.beamFt*NM_PER_FOOT*0.5,

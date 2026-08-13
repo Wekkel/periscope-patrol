@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════════ GAME FACADE
 class Game{
-  constructor(){
-    const startArea='Solomon Sea';
-    this.state=createState(startArea);
+  constructor(identity=DEFAULT_GAME_IDENTITY){
+    this.state=createState(null,identity);
+    const startArea=this.state.campaign.patrolArea;
     const bootEngine=new SimEngine(this.state,new CommandBus());
     bootEngine.ensureHistoricalCampaignProfile?.(true);
     this.state.world.contacts=bootEngine.makeConvoy(PATROL_AREAS[startArea],{areaKey:startArea,startDate:this.state.campaign.startDate,historicalProfile:this.state.campaign.historicalProfile});

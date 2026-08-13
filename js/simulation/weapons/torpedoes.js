@@ -29,7 +29,8 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     if(!tdc.targetId||tdc.gyroAngle===null||tdc.solutionQuality<0.25){this.log(`TDC solution too weak (${Math.round(tdc.solutionQuality*100)}%). Need 25%+ — send scope to TDC.`,'warn');return;}
     if(sub.depthFeet>160){this.log('Too deep to fire.','warn');return;}
 
-    const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||TORPEDO_SPECS['mk14fast'];
+    const spec=TORPEDO_SPECS[tdc.torpedoSpecKey];
+    if(!spec){this.log(`Unknown torpedo specification: ${tdc.torpedoSpecKey||'NONE'}.`,'bad');return;}
     /* CAN SHE EVEN GET THERE? TDC 2.0 already includes the settling run and
        gyro arc in interceptRunNm. Do not replace it with present slant range:
        that was the source of contradictory UI/firing decisions. */
@@ -79,13 +80,13 @@ class SimEngineTorpedoes extends SimEngineHarbor {
       armedAfterNm:0.08,                 // arms after ~150 m
       targetId:tdc.targetId, status:'RUNNING', ageSec:0,
       willDud, dudRoll:Math.random(), glanceRoll:Math.random(),
-      dudChance, isElectric:tdc.torpedoSpecKey==='mk18',
+      dudChance, isElectric:!!spec.isElectric,
       acousticPenalty:spec.acousticPenalty,
       runDepthFt:tdc.torpedoRunDepthFt??10,
       // Keep a short real world-space trail for cinematic presentation and
       // diagnostics. It is sampled sparsely and capped, so even a full salvo is
       // negligible compared with the rest of the simulation state.
-      wakeTrail:tdc.torpedoSpecKey==='mk18'?[]:[{...sub.position}]
+      wakeTrail:spec.visibleWake===false?[]:[{...sub.position}]
     });
     this.aarTorpedoLaunch?.(W.activeTorpedoes[W.activeTorpedoes.length-1]);
     t.status='EMPTY'; t.flooded=false; t.reloadProgress=0;
@@ -269,19 +270,20 @@ class SimEngineTorpedoes extends SimEngineHarbor {
               break;
             }
           }
-          // The Mark 14's contact exploder was crushed by its own inertia on a
-          // square hit — oblique shots actually fired more reliably. That is
-          // modelled here: perpendicular impacts raise the dud chance.
+          // Some authored torpedoes may carry a historically specific contact-
+          // exploder penalty on square impacts. Do not infer that mechanism from
+          // nationality, dud rate or the current Pacific weapon family.
           const spec=TORPEDO_SPECS[t.specKey]||{};
-          const angleFactor=(spec.dudChanceBase>=0.2)
-            ? 0.7+0.9*Math.pow(incidence/90,2)              // Mk14/23 family
+          const squareHitPenalty=!!spec.contactExploderSquareHitPenalty;
+          const angleFactor=squareHitPenalty
+            ? 0.7+0.9*Math.pow(incidence/90,2)
             : 0.9+0.2*Math.pow(incidence/90,2);
           const pDud=clamp((t.dudChance??0.2)*angleFactor,0,0.97);
           if(t.dudRoll<pDud){
             t.status='DUD';this.aarTorpedoFinish?.(t,'DUD',c.id);
             W.duds.push({torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds});
             W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:6,label:'DUD',kind:'dud'});
-            const why=incidence>70&&spec.dudChanceBase>=0.2
+            const why=incidence>70&&squareHitPenalty
               ? 'Contact exploder crushed — a square hit. Oblique tracks fire more reliably.'
               : `${t.specName} exploder failure.`;
             this.log(`${t.id} — DUD against ${c.name}'s ${where}! No detonation. (${why})`,'bad');

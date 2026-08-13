@@ -1,7 +1,9 @@
 // ═══════════════════════════════════════════════════ SCENARIO SELECTOR UI
 class ScenarioSelector{
   constructor(game){
-    this.game=game;this.selArea='Solomon Sea';this.selHist=null;this.selMission='AUTO';this.activeTab='patrol';
+    this.game=game;
+    const state=game.getSnapshot(),campaign=getCampaignProfile(state?.campaign?.campaignProfileId);
+    this.selArea=state?.campaign?.patrolArea||campaign?.defaultArea||null;this.selHist=null;this.selMission='AUTO';this.activeTab='patrol';
     this.bind();this.renderCards();this.renderHistorical();
   }
 

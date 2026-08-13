@@ -34,7 +34,7 @@ class CanvasView extends CanvasViewSound {
       ctx.fill();ctx.stroke();ctx.setLineDash([]);ctx.restore();
     }
 
-    // convoy routes — the actual water lane the ships and ULTRA use
+    // convoy routes — the actual water lane the ships and decoded shipping intelligence use
     for(const route of state.world.convoyRoutes){
       const path=route.waterPath&&route.waterPath.length>1?route.waterPath:[route.from,route.to];
       const P=path.map(q=>w2s(q.xNm,q.yNm));
@@ -88,14 +88,15 @@ class CanvasView extends CanvasViewSound {
     }
 
     // No omniscient traffic hint. An undetected ship is not a moving beacon:
-    // use a real contact, a hydrophone bearing or an ULTRA plot to find it.
+    // use a real contact, a hydrophone bearing or a decoded intelligence plot to find it.
     if(Object.keys(state.world.contactTracks).length===0){
       ctx.fillStyle='rgba(245,198,92,0.68)';ctx.font=this.fnt(8.5);ctx.textAlign='center';
       /* Keep chart prose in its own bottom lane. The scale bar lives at the
          waterline immediately below it; sharing h-14/h-16 made the two labels
          physically overwrite one another on both mobile and desktop maps. */
       const noticeY=h-Math.round(38*k);
-      ctx.fillText(state.world.ultra?'NO CURRENT CONTACTS — work the ULTRA plot':'NO CURRENT CONTACTS — listen, look, or wait for intelligence',w/2,noticeY);
+      const shippingCopy=getCampaignRadioIntelProfile(state.campaign.campaignProfileId)?.shipping;
+      ctx.fillText(state.world.ultra?(shippingCopy?.noContactsPrompt||'NO CURRENT CONTACTS — work the intelligence plot'):'NO CURRENT CONTACTS — listen, look, or wait for intelligence',w/2,noticeY);
       ctx.textAlign='left';
     }
 
@@ -226,6 +227,7 @@ class CanvasView extends CanvasViewSound {
 
   drawUltra(ctx,state,w2s){
     const U=state.world.ultra;if(!U)return;
+    const shippingCopy=getCampaignRadioIntelProfile(state.campaign.campaignProfileId)?.shipping;
     const K=this.k,now=state.time.elapsedSeconds,age=now-U.reportedAt;
     if(age>6*3600){delete state.world.ultra;return;}
     const run=knotsNmSec(U.speedKn)*age,route=(state.world.convoyRoutes||[])[0],path=route?.waterPath;
@@ -242,10 +244,10 @@ class CanvasView extends CanvasViewSound {
     ctx.strokeStyle='rgba(160,200,255,.45)';ctx.lineWidth=Math.max(1,1.6*K);ctx.setLineDash([8,6]);ctx.beginPath();
     trace.forEach((q,i)=>{const z=w2s(q.pos.xNm,q.pos.yNm);i?ctx.lineTo(z.x,z.y):ctx.moveTo(z.x,z.y);});ctx.stroke();ctx.setLineDash([]);
     ctx.strokeStyle='rgba(160,200,255,.5)';ctx.lineWidth=Math.max(1,1.4*K);ctx.beginPath();ctx.arc(a.x,a.y,6*K,0,Math.PI*2);ctx.stroke();
-    ctx.fillStyle='rgba(160,200,255,.65)';ctx.font=this.fnt(7.5);ctx.fillText(`ULTRA fix ${(age/3600).toFixed(1)}h old`,a.x+9*K,a.y+3*K);
+    ctx.fillStyle='rgba(160,200,255,.65)';ctx.font=this.fnt(7.5);ctx.fillText(`${shippingCopy?.mapFixLabel||'INTEL fix'} ${(age/3600).toFixed(1)}h old`,a.x+9*K,a.y+3*K);
     const unc=clamp((U.uncBaseNm||.8)+U.speedKn*age/3600*.10,.8,9);
     ctx.strokeStyle='rgba(120,190,255,.55)';ctx.setLineDash([4,5]);ctx.beginPath();ctx.arc(b.x,b.y,Math.max(8,unc*this.zoom),0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle='rgba(150,205,255,.95)';ctx.font=this.fnt(9,true);ctx.fillText('ULTRA — ESTIMATED CONVOY',b.x+11*K,b.y-3*K);
+    ctx.fillStyle='rgba(150,205,255,.95)';ctx.font=this.fnt(9,true);ctx.fillText(shippingCopy?.mapEstimateLabel||'INTELLIGENCE — ESTIMATED CONVOY',b.x+11*K,b.y-3*K);
     ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(150,205,255,.7)';ctx.fillText(`course ${fmtDeg(heading)} · ${U.speedKn.toFixed(0)}kn · ±${unc.toFixed(1)}nm`,b.x+11*K,b.y+8*K);
     const sp=state.playerSub.position;ctx.fillStyle='rgba(190,225,255,.9)';ctx.font=this.fnt(8,true);ctx.fillText(`${distNm(sp,dr).toFixed(1)} nm · steer ${fmtDeg(bearingBetween(sp,dr))}`,b.x+11*K,b.y+18*K);
     this.shipIcon(ctx,b.x,b.y,heading,clamp(.22*this.zoom,14*K,40*K),'MERCHANT','rgba(120,190,255,.30)','rgba(160,210,255,.8)',.95);

@@ -49,6 +49,12 @@ const SaveSystem={
 
   _normalizeLoadedState(state){
     if(!state)return state;const obs=state.tactical?.impactObservation;if(obs){state.tactical.impactObservation=null;if((state.time?.timeScale??0)===0)state.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}
+    // Phase-1 game identity is additive for historical Pacific saves, but an
+    // explicit unknown/mismatched future identity must fail rather than load as
+    // Silversides in the Pacific.
+    const identity=typeof materializeGameIdentity==='function'?materializeGameIdentity(state):null;
+    if(identity&&typeof materializeSubmarinePropulsionCharacteristics==='function'&&state.playerSub?.propulsion)
+      state.playerSub.propulsion.characteristics=materializeSubmarinePropulsionCharacteristics(identity.submarineProfileId);
     // Phase-1 vessel identity is additive. Old saves keep their exact `type`
     // values; we stamp the new orthogonal fields on load rather than bumping
     // the serialized schema for a non-destructive metadata extension.
@@ -89,8 +95,10 @@ const SaveSystem={
   _updateCommendations(c,r){
     if(c.patrolHistory.length===1&&c.legacyPatrols===0)this._award(c,'first-war-patrol','First War Patrol',r);
     if(c.totalTonnage>=50000)this._award(c,'50000-tons','50,000 tons sunk',r);
-    if(r.outcome==='COMPLETED'&&r.area==='Truk Approaches'&&r.harborRaid?.attempted)
-      this._award(c,'truk-penetration','Successful Truk penetration',r);
+    const campaignProfileId=r.campaignProfileId||r.historicalProfile?.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId;
+    const specialOp=getCampaignHarborOperationProfile(campaignProfileId);
+    if(r.outcome==='COMPLETED'&&r.specialOperationId===specialOp?.id&&r.harborRaid?.attempted&&specialOp?.careerAward)
+      this._award(c,specialOp.careerAward.id,specialOp.careerAward.title,r);
     if(r.outcome==='COMPLETED'&&(r.hullAtEnd??100)<=25)
       this._award(c,'critical-hull-return','Returned with critical hull damage',r);
   },

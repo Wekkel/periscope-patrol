@@ -158,6 +158,38 @@ The primary convoy/HVT may be materialised inside the tactical bubble and reduce
 
 Distant world = abstract, low-frequency and cheap. Local tactical world = full AI, collision, sensor and rendering work. New features should prefer data profiles and bounded local entities over new permanent animation loops or global per-frame passes. Friendly aircraft deliberately use this rule: at most a very small local presence and statistical offscreen interaction.
 
+### Phase-1 runtime identity gate
+
+Phase 1 ends with identity validation at the lifecycle/save boundary rather than
+with permissive Pacific fallbacks. `createState()` validates the requested
+theater/faction/campaign/submarine tuple and derives its bootstrap patrol area
+from the campaign profile. `Game`, the initial briefing and the scenario
+selector therefore do not name `Solomon Sea` themselves. `startNewPatrol()`
+revalidates/materializes the active identity and chooses any omitted random
+patrol only from that campaign's authored `patrolAreaIds`.
+
+Legacy Pacific saves may omit the four additive identity IDs; `SaveSystem`
+materializes those omissions once to the historical Pacific defaults, stamps
+them into state, and then validates the result. Explicit unknown or mismatched
+IDs are errors. `getCampaignProfile()` and `getSubmarineProfile()` must not
+silently turn such IDs into `us-pacific` / `gato-silversides`. This fail-closed
+rule is important when Atlantic profiles begin to exist: incomplete Atlantic
+content must be obvious instead of producing plausible-looking Pacific leakage.
+
+New career records also carry the four identity IDs plus an optional
+`specialOperationId`. Campaign-authored special-operation commendations are
+resolved from that identity; persistence code must not test for Truk by area
+name.
+
+The player submarine profile also owns the small propulsion/endurance parameter
+set used by the existing lightweight physics. Those characteristics are copied
+into `playerSub.propulsion.characteristics` at patrol/load boundaries so the hot
+loop stays cheap. Generic physics must not assume Gato surface/submerged speeds,
+fuel endurance, battery curve or diesel cutoff. Likewise, generic torpedo code
+must not fall back to `mk14fast` or infer a Mark-14-specific square-impact
+exploder penalty from a generic dud-rate threshold; such impact behavior is an
+authored torpedo-spec trait.
+
 ### Portable profile / save compatibility boundary
 
 The portable player-profile envelope is versioned separately from career records and from serialized patrol state. `SaveSystem._migrateProfile()` translates old envelope formats; `SaveSystem.STATE_SCHEMA_VERSION` plus `_migrateSnapshot()` is the compatibility boundary for manual saves, autosaves and transferred live patrols. Pre-Mega snapshots are schema 0 and are upgraded additively by the existing `ensure*` runtime shims. A future release that makes a destructive state change must add its migration in `_migrateSnapshot()` before increasing the schema version; an older build must reject a newer schema rather than guess. This separation is intentional: adding a future subsystem must not force every historical `.ppprofile.json` backup to mirror the newest in-memory schema.
@@ -180,3 +212,34 @@ The nested same-origin deployment is an explicitly temporary development experim
 
 The build channel is a development convenience, not access control. Do not add hardware fingerprinting or treat `/dev/` as secret. Atlantic feature visibility may key from `PP_BUILD.isDev`, but all security assumptions must remain zero-trust because the complete client-side code is public.
 
+
+### Campaign radio-intelligence boundary
+
+Routine radio copying and stale-position/dead-reckoning are shared mechanics;
+the active campaign owns the presentation and mix of routine broadcasts.
+`US_PACIFIC_RADIO_INTEL_PROFILE` therefore contains the current ULTRA, air,
+lifeguard and weather wording plus the existing routine selection thresholds.
+`radio-intel.js`, MAP and transit interruption resolve those labels through the
+campaign profile. The internal `world.ultra`/`ULTRA` track naming remains a
+Phase-1 compatibility detail for existing state and UI styling; new theater
+code must not depend on that internal name for player-facing terminology.
+
+Intercept planning must also take the boat's authored propulsion characteristics
+rather than a US-fleet-boat constant. The Silversides profile preserves the
+existing 17.5-knot effective flank intercept assumption separately from its
+18-knot maximum surface speed. A future submarine profile must author its own
+value or deliberately use its maximum surface speed.
+
+### Phase-1 completion gate
+
+Phase 1 is complete when the Pacific build passes the deterministic regression
+suite with explicit runtime identity, campaign-authored sensors/equipment,
+vessel identity, convoy/ambient traffic, missions and targets, special
+operations, doctrine/aircraft, radio presentation, and submarine propulsion
+behind profile boundaries. Remaining Pacific names inside Pacific data,
+historical scenarios/tutorial copy, comments, or explicit legacy save aliases
+are not engine dependencies and should not be abstracted merely for cosmetic
+purity. The next theater should add only the concrete data/mechanics required by
+the Type VII vertical slice; if that work exposes a genuinely shared missing
+contract, add it then with a Pacific regression gate rather than pre-building a
+generic framework.

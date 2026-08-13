@@ -1025,12 +1025,15 @@ class SimEngineCore{
   }
 
   startNewPatrol(areaKey,options={}){
-    const keys=Object.keys(PATROL_AREAS);
-    const key=areaKey||keys[Math.floor(Math.random()*keys.length)];
-    const area=PATROL_AREAS[key];
     const s=this.state;
-    const identity=resolveGameIdentity(s);
+    const identity=materializeGameIdentity(s);
     const campaignProfile=getCampaignProfile(identity.campaignProfileId);
+    const keys=Array.isArray(campaignProfile.patrolAreaIds)&&campaignProfile.patrolAreaIds.length
+      ?campaignProfile.patrolAreaIds:Object.keys(PATROL_AREAS);
+    const key=areaKey||keys[Math.floor(Math.random()*keys.length)];
+    if(!keys.includes(key))throw new Error(`Patrol area ${key} does not belong to campaign ${campaignProfile.id}.`);
+    const area=PATROL_AREAS[key];
+    if(!area)throw new Error(`Patrol area data missing: ${key}`);
     const fresh=materializeFreshSubmarine(identity.submarineProfileId,s.tdc?.torpedoSpecKey);
     const subProfile=fresh.profile,weaponProfile=fresh.weapons;
     const prevTotal=Number(s.campaign.totalScore)||0;
@@ -1094,6 +1097,7 @@ class SimEngineCore{
     sub.position=area.start?{...area.start}:{xNm:0,yNm:0};
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
+    sub.propulsion.characteristics=fresh.propulsionProfile;
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
     sub.stealth.silentRunning=false;sub.stealth.acousticSignature=0;
@@ -1133,7 +1137,7 @@ class SimEngineCore{
     showBriefing(key,s);
   }
 
-  /* Nothing may be plotted outside the charted box — an ULTRA fix or a
+  /* Nothing may be plotted outside the charted box — an intelligence fix or a
      contact drawn out in the blank was the clearest way of telling a player
      to go somewhere that does not exist. */
   clampToArea(pos){

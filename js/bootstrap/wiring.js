@@ -9,7 +9,7 @@ const aarController=new AfterActionReport(game);
 globalThis.aarController=aarController;
 const touchCtrl=new TouchCtrl(game,canvasView);
 const tutorial=new Tutorial(game,canvasView,touchCtrl);
-showBriefing('Solomon Sea',game.getSnapshot());
+showBriefing(game.getSnapshot().campaign.patrolArea,game.getSnapshot());
 
 // keep the canvas backing store in sync with its box
 if(window.ResizeObserver){
