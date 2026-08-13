@@ -41,6 +41,16 @@ const SaveSystem={
     return c;
   },
 
+  _cloneStateForStorage(state){
+    const s=JSON.parse(JSON.stringify(state));const obs=s?.tactical?.impactObservation;
+    if(obs){s.tactical.impactObservation=null;if((s.time?.timeScale??0)===0)s.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}
+    return s;
+  },
+
+  _normalizeLoadedState(state){
+    if(!state)return state;const obs=state.tactical?.impactObservation;if(obs){state.tactical.impactObservation=null;if((state.time?.timeScale??0)===0)state.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}return state;
+  },
+
   _careerDefault(){return{version:2,totalScore:0,totalTonnage:0,totalShips:0,patrolHistory:[],commendations:[],legacyPatrols:0};},
 
   _normalizeCareer(raw){
@@ -133,7 +143,7 @@ const SaveSystem={
         hullIntegrity:state.playerSub.damage.hullIntegrity,
         torpedoInventory:state.weapons.torpedoInventory,
         elapsedSeconds:state.time.elapsedSeconds,
-        fullState:JSON.parse(JSON.stringify(state))
+        fullState:this._cloneStateForStorage(state)
       };
       localStorage.setItem(this.KEY+slot,JSON.stringify(snap));
       return true;
@@ -150,7 +160,7 @@ const SaveSystem={
     // ensure methods supply every field introduced since the old save. Put any
     // future destructive/renaming migration HERE before advancing the version.
     if(from===0)snapshot.stateSchemaVersion=1;
-    return snapshot;
+    snapshot.fullState=this._normalizeLoadedState(snapshot.fullState);return snapshot;
   },
 
   load(slot){
@@ -183,7 +193,7 @@ const SaveSystem={
   },
 
   _portableResume(state){
-    if(!state?.playerSub||state.playerSub.mode==='SUNK'||state.campaign?.missionStatus==='TRAINING')return null;
+    if(!state?.playerSub||state.playerSub.mode==='SUNK'||state.campaign?.missionStatus==='LOST'||state.campaign?.missionStatus==='TRAINING')return null;
     if((state.time?.elapsedSeconds||0)<20)return null;
     return{
       savedAt:new Date().toISOString(),version:10,stateSchemaVersion:this.STATE_SCHEMA_VERSION,why:'profile-export',
@@ -191,7 +201,7 @@ const SaveSystem={
       elapsedSeconds:Number(state.time?.elapsedSeconds)||0,
       hullIntegrity:Number(state.playerSub?.damage?.hullIntegrity??100),
       tonnage:Number(state.campaign?.tonnageSunk)||0,
-      fullState:JSON.parse(JSON.stringify(state))
+      fullState:this._cloneStateForStorage(state)
     };
   },
 
@@ -299,7 +309,7 @@ const SaveSystem={
       // before the player has accepted or discarded it.
       if(this._importedResumePending)return false;
       if(!state||!state.playerSub) return false;
-      if(state.playerSub.mode==='SUNK') return false;          // nothing to come back to
+      if(state.playerSub.mode==='SUNK'||state.campaign?.missionStatus==='LOST'){this.autoClear();return false;} // terminal patrol: never resurrect an earlier checkpoint
       if(state.campaign.missionStatus==='TRAINING') return false;
       if((state.time.elapsedSeconds||0)<20) return false;      // not worth a record yet
       const snap={
@@ -308,7 +318,7 @@ const SaveSystem={
         elapsedSeconds:state.time.elapsedSeconds,
         hullIntegrity:state.playerSub.damage.hullIntegrity,
         tonnage:state.campaign.tonnageSunk,
-        fullState:JSON.parse(JSON.stringify(state))
+        fullState:this._cloneStateForStorage(state)
       };
       localStorage.setItem(this.AUTO,JSON.stringify(snap));
       return true;

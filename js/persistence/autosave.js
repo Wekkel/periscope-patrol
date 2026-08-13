@@ -16,7 +16,7 @@ const AutoSave={
     const rec=SaveSystem.autoRead();
     if(!rec||!rec.fullState) return false;
     const st=rec.fullState;
-    if(!st.playerSub||st.playerSub.mode==='SUNK') { SaveSystem.autoClear(); return false; }
+    if(!st.playerSub||st.playerSub.mode==='SUNK'||st.campaign?.missionStatus==='LOST') { SaveSystem.autoClear(); return false; }
     const mins=Math.round((st.time?.elapsedSeconds||0)/60);
     const when=(()=>{try{return new Date(rec.savedAt).toLocaleString('nl-NL',{dateStyle:'short',timeStyle:'short'});}catch{return '';}})();
     const bar=document.getElementById('resumeBar');
