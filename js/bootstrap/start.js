@@ -1,5 +1,5 @@
 Picker.enhanceAll(['tBtnTime','mTimeSel','timeSelect','mTorpSel','mDudSel',
-                   'torpTypeSelect','dudSelect','missionTypeSelect']);
+                   'torpTypeSelect','dudSelect','missionTypeSelect','campaignProfileSelect']);
 
 const helmGauges=new HelmGauges(game,touchCtrl);
 helmGauges.start();
