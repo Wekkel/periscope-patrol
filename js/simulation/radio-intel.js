@@ -6,9 +6,9 @@ class SimEngineIntel extends SimEngineAAGun {
     const R=W.radio;
 
     if(!R.pending){
-      // Truk's special report is a broadcast like any other: knowing that the
-      // transmitter is up is not the same as copying the message. Once its
-      // window opens, give it a near-term radio slot but never create mission
+      // A campaign-authored harbor report is a broadcast like any other: knowing
+      // that the transmitter is up is not the same as copying the message. Once
+      // its window opens, give it a near-term radio slot but never create mission
       // knowledge until applySignal() is reached after 40 seconds of copy.
       const HI=this.ensureHarborIntel?.();
       if(HI&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
@@ -46,12 +46,11 @@ class SimEngineIntel extends SimEngineAAGun {
 
   composeSignal(){
     const W=this.state.world, camp=this.state.campaign;
-    const HI=this.ensureHarborIntel?.();
-    if(HI&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
+    const HI=this.ensureHarborIntel?.(),harborOp=getCampaignHarborOperationProfile(camp.campaignProfileId),special=harborOp?.radioSignal;
+    if(HI&&special&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
        &&this.state.time.elapsedSeconds>=HI.specialSignal.eligibleAt){
       HI.specialSignal.broadcast=true;HI.specialSignal.broadcastAt=this.state.time.elapsedSeconds;
-      return{type:'SPECIAL INTELLIGENCE',subject:'TRUK ANCHORAGE',harborSpecial:true,
-        text:`HEAVY UNIT REPORTED AT TRUK ANCHORAGE. DEPARTURE UNKNOWN. ATTACK AT COMMANDING OFFICER'S DISCRETION.`};
+      return{type:special.type,subject:special.subject,harborSpecial:true,text:special.text};
     }
     const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT'&&!c.harborTarget&&(!c.side||c.side==='ENEMY'));
     const shipping=(this.trafficIntelCandidates?.()||[]).filter(x=>x.side==='ENEMY');

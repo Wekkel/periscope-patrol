@@ -1,10 +1,8 @@
 class SimEngineHarbor extends SimEngineCore {
-  /* ══ ENEMY HARBOUR — first full prototype: TRUK ════════════════════
-     Enemy ports used to be red squares on the chart and nothing more. Truk is
-     now a place the player can deliberately penetrate: a persistent mine belt
-     with a swept channel, a torpedo-net gate, harbour hydrophones, searchlights
-     and coastal batteries, plus moored high-value targets that are generated
-     once per patrol and then stay where they are. */
+  /* ══ ENEMY HARBOUR / SPECIAL OPERATION ══════════════════════════════
+     The campaign authors the location, geometry, targets and presentation. This
+     engine owns only the reusable defended-harbour mechanics: persistent mines,
+     swept approach, torpedo net, hydrophones, searchlights and coastal batteries. */
   ensureWorldExtensions(){
     const W=this.state.world, G=this.state.weapons, C=this.state.campaign;
     if(!Array.isArray(C.optionalObjectives)) C.optionalObjectives=[]; // migrate pre-Phase-2 saves
@@ -17,28 +15,34 @@ class SimEngineHarbor extends SimEngineCore {
     else if(W.harborIntel===undefined) W.harborIntel=null;
   }
 
+  harborOperationProfile(){
+    return getCampaignHarborOperationProfile(this.state.campaign?.campaignProfileId);
+  }
+
   setupHarbor(areaKey){
-    const W=this.state.world, area=PATROL_AREAS[areaKey];
+    const W=this.state.world, area=PATROL_AREAS[areaKey], op=this.harborOperationProfile();
     W.harborInitialized=true; W.harbor=null;
-    if(!area||areaKey!=='Truk Approaches') return;
-    const port=(area.ports||[]).find(p=>p.side==='ENEMY'&&/Truk/i.test(p.name));
+    if(!area||!op||areaKey!==op.areaKey) return;
+    const port=(area.ports||[]).find(p=>p.side==='ENEMY'&&p.name===op.portName);
     if(!port) return;
+    const g=op.geometry||{};
     const H=W.harbor={
-      name:port.name,center:{...port.pos},outerRadiusNm:5.6,innerRadiusNm:1.25,
-      channelBearing:68,channelHalfWidthNm:0.42,channelSafeHalfWidthNm:0.34,channelDepthFeet:120,innerBasinDepthFeet:110,
-      mineInnerNm:2.15,mineOuterNm:4.75,
-      netRangeNm:1.82,netHalfSpanNm:1.18,netGapHalfNm:0.28,netMaxDepthFt:320,
-      hydrophoneRangeNm:4.6,batteryRangeNm:5.1,
+      name:port.name,shortName:op.shortName||port.name,operationId:op.id,optionalObjectiveId:op.optionalObjectiveId,heavyTargetId:op.targets?.heavy?.id||null,
+      center:{...port.pos},outerRadiusNm:g.outerRadiusNm,innerRadiusNm:g.innerRadiusNm,
+      channelBearing:g.channelBearing,channelHalfWidthNm:g.channelHalfWidthNm,channelSafeHalfWidthNm:g.channelSafeHalfWidthNm,channelDepthFeet:g.channelDepthFeet,innerBasinDepthFeet:g.innerBasinDepthFeet,
+      mineInnerNm:g.mineInnerNm,mineOuterNm:g.mineOuterNm,
+      netRangeNm:g.netRangeNm,netHalfSpanNm:g.netHalfSpanNm,netGapHalfNm:g.netGapHalfNm,netMaxDepthFt:g.netMaxDepthFt,
+      hydrophoneRangeNm:g.hydrophoneRangeNm,batteryRangeNm:g.batteryRangeNm,
       suspicion:0,alert:0,entered:false,inside:false,lastGunAt:-999,lastSweepAt:-999,
       mines:[]
     };
     // Physical mines: positions are randomised ONCE, not rerolled as the player
     // approaches. The chart only shows the belt and swept channel, never the
     // individual mines.
-    let tries=0;
-    while(H.mines.length<30&&tries++<300){
+    const mineSpec=op.mines||{};let tries=0;
+    while(H.mines.length<(mineSpec.count||0)&&tries++<(mineSpec.maxPlacementAttempts||0)){
       const a=Math.random()*360;
-      if(Math.abs(shortDelta(H.channelBearing,a))<13) continue; // swept approach
+      if(Math.abs(shortDelta(H.channelBearing,a))<(mineSpec.channelExclusionDeg||0)) continue;
       const rr=H.mineInnerNm+Math.random()*(H.mineOuterNm-H.mineInnerNm);
       const r=degToRad(a);
       H.mines.push({xNm:H.center.xNm+Math.sin(r)*rr,
@@ -46,22 +50,18 @@ class SimEngineHarbor extends SimEngineCore {
     }
 
     if(!W.contacts.some(c=>c.harborTarget)){
-      const put=(id,name,type,displayType,brg,rng,length,tons,value,profile=1)=>{
-        const r=degToRad(brg);
-        W.contacts.push(materializeVesselIdentity({id,name,type,displayType,lengthYards:length,visualProfile:profile,
-          acousticBase:0.05,tonsFactor:tons,harborValue:value,harborTarget:true,stationary:true,
-          position:{xNm:H.center.xNm+Math.sin(r)*rng,yNm:H.center.yNm-Math.cos(r)*rng},
-          heading:normDeg(brg+85),speedKnots:0,desiredSpeed:0,baseSpeed:0,convoyRole:'HARBOR'},this.state));
+      const put=spec=>{
+        const r=degToRad(spec.bearing);
+        W.contacts.push(materializeVesselIdentity({id:spec.id,name:spec.name,type:spec.type,vesselProfileId:spec.vesselProfileId,displayType:spec.displayType,lengthYards:spec.lengthYards,visualProfile:spec.visualProfile,
+          acousticBase:0.05,tonsFactor:spec.tonsFactor,harborValue:spec.harborValue,harborTarget:true,stationary:true,
+          position:{xNm:H.center.xNm+Math.sin(r)*spec.rangeNm,yNm:H.center.yNm-Math.cos(r)*spec.rangeNm},
+          heading:normDeg(spec.bearing+85),speedKnots:0,desiredSpeed:0,baseSpeed:0,convoyRole:'HARBOR'},this.state));
       };
-      put('H-01','Fleet Oiler','TANKER','FLEET OILER',205,0.72,560,10500,2600,1.12);
-      put('H-02','Army Transport','MERCHANT','TROOP TRANSPORT',318,0.62,500,7600,2200,1.02);
-      put('H-03','Cargo Vessel','MERCHANT','CARGO SHIP',112,0.92,430,4800,1800,0.96);
-      // The jackpot is deliberately uncertain. It is decided at patrol creation
-      // and never respawned or moved later.
-      if(Math.random()<0.38)
-        put('H-04','Japanese Fleet Carrier','CARRIER','FLEET CARRIER',28,0.46,820,26000,9000,1.45);
-      else
-        put('H-04','Heavy Cruiser','HEAVY_CRUISER','HEAVY CRUISER',28,0.46,660,13500,5200,1.22);
+      for(const spec of op.targets?.fixed||[])put(spec);
+      // The high-value identity is deliberately uncertain. It is decided at patrol
+      // creation and never respawned or moved later.
+      const heavy=op.targets?.heavy;
+      if(heavy){const variant=Math.random()<heavy.chance?heavy.high:heavy.low;put({...variant,id:heavy.id});}
     }
 
     this.ensureHarborIntel(true);
@@ -72,20 +72,25 @@ class SimEngineHarbor extends SimEngineCore {
      physical mine points, net geometry and moored ships above remain the
      authoritative world truth; this object stores only reports and observations. */
   ensureHarborIntel(fresh=false){
-    const W=this.state.world,H=W.harbor,C=this.state.campaign;
-    if(!H) return null;
-    // Save migration for patrols created before the navigable swept-channel and
-    // closed defensive-net model were introduced.
-    if(H.channelSafeHalfWidthNm==null)H.channelSafeHalfWidthNm=.34;
-    if(H.channelDepthFeet==null)H.channelDepthFeet=120;
-    if(H.innerBasinDepthFeet==null)H.innerBasinDepthFeet=110;
-    if(H.netMaxDepthFt==null)H.netMaxDepthFt=320;
+    const W=this.state.world,H=W.harbor,C=this.state.campaign,op=this.harborOperationProfile();
+    if(!H||!op) return null;
+    const g=op.geometry||{};
+    // Additive save migration: old Pacific patrols predate the explicit special-
+    // operation identity but already contain the authoritative harbor truth.
+    if(H.operationId==null)H.operationId=op.id;
+    if(H.optionalObjectiveId==null)H.optionalObjectiveId=op.optionalObjectiveId;
+    if(H.heavyTargetId==null)H.heavyTargetId=op.targets?.heavy?.id||null;
+    if(H.shortName==null)H.shortName=op.shortName||H.name;
+    if(H.channelSafeHalfWidthNm==null)H.channelSafeHalfWidthNm=g.channelSafeHalfWidthNm;
+    if(H.channelDepthFeet==null)H.channelDepthFeet=g.channelDepthFeet;
+    if(H.innerBasinDepthFeet==null)H.innerBasinDepthFeet=g.innerBasinDepthFeet;
+    if(H.netMaxDepthFt==null)H.netMaxDepthFt=g.netMaxDepthFt;
     if(!Array.isArray(C.optionalObjectives)) C.optionalObjectives=[];
     let I=W.harborIntel;
     if(!I||fresh){
       I=W.harborIntel={
         harborName:H.name,
-        specialSignal:{eligibleAt:480+Math.random()*420,broadcast:false,copied:false,broadcastAt:null,copiedAt:null},
+        specialSignal:{eligibleAt:(op.intel?.eligibleBaseSec||0)+Math.random()*(op.intel?.eligibleSpreadSec||0),broadcast:false,copied:false,broadcastAt:null,copiedAt:null},
         minefield:{level:'NONE',
           reportCenterDx:(Math.random()-.5)*.55,reportCenterDy:(Math.random()-.5)*.55,
           reportedInnerNm:Math.max(.8,H.mineInnerNm-.45+Math.random()*.35),
@@ -114,29 +119,28 @@ class SimEngineHarbor extends SimEngineCore {
   }
 
   harborOptionalObjective(){
-    const C=this.state.campaign;
+    const C=this.state.campaign,H=this.state.world.harbor;
     C.optionalObjectives=Array.isArray(C.optionalObjectives)?C.optionalObjectives:[];
-    return C.optionalObjectives.find(o=>o.id==='truk-raid')||null;
+    return H?.optionalObjectiveId?C.optionalObjectives.find(o=>o.id===H.optionalObjectiveId)||null:null;
   }
 
   harborIdentityLabel(identity){
-    if(/FLEET CARRIER/i.test(identity||'')) return 'Fleet carrier';
-    if(/HEAVY CRUISER/i.test(identity||'')) return 'Heavy cruiser';
-    return 'Heavy unit';
+    const raw=String(identity||'HEAVY UNIT').trim().toLowerCase();
+    return raw?raw[0].toUpperCase()+raw.slice(1):'Heavy unit';
   }
 
   refreshHarborOptionalObjective(){
     const I=this.ensureHarborIntel();if(!I||!I.specialSignal.copied) return null;
-    const C=this.state.campaign;
+    const C=this.state.campaign,H=this.state.world.harbor;
     let O=this.harborOptionalObjective();
     if(!O){
-      O={id:'truk-raid',text:'Investigate Truk Anchorage',done:false,failed:false,optional:true,result:I.raid.result};
+      O={id:H.optionalObjectiveId,text:`Investigate ${H.name}`,done:false,failed:false,optional:true,result:I.raid.result};
       C.optionalObjectives.push(O);
     }
     const label=I.heavyUnit.identified?this.harborIdentityLabel(I.heavyUnit.identity):null;
-    if(I.raid.reconComplete) O.text=`Intelligence complete — ${label||'heavy unit'} identified inside Truk Anchorage`;
-    else if(I.raid.gateCrossed) O.text=label?`Confirm ${label.toLowerCase()} inside Truk Anchorage`:'Identify the reported heavy unit inside Truk Anchorage';
-    else O.text='Penetrate Truk Anchorage through the swept approach and identify the reported heavy unit';
+    if(I.raid.reconComplete) O.text=`Intelligence complete — ${label||'heavy unit'} identified inside ${H.name}`;
+    else if(I.raid.gateCrossed) O.text=label?`Confirm ${label.toLowerCase()} inside ${H.name}`:`Identify the reported heavy unit inside ${H.name}`;
+    else O.text=`Penetrate ${H.name} through the swept approach and identify the reported heavy unit`;
     O.result=I.raid.result;
     O.done=!!I.raid.reconComplete;
     O.failed=false; // Optional means exactly that: ignoring it is never a patrol failure.
@@ -150,7 +154,8 @@ class SimEngineHarbor extends SimEngineCore {
     if(I.minefield.level==='NONE') I.minefield.level='REPORTED';
     if(I.channel.level==='NONE') I.channel.level='REPORTED';
     this.refreshHarborOptionalObjective();
-    this.notify('OPTIONAL OBJECTIVE — Penetrate Truk Anchorage through the swept approach and identify the reported heavy unit. Visual sightings from outside the torpedo net do not complete the intelligence objective. No penalty if you decline.','warn');
+    const H=this.state.world.harbor;
+    this.notify(`OPTIONAL OBJECTIVE — Penetrate ${H.name} through the swept approach and identify the reported heavy unit. Visual sightings from outside the torpedo net do not complete the intelligence objective. No penalty if you decline.`,'warn');
     this.notify('CHART UPDATED — Reported mine belt and swept approach plotted. Keep near the centerline; the passage is charted deep enough for submerged approach. The intelligence objective requires entry inside the torpedo net. Gate not yet located.','warn');
     return true;
   }
@@ -158,7 +163,7 @@ class SimEngineHarbor extends SimEngineCore {
   revealHarborNet(source='VISUAL'){
     const I=this.ensureHarborIntel();if(!I||I.net.known) return false;
     I.net.known=true;I.net.discoveredAt=this.state.time.elapsedSeconds;I.net.source=source;
-    this.notify(`MAP UPDATED — torpedo net identified at the Truk entrance${source==='CONTACT'?' by close contact':''}. The observed gate is now marked separately from the swept mine approach.`,'warn');
+    const H=this.state.world.harbor;this.notify(`MAP UPDATED — torpedo net identified at the ${H.shortName} entrance${source==='CONTACT'?' by close contact':''}. The observed gate is now marked separately from the swept mine approach.`,'warn');
     return true;
   }
 
@@ -177,7 +182,7 @@ class SimEngineHarbor extends SimEngineCore {
     if(!contact?.harborTarget) return;
     const I=this.ensureHarborIntel();if(!I) return;
     I.raid.attempted=true;I.raid.enteredAt=I.raid.enteredAt??this.state.time.elapsedSeconds;
-    if(contact.id==='H-04'){
+    const H=this.state.world.harbor;if(contact.id===H?.heavyTargetId){
       if(contact.sunk) I.raid.result='sunk';
       else if(shipDamageSeverity(contact)>.05||(contact.gunDamage||0)>0) I.raid.result='damaged';
     }
@@ -207,14 +212,14 @@ class SimEngineHarbor extends SimEngineCore {
 
     // Identity comes only from the boat's own visual track. A radio report says
     // HEAVY UNIT and nothing more; hydrophones cannot turn that into a carrier.
-    const tr=W.contactTracks['H-04'];
+    const tr=W.contactTracks[H.heavyTargetId];
     if(!I.heavyUnit.identified&&tr&&tr.source==='VISUAL'&&tr.confidence>=.65
        &&tr.typeEstimate&&tr.typeEstimate!=='UNKNOWN'&&tr.typeEstimate!=='SURFACE SHIP'){
       I.heavyUnit.identified=true;I.heavyUnit.identity=tr.typeEstimate;I.heavyUnit.identifiedAt=now;
       this.refreshHarborOptionalObjective();
-      const label=this.harborIdentityLabel(tr.typeEstimate);
-      this.captainLog?.('HEAVY_UNIT_IDENTIFIED',`${label} identified at Truk Anchorage.`,{identity:tr.typeEstimate},'truk-heavy-identified');
-      this.notify(`TRUK VISUAL IDENTIFICATION — ${label.toUpperCase()} at anchor.`,'ok');
+      const label=this.harborIdentityLabel(tr.typeEstimate),events=this.harborOperationProfile()?.events||{};
+      this.captainLog?.(events.visualIdentifiedId||'HEAVY_UNIT_IDENTIFIED',`${label} identified at ${H.name}.`,{identity:tr.typeEstimate},events.visualIdentifiedKey||'heavy-unit-identified');
+      this.notify(`${events.visualBanner||'VISUAL IDENTIFICATION'} — ${label.toUpperCase()} at anchor.`,'ok');
     }
 
     this.updateHarborGateProgress(I,H,sub);
@@ -223,7 +228,7 @@ class SimEngineHarbor extends SimEngineCore {
       this.notify('VISUAL IDENTIFICATION MADE — but the intelligence objective still requires penetration inside the torpedo net through the swept approach.','warn');
     }
 
-    const heavy=W.contacts.find(c=>c.id==='H-04'&&c.harborTarget);
+    const heavy=W.contacts.find(c=>c.id===H.heavyTargetId&&c.harborTarget);
     if(heavy?.sunk) I.raid.result='sunk';
     else if((heavy&&shipDamageSeverity(heavy)>.05)||(heavy?.gunDamage||0)>0) I.raid.result='damaged';
     if(rng<H.innerRadiusNm&&!I.raid.attempted){I.raid.attempted=true;I.raid.enteredAt=now;}
@@ -250,8 +255,9 @@ class SimEngineHarbor extends SimEngineCore {
     I.raid.lastChannelAlongNm=f.along;
     if(I.raid.gateCrossed&&I.heavyUnit.identified&&!I.raid.reconComplete){
       I.raid.reconComplete=true;if(I.raid.result==='not_attempted'||I.raid.result==='abandoned')I.raid.result='recon_complete';
-      this.captainLog?.('TRUK_RECON_COMPLETE',`${this.harborIdentityLabel(I.heavyUnit.identity)} identified after penetrating the Truk torpedo-net gate.`,{identity:I.heavyUnit.identity},'truk-recon-complete');
-      this.notify(`INTELLIGENCE OBJECTIVE COMPLETE — ${this.harborIdentityLabel(I.heavyUnit.identity).toUpperCase()} positively identified inside Truk Anchorage.`,'ok');
+      const events=this.harborOperationProfile()?.events||{};
+      this.captainLog?.(events.reconCompleteId||'HARBOR_RECON_COMPLETE',`${this.harborIdentityLabel(I.heavyUnit.identity)} identified after penetrating the ${H.shortName} torpedo-net gate.`,{identity:I.heavyUnit.identity},events.reconCompleteKey||'harbor-recon-complete');
+      this.notify(`INTELLIGENCE OBJECTIVE COMPLETE — ${this.harborIdentityLabel(I.heavyUnit.identity).toUpperCase()} positively identified inside ${H.name}.`,'ok');
     }
   }
 

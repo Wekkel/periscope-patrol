@@ -657,8 +657,9 @@ class CanvasView extends CanvasViewSound {
       ctx.strokeStyle='rgba(111,224,143,.94)';ctx.lineWidth=Math.max(1.5,2*K);ctx.beginPath();ctx.arc(gp.x,gp.y,Math.max(4.5*K,5),0,Math.PI*2);ctx.stroke();
       ctx.fillStyle='rgba(151,238,181,.95)';ctx.font=this.fnt(7.2,true);ctx.fillText('GATE',gp.x,gp.y+12*K);
     }
-    const trukObj=campaign?.optionalObjectives?.find?.(o=>o.id==='truk-raid');
-    if(trukObj&&!trukObj.done){const r=degToRad(H.channelBearing),a=I?.net?.known?H.netRangeNm:Math.max(2.1,H.mineInnerNm+.2),q=w2s(H.center.xNm+Math.sin(r)*a,H.center.yNm-Math.cos(r)*a);ctx.fillStyle='rgba(245,198,92,.92)';ctx.font=this.fnt(6.4,true);ctx.textAlign='center';ctx.fillText(I?.net?.known?'INTEL OBJECTIVE · PASS GATE':'INTEL OBJECTIVE · ENTRY INSIDE NET REQUIRED',q.x,q.y+24*K);}
+    const objectiveId=H.optionalObjectiveId||getCampaignHarborOperationProfile(campaign?.campaignProfileId)?.optionalObjectiveId;
+    const harborObj=objectiveId?campaign?.optionalObjectives?.find?.(o=>o.id===objectiveId):null;
+    if(harborObj&&!harborObj.done){const r=degToRad(H.channelBearing),a=I?.net?.known?H.netRangeNm:Math.max(2.1,H.mineInnerNm+.2),q=w2s(H.center.xNm+Math.sin(r)*a,H.center.yNm-Math.cos(r)*a);ctx.fillStyle='rgba(245,198,92,.92)';ctx.font=this.fnt(6.4,true);ctx.textAlign='center';ctx.fillText(I?.net?.known?'INTEL OBJECTIVE · PASS GATE':'INTEL OBJECTIVE · ENTRY INSIDE NET REQUIRED',q.x,q.y+24*K);}
 
     // Battery positions are estimates created by observed fire, never truth
     // locations or weapon-range circles.

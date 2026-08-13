@@ -129,6 +129,12 @@ The active campaign owns player-facing mission definitions and the patrol-area m
 
 Concrete mission actors are campaign content as well. The `us-pacific` mission profile now owns the high-value intercept variants, Truk-specific reconnaissance contact IDs, fallback reconnaissance/escort/harbor vessels and the lifeguard survivor template. `mission-framework.js` may choose, place, track and score these objects, but it must not know Japanese vessel names or Pacific contact IDs. When a mission reassigns an existing vessel to a different tactical class, refresh `gameplayType`, `vesselProfileId` and `modelKey` together with legacy `type`; otherwise a visually promoted carrier/tanker can retain stale merchant identity from the source convoy contact.
 
+### Theater special-operation boundary
+
+Campaign-authored special operations are separate from their reusable mechanics. `US_PACIFIC_SPECIAL_OPERATIONS_PROFILE` owns the current Truk operation's area/port identity, harbor geometry, mine layout parameters, moored target roster, optional-objective identity, special radio signal and AAR event presentation. `harbor.js` owns only defended-harbor simulation; `radio-intel.js` copies the campaign-authored signal; MAP and AAR resolve the materialized operation/objective identity rather than testing for Truk-specific IDs.
+
+Do not add a North Atlantic port by branching on area names inside `harbor.js`. A future campaign may omit a harbor special operation entirely or author one concrete operation when there is a gameplay use case. Keep the profile literal rather than growing a general scenario DSL. Existing Pacific saves are migrated additively by `ensureHarborIntel()` so their physical mine/target truth is not rerolled.
+
 ### Lazy patrol terrain
 
 `PATROL_AREAS` is metadata. `getPatrolTerrain(areaKey)` expands only the selected coastline and keeps a one-area terrain cache; the bathymetry cache is invalidated when the selected area changes. This is deliberate for the Helios-class mobile performance target. Adding patrol areas must not reintroduce `terrain: buildTerrain(...)` in every `PATROL_AREAS` entry.

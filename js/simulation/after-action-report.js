@@ -21,7 +21,7 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
       const c=this.state.campaign;
       if(reset||!c.afterAction||c.afterAction.version!==AAR_VERSION){
         c.afterAction={version:AAR_VERSION,route:[],observedById:{},truthById:{},events:[],torpedoes:[],aircraftEvaded:0,
-          _routeClock:999,_trackClock:999,_airStates:{},_seenTrackIds:{},_trukPenetrationLogged:false};
+          _routeClock:999,_trackClock:999,_airStates:{},_seenTrackIds:{},_harborPenetrationLogged:false};
       }
       return c.afterAction;
     },
@@ -97,7 +97,11 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
         st.lastState=a.state;st.shotDown=!!a.shotDown;
       }
       for(const [id,st] of Object.entries(A._airStates)){if(live[id]||st.finished)continue;st.finished=true;if(st.attacked&&!st.shotDown){A.aircraftEvaded++;this.aarRecordEvent('AIRCRAFT_EVADED','Aircraft attack evaded.',{aircraftId:id},st.pos);}}
-      const I=W.harborIntel;if(I?.raid?.attempted&&!A._trukPenetrationLogged){A._trukPenetrationLogged=true;this.aarRecordEvent('TRUK_PENETRATION','Entered the Truk anchorage defenses.',{},sub.position);}
+      // Migrate recorder state from the original Truk-only flag without replaying
+      // the penetration event when an in-progress patrol loads after this refactor.
+      if(A._harborPenetrationLogged==null)A._harborPenetrationLogged=!!A._trukPenetrationLogged;
+      const I=W.harborIntel,harborOp=getCampaignHarborOperationProfile(c.campaignProfileId),event=harborOp?.events;
+      if(I?.raid?.attempted&&!A._harborPenetrationLogged&&event?.penetrationId){A._harborPenetrationLogged=true;this.aarRecordEvent(event.penetrationId,event.penetrationText,{},sub.position);}
     },
 
     buildAfterActionReplay(){

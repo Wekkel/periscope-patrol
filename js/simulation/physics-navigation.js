@@ -503,11 +503,11 @@ class SimEngine extends SimEngineCareer {
            sensor plot. There is deliberately no visual-memory grace period. */
         if(crewVisual){ex.visualHullConfirmed=true;ex.hullConfirmedAt=now;}
         else ex.visualHullConfirmed=false;
-        // The Truk heavy unit is deliberately reported only as HEAVY UNIT.
-        // Hydrophones may build a good positional track, but they do not hand
-        // the player a magical carrier/cruiser classification. Exact identity
-        // requires the visual source consumed by updateHarborKnowledge().
-        if(smokeOnly||(c.harborTarget&&c.id==='H-04'&&src!=='VISUAL'))
+        // A campaign-authored harbor heavy unit may be deliberately reported only
+        // as HEAVY UNIT. Hydrophones may build a good positional track, but they
+        // do not hand the player a magical classification. Exact identity requires
+        // the visual source consumed by updateHarborKnowledge().
+        if(smokeOnly||(c.harborTarget&&c.id===this.state.world.harbor?.heavyTargetId&&src!=='VISUAL'))
           ex.typeEstimate=ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         else ex.typeEstimate=ex.confidence>0.65?knownType:ex.confidence>0.35?'SURFACE SHIP':'UNKNOWN';
         ex.contactType=c.type;

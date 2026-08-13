@@ -543,13 +543,11 @@ class SimEngineCore{
     const ap=this.state?.campaign?.portApproach;
     if(ap?.safeWater&&ap.pos&&distNm(pos,ap.pos)<=0.305) feet=Math.max(feet,ap.safeDepthFeet||90);
 
-    /* Truk's swept approach is a gameplay-authored navigation channel laid on
-       top of synthetic bathymetry. The raw coast-distance grid happens to put
-       the official approach in ~24 ft while leaving uncharted sides much
-       deeper, which inverts the intended risk/reward. Treat the central swept
-       passage and inner anchorage as surveyed/dredged navigable water. The
-       surrounding reef/shoal grid remains untouched, so leaving the plotted
-       approach is still a real hazard. */
+    /* A campaign-authored swept harbor approach may override synthetic
+       bathymetry inside its charted channel. Treat the central passage and inner
+       anchorage as surveyed/dredged navigable water while leaving the surrounding
+       reef/shoal grid untouched, so leaving the plotted approach remains a real
+       hazard. */
     const H=this.state?.world?.harbor;
     if(H&&pos){
       const r=degToRad(H.channelBearing),dx=pos.xNm-H.center.xNm,dy=pos.yNm-H.center.yNm;

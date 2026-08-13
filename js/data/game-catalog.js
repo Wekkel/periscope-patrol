@@ -14,7 +14,7 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=6;
+const PP_CATALOG_VERSION=7;
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
@@ -401,6 +401,53 @@ const US_PACIFIC_MISSION_PROFILE=Object.freeze({
   })
 });
 
+
+/* Theater-specific special operations remain authored campaign content even
+   when their mechanics (mines, nets, harbor hydrophones, searchlights and
+   coastal batteries) are reusable engine systems. Keep this profile literal:
+   it describes the current Truk operation without creating a generic scenario
+   language that Atlantic does not yet need. */
+const US_PACIFIC_SPECIAL_OPERATIONS_PROFILE=Object.freeze({
+  id:'us-pacific-special-operations-v1',
+  harborRaid:Object.freeze({
+    id:'truk-raid',
+    areaKey:'Truk Approaches',
+    portName:'Truk Anchorage',
+    shortName:'Truk',
+    optionalObjectiveId:'truk-raid',
+    geometry:Object.freeze({
+      outerRadiusNm:5.6,innerRadiusNm:1.25,
+      channelBearing:68,channelHalfWidthNm:.42,channelSafeHalfWidthNm:.34,channelDepthFeet:120,innerBasinDepthFeet:110,
+      mineInnerNm:2.15,mineOuterNm:4.75,
+      netRangeNm:1.82,netHalfSpanNm:1.18,netGapHalfNm:.28,netMaxDepthFt:320,
+      hydrophoneRangeNm:4.6,batteryRangeNm:5.1
+    }),
+    mines:Object.freeze({count:30,maxPlacementAttempts:300,channelExclusionDeg:13}),
+    targets:Object.freeze({
+      fixed:Object.freeze([
+        Object.freeze({id:'H-01',name:'Fleet Oiler',type:'TANKER',vesselProfileId:'jp-tanker',displayType:'FLEET OILER',bearing:205,rangeNm:.72,lengthYards:560,tonsFactor:10500,harborValue:2600,visualProfile:1.12}),
+        Object.freeze({id:'H-02',name:'Army Transport',type:'MERCHANT',vesselProfileId:'jp-transport',displayType:'TROOP TRANSPORT',bearing:318,rangeNm:.62,lengthYards:500,tonsFactor:7600,harborValue:2200,visualProfile:1.02}),
+        Object.freeze({id:'H-03',name:'Cargo Vessel',type:'MERCHANT',vesselProfileId:'jp-merchant',displayType:'CARGO SHIP',bearing:112,rangeNm:.92,lengthYards:430,tonsFactor:4800,harborValue:1800,visualProfile:.96})
+      ]),
+      heavy:Object.freeze({
+        id:'H-04',chance:.38,
+        high:Object.freeze({name:'Japanese Fleet Carrier',type:'CARRIER',vesselProfileId:'jp-carrier',displayType:'FLEET CARRIER',bearing:28,rangeNm:.46,lengthYards:820,tonsFactor:26000,harborValue:9000,visualProfile:1.45}),
+        low:Object.freeze({name:'Heavy Cruiser',type:'HEAVY_CRUISER',vesselProfileId:'jp-heavy-cruiser',displayType:'HEAVY CRUISER',bearing:28,rangeNm:.46,lengthYards:660,tonsFactor:13500,harborValue:5200,visualProfile:1.22})
+      })
+    }),
+    intel:Object.freeze({eligibleBaseSec:480,eligibleSpreadSec:420}),
+    radioSignal:Object.freeze({
+      type:'SPECIAL INTELLIGENCE',subject:'TRUK ANCHORAGE',
+      text:"HEAVY UNIT REPORTED AT TRUK ANCHORAGE. DEPARTURE UNKNOWN. ATTACK AT COMMANDING OFFICER'S DISCRETION."
+    }),
+    events:Object.freeze({
+      visualIdentifiedId:'HEAVY_UNIT_IDENTIFIED',visualIdentifiedKey:'truk-heavy-identified',visualBanner:'TRUK VISUAL IDENTIFICATION',
+      reconCompleteId:'TRUK_RECON_COMPLETE',reconCompleteKey:'truk-recon-complete',
+      penetrationId:'TRUK_PENETRATION',penetrationText:'Entered the Truk anchorage defenses.'
+    })
+  })
+});
+
 const CAMPAIGN_PROFILES=Object.freeze({
   'us-pacific':Object.freeze({
     id:'us-pacific',
@@ -415,7 +462,8 @@ const CAMPAIGN_PROFILES=Object.freeze({
     historicalModel:US_PACIFIC_HISTORICAL_MODEL,
     primaryConvoyProfile:US_PACIFIC_PRIMARY_CONVOY_PROFILE,
     ambientTrafficProfile:US_PACIFIC_AMBIENT_TRAFFIC_PROFILE,
-    missionProfile:US_PACIFIC_MISSION_PROFILE
+    missionProfile:US_PACIFIC_MISSION_PROFILE,
+    specialOperationsProfile:US_PACIFIC_SPECIAL_OPERATIONS_PROFILE
   })
 });
 
@@ -435,6 +483,14 @@ function getCampaignMissionProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfi
      mission profile is an authoring error and must not leak COMSUBPAC orders
      or Pacific area selection into another theater. */
   return CAMPAIGN_PROFILES[profileId]?.missionProfile||null;
+}
+
+function getCampaignSpecialOperationsProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  return CAMPAIGN_PROFILES[profileId]?.specialOperationsProfile||null;
+}
+
+function getCampaignHarborOperationProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  return getCampaignSpecialOperationsProfile(profileId)?.harborRaid||null;
 }
 
 function getCampaignHistoricalModel(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
