@@ -73,6 +73,7 @@ class CanvasViewCore{
       else this.drawTactical(ctx,w,h,state);
       ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
       this.drawHitFlash(ctx,w,h,state);
+      this.drawOwnBoatImpact(ctx,w,h,state);
       if(state.tactical.impactObservation&&this.drawImpactObservation)this.drawImpactObservation(ctx,w,h,state);
       else{
         this.drawAirAlarm(ctx,w,h,state);
@@ -107,14 +108,25 @@ class CanvasViewCore{
     }
   }
 
+  drawOwnBoatImpact(ctx,w,h,state){
+    const q=state.world?.ownHitVisual;if(!q?.wallAt)return;const wall=typeof performance!=='undefined'?performance.now():Date.now(),age=(wall-q.wallAt)/1000;if(age<0||age>.9)return;
+    const u=clamp(age/.9,0,1),a=(1-u)*clamp(.25+(Number(q.amount)||0)/38,.28,.78),K=this.k;ctx.save();
+    // On MAP show exactly what happened to ownship; elsewhere use a restrained
+    // edge concussion that remains visible with the device muted.
+    if(state.tactical.activeStation==='MAP'&&this._w2s){const p=this._w2s(state.playerSub.position.xNm,state.playerSub.position.yNm),r=(12+42*u)*K;ctx.strokeStyle=`rgba(239,106,88,${a})`;ctx.lineWidth=Math.max(2,4*K*(1-u*.55));ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(p.x,p.y,r*.55,0,Math.PI*2);ctx.stroke();}
+    const g=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*.18,w/2,h/2,Math.hypot(w,h)*.62);g.addColorStop(0,'rgba(110,20,12,0)');g.addColorStop(.68,`rgba(170,42,25,${a*.12})`);g.addColorStop(1,`rgba(239,106,88,${a*.42})`);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);ctx.restore();
+  }
+
   drawSoundCallout(ctx,w,h,state){
-    const r=state.world.sound?.lastOperatorReport;if(!r||state.time.elapsedSeconds>(r.until||0)||state.tactical.activeStation==='SOUND')return;
-    const k=this.k,touch=document.documentElement?.dataset?.lay==='touch';
-    const safeL=touch?78*k:10*k,safeR=touch?94*k:10*k,bw=Math.min(Math.max(120*k,w-safeL-safeR),430*k),bh=touch?34*k:25*k,x=touch?safeL:10*k,y=h-bh-8*k;
+    const r=state.world.sound?.lastOperatorReport,wall=typeof performance!=='undefined'?performance.now():Date.now();
+    if(!r||(state.time.elapsedSeconds>(r.until||0)&&wall>(r.wallUntil||0))||state.tactical.activeStation==='SOUND')return;
+    const k=this.k,touch=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    const side=touch?Math.min(96*k,w*.23):10*k,x=side,bw=Math.max(132*k,Math.min(w-side*2,430*k));
+    ctx.font=this.fnt(8.4,true);const words=String(r.text||'').split(/\s+/),lines=[''];
+    for(const word of words){const test=(lines.at(-1)+' '+word).trim();if(lines.length<2&&lines.at(-1)&&ctx.measureText(test).width>bw-16*k)lines.push(word);else lines[lines.length-1]=test;}
+    const bh=(lines.length>1?38:25)*k,y=h-bh-8*k;
     ctx.fillStyle='rgba(3,18,20,.90)';this.rr(ctx,x,y,bw,bh,5*k);ctx.fill();ctx.strokeStyle='rgba(89,151,133,.72)';ctx.lineWidth=Math.max(1,k);ctx.stroke();
-    ctx.fillStyle='rgba(205,238,223,.92)';ctx.font=this.fnt(touch?8.0:8.6,true);
-    if(touch){const cut=r.text.indexOf(' · '),a=cut>0?r.text.slice(0,cut):r.text,b=cut>0?r.text.slice(cut+3):'';ctx.fillText(a,x+7*k,y+13*k);if(b)ctx.fillText(b,x+7*k,y+27*k);}
-    else ctx.fillText(r.text,x+8*k,y+16*k);
+    ctx.fillStyle='rgba(205,238,223,.94)';lines.slice(0,2).forEach((line,i)=>ctx.fillText(line,x+8*k,y+(16+i*13)*k));
   }
 
   drawAirAlarm(ctx,w,h,state){
