@@ -157,18 +157,9 @@ class TouchCtrl{
     g('mTimeSel')?.addEventListener('change',onTime);
     btn('tBtnMenu',()=>sceneSelector?.open());
 
-    // station switcher. The strip remains permanently one-tap; touching a
-    // station merely wakes its contrast for a moment, never inserts an
-    // intermediate "show controls" gesture.
-    const wakeStations=()=>{
-      const strip=g('ovlStations');if(!strip)return;
-      strip.classList.add('awake');clearTimeout(this._stationWakeTimer);
-      this._stationWakeTimer=setTimeout(()=>strip.classList.remove('awake'),1450);
-    };
+    // station switcher
     document.querySelectorAll('#ovlStations button').forEach(b=>{
-      b.addEventListener('pointerdown',wakeStations,{passive:true});
       b.addEventListener('click',()=>{
-        wakeStations();
         D({type:'SET_ACTIVE_STATION',station:b.dataset.sta});
         this.setPane('view');
         /* Do not wait for the next physics/RAF tick to make a station tap
@@ -216,8 +207,11 @@ class TouchCtrl{
     btn('bridgeMark',()=>{D({type:'BRIDGE_MARK_CONTACT'});buzz(10);});
     btn('bridgeTarget',()=>{D({type:'BRIDGE_TARGET_CENTER'});buzz(14);});
     btn('bridgeGun',()=>{D({type:'SET_ACTIVE_STATION',station:'DECK_GUN'});buzz(14);});
-    // SOUND buttons are owned by BridgeController on every layout. Keeping one
-    // owner prevents a single touch from dispatching the same bearing/QC command twice.
+    btn('soundLeft',()=>{D({type:'ROTATE_SOUND',deltaDeg:-5});buzz(6);});
+    btn('soundRight',()=>{D({type:'ROTATE_SOUND',deltaDeg:5});buzz(6);});
+    btn('soundMark',()=>{D({type:'SOUND_MARK_BEARING'});buzz(10);});
+    btn('soundEcho',()=>{D({type:'SOUND_ECHO_RANGE'});buzz([12,30,12]);});
+    btn('soundRadar',()=>{D({type:'TOGGLE_SOUND_DISPLAY'});buzz(10);});
     btn('oSilent', ()=>{D({type:'TOGGLE_SILENT_RUNNING'});buzz(12);});
     btn('oLock',   ()=>{D({type:'PERISCOPE_SELECT_CENTER_CONTACT'});D({type:'TDC_SEND_SCOPE_OBSERVATION'});buzz(12);});
     btn('btnFire', ()=>this.quickFire());
@@ -476,7 +470,7 @@ class TouchCtrl{
         const f=cv.bridgeCam?.f||Math.max(120,cv.w*.7);
         D({type:'ROTATE_BRIDGE',deltaDeg:-radToDeg(Math.atan(dx/f))});
       }
-      else if(mode==='sound'){this.soundDrag(e);}
+      else if(mode==='sound'){D({type:'ROTATE_SOUND',deltaDeg:-dx*.55});}
       else if(mode==='gun'){
         const f=cv.gunCam?.f||Math.max(180,cv.w*0.9);
         /* Horizontal drag should remain brisk for bearing, but vertical drag is
@@ -539,10 +533,7 @@ class TouchCtrl{
     if(sta==='MAP') return 'pan';
     if(sta==='PERISCOPE') return 'scope';
     if(sta==='BRIDGE') return 'bridge';
-    if(sta==='SOUND'){
-      const gm=this.cv.soundGeom,p=this.cv.toLocal(e.clientX,e.clientY);
-      return gm&&Math.hypot(p.x-gm.cx,p.y-gm.cy)<=gm.r*1.12?'sound':null;
-    }
+    if(sta==='SOUND') return 'sound';
     if(sta==='DECK_GUN') return 'gun';
     const gm=this.cv.tactGeom;
     if(gm){
@@ -551,14 +542,6 @@ class TouchCtrl{
       if(p.x>=gm.col.x&&p.x<=gm.col.x+gm.col.w&&p.y>=gm.col.y&&p.y<=gm.col.y+gm.col.h) return 'depth';
     }
     return null;
-  }
-
-  soundDrag(e){
-    const gm=this.cv.soundGeom;if(!gm)return;
-    const p=this.cv.toLocal(e.clientX,e.clientY),s=this.game.getSnapshot();
-    const want=normDeg(radToDeg(Math.atan2(p.x-gm.cx,-(p.y-gm.cy))));
-    const have=normDeg(s.tactical.soundBearing||0);
-    this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:shortDelta(have,want)});
   }
 
   compassDrag(e){
@@ -662,11 +645,7 @@ class TouchCtrl{
     }
 
     // top bar
-    {const hasCycle=typeof DayNightCycle!=='undefined';
-      const dl=hasCycle?DayNightCycle.getDaylight(state.time.elapsedSeconds,state.time.timeScale):Number(state.world.environment?.daylight);
-      const tod=hasCycle?DayNightCycle.getTimeString(state.time.elapsedSeconds):'--:--';
-      const icon=dl>.6?'☀':dl>.25?'🌅':'🌙';
-      set('mClock',`${icon} ${tod}`);}
+    set('mClock',Math.floor(state.time.elapsedSeconds).toString().padStart(5,'0'));
     set('mMode',sub.mode.replace(/_/g,' '));
     const tsel=g('tBtnTime');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){
@@ -873,7 +852,7 @@ class TouchCtrl{
         bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
         bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
         `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
-        `<div class="dmg-row"><span class="dmg-lbl">Oxygen</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#ef6a58':d.oxygen<50?'#f5c65c':'#6fe08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`);
+        `<div class="dmg-row"><span class="dmg-lbl">Air quality</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#ef6a58':d.oxygen<50?'#f5c65c':'#6fe08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`);
       html('mGauges',
         `<span>Contacts</span><strong>${Object.keys(state.world.contactTracks).length}</strong>`+
         `<span>Visibility</span><strong>${state.world.environment.visibilityNm.toFixed(1)} nm</strong>`+
