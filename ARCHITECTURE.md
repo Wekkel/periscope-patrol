@@ -432,3 +432,8 @@ retained, and no prior reward is reissued.
 ## Atlantic DEV patch 17 — North Atlantic environment
 
 The 1941 Atlantic slice now owns a concrete `NORTH_ATLANTIC_1941` climate identity and `NORTH_ATLANTIC` visual tone. Weather keeps a persistent low-overcast background between broader, longer-lived frontal cells rather than collapsing to the Pacific clear-sky baseline after weather initialization. The shared renderer uses the same row/particle budget but selects a colder sky/sea palette, stronger horizon haze and longer swell only for that visual tone. Pacific weather/rendering stays on the existing branch. Bridge motion speed normalization also reads the materialized submarine surface-speed characteristic instead of assuming an 18-knot Gato.
+
+
+## Atlantic DEV patch 18 — vessel visual pass
+
+Atlantic vessel identity now reaches dedicated shared-renderer model keys. The Flower-class escort, freighter/tramp/cargo-liner/coaster/tanker variants and Type VIIC ownship casing no longer borrow Pacific patrol-craft/Gato silhouettes. These are recognition-grade Canvas2D vector models, deliberately not museum meshes; all damage, sinking, wake and LOD mechanics remain shared. The Type VIIC forward deck-gun mount and visible casing proportions are selected from the submarine profile's `visualModelKey`, while Pacific keeps the existing fleet-boat deck path.

@@ -116,6 +116,10 @@ const SUBMARINE_PROFILES=Object.freeze({
     hullNumber:null,
     factionId:'germany',
     theaterId:'atlantic',
+    // Renderer-facing identity only; simulation geometry continues to use the
+    // authored dimensions above. This avoids teaching shared bridge/gun code
+    // that `germany` implies one particular submarine hull.
+    visualModelKey:'TYPE_VIIC_1941',
     dimensions:Object.freeze({lengthFt:220,beamFt:20,verticalHalfFeet:7.5,massTons:883}),
     weapons:Object.freeze({
       defaultTorpedoSpecKey:'g7e-t2',
@@ -176,13 +180,12 @@ const VESSEL_PROFILES=Object.freeze({
   'us-coastal-transport':Object.freeze({id:'us-coastal-transport',factionId:'usa',gameplayType:'MERCHANT',modelKey:'MERCHANT_COASTAL'}),
   'us-life-raft':Object.freeze({id:'us-life-raft',factionId:'usa',gameplayType:'RAFT',modelKey:'RAFT'}),
 
-  // Phase-2 Atlantic identity profiles. The first vertical slice deliberately
-  // reuses the existing lightweight merchant/tanker/patrol-craft geometry;
-  // modelKey is a rendering choice, not a claim that the hull mesh is yet a
-  // historically faithful Flower-class silhouette.
-  'uk-merchant-1941':Object.freeze({id:'uk-merchant-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'MERCHANT'}),
-  'uk-tanker-1941':Object.freeze({id:'uk-tanker-1941',factionId:'britain',gameplayType:'TANKER',modelKey:'TANKER'}),
-  'uk-flower-corvette-1941':Object.freeze({id:'uk-flower-corvette-1941',factionId:'britain',gameplayType:'ESCORT',modelKey:'PATROL_CRAFT'})
+  // Phase-2 Atlantic visual identities. Gameplay class stays separate from
+  // silhouette selection so later British/Canadian escort classes can share
+  // ESCORT behaviour without sharing one hull.
+  'uk-merchant-1941':Object.freeze({id:'uk-merchant-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_FREIGHTER'}),
+  'uk-tanker-1941':Object.freeze({id:'uk-tanker-1941',factionId:'britain',gameplayType:'TANKER',modelKey:'ATLANTIC_TANKER'}),
+  'uk-flower-corvette-1941':Object.freeze({id:'uk-flower-corvette-1941',factionId:'britain',gameplayType:'ESCORT',modelKey:'FLOWER_CORVETTE_1941'})
 });
 
 function getVesselProfile(profileId){return profileId?VESSEL_PROFILES[profileId]||null:null;}
@@ -398,15 +401,15 @@ const US_PACIFIC_PRIMARY_CONVOY_PROFILE=Object.freeze({
 const GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE=Object.freeze({
   id:'german-atlantic-1941-primary-convoy-v1',
   merchantTemplates:Object.freeze([
-    Object.freeze({id:'AM-01',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'FREIGHTER',lengthYards:410,visualProfile:.94,acousticBase:.34,tonsFactor:4800}),
-    Object.freeze({id:'AM-02',name:'Atlantic Tanker',type:'TANKER',vesselProfileId:'uk-tanker-1941',side:'ENEMY',displayType:'TANKER',lengthYards:500,visualProfile:1.08,acousticBase:.44,tonsFactor:7200}),
-    Object.freeze({id:'AM-03',name:'Tramp Steamer',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'FREIGHTER',lengthYards:350,visualProfile:.86,acousticBase:.30,tonsFactor:3300}),
-    Object.freeze({id:'AM-04',name:'Cargo Liner',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'CARGO SHIP',lengthYards:455,visualProfile:1.00,acousticBase:.37,tonsFactor:5900}),
-    Object.freeze({id:'AM-05',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'FREIGHTER',lengthYards:390,visualProfile:.91,acousticBase:.33,tonsFactor:4200}),
-    Object.freeze({id:'AM-06',name:'Atlantic Tanker',type:'TANKER',vesselProfileId:'uk-tanker-1941',side:'ENEMY',displayType:'TANKER',lengthYards:470,visualProfile:1.04,acousticBase:.42,tonsFactor:6400}),
-    Object.freeze({id:'AM-07',name:'Coaster in Convoy',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'SMALL FREIGHTER',lengthYards:325,visualProfile:.80,acousticBase:.27,tonsFactor:2700}),
-    Object.freeze({id:'AM-08',name:'Cargo Steamer',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'CARGO SHIP',lengthYards:405,visualProfile:.93,acousticBase:.34,tonsFactor:4600}),
-    Object.freeze({id:'AM-09',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',side:'ENEMY',displayType:'FREIGHTER',lengthYards:435,visualProfile:.97,acousticBase:.36,tonsFactor:5300})
+    Object.freeze({id:'AM-01',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',modelKey:'ATLANTIC_FREIGHTER',side:'ENEMY',displayType:'FREIGHTER',lengthYards:410,visualProfile:.94,acousticBase:.34,tonsFactor:4800}),
+    Object.freeze({id:'AM-02',name:'Atlantic Tanker',type:'TANKER',vesselProfileId:'uk-tanker-1941',modelKey:'ATLANTIC_TANKER',side:'ENEMY',displayType:'TANKER',lengthYards:500,visualProfile:1.08,acousticBase:.44,tonsFactor:7200}),
+    Object.freeze({id:'AM-03',name:'Tramp Steamer',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',modelKey:'ATLANTIC_TRAMP',side:'ENEMY',displayType:'FREIGHTER',lengthYards:350,visualProfile:.86,acousticBase:.30,tonsFactor:3300}),
+    Object.freeze({id:'AM-04',name:'Cargo Liner',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',modelKey:'ATLANTIC_CARGO_LINER',side:'ENEMY',displayType:'CARGO SHIP',lengthYards:455,visualProfile:1.00,acousticBase:.37,tonsFactor:5900}),
+    Object.freeze({id:'AM-05',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',modelKey:'ATLANTIC_FREIGHTER',side:'ENEMY',displayType:'FREIGHTER',lengthYards:390,visualProfile:.91,acousticBase:.33,tonsFactor:4200}),
+    Object.freeze({id:'AM-06',name:'Atlantic Tanker',type:'TANKER',vesselProfileId:'uk-tanker-1941',modelKey:'ATLANTIC_TANKER',side:'ENEMY',displayType:'TANKER',lengthYards:470,visualProfile:1.04,acousticBase:.42,tonsFactor:6400}),
+    Object.freeze({id:'AM-07',name:'Coaster in Convoy',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',modelKey:'ATLANTIC_COASTER',side:'ENEMY',displayType:'SMALL FREIGHTER',lengthYards:325,visualProfile:.80,acousticBase:.27,tonsFactor:2700}),
+    Object.freeze({id:'AM-08',name:'Cargo Steamer',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',modelKey:'ATLANTIC_TRAMP',side:'ENEMY',displayType:'CARGO SHIP',lengthYards:405,visualProfile:.93,acousticBase:.34,tonsFactor:4600}),
+    Object.freeze({id:'AM-09',name:'British Freighter',type:'MERCHANT',vesselProfileId:'uk-merchant-1941',modelKey:'ATLANTIC_FREIGHTER',side:'ENEMY',displayType:'FREIGHTER',lengthYards:435,visualProfile:.97,acousticBase:.36,tonsFactor:5300})
   ]),
   escortTemplates:Object.freeze([
     Object.freeze({id:'AE-01',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
@@ -840,7 +843,7 @@ const CAMPAIGN_PROFILES=Object.freeze({
     missionProfile:GERMAN_ATLANTIC_1941_MISSION_PROFILE,
     doctrineProfile:GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE,
     radioIntelProfile:GERMAN_ATLANTIC_1941_RADIO_INTEL_PROFILE,
-    devSelectable:true,developmentStage:'NORTH_ATLANTIC_ENVIRONMENT'
+    devSelectable:true,developmentStage:'ATLANTIC_VESSEL_VISUALS'
   })
 });
 
