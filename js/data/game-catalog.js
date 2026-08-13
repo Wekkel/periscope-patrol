@@ -366,7 +366,39 @@ const US_PACIFIC_MISSION_PROFILE=Object.freeze({
     'Sulu Sea / Tawi-Tawi':Object.freeze(['CONVOY_INTERDICTION','ESCORT_HUNT','RECON_INSERTION','RECON_EXTRACTION','SPECIAL_TRANSPORT','SHADOW_REPORT','WEATHER_AMBUSH']),
     'Kurile / Hokkaido Approaches':Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','ESCORT_HUNT','LIFEGUARD','WEATHER_AMBUSH','SHADOW_REPORT'])
   }),
-  defaultMissionPool:Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','RECONNAISSANCE','LIFEGUARD','SPECIAL_TRANSPORT','MINELAYING','SHADOW_REPORT','ESCORT_HUNT','RECON_INSERTION','RECON_EXTRACTION','WEATHER_AMBUSH'])
+  defaultMissionPool:Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','RECONNAISSANCE','LIFEGUARD','SPECIAL_TRANSPORT','MINELAYING','SHADOW_REPORT','ESCORT_HUNT','RECON_INSERTION','RECON_EXTRACTION','WEATHER_AMBUSH']),
+
+  /* Concrete mission actors belong to campaign content, not mission mechanics.
+     Keep these specs deliberately literal: Phase 1 is moving existing Pacific
+     authorship behind a campaign boundary, not inventing a generic scenario DSL. */
+  content:Object.freeze({
+    highValueIntercept:Object.freeze({
+      variants:Object.freeze([
+        Object.freeze({below:.46,kind:'TANKER',vessel:Object.freeze({name:'Fleet Oiler',type:'TANKER',gameplayType:'TANKER',vesselProfileId:'jp-tanker',modelKey:'TANKER',displayType:'FLEET OILER',lengthYards:560,tonsFactor:9200,visualProfile:1.16})}),
+        Object.freeze({below:.82,kind:'TRANSPORT',vessel:Object.freeze({name:'Army Transport',type:'MERCHANT',gameplayType:'MERCHANT',vesselProfileId:'jp-transport',modelKey:'MERCHANT_ISLAND',displayType:'TROOP TRANSPORT',lengthYards:500,tonsFactor:7600,visualProfile:1.04})}),
+        Object.freeze({kind:'CARRIER',vessel:Object.freeze({name:'Light Carrier',type:'CARRIER',gameplayType:'CARRIER',vesselProfileId:'jp-carrier',modelKey:'CARRIER',displayType:'LIGHT CARRIER',lengthYards:680,tonsFactor:18000,visualProfile:1.34,hasSonar:false})})
+      ])
+    }),
+    reconnaissance:Object.freeze({
+      preferredExistingIdsByArea:Object.freeze({'Truk Approaches':Object.freeze(['H-02','H-03'])}),
+      fallbackTargets:Object.freeze([
+        Object.freeze({id:'REC-01',name:'Naval Auxiliary',type:'MERCHANT',vesselProfileId:'jp-merchant',displayType:'NAVAL AUXILIARY',lengthYards:430,tonsFactor:4700,visualProfile:.95,acousticBase:.08}),
+        Object.freeze({id:'REC-02',name:'Army Transport',type:'MERCHANT',vesselProfileId:'jp-transport',displayType:'TROOP TRANSPORT',lengthYards:490,tonsFactor:7100,visualProfile:.95,acousticBase:.08})
+      ])
+    }),
+    escortHunt:Object.freeze({
+      preferredGameplayTypes:Object.freeze(['DESTROYER']),
+      fallbackTarget:Object.freeze({id:'EH-01',name:'Named Fleet Destroyer',type:'DESTROYER',vesselProfileId:'jp-destroyer',displayType:'DESTROYER',lengthYards:350,tonsFactor:1900,visualProfile:.75,acousticBase:.68,hasSonar:true,side:'ENEMY',speedKnots:18,baseSpeed:18,desiredSpeed:18,convoyId:'MAIN',convoyRole:'ESCORT',formationIndex:99,screenRole:'ROAMING_SCOUT',aswRole:'SCREEN',dcRemaining:38}),
+      targetNamesByGameplayType:Object.freeze({DESTROYER:'Named Fleet Destroyer',default:'Named Kaibokan Escort'})
+    }),
+    harborStrike:Object.freeze({
+      preferredGameplayTypes:Object.freeze(['CARRIER','HEAVY_CRUISER']),
+      fallbackTarget:Object.freeze({id:'HS-01',name:'Anchorage Naval Auxiliary',type:'MERCHANT',vesselProfileId:'jp-merchant',displayType:'NAVAL AUXILIARY',lengthYards:455,tonsFactor:5600,visualProfile:1.0,acousticBase:.05,side:'ENEMY',speedKnots:0,baseSpeed:0,desiredSpeed:0,stationary:true,convoyRole:'ANCHORAGE',convoyId:'HARBOR_STRIKE'})
+    }),
+    lifeguard:Object.freeze({
+      survivor:Object.freeze({name:'Downed Airman',type:'RAFT',vesselProfileId:'us-life-raft',displayType:'LIFE RAFT',lengthYards:7,tonsFactor:0,visualProfile:.12,acousticBase:0,side:'FRIENDLY',speedKnots:0,baseSpeed:0,desiredSpeed:0,stationary:true,convoyId:'LIFEGUARD',convoyRole:'SURVIVOR',missionRole:'SURVIVOR'})
+    })
+  })
 });
 
 const CAMPAIGN_PROFILES=Object.freeze({

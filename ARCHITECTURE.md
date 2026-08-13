@@ -125,7 +125,9 @@ Primary convoy composition and ambient traffic are deliberately separate campaig
 
 The active campaign owns player-facing mission definitions and the patrol-area mission mix. `game-catalog.js` contains the current `us-pacific` mission titles, rewards, briefing text, AUTO description and per-area mission pools; `mission-framework.js` owns only the supported mission mechanics and runtime progression. Do not put COMSUBPAC/Japanese wording or Pacific area names back into mission selection logic.
 
-`MISSION_PRIMARY_TYPES` remains the small set of engine mechanics currently implemented. A campaign may expose only a subset through its mission profile. Missing mission data for a future campaign should fail explicitly rather than falling back to Pacific orders. Theater-specific target templates and special mission objects are a separate migration boundary and may still contain Pacific content until their own regression-gated refactor.
+`MISSION_PRIMARY_TYPES` remains the small set of engine mechanics currently implemented. A campaign may expose only a subset through its mission profile. Missing mission data for a future campaign should fail explicitly rather than falling back to Pacific orders.
+
+Concrete mission actors are campaign content as well. The `us-pacific` mission profile now owns the high-value intercept variants, Truk-specific reconnaissance contact IDs, fallback reconnaissance/escort/harbor vessels and the lifeguard survivor template. `mission-framework.js` may choose, place, track and score these objects, but it must not know Japanese vessel names or Pacific contact IDs. When a mission reassigns an existing vessel to a different tactical class, refresh `gameplayType`, `vesselProfileId` and `modelKey` together with legacy `type`; otherwise a visually promoted carrier/tanker can retain stale merchant identity from the source convoy contact.
 
 ### Lazy patrol terrain
 
