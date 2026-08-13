@@ -4,12 +4,13 @@ class AudioEngine{
     this.sfxVolume=.62;this.musicVolume=.42;this.noiseBuffer=null;this.sonarVariant=3;
     this.busNodes={};this.mixTargets={system:1,command:1,sensor:1,world:1,machinery:1,weapons:1,mission:1};this.duckUntil=0;this.duckFactor=1;
     this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;
+    this.titleStartPlayed=false;this.titleCueGain=null;
     this.battleNoiseSource=null;this.seaGain=null;this.rainGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;this.escortMachinery=null;
     // Aircraft fly-by is a deliberately tiny procedural engine. Only the nearest
     // visible aircraft in BRIDGE/GUN gets voices; this avoids turning ambient
     // sound into another sensor and keeps oscillator count bounded on G88-class
     // hardware. Nodes are reused while the aircraft/family stays the same.
-    this.airFlyby=null;this.airFlybyLastUpdate=0;this.titleCueGain=null;this.openingCuePlayed=false;}
+    this.airFlyby=null;this.airFlybyLastUpdate=0;}
 
   init(){
     if(this.initialized)return;
@@ -159,22 +160,30 @@ class AudioEngine{
     this._filteredNoise(.48,v*.42,{type:'lowpass',freq:210,q:.45,attack:.008},null,0,'weapons');
   }
 
-  playHitCue(){
-    this.ensure();if(!this.ctx||!this.enabled)return;
-    this._filteredNoise(.18,.13,{type:'lowpass',freq:175,q:.42,attack:.008},null,0,'weapons');
-    this._noise(.20,58,'sine',.085,null,0,'weapons');
+  playHit(){
+    // Compact shell/deck-gun hull strike. Torpedoes use playTorpedoHit(), whose
+    // much larger pressure body would make a 3-inch hit sound absurdly heavy.
+    this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
+    this.duck(88,520);this._filteredNoise(.055,.48,{type:'lowpass',freq:1450,q:.36,attack:.0005},null,0,'weapons');
+    this._filteredNoise(.22,.27,{type:'bandpass',freq:430,q:.55,attack:.002},null,0,'weapons');
+    const dur=.68,src=this._noiseSource(dur),body=ctx.createGain();body.gain.setValueAtTime(.24,now+.003);body.gain.exponentialRampToValueAtTime(.001,now+dur);
+    for(const [f0,q,w] of [[74,.9,.30],[118,1.0,.25],[205,1.2,.13]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.003,Math.random());src.stop(now+dur+.03);
   }
 
-  playHit(){
+  playTorpedoHit(){
     this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
-    this.duck(100,3000);
-    this._filteredNoise(.14,.78,{type:'lowpass',freq:620,q:.30,attack:.004},null,0,'weapons');
-    this._filteredNoise(.32,.70,{type:'lowpass',freq:155,q:.38,attack:.010},null,0,'weapons');
-    this._filteredNoise(.65,.18,{type:'bandpass',freq:520,q:.48,attack:.012},null,0,'weapons');
-    const dur=4.7,src=this._noiseSource(dur),body=ctx.createGain();body.gain.setValueAtTime(.78,now+.012);body.gain.setValueAtTime(.74,now+.18);body.gain.exponentialRampToValueAtTime(.001,now+dur);
-    for(const [f0,q,w] of [[34,.62,.42],[47,.70,.56],[66,.80,.55],[91,.90,.43],[126,1.02,.31],[176,1.14,.19],[245,1.25,.08]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.010,Math.random()*1.0);src.stop(now+dur+.04);
-    this._filteredNoise(4.15,.12,{type:'lowpass',freq:185,q:.40,attack:.10},null,0,'weapons');
-    setTimeout(()=>this._filteredNoise(2.8,.065,{type:'lowpass',freq:120,q:.42,attack:.06},null,0,'weapons'),180);
+    // A Mk14-sized warhead striking a steel hull is deliberately NOT a short,
+    // dry bang. The first pressure face is broad and dark; a turbulent water/
+    // hull body follows for almost three seconds, with inharmonic low-Q steel
+    // resonances and a low tail that remains audible on small mobile speakers.
+    this.duck(100,1900);
+    this._filteredNoise(.095,.98,{type:'lowpass',freq:1050,q:.28,attack:.0004},null,0,'weapons');
+    this._filteredNoise(.24,.82,{type:'lowpass',freq:185,q:.34,attack:.0007},null,0,'weapons');
+    this._filteredNoise(.48,.38,{type:'bandpass',freq:980,q:.38,attack:.002},null,0,'weapons');
+    const dur=2.85,src=this._noiseSource(dur),body=ctx.createGain();body.gain.setValueAtTime(.92,now+.006);body.gain.setValueAtTime(.82,now+.12);body.gain.exponentialRampToValueAtTime(.001,now+dur);
+    for(const [f0,q,w] of [[34,.62,.48],[49,.70,.54],[71,.78,.50],[101,.90,.42],[143,1.02,.31],[207,1.14,.19],[292,1.22,.09]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.006,Math.random());src.stop(now+dur+.04);
+    this._filteredNoise(2.35,.115,{type:'lowpass',freq:245,q:.38,attack:.055},null,0,'weapons');
+    setTimeout(()=>this._filteredNoise(.90,.055,{type:'bandpass',freq:118,q:.82,attack:.015},null,0,'weapons'),165);
   }
 
   playDud(){this.ensure();this._noise(.22,105,'sine',.18,null,0,'weapons');setTimeout(()=>this._metalClack(.22,88,310,'weapons'),70);}
@@ -215,9 +224,7 @@ class AudioEngine{
 
   playSonarPing(bearingDeg=null,ownHeading=0,variant=this.sonarVariant,levelScale=1){
     this.ensure();if(Date.now()-this.lastPing<700)return;this.lastPing=Date.now();this._playSelfDecaySonar(bearingDeg,ownHeading,variant,false,levelScale);
-    // Spatial ping graphics belong to MAP, where a heard transmission can be
-    // placed at the crew's plotted sender position. A screen-centred DOM ring
-    // falsely implied that every escort transmitted from ownship.
+    const ping=document.getElementById('sonarPing');if(ping){ping.classList.remove('ping');void ping.offsetWidth;ping.classList.add('ping');}
   }
 
 
@@ -260,21 +267,24 @@ class AudioEngine{
     for(const [f,v] of [[178,.055],[356,.020]]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.value=f;g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(v,now+.025);g.gain.setValueAtTime(v,now+.25);g.gain.exponentialRampToValueAtTime(.001,now+.62);o.connect(g);g.connect(this._bus('command'));o.start();o.stop(now+.68);}this.duck(82,700);
   }
 
-  stopTitleCue(fade=.25){
-    if(!this.ctx||!this.titleCueGain)return;const g=this.titleCueGain,now=this.ctx.currentTime;
-    try{g.gain.cancelScheduledValues(now);g.gain.setValueAtTime(Math.max(.0001,g.gain.value||1),now);g.gain.exponentialRampToValueAtTime(.0001,now+Math.max(.05,fade));}catch(_){}
-    this.titleCueGain=null;
+  stopTitleCue(fade=.24){
+    if(!this.ctx||!this.titleCueGain)return false;const now=this.ctx.currentTime,g=this.titleCueGain;
+    try{g.gain.cancelScheduledValues(now);g.gain.setValueAtTime(Math.max(.0001,g.gain.value||1),now);g.gain.exponentialRampToValueAtTime(.001,now+Math.max(.05,fade));}catch(_){ }
+    this.titleCueGain=null;return true;
   }
 
   playTitleCue(kind='START'){
-    this.ensure();if(!this.ctx||!this.enabled||this.musicVolume<=0)return;const ctx=this.ctx,now=ctx.currentTime,dur=kind==='COMPLETE'?4.2:5.4;
-    this.stopTitleCue(.08);const out=ctx.createGain();out.gain.value=1;out.connect(this.musicGain);this.titleCueGain=out;
+    this.ensure();if(!this.ctx||!this.enabled||this.musicVolume<=0)return false;
+    if(kind==='START'&&this.titleStartPlayed)return false;
+    if(kind==='START')this.titleStartPlayed=true;
+    this.stopTitleCue(.06);const ctx=this.ctx,now=ctx.currentTime,dur=kind==='COMPLETE'?4.2:5.4,cue=ctx.createGain();cue.gain.value=1;cue.connect(this.musicGain);this.titleCueGain=cue;
+    // Short original low-brass identity only; no melody and no external assets.
+    // Procedural brass is intentionally used sparingly because natural brass
+    // articulation is the least convincing category without recorded samples.
     const chord=kind==='COMPLETE'?[73.42,110,146.83]:[65.41,98,130.81,155.56];
-    for(const f0 of chord){for(const [h,w] of [[1,.034],[2,.021],[3,.013],[4,.007]]){const o=ctx.createOscillator(),g=ctx.createGain(),lp=ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=f0*h;lp.type='lowpass';lp.frequency.value=1450;g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(w,now+.045);g.gain.setValueAtTime(w,now+.72);g.gain.exponentialRampToValueAtTime(.001,now+dur);o.connect(lp);lp.connect(g);g.connect(out);o.start();o.stop(now+dur+.08);}}
-    setTimeout(()=>{if(this.titleCueGain===out)this.titleCueGain=null;try{out.disconnect();}catch(_){}},(dur+.2)*1000);
+    for(const f0 of chord){for(const [h,w] of [[1,.034],[2,.021],[3,.013],[4,.007]]){const o=ctx.createOscillator(),g=ctx.createGain(),lp=ctx.createBiquadFilter();o.type='sawtooth';o.frequency.value=f0*h;lp.type='lowpass';lp.frequency.value=1450;g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(w,now+.045);g.gain.setValueAtTime(w,now+.72);g.gain.exponentialRampToValueAtTime(.001,now+dur);o.connect(lp);lp.connect(g);g.connect(cue);o.start();o.stop(now+dur+.08);}}
+    setTimeout(()=>{if(this.titleCueGain===cue)this.titleCueGain=null;},(dur+.15)*1000);return true;
   }
-
-  playOpeningCue(){if(this.openingCuePlayed)return;this.openingCuePlayed=true;this.playTitleCue('START');}
 
   event(type,opts={}){
     this.ensure();
@@ -284,7 +294,7 @@ class AudioEngine{
       case'WAYPOINT_REACHED':return this.playWaypoint();
       case'RADIO_MESSAGE':return this.playRadioMessage();
       case'HARBOR_REACHED':return this.playUiConfirm(.42);
-      case'MISSION_START':if(this.openingCuePlayed){this.stopTitleCue(.28);return this.playUiConfirm(.24);}return this.playTitleCue('START');
+      case'MISSION_START':return this.stopTitleCue(.28);
       case'PRIMARY_OBJECTIVE_COMPLETE':return this.playUiConfirm(.46);
       case'MISSION_FAILED':return this._metalClack(.34,78,390,'mission');
       case'PATROL_COMPLETE':case'MISSION_COMPLETE':return this.playTitleCue('COMPLETE');
@@ -300,7 +310,7 @@ class AudioEngine{
     if(key==='OWN_SONAR')return this._playSelfDecaySonar(null,0,opts.variant??this.sonarVariant,true);
     if(key==='DEPTH_FAR')return this.playDepthCharge(.92);if(key==='DEPTH_MEDIUM')return this.playDepthCharge(.55);if(key==='DEPTH_NEAR')return this.playDepthCharge(.05);if(key==='DEPTH_SPLASH')return this.playDepthChargeSplash(.25);
     if(key==='TUBE_FLOOD')return this.playTubeFlood();if(key==='TUBE_READY')return this.playTubeReady();if(key==='TDC')return this.playTdcSolution();if(key==='STATION')return this.playStationSwitch();
-    if(key==='SCOPE_EXTEND')return this.playPeriscopeMove('extend');if(key==='SCOPE_RETRACT')return this.playPeriscopeMove('retract');if(key==='MINE')return this.playMineStrike();if(key==='AIR_BOMB')return this.playAirBomb(.3);if(key==='TITLE')return this.playTitleCue('START');if(key==='BATTLE_STATIONS')return this.playBattleStations();
+    if(key==='SCOPE_EXTEND')return this.playPeriscopeMove('extend');if(key==='SCOPE_RETRACT')return this.playPeriscopeMove('retract');if(key==='MINE')return this.playMineStrike();if(key==='AIR_BOMB')return this.playAirBomb(.3);if(key==='TORPEDO_HIT')return this.playTorpedoHit();if(key==='TITLE')return this.playTitleCue('START');if(key==='BATTLE_STATIONS')return this.playBattleStations();
     throw new Error(`Unknown audio review sound: ${name}`);
   }
 
