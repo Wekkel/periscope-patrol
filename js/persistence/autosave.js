@@ -6,6 +6,7 @@ const AutoSave={
   last:0,
   write(why){
     const s=game.getSnapshot();
+    if(s.campaign?.missionStatus==='TRAINING'||s.campaign?.missionStatus==='MENU'){SaveSystem.autoClear();return;}
     if(SaveSystem.autoSave(s,why)) this.last=performance.now();
   },
   tick(){                                   // a slow heartbeat while playing
@@ -16,7 +17,7 @@ const AutoSave={
     const rec=SaveSystem.autoRead();
     if(!rec||!rec.fullState) return false;
     const st=rec.fullState;
-    if(!st.playerSub||st.playerSub.mode==='SUNK'||st.campaign?.missionStatus==='LOST') { SaveSystem.autoClear(); return false; }
+    if(!st.playerSub||st.playerSub.mode==='SUNK'||['LOST','TRAINING','MENU'].includes(st.campaign?.missionStatus)) { SaveSystem.autoClear(); return false; }
     const mins=Math.round((st.time?.elapsedSeconds||0)/60);
     const when=(()=>{try{return new Date(rec.savedAt).toLocaleString('nl-NL',{dateStyle:'short',timeStyle:'short'});}catch{return '';}})();
     const bar=document.getElementById('resumeBar');
@@ -43,4 +44,3 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden) AutoSave.
 // iOS in particular may never fire pagehide, so freeze/resume too where present
 window.addEventListener('freeze',()=>AutoSave.write('freeze'),{passive:true});
 setTimeout(()=>AutoSave.offer(),650);
-

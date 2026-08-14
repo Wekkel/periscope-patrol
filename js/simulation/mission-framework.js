@@ -308,7 +308,7 @@ function missionProgressText(state){
   if(typeof SimEngine==='undefined')return;
   Object.assign(SimEngine.prototype,{
     ensureMissionFramework(){
-      const s=this.state,c=s.campaign,W=s.world;c.optionalObjectives=Array.isArray(c.optionalObjectives)?c.optionalObjectives:[];W.missionObjects=Array.isArray(W.missionObjects)?W.missionObjects:[];
+      const s=this.state,c=s.campaign,W=s.world;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return null;c.optionalObjectives=Array.isArray(c.optionalObjectives)?c.optionalObjectives:[];W.missionObjects=Array.isArray(W.missionObjects)?W.missionObjects:[];
       const profile=_missionProfile(s);if(!profile)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no mission profile`);
       if(!MISSION_PRIMARY_TYPES.includes(c.missionType)||!profile.definitions?.[c.missionType])c.missionType=profile.defaultMissionType||'CONVOY_INTERDICTION';
       if(!c.primaryMission){const d=profile.definitions[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true,pacing:{version:1,targetMinutes:30,activeSeconds:0,cues:{}}};}
@@ -380,7 +380,7 @@ function missionProgressText(state){
     },
 
     updateMissionFramework(dt){
-      const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;_missionUpdatePacing(this,m,dt);
+      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return;const m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(!m||m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;_missionUpdatePacing(this,m,dt);
       const coop=W.cooperativeSubmarines,shadowContent=m.type==='SHADOW_REPORT'?_missionContent(s,'shadowReport'):null,coopCfg=shadowContent?.supportAttack;
       if(coop&&coopCfg&&_missionObj(c,'release')?.done){
         if(!Number.isFinite(coop.eventsResolved))coop.eventsResolved=0;
@@ -433,7 +433,7 @@ function missionProgressText(state){
     },
 
     checkPrimaryMission(){
-      const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),W=s.world;if(!MISSION_PRIMARY_TYPES.includes(m.type))return false;if(m.result!=='ACTIVE')return true;
+      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return false;const m=this.ensureMissionFramework(),W=s.world;if(!m||!MISSION_PRIMARY_TYPES.includes(m.type))return false;if(m.result!=='ACTIVE')return true;
       if(m.type==='CONVOY_INTERDICTION'){
         const members=_missionMainMerchants(this),convoyIds=new Set([...W.contacts.filter(x=>x.convoyId==='MAIN').map(x=>x.id),...(W.traffic?.primaryGroup?.savedMembers||[]).map(x=>x.id)]),located=Object.keys(W.contactTracks).some(id=>convoyIds.has(id));if(located&&!_missionObj(c,'locate')?.done){_missionSetDone(c,'locate');this.captainLog?.('CONVOY_SIGHTED','Enemy convoy sighted.',{},'convoy-sighted');}const neutralized=members.filter(_missionShipNeutralized),neutralizedTonnage=neutralized.reduce((n,x)=>n+(x.tonsFactor||0),0);m.neutralizedShips=neutralized.length;m.neutralizedTonnage=neutralizedTonnage;const initialCount=Math.max(1,m.initialMerchantCount||members.length),initialTons=Math.max(1,m.initialMerchantTonnage||members.reduce((n,x)=>n+(x.tonsFactor||0),0)),shipGoal=Math.max(1,Math.min(m.requiredNeutralizedShips||2,initialCount)),tonGoal=initialTons*(m.requiredNeutralizedTonnagePct||.45),allGone=!members.some(x=>!x.sunk)&&!this.primaryConvoyExists?.(),tacticalWin=neutralized.length>=shipGoal&&neutralizedTonnage>=tonGoal;_missionSetDone(c,'attack',allGone||tacticalWin);if(allGone||tacticalWin)this._missionFinish(true);return true;
       }

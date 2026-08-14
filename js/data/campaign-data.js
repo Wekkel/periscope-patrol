@@ -40,7 +40,7 @@ const PATROL_AREAS={
     ports:[{name:'Basco',pos:{xNm:37.7,yNm:-9.0},side:'ENEMY'},{name:'Aparri',pos:{xNm:19.1,yNm:116.4},side:'ENEMY'},{name:'Submarine rendezvous',pos:{xNm:75.0,yNm:72.0},side:'FRIENDLY'}],
     environment:{daylight:.55,visibilityNm:10,seaState:.55,layerDepthFt:160,weather:'OVERCAST'},convoySpeedRange:[8,12],convoyCountRange:[3,6],difficulty:'HARD'},
   'Truk Approaches':{
-    description:'Japanese Pacific fortress. Heavy patrol craft and a dangerous anchorage approach.',terrainKey:'Truk Approaches',
+    description:'Japanese Pacific fortress. Heavy patrol craft and a dangerous anchorage approach.',terrainKey:'Truk Approaches',chartStartZoom:4.2,
     convoyRoutes:[{from:{xNm:95,yNm:0},to:{xNm:-82,yNm:47},label:'TRUK RESUPPLY LANE'}],start:{xNm:10,yNm:30},
     ports:[{name:'Truk Anchorage',pos:{xNm:-1.2,yNm:-1.2},side:'ENEMY',scene:'FORTIFIED_ATOLL',heading:42,known:true},{name:'Submarine rendezvous',pos:{xNm:47.6,yNm:90.0},side:'FRIENDLY'}],
     environment:{daylight:.8,visibilityNm:16,seaState:.2,layerDepthFt:235,weather:'CLEAR'},convoySpeedRange:[9,13],convoyCountRange:[4,7],difficulty:'HARD'},

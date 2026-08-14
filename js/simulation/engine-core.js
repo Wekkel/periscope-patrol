@@ -56,9 +56,9 @@ class SimEngineCore{
   }
 
   offerLossAar(record){
-    const c=this.state.campaign;if(!record||c._lossAarOffered)return false;c._lossAarOffered=true;
+    const c=this.state.campaign;if(!record||c._lossAarOffered)return false;c._lossAarOffered=true;const historyId=c.historyId;
     try{SaveSystem.autoClear?.();}catch(_){ }
-    setTimeout(()=>{if(typeof Toast==='undefined'||!globalThis.aarController?.open)return;Toast.action('BOAT LOST — After Action Report ready.','VIEW AAR',()=>globalThis.aarController.open(record,{completed:false}),10000,'bad');},0);return true;
+    setTimeout(()=>{const live=this.state.campaign;if(live?.historyId!==historyId||live?.missionStatus!=='LOST'||typeof Toast==='undefined'||!globalThis.aarController?.open)return;Toast.action('BOAT LOST — After Action Report ready.','VIEW AAR',()=>globalThis.aarController.open(record,{completed:false}),10000,'warn','patrol-aar');},0);return true;
   }
 
   /* Open-ended transit is intentionally CPU-bounded so a budget phone does
@@ -1051,7 +1051,7 @@ class SimEngineCore{
   }
 
   startNewPatrol(areaKey,options={}){
-    const s=this.state,currentIdentity=materializeGameIdentity(s);
+    const s=this.state,training=options.training===true,currentIdentity=materializeGameIdentity(s);
     const requestedIdentity=options.gameIdentity||currentIdentity,validation=validateGameIdentity(requestedIdentity);
     if(!validation.ok)throw new Error(`Invalid game identity: ${validation.errors.join('; ')}`);
     const identity=validation.identity,campaignProfile=getCampaignProfile(identity.campaignProfileId);
@@ -1068,7 +1068,7 @@ class SimEngineCore{
     const prevPatrol=s.campaign.patrolNumber||1;
     const prevHistoricalProfile=identityChanged?null:(s.campaign.historicalProfile||null);
     const pristineBootstrap=prevPatrol===1&&s.campaign.missionStatus==='PATROL'&&(s.time.elapsedSeconds||0)===0&&!s.campaign.primaryMission;
-    const nextPatrol=pristineBootstrap?1:prevPatrol+1;
+    const nextPatrol=training?prevPatrol:(pristineBootstrap?1:prevPatrol+1);
     const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||campaignProfile.defaultStartDate;
     const careerStart=`${patrolStartDate} 06:00`;
 
@@ -1076,8 +1076,10 @@ class SimEngineCore{
     // stale alarm or AAR-pause state may leak across it.
     Object.assign(s.time,{elapsedSeconds:0,timeScale:1,campaignDate:patrolStartDate,
       transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null,_pre:null});
-    s.log=[{t:0,level:'info',message:`Patrol commenced. Area: ${key}. Good hunting.`}];
+    s.log=[{t:0,level:'info',message:training?`Training waters prepared. Area: ${key}.`:`Patrol commenced. Area: ${key}. Good hunting.`}];
     if(s.ui){s.ui.toasts=[];s.ui.toastSeq=0;}
+    try{Toast.clear?.();globalThis.aarController?.close?.(false);}catch(_){ }
+    if(typeof document!=='undefined')document.getElementById('resumeBar')?.classList.remove('on');
     // Reset world
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];s.world.nextDcId=0;
     s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
@@ -1090,15 +1092,15 @@ class SimEngineCore{
     // Terrain is a patrol-scoped resource. getPatrolTerrain keeps one processed
     // Pacific chart alive at a time so adding areas does not multiply startup/RAM.
     const terrain=area.terrainKey?getPatrolTerrain(area.terrainKey):[];
-    s.world.terrain=terrain; s.world.portScenes=materializePortScenes(area); s.world.ports=area.ports;
-    s.world.convoyRoutes=area.convoyRoutes;
+    s.world.terrain=terrain; s.world.portScenes=training?[]:materializePortScenes(area); s.world.ports=training?[]:area.ports;
+    s.world.convoyRoutes=training?[]:area.convoyRoutes;
     // Charted approaches are authored navigation context, never collision
     // volumes or guaranteed-safe arcade lanes. Copy them per patrol so save
     // migration and validation cannot mutate the catalogue.
-    s.world.navigationCorridors=(area.navigationCorridors||[]).map(c=>({...c,points:(c.points||[]).map(p=>({...p}))}));
+    s.world.navigationCorridors=training?[]:(area.navigationCorridors||[]).map(c=>({...c,points:(c.points||[]).map(p=>({...p}))}));
     s.world.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment=makePatrolEnvironment(area.environment);s.world.weatherSystem=null;s.world.traffic=null;
-    s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=true;s.map.weatherOverlay=false;
+    s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=!training;s.map.weatherOverlay=false;
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
     // this sequence once, so a map that was panned/free on the previous patrol
     // cannot strand the new boat off-screen.  Undefined in old saves is fine.
@@ -1112,15 +1114,15 @@ class SimEngineCore{
       campaignId:identity.campaignId,warPartyId:identity.warPartyId,theaterId:identity.theaterId,playerFactionId:identity.playerFactionId,
       campaignProfileId:identity.campaignProfileId,
       patrolArea:key,score:0,scenarioSeed:Math.floor(Math.random()*9999),
-      missionStatus:'PATROL',patrolNumber:nextPatrol,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
-      historyId:`p${nextPatrol}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
+      missionStatus:training?'TRAINING':'PATROL',patrolNumber:nextPatrol,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
+      historyId:`${training?'training':'p'+nextPatrol}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
       _careerStartDate:careerStart,_historyRecorded:false,_historyRecordId:null,importantEvents:[],_captainEventSeq:0,
       objectives:[
         {text:'Locate enemy convoy',done:false},{text:'Attack merchant shipping',done:false},
         {text:'Evade escort vessels',done:false},{text:'Return to friendly port',done:false}
       ],
       optionalObjectives:[],
-      friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
+      friendlyPort:training?null:area.ports.find(p=>p.side==='FRIENDLY'),
       tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,portService:0,_portServiceLock:false,lastPortServiceAt:-999,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     };
     // fresh boat for a fresh patrol — otherwise you inherit a wrecked, empty
@@ -1128,6 +1130,7 @@ class SimEngineCore{
     const sub=s.playerSub;
     sub.profileId=subProfile.id;sub.presentation=materializeSubmarinePresentation(subProfile.id);sub.dimensions={...subProfile.dimensions};
     sub.position=area.start?{...area.start}:{xNm:0,yNm:0};
+    if(training){const safe=this.findNavigablePointNear(sub.position,80);if(!safe)throw new Error(`No navigable training start in ${key}`);sub.position=safe;}
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
     sub.propulsion.characteristics=fresh.propulsionProfile;
@@ -1152,13 +1155,20 @@ class SimEngineCore{
     s.tactical.soundBearing=sub.heading;s.tactical.soundDisplay='PASSIVE';
     s.world.sound=null;s.world.radar=null;
     const hasAirWarning=!!subProfile.sensors?.airWarningRadar;
-    s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,
-      alarmedAt:-999,airWarningOn:hasAirWarning,sdOn:hasAirWarning,nextCheck:120};
-    s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:getCampaignRadioIntelProfile(identity.campaignProfileId)?.initialBroadcastSec??300,copying:0};
+    s.world.airThreat={level:training?0:(area.environment.airThreat===undefined?0.55:area.environment.airThreat),
+      alarmedAt:-999,airWarningOn:hasAirWarning,sdOn:hasAirWarning,nextCheck:training?1e9:120};
+    s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:training?1e9:(getCampaignRadioIntelProfile(identity.campaignProfileId)?.initialBroadcastSec??300),copying:0};
     const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
-    s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
+    s.world.contacts=training?[]:this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
-    this.setupHarbor(key);this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
+    this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
+    if(training){
+      s.world.traffic={enabled:false,generated:true,groups:[],primaryGroup:null};
+      s.campaign.objectives=[{text:'Find the merchant',done:false},{text:'Sink it',done:false},{text:'Evade the escort',done:false},{text:'Finish the training',done:false}];
+      this.log(`=== TRAINING PATROL — ${key} ===`,'warn');
+      return;
+    }
+    this.setupHarbor(key);
     // Patch 6: mission setup happens only after world truth (convoy/harbor) exists,
     // but before the briefing is rendered. Historical scenarios can pin a type;
     // ordinary patrols may use AUTO or the player's explicit selection.
@@ -1183,6 +1193,20 @@ class SimEngineCore{
     if(!pos||!Number.isFinite(pos.xNm)||!Number.isFinite(pos.yNm))return false;
     const depth=Bathy.ensure(this.state.world.terrain)?Bathy.feet(pos.xNm,pos.yNm):3000;
     return depth>=minDepthFeet&&!this.checkTerrainCollision({position:pos}).collision;
+  }
+
+  findNavigablePointNear(origin,minDepthFeet=80){
+    const start=this.clampToArea(origin),rings=[0,1.5,3,5,8,12,18,26];
+    for(const r of rings)for(let a=0;a<360;a+=r?30:360){const h=degToRad(a),p=this.clampToArea({xNm:start.xNm+Math.sin(h)*r,yNm:start.yNm-Math.cos(h)*r});if(this.isNavigableMapPoint(p,minDepthFeet))return p;}
+    return null;
+  }
+
+  endTrainingScenario(){
+    const s=this.state;if(s.campaign?.missionStatus!=='TRAINING')return false;
+    Object.assign(s.time,{timeScale:0,transitUntil:0,transitOpen:false,transitReason:null,stopReason:'training ended'});
+    s.world.contacts=[];s.world.contactTracks={};s.world.depthCharges=[];s.world.aircraft=[];s.world.missionObjects=[];
+    s.weapons.activeTorpedoes=[];s.weapons.explosions=[];s.map.plottedCourse=[];s.map.autoFollowPlot=false;
+    s.tdc.targetId=null;s.tactical.selectedTrackId=null;s.campaign.missionStatus='MENU';s.campaign.trainingEnded=true;s.campaign.objectives=[];return true;
   }
 
   planNavigableCourse(from,to){

@@ -12,7 +12,7 @@ const TUT_STEPS=[
    check:s=>s.tactical.activeStation==='MAP'},
 
   {id:'map',title:'The navigation plot',
-   body:'Drag to pan, pinch to zoom, <b>◎</b> re-centres on the boat, <b>✕</b> clears your plot. The amber dashed lane is a known convoy route; contacts are what your crew has actually plotted, not omniscient truth.<br><br>Tap open water to drop a waypoint — the autopilot then steers to it. Tap a waypoint again to delete it, and the moment you touch the helm yourself the autopilot lets go.<br><br>The <b>☁ WX</b> button overlays only the moving squall cells and your local visual range; toggle it briefly when visibility does not match what you expected.',
+   body:'Drag to pan, pinch to zoom, <b>◎</b> re-centres on the boat, <b>✕</b> clears your plot. The short amber dashed lane is the controlled training shipping lane; contacts are what your crew has actually plotted, not omniscient truth.<br><br>Tap open water to drop a waypoint — the autopilot then steers to it. Tap a waypoint again to delete it, and the moment you touch the helm yourself the autopilot lets go.<br><br>The <b>☁ WX</b> button overlays only the moving squall cells and your local visual range; toggle it briefly when visibility does not match what you expected.',
    goal:'Plot a waypoint on the map', hl:'mainCanvas', objective:TUT_OBJECTIVE.FRESH,
    enter:T=>T.prepareMapLesson(),
    check:s=>s.map.plottedCourse.length>0},
@@ -206,19 +206,27 @@ class Tutorial{
 
   target(s){return s.world.contacts.find(c=>c.id==='TGT-1'&&!c.sunk)||s.world.contacts.find(c=>c.type!=='ESCORT'&&!c.sunk);}
 
+  waterPoint(origin,bearing,rangeNm,minDepthFeet=40){
+    const engine=this.game.engine||this.game,distances=[rangeNm,rangeNm*.8,rangeNm*.6],offsets=[0,30,-30,60,-60,90,-90,120,-120,150,-150,180];
+    for(const d of distances)for(const off of offsets){const h=degToRad(normDeg(bearing+off)),p={xNm:origin.xNm+Math.sin(h)*d,yNm:origin.yNm-Math.cos(h)*d};if(engine.isNavigableMapPoint?.(p,minDepthFeet))return p;}
+    return null;
+  }
+
   /* controlled sandbox: one slow merchant, good weather, no duds */
   setupScenario(){
     const g=this.game;
     const before=g.getSnapshot(),identity=resolveGameIdentity(before),campaign=getCampaignProfile(identity.campaignProfileId),areaKey=campaign?.defaultArea||before.campaign?.patrolArea;
-    g.dispatch({type:'NEW_PATROL',areaKey,gameIdentity:identity});
+    g.dispatch({type:'NEW_PATROL',areaKey,gameIdentity:identity,training:true});
     g.update(0.001);                       // drain the command queue
     const s=g.getSnapshot();
     s.time.elapsedSeconds=0;s.time.timeScale=1;
+    const sub=s.playerSub,targetPos=this.waterPoint(sub.position,20,4.3,60);
+    if(!targetPos)throw new Error(`No navigable training target in ${areaKey}`);
     const atlantic=identity.playerFactionId==='germany';
     s.world.contacts=[materializeVesselIdentity({
       id:'TGT-1',name:atlantic?'Training Freighter':'Kaiyo Maru',type:'MERCHANT',vesselProfileId:atlantic?'uk-tramp-1941':undefined,lengthYards:430,
       visualProfile:1.05,acousticBase:0.42,tonsFactor:5000,
-      position:{xNm:2.6,yNm:-3.4},heading:262,speedKnots:8,
+      position:targetPos,heading:262,speedKnots:8,
       convoyRole:'MERCHANT',formationIndex:0
     },s)];
     s.world.contactTracks={};s.world.depthCharges=[];
@@ -238,8 +246,7 @@ class Tutorial{
     s.tdc.dudMode='none';s.tdc.targetId=null;s.tdc.solutionQuality=0;
     s.tactical.selectedTrackId=null;s.tactical.activeStation='TACTICAL';s.tactical.periscopeBearing=20;
     s.map.plottedCourse=[];s.map.ownshipTrail=[];s.map.exploredCells={};
-    const sub=s.playerSub;
-    sub.position={xNm:0,yNm:0};sub.heading=20;sub.orderedHeading=20;
+    sub.heading=20;sub.orderedHeading=20;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;
     sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
@@ -248,7 +255,10 @@ class Tutorial{
       rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
       oxygen:100,pumpActive:false,pumpTripped:false,pumpLoadSec:0,damageControlActive:false,
       repairPriority:'FLOODING',driveBankOffline:false,damageEventSeq:0,repairFloor:{},instrumentBias:{}});
-    s.campaign.missionStatus='TRAINING';
+    const engine=g.engine||g,routeA=this.waterPoint(targetPos,82,4.5,30),routeB=this.waterPoint(targetPos,262,4.5,30),waterPath=routeA&&routeB?engine.planNavigableCourse?.(routeA,routeB):null;
+    s.world.convoyRoutes=waterPath?.length>1?[{from:{...waterPath[0]},to:{...waterPath.at(-1)},waterPath,label:'TRAINING SHIPPING LANE'}]:[];
+    s.world.navigationCorridors=[];s.world.portScenes=[];s.world.ports=[];s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;s.world.missionObjects=[];
+    s.campaign.missionStatus='TRAINING';s.campaign.friendlyPort=null;delete s.campaign.primaryMission;delete s.campaign.missionType;delete s.campaign.missionName;
     s.campaign.objectives=[
       {text:'Find the merchant',done:false},{text:'Sink it',done:false},
       {text:'Evade the escort',done:false},{text:'Finish the training',done:false}];
@@ -410,8 +420,8 @@ class Tutorial{
     sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;
     let c=W.contacts.find(q=>q.id==='GUN-T');
     if(!c){
-      const b=degToRad(sub.heading),d=.82;c={id:'GUN-T',name:'Training Hulk',type:'MERCHANT',displayType:'TARGET HULK',lengthYards:145,visualProfile:.9,acousticBase:.1,tonsFactor:0,trainingHulk:true,
-        position:{xNm:sub.position.xNm+Math.sin(b)*d,yNm:sub.position.yNm-Math.cos(b)*d},heading:normDeg(sub.heading+90),speedKnots:0,desiredSpeed:0,stationary:true,side:'ENEMY'};
+      const pos=this.waterPoint(sub.position,sub.heading,.82,20);if(!pos)throw new Error('No navigable deck-gun training position');c={id:'GUN-T',name:'Training Hulk',type:'MERCHANT',displayType:'TARGET HULK',lengthYards:145,visualProfile:.9,acousticBase:.1,tonsFactor:0,trainingHulk:true,
+        position:pos,heading:normDeg(sub.heading+90),speedKnots:0,desiredSpeed:0,stationary:true,side:'ENEMY'};
       materializeVesselIdentity(c,s);W.contacts.push(c);
     }
     W.contactTracks[c.id]={id:c.id,typeEstimate:'TARGET HULK',affiliation:'ENEMY',bearing:bearingBetween(sub.position,c.position),rangeEstimateNm:distNm(sub.position,c.position),
@@ -425,11 +435,11 @@ class Tutorial{
     const s=this.game.getSnapshot(), sub=s.playerSub;
     s.world.contacts=s.world.contacts.filter(c=>c.id!=='GUN-T');delete s.world.contactTracks?.['GUN-T'];
     if(s.world.contacts.some(c=>c.id==='ESC-T')) return;
-    const b=degToRad(normDeg(sub.heading+150));
+    const escortBearing=normDeg(sub.heading+150),escortPos=this.waterPoint(sub.position,escortBearing,2.4,50);if(!escortPos)throw new Error('No navigable escort training position');
     s.world.contacts.push(materializeVesselIdentity({
       id:'ESC-T',name:'Patrol Vessel',type:'ESCORT',lengthYards:290,
       visualProfile:0.7,acousticBase:0.6,tonsFactor:0,
-      position:{xNm:sub.position.xNm+Math.sin(b)*2.4,yNm:sub.position.yNm-Math.cos(b)*2.4},
+      position:escortPos,
       heading:normDeg(sub.heading-30),speedKnots:14,
       convoyRole:'ESCORT_FWD',formationIndex:0,zigzagPhase:0,zigzagTimer:0,dcRemaining:24+Math.floor(Math.random()*18)
     },s));
@@ -442,10 +452,11 @@ class Tutorial{
   }
 
   start(){
+    SaveSystem.autoClear?.();Toast.clear?.();globalThis.aarController?.close?.(false);document.getElementById('resumeBar')?.classList.remove('on');
     this.setupScenario();
     this.active=true;this.idx=0;this.doneAt=0;
     this._freshArmed=true;
-    this.userMin=null;this._readDone=-1;clearTimeout(this._minT);
+    this.userMin=null;this._readDone=-1;clearTimeout(this._minT);clearTimeout(this._autoT);
     document.getElementById('briefingOverlay').style.display='none';
     document.getElementById('coach')?.classList.add('on');
     this.tc.setPane?.('view');
@@ -455,18 +466,21 @@ class Tutorial{
 
   stop(byUser){
     this.active=false;
-    clearTimeout(this._minT);
+    clearTimeout(this._minT);clearTimeout(this._autoT);
+    (this.game.engine||this.game).endTrainingScenario?.();SaveSystem.autoClear?.();
     document.getElementById('coach')?.classList.remove('on','min','up');
     this.clearHlSpec();
-    if(byUser) Toast.ok('Training ended');
+    if(byUser){Toast.ok('Training ended');sceneSelector.open();}
   }
 
   next(){
+    clearTimeout(this._autoT);
     if(this.idx>=TUT_STEPS.length-1){this.stop();sceneSelector.open();return;}
     this.idx++;this.doneAt=0;this.enter();
   }
 
   enter(){
+    clearTimeout(this._autoT);
     const st=TUT_STEPS[this.idx];
     if(st.sta) this.game.dispatch({type:'SET_ACTIVE_STATION',station:st.sta});
     if(st.pane&&this.tc.touch) this.tc.setPane(st.pane);
@@ -536,6 +550,7 @@ class Tutorial{
       // the completed card around (or back into minimized state) on a phone.
       this.clearHlSpec();
       this.render(true);this.layout();
+      if(st.autoAdvance!==false){const step=this.idx,delay=Math.max(900,Number(st.autoAdvanceMs)||1600);this._autoT=setTimeout(()=>{if(this.active&&this.idx===step&&this.doneAt)this.next();},delay);}
     }
     this.render(false);
   }
