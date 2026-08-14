@@ -32,7 +32,16 @@ class CanvasViewSound extends CanvasViewBridge {
 
     // Headphones and signal meter: intentionally simple and readable on phones.
     const hx=cx,hy=cy+r*1.24;ctx.strokeStyle='rgba(190,218,205,.72)';ctx.lineWidth=Math.max(2,2*k);ctx.beginPath();ctx.arc(hx,hy,22*k,Math.PI,Math.PI*2);ctx.stroke();ctx.strokeRect(hx-25*k,hy-2*k,7*k,15*k);ctx.strokeRect(hx+18*k,hy-2*k,7*k,15*k);
-    const meterW=Math.min(w*.58,280*k),mx=cx-meterW/2,my=Math.min(h-54*k,hy+28*k);ctx.strokeStyle='rgba(70,115,103,.8)';ctx.strokeRect(mx,my,meterW,10*k);ctx.fillStyle=sig.strength>.35?'#6fe08f':sig.strength>.13?'#f5c65c':'#315c54';ctx.fillRect(mx+1,my+1,(meterW-2)*clamp(sig.strength*1.8,0,1),8*k);
+    const meterW=Math.min(w*.58,280*k),mx=cx-meterW/2;
+    /* On short touch screens the SND button strip occupies the lower edge of
+       the canvas. Reserve its measured top edge so the signal-strength bar
+       moves upward when necessary instead of disappearing underneath Train,
+       Mark, Radar or Echo. */
+    const canvasRect=this.canvas?.getBoundingClientRect?.(),controls=document.getElementById('soundControls'),controlRect=controls?.getBoundingClientRect?.();
+    const controlTop=canvasRect&&controlRect&&controlRect.width>0?controlRect.top-canvasRect.top:Infinity;
+    const meterCeiling=Number.isFinite(controlTop)?controlTop-14*k:Infinity;
+    const my=Math.min(h-54*k,hy+28*k,meterCeiling-10*k);
+    ctx.strokeStyle='rgba(70,115,103,.8)';ctx.strokeRect(mx,my,meterW,10*k);ctx.fillStyle=sig.strength>.35?'#6fe08f':sig.strength>.13?'#f5c65c':'#315c54';ctx.fillRect(mx+1,my+1,(meterW-2)*clamp(sig.strength*1.8,0,1),8*k);
 
     ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText(`${String(ui.sensors?.room||'SOUND ROOM').toUpperCase()} — ${String(sensorUi.passiveSound?.label||'PASSIVE LISTENING').toUpperCase()}`,12*k,22*k);
     ctx.font=this.fnt(8.4);ctx.fillStyle='rgba(205,233,220,.78)';ctx.fillText(`TRAIN ${fmtDeg(T.soundBearing)} · OWN SPEED ${state.playerSub.propulsion.speedKnots.toFixed(1)} kn · LISTEN ${Math.round(soundOwnNoiseFactor(state)*100)}%`,12*k,39*k);
