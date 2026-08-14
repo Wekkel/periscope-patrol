@@ -26,7 +26,7 @@ Nothing lower in this list needs to import something above it; the final boot co
 ### HTML and CSS
 
 - `index.html` — semantic UI shell, overlays, desktop/touch layouts and ordered external script references.
-- `css/app.css` — the original inline stylesheet, transferred without rule changes.
+- `css/app.css` — shared component styling plus bounded desktop/touch layout rules. Desktop columns own their scrolling; the station canvas always keeps a finite grid cell and never depends on page scrolling.
 
 ### Core and data
 
@@ -77,7 +77,7 @@ Files:
 ### UI, controllers, persistence and boot
 
 - `js/ui/briefing.js`, `scenario-selector.js`, `toast.js`, `dom-view.js`, `picker.js`, `helm-gauges.js` — UI concerns.
-- `js/controllers/touch-controller.js`, `bridge-controller.js` — input/control routing. The browser UI deliberately has two shells: coarse-pointer/mobile devices use the touch shell, while a fine-pointer desktop browser uses the cockpit shell. Desktop command families are presentation-only tabs (`HELM`, `TDC`, `WEAPONS`, `NAV`); they must never duplicate or fork simulation commands. The canonical controls/IDs remain the same and are merely grouped for reachability.
+- `js/controllers/touch-controller.js`, `bridge-controller.js` — input/control routing. The browser UI deliberately has two shells: coarse-pointer/mobile devices use the touch shell, while a fine-pointer desktop browser uses the cockpit shell. Desktop command families are presentation-only tabs (`HELM`, `TDC`, `WEAPONS`, `NAV`); they must never duplicate or fork simulation commands. The canonical controls/IDs remain the same and are merely grouped for reachability. `TouchCtrl` is the single pointer-gesture owner for the shared canvas on mouse, pen and touch; never add a second desktop `click` path for MAP. `BridgeController` owns desktop keys and consults the global overlay guard before issuing commands. Wheel behavior is station-scoped (MAP zoom, bridge/scope optics, sound train, gun elevation).
 - `js/audio/audio-engine.js` — Web Audio behavior.
 - `js/persistence/save-system.js`, `autosave.js` — manual saves, autosave/resume and versioned portable player-profile backup/import.
 - `js/tutorial/tutorial.js` — training patrol/tutorial flow.
@@ -85,6 +85,15 @@ Files:
 - `js/bootstrap/wiring.js` — DOM event wiring and singleton composition.
 - `js/pwa/version.js` — existing service-worker/version-reading client logic.
 - `js/bootstrap/start.js` — final picker/gauge/loop start.
+
+### Desktop/browser interaction invariants (P26)
+
+- One primary station canvas is visible at a time. Command-family tabs change presentation only and cannot mutate or duplicate simulation truth.
+- A physical pointer release produces at most one canvas action. Mouse and touch share the pointer router, including pointer capture and CSS-pixel-to-canvas conversion.
+- Keyboard commands are ignored while a modal, custom picker, briefing or command sheet owns input. `Escape` closes exactly the highest visible layer, not every open layer.
+- Time scale and event-driven transit remain permanently reachable in the desktop header; the bounded side columns may scroll without moving the station canvas or command rail.
+- Desktop input hints are derived from the active station. Every station action exposed only as a gesture also has a button, key or wheel equivalent where applicable.
+- Responsive layout selection may deliberately fall back to the touch shell when browser zoom leaves too few CSS pixels for the three-column cockpit. This changes presentation only; game state and commands are shared.
 
 ## Mega Pacific engine boundaries
 
@@ -131,4 +140,3 @@ Service-worker caches need the same separation. `sw.js` is maintained manually b
 The nested same-origin deployment is an explicitly temporary development experiment, not an architectural promise. Separate manifest IDs and names help Chrome distinguish installs, but they do not create independent origins: site-data clearing/uninstall prompts, quotas, permissions and other origin-scoped browser state can still couple the two builds. Before DEV installation, export the production player profile. If the target Android devices do not keep the installs predictably distinct, move DEV to a separate origin (preferred) or at minimum a non-overlapping deployment path rather than adding browser/device hacks.
 
 The build channel is a development convenience, not access control. Do not add hardware fingerprinting or treat `/dev/` as secret. Atlantic feature visibility may key from `PP_BUILD.isDev`, but all security assumptions must remain zero-trust because the complete client-side code is public.
-

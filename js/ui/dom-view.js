@@ -16,12 +16,24 @@ class DomView{
     this.hullBar=document.getElementById('hullBar');
     this.alertEl=document.getElementById('deskAlert');
     this.logEl=document.getElementById('deskLog');
+    this.inputHint=document.getElementById('deskInputHint');
   }
   render(state){
     const sub=state.playerSub; const p=sub.propulsion; const tdc=state.tdc;
     if(this.clock) this.clock.textContent=Math.floor(state.time.elapsedSeconds).toString().padStart(5,'0');
     if(this.mode)  this.mode.textContent=sub.mode;
     if(this.station) this.station.textContent=state.tactical.activeStation;
+    if(this.inputHint){
+      const hints={
+        TACTICAL:'Drag compass/depth · [ ] heading · , . RPM · PgUp/PgDn depth',
+        BRIDGE:'Drag to scan · wheel binocular zoom · ← → train',
+        SOUND:'Drag or wheel to train · ← → fine train · mark a bearing',
+        PERISCOPE:'Drag to train · wheel optical zoom · click a contact',
+        MAP:'Drag / arrows to pan · wheel zoom · click waypoint or track',
+        DECK_GUN:'Drag to aim · wheel or ↑ ↓ elevation · ← → fine train'
+      };
+      this.inputHint.textContent=hints[state.tactical.activeStation]||'';
+    }
     if(this.timescale) this.timescale.textContent=state.time.timeScale===0?'PAUSED':`${state.time.timeScale}x`;
     const tsel=document.getElementById('timeSelect');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){tsel.value=String(state.time.timeScale);tsel._pkLabel?.();}
@@ -152,4 +164,3 @@ class DomView{
       `<span>Area</span><strong>${state.campaign.patrolArea}</strong>`;
   }
 }
-

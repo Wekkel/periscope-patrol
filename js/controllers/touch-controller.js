@@ -525,7 +525,10 @@ class TouchCtrl{
     window.addEventListener('blur',purge,{passive:true});
     document.addEventListener('visibilitychange',()=>{if(document.hidden)purge();},{passive:true});
     c.addEventListener('contextmenu',e=>e.preventDefault());
-    // Desktop wheel: chart zoom on MAP, optical zoom on the bridge.
+    /* Fine-pointer wheel parity. The same canvas gesture router owns mouse,
+       pen and touch, so a desktop click is processed exactly once here rather
+       than again by a parallel MAP click handler. Wheel meaning follows the
+       visible station and never changes simulation state outside that station. */
     c.addEventListener('wheel',e=>{
       const s=this.game.getSnapshot();
       if(s.tactical.activeStation==='MAP'){
@@ -534,6 +537,17 @@ class TouchCtrl{
       if(s.tactical.activeStation==='BRIDGE'){
         e.preventDefault();const z=bridgeZoomAmount(s),step=e.deltaY<0?.10:-.10;
         D({type:'SET_BRIDGE_ZOOM',zoom:clamp(z+step,0,1)});return;
+      }
+      if(s.tactical.activeStation==='PERISCOPE'){
+        const z=Number(s.tactical.periscopeZoom)||1,want=e.deltaY<0?2.5:1;
+        if((want>1&&z<2)||(want===1&&z>1.1))D({type:'TOGGLE_PERISCOPE_ZOOM'});
+        e.preventDefault();return;
+      }
+      if(s.tactical.activeStation==='SOUND'){
+        D({type:'ROTATE_SOUND',deltaDeg:e.deltaY<0?-2:2});e.preventDefault();return;
+      }
+      if(s.tactical.activeStation==='DECK_GUN'){
+        D({type:'ADJUST_DECK_GUN',deltaElevDeg:e.deltaY<0?.2:-.2});e.preventDefault();
       }
     },{passive:false});
   }
@@ -928,4 +942,3 @@ class TouchCtrl{
     }
   }
 }
-
