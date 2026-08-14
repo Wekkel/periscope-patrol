@@ -99,6 +99,14 @@ const SHELL = [
   './js/rendering/battle-atmosphere.js',
   './js/audio/audio-director.js'
 ];
+
+const OPTIONAL_SHELL = new Set([
+  './periscope-patrol-icon-192-v3.png',
+  './periscope-patrol-icon-512-v3.png',
+  './periscope-patrol-icon-maskable-512-v3.png',
+  './periscope-patrol-apple-touch-icon-v3.png'
+]);
+
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
