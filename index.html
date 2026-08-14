@@ -316,6 +316,11 @@
     <div class="cgroup">
       <label><span id="deskHeadingLabel">Ordered Heading</span><strong id="orderedHeadingValue">090°</strong></label>
       <input id="headingInput" type="range" min="0" max="359" value="90"/>
+      <div class="heading-order-fine" aria-label="Exact ordered heading">
+        <button data-hstep="-10">−10°</button><button data-hstep="-5">−5°</button><button data-hstep="-1">−1°</button>
+        <input id="headingNumberInput" type="number" min="0" max="359" step="1" value="90" inputmode="numeric" aria-label="Exact ordered heading in degrees">
+        <button data-hstep="1">+1°</button><button data-hstep="5">+5°</button><button data-hstep="10">+10°</button>
+      </div>
     </div>
     <div class="cgroup">
       <label><span id="deskPowerLabel">Ordered RPM</span><strong id="rpmValue">250</strong></label>
@@ -342,6 +347,7 @@
     <div class="ptitle" style="margin-top:8px;">Navigation</div>
     <div class="cgroup desk-nav-grid">
       <button id="clearPlotButton">Clear Plot</button>
+      <button id="plotInterceptButton">Plot Intercept Advice</button>
       <button id="mapWeatherButton">☁ Weather</button>
       <button id="followPlotButton">Steer To Waypoint</button>
       <button id="portButton">⚓ Head To Port</button>
@@ -360,7 +366,8 @@
     <div class="cgroup">
       <button id="scopeLeftButton">◄ Rotate Left (←)</button>
       <button id="scopeRightButton">Rotate Right (→) ►</button>
-      <button id="scopeZoomButton">Toggle Zoom</button>
+      <button data-scope-zoom="1">1.5× Search</button>
+      <button data-scope-zoom="2.5">6× Attack</button>
     </div>
     <div class="ptitle">TDC — Manual Entry</div>
     <div class="cgroup">
@@ -539,7 +546,8 @@
       <button class="rbtn" data-sta="MAP" id="oWeather">☁<small>WX</small></button>
       <!-- PERISCOPE -->
       <button class="rbtn" data-sta="PERISCOPE" id="oScopeL">◀</button>
-      <button class="rbtn" data-sta="PERISCOPE" id="oScopeZ">🔍</button>
+      <button class="rbtn" data-sta="PERISCOPE" data-scope-zoom="1">1.5×</button>
+      <button class="rbtn" data-sta="PERISCOPE" data-scope-zoom="2.5">6×</button>
       <button class="rbtn" data-sta="PERISCOPE" id="oScopeR">▶</button>
       <!-- TACTICAL -->
       <button class="rbtn" data-sta="TACTICAL" id="oSurface">▲<small>SURF</small></button>
@@ -606,6 +614,11 @@
           <button data-hdg="0">N 000</button><button data-hdg="90">E 090</button>
           <button data-hdg="180">S 180</button><button data-hdg="270">W 270</button>
         </div>
+        <div class="heading-order-fine touch-heading-fine" aria-label="Exact ordered heading">
+          <button data-hstep="-10">−10°</button><button data-hstep="-5">−5°</button><button data-hstep="-1">−1°</button>
+          <input id="mHeadingNumberInput" type="number" min="0" max="359" step="1" value="90" inputmode="numeric" aria-label="Exact ordered heading in degrees">
+          <button data-hstep="1">+1°</button><button data-hstep="5">+5°</button><button data-hstep="10">+10°</button>
+        </div>
         <div class="g2">
           <button id="mAutoPilot">◈ Autopilot</button>
           <button id="mSteerWp">↗ Steer To Waypoint</button>
@@ -665,8 +678,9 @@
           <button id="mTransit8h">⏩ 8 hours</button>
           <button id="mTransitOpen">⏩⏩ Until something happens</button>
         </div>
-        <div class="note">Runs the patrol ahead and stops the moment anything happens: a contact,
-          aircraft, a signal from shore, damage, shoal water or a waypoint reached.</div>
+        <div class="note">Fixed runs stop at their stated end or sooner for a tactically meaningful contact,
+          aircraft, new actionable signal, damage, shoal water or waypoint. “Until” has no time ceiling and uses
+          the same safety interrupts. Routine updates remain in the radio log without repeatedly stopping the boat.</div>
 
         <div class="ptitle" style="margin-top:14px;">Patrol</div>
         <div class="g4">
@@ -733,8 +747,9 @@
       <div class="sheet-pane" id="paneStats">
         <div class="ptitle">Mission Progress</div>
         <div id="mMission" style="font-size:12px;color:var(--muted);line-height:1.65;"></div>
-        <div class="ptitle" style="margin-top:12px;">Damage</div>
-        <div id="mDamage"></div>
+        <div class="ptitle" style="margin-top:12px;">What We Know — nearest first</div>
+        <div id="mIntel"></div>
+        <button id="mPlotIntercept" class="intel-plot-action">⌖ Plot latest intercept advice</button>
         <div class="ptitle" style="margin-top:12px;">Resources</div>
         <div style="font-size:11px;color:var(--muted);">Battery</div>
         <div class="res-bar"><i id="mBattery"></i></div>
@@ -742,10 +757,10 @@
         <div class="res-bar"><i id="mFuel"></i></div>
         <div style="font-size:11px;color:var(--muted);">Hull integrity</div>
         <div class="res-bar"><i id="mHull"></i></div>
+        <div class="ptitle" style="margin-top:12px;">Damage Detail</div>
+        <div id="mDamage"></div>
         <div class="ptitle" style="margin-top:12px;">Systems</div>
         <div id="mGauges" class="readout"></div>
-        <div class="ptitle" style="margin-top:12px;">What We Know — nearest first</div>
-        <div id="mIntel"></div>
 
         <div class="ptitle" style="margin-top:12px;">Radio Room <span id="radioState" style="color:var(--muted);font-size:10px;"></span></div>
         <div class="radio-actions" aria-label="Radio orders">
@@ -779,6 +794,7 @@
 <script src="./js/data/game-catalog.js"></script>
 <script src="./js/data/campaign-data.js"></script>
 <script src="./js/data/pacific-terrain-data.js"></script>
+<script src="./js/data/multi-theater-campaigns.js"></script>
 <script src="./js/navigation/route-geometry.js"></script>
 <script src="./js/simulation/collision/hull-geometry.js"></script>
 <script src="./js/simulation/weapons/tdc-math.js"></script>

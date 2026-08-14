@@ -1,4 +1,18 @@
 class SimEngineIntel extends SimEngineAAGun {
+  threadShippingSignal(m){
+    const R=this.state.world.radio, intel=m?.intel;
+    if(!intel){R.inbox.unshift(m);R.unread++;return;}
+    const key=`shipping:${intel.targetId||intel.targetLabel||'unknown'}`;
+    const oldIndex=R.inbox.findIndex(x=>x.threadKey===key), old=oldIndex>=0?R.inbox[oldIndex]:null;
+    const courseDelta=old?.intel?Math.abs((((intel.courseDeg-old.intel.courseDeg)+540)%360)-180):999;
+    const positionDelta=old?.intel?distNm(intel.pos,old.intel.pos):999;
+    const materialChange=!old||courseDelta>=12||positionDelta>=8||m.subject?.includes('AMPLIFYING')||!!m.harborSpecial;
+    m.threadKey=key;m.materialChange=materialChange;m.updateCount=(old?.updateCount||1)+(old?1:0);
+    if(oldIndex>=0)R.inbox.splice(oldIndex,1);
+    if(old&&!materialChange)m.text+=` ROUTINE UPDATE ${m.updateCount} — same tracked target; latest estimate shown.`;
+    R.inbox.unshift(m);if(materialChange)R.unread++;
+  }
+
   ensureRadioOperations(){
     const R=this.state.world.radio=this.state.world.radio||{pending:null,inbox:[],unread:0,nextBroadcast:240,copying:0};
     R.txSilence=!!R.txSilence;R.copyRequired=Math.max(1,Number(R.copyRequired)||40);
@@ -23,7 +37,7 @@ class SimEngineIntel extends SimEngineAAGun {
     if(R.copying<need*.45){this.notify('RADIO ROOM — too few groups copied for a useful partial message.','warn');return false;}
     const m={...R.pending,partial:true,text:`${R.pending.text} [PARTIAL COPY — positions and timing carry extra uncertainty.]`};
     if(m.intel)m.intel={...m.intel,uncBaseNm:(m.intel.uncBaseNm||.8)*1.9,ageSec:(m.intel.ageSec||0)+1200};
-    R.pending=null;R.copying=0;R.copyRequired=40;m.time=this.state.time.elapsedSeconds;m.seq=(R.seq=(R.seq||0)+1);R.inbox.unshift(m);R.unread++;if(R.inbox.length>12)R.inbox.pop();
+    R.pending=null;R.copying=0;R.copyRequired=40;m.time=this.state.time.elapsedSeconds;m.seq=(R.seq=(R.seq||0)+1);this.threadShippingSignal(m);if(R.inbox.length>12)R.inbox.pop();
     R.enigma.workload=clamp((R.enigma.workload||0)+.7,0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';
     this.applySignal(m);audio.event?.('RADIO_MESSAGE');this.captainLog?.('RADIO_PARTIAL_COPY','Radio operator accepted an incomplete encoded message.',{subject:m.subject},'radio-partial');return true;
   }
@@ -70,7 +84,7 @@ class SimEngineIntel extends SimEngineAAGun {
       R.copying+=dt;
       if(R.copying>R.copyRequired){
         const m=R.pending;R.pending=null;R.copying=0;
-        m.time=now;m.seq=(R.seq=(R.seq||0)+1);R.inbox.unshift(m);R.unread++;
+        m.time=now;m.seq=(R.seq=(R.seq||0)+1);this.threadShippingSignal(m);
         if(R.inbox.length>12) R.inbox.pop();
         R.enigma.workload=clamp((R.enigma.workload||0)+(/ATTACK ORDER|SPECIAL/.test(String(m.subject||m.type))?1.1:.55),0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';R.copyRequired=40;this.applySignal(m);
         audio.event?.('RADIO_MESSAGE');
@@ -172,16 +186,25 @@ class SimEngineIntel extends SimEngineAAGun {
         const nowFix=routed?(U.missionCritical?routePointAt(path,U.routeS+run):routeAdvance(path,U.routeS,U.routeDir,run)):null;
         const dr=routed?nowFix.pos:(()=>{const r=degToRad(U.courseDeg);return{xNm:U.reportPos.xNm+Math.sin(r)*run,yNm:U.reportPos.yNm-Math.cos(r)*run};})();
         const rng=distNm(sub.position,dr);
-        // is she opening or closing? compare with where the lane puts her in ten minutes
+        // Compare both moving vessels; no hidden target truth enters this plot.
         const fwd=routed?(U.missionCritical?routePointAt(path,nowFix.s+knotsNmSec(U.speedKn)*600).pos:routeAdvance(path,nowFix.s,nowFix.dir,knotsNmSec(U.speedKn)*600).pos)
                          :(()=>{const r=degToRad(U.courseDeg),r2=knotsNmSec(U.speedKn)*600;return{xNm:dr.xNm+Math.sin(r)*r2,yNm:dr.yNm-Math.cos(r)*r2};})();
+        const ownR=degToRad(sub.heading||0),ownRun=knotsNmSec(sub.propulsion.speedKnots||0)*600;
+        const ownFwd={xNm:sub.position.xNm+Math.sin(ownR)*ownRun,yNm:sub.position.yNm-Math.cos(ownR)*ownRun};
+        const rangeLater=distNm(ownFwd,fwd),rangeRateKn=(rng-rangeLater)*6;
+        const tc=degToRad(nowFix?.heading??U.courseDeg),oc=degToRad(sub.heading||0);
+        const rx=dr.xNm-sub.position.xNm,ry=dr.yNm-sub.position.yNm;
+        const rvx=Math.sin(tc)*U.speedKn-Math.sin(oc)*(sub.propulsion.speedKnots||0);
+        const rvy=-Math.cos(tc)*U.speedKn+Math.cos(oc)*(sub.propulsion.speedKnots||0);
+        const vv=rvx*rvx+rvy*rvy,tcpaH=vv>1e-6?clamp(-(rx*rvx+ry*rvy)/vv,0,24):0;
+        const cpaNm=Math.hypot(rx+rvx*tcpaH,ry+rvy*tcpaH);
         /* Two solutions: one at the speed she is making now, one at flank on
            the roof. If only the second exists, the answer to "why can I never
            find them" is: you have to surface and run. */
         const now2=sub.propulsion.speedKnots;
         out.push({kind:'ULTRA',name:`${U.targetLabel||'Enemy shipping'} (${shippingCopy?.estimateLabel||'intelligence estimate'})`,pos:dr,rngNm:rng,
           brg:bearingBetween(sub.position,dr),ageSec:age,courseDeg:(nowFix?.heading??U.courseDeg),speedKn:U.speedKn,
-          closing:distNm(sub.position,fwd)<rng,
+          closing:rangeRateKn>0,trend:rangeRateKn>.25?'CLOSING':rangeRateKn<-.25?'OPENING':'STEADY',rangeRateKn,cpaNm,cpaTimeSec:tcpaH*3600,
           icptNow:this.interceptSolution(dr,U.courseDeg,U.speedKn,now2),
           icptFlank:this.interceptSolution(dr,U.courseDeg,U.speedKn,flankSpeed),
           uncNm:clamp((U.uncBaseNm||0.8)+U.speedKn*age/3600*0.10,0.8,9)});
@@ -253,6 +276,8 @@ class SimEngineIntel extends SimEngineAAGun {
         reportedAt:this.state.time.elapsedSeconds-(m.intel.ageSec||0),
         receivedAt:this.state.time.elapsedSeconds,label:m.subject};
       delete W.contactTracks['ULTRA'];
+      const advisory=this.intelSummary().find(x=>x.kind==='ULTRA');
+      if(advisory) this.state.map.intelFitRequest={seq:((this.state.map.intelFitRequest?.seq)||0)+1,own:{...this.state.playerSub.position},estimate:{...advisory.pos},receivedAt:this.state.time.elapsedSeconds};
       const T=this.state.time||{},compressed=!!T.transitUntil||(T.timeScale||1)>1;
       if(compressed){
         // Do not let a long skip manufacture a vertical stack of identical

@@ -59,7 +59,8 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
     campaign:{
       // New patrols carry explicit identity. Legacy saves are stamped and
       // validated once by SaveSystem/materializeGameIdentity().
-      theaterId:identity.theaterId,playerFactionId:identity.playerFactionId,
+      campaignSchemaVersion:PP_CAMPAIGN_SCHEMA_VERSION,contentSchemaVersion:PP_CONTENT_SCHEMA_VERSION,
+      campaignId:identity.campaignId,warPartyId:identity.warPartyId,theaterId:identity.theaterId,playerFactionId:identity.playerFactionId,
       campaignProfileId:identity.campaignProfileId,
       patrolArea:resolvedAreaKey,score:0,scenarioSeed:1,missionStatus:'PATROL',
       patrolNumber:1,totalScore:0,startDate:startDate,

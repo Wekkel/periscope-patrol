@@ -1,7 +1,15 @@
 class CanvasView extends CanvasViewSound {
   drawMap(ctx,w,h,state){
     const sub=state.playerSub, map=state.map, k=this.k;
-    const pxPerNm=this.zoom; this._mapViewport={w,h};
+    this._mapViewport={w,h};
+    const fit=map.intelFitRequest;
+    if(fit&&this._intelFitSeq!==fit.seq){
+      this._intelFitSeq=fit.seq;
+      const dx=Math.abs(fit.estimate.xNm-fit.own.xNm),dy=Math.abs(fit.estimate.yNm-fit.own.yNm);
+      this.zoom=clamp(Math.min((w*.68)/Math.max(3,dx),(h*.62)/Math.max(3,dy)),this.minZoom,this.maxZoom);
+      this.mapCenter.xNm=(fit.estimate.xNm+fit.own.xNm)/2;this.mapCenter.yNm=(fit.estimate.yNm+fit.own.yNm)/2;this.follow=false;
+    }
+    const pxPerNm=this.zoom;
     // NEW_PATROL raises a state-side recenter sequence. Consume it here rather
     // than reaching from simulation into the CanvasView instance. This keeps
     // the dependency direction one-way and also works if MAP is opened later.
@@ -48,6 +56,7 @@ class CanvasView extends CanvasViewSound {
     }
 
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
+    this._mapFixedLabelRects=[];
     this.drawMapWeather(ctx,state,w2s,w,h);
     this.drawMapPortScenes(ctx,state.world.portScenes||[],w2s);
     this.drawMapPorts(ctx,state.world.ports,w2s);
@@ -61,8 +70,8 @@ class CanvasView extends CanvasViewSound {
     this.drawMapDCs(ctx,state.world.depthCharges,w2s);
     this.drawMapTorps(ctx,state.weapons.activeTorpedoes,w2s);
     this.drawMapExplosions(ctx,state.weapons.explosions,w2s);
-    this._mapFixedLabelRects=[];
     this.drawUltra(ctx,state,w2s);
+    this.drawInterceptAdvice(ctx,state,w2s,w,h);
     this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId,state);
     this.drawEnemySonarPing(ctx,state,w2s);
     this.drawMapAircraft(ctx,state.world.aircraft||[],w2s,sub);
@@ -122,6 +131,17 @@ class CanvasView extends CanvasViewSound {
     ctx.fillText(`${nm} nm`,sbx+sbw/2,sby-6*k);ctx.textAlign='left';
 
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
+  }
+
+  drawInterceptAdvice(ctx,state,w2s,w,h){
+    const p=state.map?.interceptPlot;if(!p?.point)return;
+    const K=this.k,a=w2s(state.playerSub.position.xNm,state.playerSub.position.yNm),b=w2s(p.point.xNm,p.point.yNm);
+    ctx.save();ctx.strokeStyle='rgba(111,224,143,.8)';ctx.fillStyle='rgba(111,224,143,.9)';ctx.lineWidth=Math.max(1,1.5*K);ctx.setLineDash([7*K,5*K]);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.arc(b.x,b.y,5*K,0,Math.PI*2);ctx.stroke();
+    const age=Math.max(0,state.time.elapsedSeconds-(p.sourceReceivedAt||p.createdAt||0)),eta=p.timeSec<3600?`${Math.round(p.timeSec/60)}m`:`${(p.timeSec/3600).toFixed(1)}h`;
+    const label=`ADVICE ${fmtDeg(p.courseDeg)} · ETA ${eta} · ±${Number(p.uncertaintyNm||0).toFixed(1)} NM · ${age<60?Math.round(age)+'s':Math.round(age/60)+'m'} OLD · HELM UNCHANGED`;
+    ctx.font=this.fnt(7.5,true);const bw=Math.min(w-16*K,ctx.measureText(label).width+16*K),x=w-bw-8*K,y=34*K;
+    ctx.fillStyle='rgba(4,15,18,.84)';this.rr(ctx,x,y,bw,21*K,4*K);ctx.fill();ctx.strokeStyle='rgba(111,224,143,.45)';ctx.stroke();ctx.fillStyle='rgba(190,240,215,.95)';ctx.textAlign='right';ctx.fillText(label,w-16*K,y+14*K);ctx.textAlign='left';ctx.restore();
   }
 
 
@@ -517,6 +537,7 @@ class CanvasView extends CanvasViewSound {
     ctx.fillText(finalReturn
       ? `FINAL RETURN · SURFACE · ALL STOP`
       : `SERVICE · SURFACE · ALL STOP`,p.x,p.y+r+20*K);
+    this._mapFixedLabelRects?.push({x:p.x-85*K,y:p.y-r-18*K,w:170*K,h:Math.max(55*K,2*r+38*K)});
     ctx.textAlign='left';ctx.restore();
   }
 

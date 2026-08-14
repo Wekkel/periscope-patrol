@@ -21,7 +21,7 @@ class DomView{
   render(state){
     const sub=state.playerSub; const p=sub.propulsion; const tdc=state.tdc;
     const ui=getPlayerStationPresentation(state);this.applyPresentation(state,ui);
-    if(this.clock) this.clock.textContent=Math.floor(state.time.elapsedSeconds).toString().padStart(5,'0');
+    if(this.clock) this.clock.textContent=DayNightCycle.getTimeString(state.time.elapsedSeconds);
     if(this.mode)  this.mode.textContent=sub.mode;
     if(this.station) this.station.textContent=state.tactical.activeStation;
     if(this.inputHint){
@@ -46,7 +46,8 @@ class DomView{
     if(this.hArea)  this.hArea.textContent=state.campaign.patrolArea;
     if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
     {const env=state.world.environment||{},dl=Number(env.daylight)||0,icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=Number(env.visibilityNm)||0,quality=vis>=8?'GOOD VIS':vis>=4?'FAIR VIS':'POOR VIS',el=document.getElementById('hTimeConditions');if(el)el.textContent=`${icon} ${DayNightCycle.getTimeString(state.time.elapsedSeconds)} · ${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis.toFixed(1)} NM ${quality}`;}
-    const rpmExact=document.getElementById('rpmNumberInput'),depthExact=document.getElementById('depthNumberInput');if(rpmExact&&rpmExact!==document.activeElement)rpmExact.value=String(Math.round(p.orderedRpm));if(depthExact&&depthExact!==document.activeElement)depthExact.value=String(Math.round(sub.orderedDepthFeet));
+    const headingExact=document.getElementById('headingNumberInput'),rpmExact=document.getElementById('rpmNumberInput'),depthExact=document.getElementById('depthNumberInput');if(headingExact&&headingExact!==document.activeElement)headingExact.value=String(Math.round(sub.orderedHeading));if(rpmExact&&rpmExact!==document.activeElement)rpmExact.value=String(Math.round(p.orderedRpm));if(depthExact&&depthExact!==document.activeElement)depthExact.value=String(Math.round(sub.orderedDepthFeet));
+    document.querySelectorAll('[data-scope-zoom]').forEach(b=>b.classList.toggle('on',Number(b.dataset.scopeZoom)===Number(state.tactical.periscopeZoom)));
     document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationBridge:'BRIDGE',stationSound:'SOUND',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
     const bc=document.getElementById('bridgeControls');if(bc)bc.classList.toggle('on',state.tactical.activeStation==='BRIDGE');
     document.getElementById('mapWeatherButton')?.classList.toggle('on',!!state.map.weatherOverlay);

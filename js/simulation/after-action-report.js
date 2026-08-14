@@ -47,6 +47,10 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
         if(!Number.isFinite(d.visibilityNm))d.visibilityNm=+(env.visibilityNm||0).toFixed(1);
         if(!Number.isFinite(d.daylight))d.daylight=+(env.daylight??1).toFixed(2);
         if(!Number.isFinite(d.escortThreat)&&q)d.escortThreat=(s.world.contacts||[]).filter(x=>x?.id!==target.id&&_aarCombatant(x)&&x.position&&distNm(x.position,q)<=4.5).length;
+        const tr=s.world.contactTracks?.[target.id],profile=typeof getVesselProfile==='function'?getVesselProfile(target.vesselProfileId):null;d.vesselProfileId=target.vesselProfileId||null;d.targetFactionId=target.factionId||inferVesselFactionId?.(target,s)||null;d.recognitionProfile=profile?.recognition||null;d.doctrineProfile=profile?.doctrine||null;
+        d.dispositionAtEvent=typeof getDisposition==='function'?getDisposition(s.campaign.playerFactionId,d.targetFactionId,s.time.campaignDate,s.campaign.campaignId,{declaredHostile:target.side==='ENEMY'}):(target.side||'UNKNOWN');
+        d.observationSource=tr?.source||tr?.lastSensorSource||d.source||'UNOBSERVED';
+        d.playerKnowledge={held:!!tr,typeEstimate:tr?.typeEstimate||'UNKNOWN',confidence:Number(tr?.confidence)||0,visualHullConfirmed:!!tr?.visualHullConfirmed};
       }
       const ev={t,type:String(type||'EVENT'),text:String(text||type||'Event'),position:p,targetPosition:tp,data:d};
       const k=data?.aarKey||data?.key;if(k&&A.events.some(x=>x.key===k))return null;if(k)ev.key=k;
@@ -90,7 +94,7 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
         for(const x of W.contacts||[]){
           if(!x||!x.position)continue;const known=!!W.contactTracks?.[x.id],near=distNm(sub.position,x.position)<=38,important=x.convoyId==='MAIN'||x.harborTarget;
           if(!known&&!near&&!important)continue;
-          let g=A.truthById[x.id];if(!g)g=A.truthById[x.id]={id:x.id,type:x.displayType||x.type||'SHIP',side:x.side||'ENEMY',convoyId:x.convoyId||null,trafficGroupId:x.trafficGroupId||null,points:[]};
+          let g=A.truthById[x.id];if(!g)g=A.truthById[x.id]={id:x.id,type:x.displayType||x.type||'SHIP',side:x.side||'ENEMY',factionId:x.factionId||null,vesselProfileId:x.vesselProfileId||null,convoyId:x.convoyId||null,trafficGroupId:x.trafficGroupId||null,points:[]};
           _aarTimelinePush(g.points,[Math.round(now),+x.position.xNm.toFixed(4),+x.position.yNm.toFixed(4),+(x.heading||0).toFixed(1),+(x.speedKnots||0).toFixed(1),x.sunk?1:0],AAR_MAX_POINTS_PER_TRACK);
         }
       }

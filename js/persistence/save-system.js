@@ -15,7 +15,7 @@ const SaveSystem={
   // release can migrate old patrol states without gratuitously invalidating or
   // redesigning the backup container itself. Schema 0 means a pre-Mega save;
   // the current runtime already upgrades those through its ensure* extensions.
-  STATE_SCHEMA_VERSION:1,
+  STATE_SCHEMA_VERSION:2,
   _importedResumePending:false,lastLoadError:null,
 
   _decimateArray(a,max=120){
@@ -155,7 +155,8 @@ const SaveSystem={
 
   _snapshot(state){
     return{
-        savedAt:new Date().toISOString(),version:8,stateSchemaVersion:this.STATE_SCHEMA_VERSION,
+        savedAt:new Date().toISOString(),version:9,stateSchemaVersion:this.STATE_SCHEMA_VERSION,
+        campaignId:state.campaign.campaignId,warPartyId:state.campaign.warPartyId,campaignProfileId:state.campaign.campaignProfileId,
         area:state.campaign.patrolArea,score:state.campaign.score,
         patrol:state.campaign.patrolNumber,totalScore:state.campaign.totalScore,
         tonnage:state.campaign.tonnageSunk,missionStatus:state.campaign.missionStatus,
@@ -182,7 +183,12 @@ const SaveSystem={
     // ensureWorldExtensions(), traffic/mission setup and the subsystem-specific
     // ensure methods supply every field introduced since the old save. Put any
     // future destructive/renaming migration HERE before advancing the version.
-    if(from===0)snapshot.stateSchemaVersion=1;
+    if(from<=1){
+      const c=snapshot.fullState.campaign=snapshot.fullState.campaign||{},runtime=c.campaignProfileId||'us-pacific';
+      const p=typeof resolveCampaignForRuntimeProfile==='function'?resolveCampaignForRuntimeProfile(runtime):null;
+      c.campaignId=c.campaignId||p?.campaignId||'pacific-submarine-war';c.warPartyId=c.warPartyId||p?.id||'pacific-usa';
+      c.campaignSchemaVersion=PP_CAMPAIGN_SCHEMA_VERSION;c.contentSchemaVersion=PP_CONTENT_SCHEMA_VERSION;snapshot.stateSchemaVersion=2;
+    }
     snapshot.fullState=this._normalizeLoadedState(snapshot.fullState);return snapshot;
   },
 

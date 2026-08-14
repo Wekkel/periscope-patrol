@@ -1,0 +1,23 @@
+Patch root: periscope-patrol-atlantic-dev/
+Branch destination: Atlantic / multi-theater development
+Mode: cumulative changed-files-only
+
+css/app.css
+index.html
+js/controllers/bridge-controller.js
+js/controllers/touch-controller.js
+js/core/state.js
+js/data/game-catalog.js
+js/data/multi-theater-campaigns.js
+js/persistence/save-system.js
+js/rendering/map.js
+js/simulation/after-action-report.js
+js/simulation/career-history.js
+js/simulation/day-night.js
+js/simulation/engine-core.js
+js/simulation/radio-intel.js
+js/ui/dom-view.js
+js/ui/scenario-selector.js
+
+Excluded and byte-identical: sw.js
+Deleted files: NONE

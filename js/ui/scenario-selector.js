@@ -2,15 +2,25 @@
 class ScenarioSelector{
   constructor(game){
     this.game=game;
-    const state=game.getSnapshot(),campaign=getCampaignProfile(state?.campaign?.campaignProfileId);
-    this.selCampaignId=campaign?.id||DEFAULT_GAME_IDENTITY.campaignProfileId;this.selArea=state?.campaign?.patrolArea||campaign?.defaultArea||null;this.selHist=null;this.selMission='AUTO';this.activeTab='patrol';
+    const state=game.getSnapshot(),campaign=getCampaignProfile(state?.campaign?.campaignProfileId),party=resolveCampaignForRuntimeProfile(campaign?.id)||getWarPartyProfile(DEFAULT_GAME_IDENTITY.warPartyId);
+    this.selCampaignId=state?.campaign?.campaignId||party?.campaignId||DEFAULT_GAME_IDENTITY.campaignId;this.selWarPartyId=state?.campaign?.warPartyId||party?.id||DEFAULT_GAME_IDENTITY.warPartyId;this.selArea=state?.campaign?.patrolArea||campaign?.defaultArea||null;this.selHist=null;this.selMission='AUTO';this.activeTab='patrol';
     this.bind();this.renderCards();this.renderHistorical();
+  }
+
+  activePatrolNeedsGuard(){
+    const s=this.game?.getSnapshot?.(),status=s?.campaign?.missionStatus;
+    return !!s&&s.playerSub?.mode!=='SUNK'&&['PATROL','RETURN TO BASE'].includes(status);
+  }
+
+  confirmPatrolReplacement(action='continue'){
+    if(!this.activePatrolNeedsGuard())return true;
+    return confirm(`ACTIVE PATROL — ${action} will replace the current boat state. Saved slots remain available. Continue?`);
   }
 
   open(){
     audio.ensure();
-    const current=this.game.getSnapshot(),campaign=getCampaignProfile(current?.campaign?.campaignProfileId);
-    if(campaign&&campaign.id!==this.selCampaignId){this.selCampaignId=campaign.id;this.selArea=current.campaign.patrolArea||campaign.defaultArea;this.selMission='AUTO';this.renderCards();}
+    const current=this.game.getSnapshot(),campaign=getCampaignProfile(current?.campaign?.campaignProfileId),party=resolveCampaignForRuntimeProfile(campaign?.id);
+    if(party&&party.id!==this.selWarPartyId){this.selCampaignId=party.campaignId;this.selWarPartyId=party.id;this.selArea=current.campaign.patrolArea||campaign.defaultArea;this.selMission='AUTO';this.renderCards();}
     // Opening the anchor/menu is the alternative acknowledgement path for the
     // persistent end-of-patrol AAR offer.
     if(typeof Toast!=='undefined')Toast.dismissRole?.('patrol-aar');
@@ -72,15 +82,16 @@ class ScenarioSelector{
 
   renderCards(){
     const c=document.getElementById('stabPatrol');if(!c)return;
-    const state=this.game?.getSnapshot?.(),activeCampaign=typeof getCampaignProfile==='function'?getCampaignProfile(state?.campaign?.campaignProfileId):null,
-      campaign=typeof getCampaignProfile==='function'?getCampaignProfile(this.selCampaignId||activeCampaign?.id):activeCampaign,
+    const state=this.game?.getSnapshot?.(),activeCampaign=getCampaignProfile(state?.campaign?.campaignProfileId),definition=getCampaignDefinition(this.selCampaignId)||getCampaignDefinition(DEFAULT_GAME_IDENTITY.campaignId),
+      parties=getSelectableWarParties(definition.id),party=parties.find(x=>x.id===this.selWarPartyId)||parties[0],
+      campaign=getCampaignProfile(party?.runtimeCampaignProfileId||activeCampaign?.id),
       missionProfile=typeof getCampaignMissionProfile==='function'?getCampaignMissionProfile(campaign?.id):null,
       areaIds=Array.isArray(campaign?.patrolAreaIds)?campaign.patrolAreaIds:Object.keys(PATROL_AREAS);
     const missionTypes=(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).filter(k=>missionProfile?.definitions?.[k]);
     const missionOpts=[['AUTO','AUTO — varied patrol orders'],...missionTypes.map(k=>[k,missionProfile.definitions[k].title||k.replaceAll('_',' ')])];
     const missionHint=missionProfile?.autoDescription||'One primary mission per patrol. AUTO chooses orders appropriate to the selected patrol area.';
-    const devCampaigns=PP_BUILD?.isDev?getSelectableCampaignProfiles():[campaign].filter(Boolean);
-    const campaignPicker=PP_BUILD?.isDev?`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">THEATER / CAMPAIGN</h3><div class="hist-desc">Atlantic DEV can launch the stable Pacific campaign or the current experimental vertical slice.</div></div><select id="campaignProfileSelect" class="tsel" style="min-width:250px;max-width:100%;">${devCampaigns.map(x=>`<option value="${x.id}"${x.id===campaign?.id?' selected':''}>${x.displayName}</option>`).join('')}</select></div>`:'';
+    const defs=getSelectableCampaignDefinitions();
+    const campaignPicker=`<div class="hist-card campaign-flow" style="grid-column:1/-1"><h3>1 · CAMPAIGN</h3><select id="campaignDefinitionSelect" class="tsel">${defs.map(x=>`<option value="${x.id}"${x.id===definition.id?' selected':''}>${x.displayName}</option>`).join('')}</select><h3>2 · WAR PARTY</h3><select id="warPartySelect" class="tsel">${parties.map(x=>`<option value="${x.id}"${x.id===party?.id?' selected':''}>${getFactionProfile(x.factionId).displayName} · ${x.commandName}</option>`).join('')}</select><h3>3 · BOAT / DATE / REFIT</h3><div class="hist-desc">${getSubmarineProfile(party.submarineProfileId).displayName} · ${party.dateWindow[0]}–${party.dateWindow[1]} · ${party.doctrine}. Equipment availability follows the selected patrol date.</div><h3>4 · MISSION</h3></div>`;
     c.innerHTML=campaignPicker+areaIds.map(name=>[name,PATROL_AREAS[name]]).filter(([,area])=>!!area).map(([name,area])=>{
       const dl=String(area.difficulty||'MEDIUM').toUpperCase(),d=dl==='HARD'?{l:dl,cls:'diff-hard',s:'★★★'}:dl==='EASY'?{l:dl,cls:'diff-easy',s:'★☆☆'}:{l:dl,cls:'diff-med',s:'★★☆'};
       return `<div class="area-card${name===this.selArea?' selected':''}" data-area="${name}">
@@ -96,7 +107,8 @@ class ScenarioSelector{
         <span class="area-diff ${d.cls}">${d.s} ${d.l}</span>
       </div>`;
     }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">${missionHint}</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
-    const cp=c.querySelector('#campaignProfileSelect');if(cp){cp.addEventListener('change',()=>{this.selCampaignId=cp.value;const next=getCampaignProfile(this.selCampaignId);this.selArea=next?.defaultArea||null;this.selMission='AUTO';this.renderCards();this.syncFooter();});if(typeof Picker!=='undefined')Picker.enhance(cp);}
+    const cd=c.querySelector('#campaignDefinitionSelect');if(cd){cd.addEventListener('change',()=>{this.selCampaignId=cd.value;const next=getSelectableWarParties(this.selCampaignId)[0];this.selWarPartyId=next.id;const runtime=getCampaignProfile(next.runtimeCampaignProfileId);this.selArea=runtime.defaultArea;this.selMission='AUTO';this.renderCards();this.syncFooter();});if(typeof Picker!=='undefined')Picker.enhance(cd);}
+    const wp=c.querySelector('#warPartySelect');if(wp){wp.addEventListener('change',()=>{this.selWarPartyId=wp.value;const next=getWarPartyProfile(wp.value),runtime=getCampaignProfile(next.runtimeCampaignProfileId);this.selArea=runtime.defaultArea;this.selMission='AUTO';this.renderCards();this.syncFooter();});if(typeof Picker!=='undefined')Picker.enhance(wp);}
     const ms=c.querySelector('#missionTypeSelect');if(ms){ms.addEventListener('change',()=>{this.selMission=ms.value;});if(typeof Picker!=='undefined')Picker.enhance(ms);}
     c.querySelectorAll('.area-card').forEach(card=>{
       card.addEventListener('click',()=>{
@@ -154,9 +166,10 @@ class ScenarioSelector{
         <div class="slot-info"><div class="slot-name" style="color:var(--muted);">— Empty Slot ${slot.slot+1} —</div></div>
         <div class="slot-btns"><button onclick="sceneSelector.saveToSlot(${slot.slot})" style="border-color:var(--ok);color:var(--ok);">Save Here</button></div></div>`;
       const d=new Date(slot.savedAt).toLocaleString('nl-NL',{dateStyle:'short',timeStyle:'short'});
+      const party=slot.warPartyId&&getWarPartyProfile(slot.warPartyId),campaign=slot.campaignId&&getCampaignDefinition(slot.campaignId),identity=[campaign?.displayName,party&&getFactionProfile(party.factionId)?.shortName].filter(Boolean).join(' · ');
       return`<div class="save-slot">
         <div class="slot-info">
-          <div class="slot-name">Slot ${slot.slot+1} — ${slot.area} | Patrol #${slot.patrol}</div>
+          <div class="slot-name">Slot ${slot.slot+1} — ${identity?identity+' · ':''}${slot.area} | Patrol #${slot.patrol}</div>
           <div class="slot-meta">${d} | Score: ${(slot.score||0).toLocaleString()} | ${(slot.tonnage||0).toLocaleString()}t sunk | Hull: ${Math.round(slot.hullIntegrity||100)}%</div>
         </div>
         <div class="slot-btns">
@@ -201,6 +214,7 @@ class ScenarioSelector{
   loadSlot(slot){
     const state=SaveSystem.load(slot);
     if(!state){alert(`Load failed${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:'.'}`);return;}
+    if(!this.confirmPatrolReplacement(`loading slot ${slot+1}`))return;
     SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();
     Object.assign(this.game.state,state);
     this.close();
@@ -219,6 +233,7 @@ class ScenarioSelector{
     // a random patrol. Historical missions also require an explicit choice.
     if(this.activeTab!=='patrol'&&this.activeTab!=='historical')return;
     if(this.activeTab==='historical'&&!this.selHist){globalThis.Toast?.warn?.('Choose a historical mission first.');return;}
+    if(!this.confirmPatrolReplacement('launching a new mission'))return;
     if(this.activeTab==='historical'&&this.selHist){
       const h=HISTORICAL_SCENARIOS.find(s=>s.id===this.selHist);
       if(h){
@@ -248,6 +263,6 @@ class ScenarioSelector{
         audio.event?.('MISSION_START');this.close();showBriefing(aKey,s);return;
       }
     }
-    if(this.activeTab==='patrol'&&this.selArea){const campaign=getCampaignProfile(this.selCampaignId),gameIdentity=campaign?{theaterId:campaign.theaterId,playerFactionId:campaign.playerFactionId,campaignProfileId:campaign.id,submarineProfileId:campaign.submarineProfileId}:DEFAULT_GAME_IDENTITY;SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO',gameIdentity});audio.event?.('MISSION_START');this.close();}
+    if(this.activeTab==='patrol'&&this.selArea){const party=getWarPartyProfile(this.selWarPartyId),campaign=getCampaignProfile(party?.runtimeCampaignProfileId),gameIdentity=campaign?{campaignId:party.campaignId,warPartyId:party.id,theaterId:campaign.theaterId,playerFactionId:campaign.playerFactionId,campaignProfileId:campaign.id,submarineProfileId:campaign.submarineProfileId}:DEFAULT_GAME_IDENTITY;SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO',gameIdentity});audio.event?.('MISSION_START');this.close();}
   }
 }

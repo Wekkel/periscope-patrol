@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════ DAY/NIGHT CYCLE ENGINE
 const DayNightCycle = {
-  // Patrol start: 06:00. Full cycle = 1440 in-game minutes = 86400 sim-seconds at 1x
-  // We compress: 1 real minute at 1x = 12 in-game minutes  (so 2h real = full day)
-  CYCLE_SECONDS: 7200, // 2 real hours at 1x = 1 full day
+  // One simulation second is one world-clock second. Time compression and the
+  // event-driven transit loop already provide acceleration; compressing the
+  // calendar a second time made an eight-hour navigation run span four dates.
+  CYCLE_SECONDS: 86400,
 
   getDaylight(elapsedSeconds, timeScale) {
     // In-game time of day (0-1, 0=midnight, 0.25=dawn, 0.5=noon, 0.75=dusk)
@@ -16,9 +17,7 @@ const DayNightCycle = {
   },
 
   getTimeString(elapsedSeconds) {
-    const dayFraction = (elapsedSeconds % this.CYCLE_SECONDS) / this.CYCLE_SECONDS;
-    const tod = (dayFraction + 0.25) % 1;
-    const totalMinutes = Math.floor(tod * 1440);
+    const totalMinutes = Math.floor((((elapsedSeconds % this.CYCLE_SECONDS)+6*3600)%this.CYCLE_SECONDS)/60);
     const h = Math.floor(totalMinutes / 60).toString().padStart(2,'0');
     const m = (totalMinutes % 60).toString().padStart(2,'0');
     return `${h}:${m}`;
@@ -55,4 +54,3 @@ const DayNightCycle = {
     label.textContent = `${icon} ${timeStr}`;
   }
 };
-

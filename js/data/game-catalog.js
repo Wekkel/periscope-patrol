@@ -278,11 +278,11 @@ const AIRCRAFT_PROFILES=Object.freeze({
   'luftwaffe-fw200':Object.freeze({id:'luftwaffe-fw200',factionId:'germany',name:'Focke-Wulf Fw 200',kind:'BOMBER',availableFrom:19400601,engines:4,spanM:32.9,lengthM:23.5,speedKnots:Object.freeze([180,225]),ordnance:'BOMB',recognition:'Long four-engine airliner-derived maritime patrol aircraft',doctrine:'Long-range convoy reconnaissance, shadow reports and level or low-altitude bombing'}),
   'luftwaffe-ju88':Object.freeze({id:'luftwaffe-ju88',factionId:'germany',name:'Junkers Ju 88',kind:'BOMBER',availableFrom:19390901,engines:2,spanM:20.0,lengthM:14.4,speedKnots:Object.freeze([220,270]),ordnance:'BOMB',recognition:'Twin-engine bomber with glazed nose and single fin',doctrine:'Fast maritime strike and armed reconnaissance with diving or low-level attack'})
 });
-function getAircraftProfile(profileId){return profileId?AIRCRAFT_PROFILES[profileId]||null:null;}
+function getAircraftProfile(profileId){return profileId?(AIRCRAFT_PROFILES[profileId]||(typeof MULTI_AIRCRAFT_PROFILES!=='undefined'&&MULTI_AIRCRAFT_PROFILES[profileId])||null):null;}
 function historicalDateKey(value){return Number(String(value||'').replace(/[^0-9]/g,'').slice(0,8).padEnd(8,'0'))||0;}
 function historicalTemplateAvailable(template,date){const key=historicalDateKey(date),profile=getVesselProfile(template?.vesselProfileId)||getAircraftProfile(template?.aircraftProfileId);return(!template?.availableFrom||key>=template.availableFrom)&&(!template?.availableUntil||key<template.availableUntil)&&(!profile?.availableFrom||key>=profile.availableFrom)&&(!profile?.availableUntil||key<profile.availableUntil);}
 
-function getVesselProfile(profileId){return profileId?VESSEL_PROFILES[profileId]||null:null;}
+function getVesselProfile(profileId){return profileId?(VESSEL_PROFILES[profileId]||(typeof MULTI_VESSEL_PROFILES!=='undefined'&&MULTI_VESSEL_PROFILES[profileId])||null):null;}
 function vesselGameplayType(v){return String(v?.gameplayType||v?.type||'MERCHANT').toUpperCase();}
 
 function _legacyVesselModelKey(v){
@@ -338,6 +338,10 @@ function materializeVesselIdentity(v,state=null,overrides=null){
   v.vesselProfileId=o.vesselProfileId||v.vesselProfileId||inferVesselProfileId(v,state);
   const profile=getVesselProfile(v.vesselProfileId);
   if(v.factionId===undefined)v.factionId=profile?.factionId??null;
+  if(typeof getDisposition==='function'&&state?.campaign){
+    v.disposition=getDisposition(state.campaign.playerFactionId,v.factionId,state.time?.campaignDate||state.campaign.startDate,state.campaign.campaignId,{declaredHostile:v.side==='ENEMY'});
+    if(v.side==null)v.side=v.disposition==='HOSTILE'?'ENEMY':['FRIENDLY','ALLIED'].includes(v.disposition)?'FRIENDLY':v.disposition;
+  }
   v.modelKey=o.modelKey||v.modelKey||profile?.modelKey||_legacyVesselModelKey(v);
   return v;
 }
@@ -1062,6 +1066,7 @@ const CAMPAIGN_PROFILES=Object.freeze({
 });
 
 const DEFAULT_GAME_IDENTITY=Object.freeze({
+  campaignId:'pacific-submarine-war',warPartyId:'pacific-usa',
   theaterId:'pacific',
   playerFactionId:'usa',
   campaignProfileId:'us-pacific',
@@ -1080,18 +1085,18 @@ const ATLANTIC_1941_GAME_IDENTITY=Object.freeze({
 function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   // Omitted ID means the current default; an explicit unknown ID is an authoring
   // or save-compatibility error and must never masquerade as the Pacific campaign.
-  return CAMPAIGN_PROFILES[profileId]||null;
+  return (typeof MULTI_CAMPAIGN_PROFILES!=='undefined'&&MULTI_CAMPAIGN_PROFILES[profileId])||CAMPAIGN_PROFILES[profileId]||null;
 }
 
-function getCampaignLoadBoundary(profileId){return CAMPAIGN_LOAD_BOUNDARIES[profileId]||null;}
+function getCampaignLoadBoundary(profileId){return CAMPAIGN_LOAD_BOUNDARIES[profileId]||(typeof MULTI_CAMPAIGN_LOAD_BOUNDARIES!=='undefined'&&MULTI_CAMPAIGN_LOAD_BOUNDARIES[profileId])||null;}
 function getFutureVerticalSliceBlueprint(profileId){return FUTURE_VERTICAL_SLICE_BLUEPRINTS[profileId]||null;}
 function verticalSliceReadiness(profileId){
   const campaign=getCampaignProfile(profileId),missing=[];
   if(!campaign)return Object.freeze({ready:false,missing:Object.freeze(['registeredPlayableCampaign'])});
-  const theater=THEATER_PROFILES[campaign.theaterId],faction=FACTION_PROFILES[campaign.playerFactionId],sub=SUBMARINE_PROFILES[campaign.submarineProfileId];
+  const theater=THEATER_PROFILES[campaign.theaterId],faction=getFactionProfile(campaign.playerFactionId),sub=getSubmarineProfile(campaign.submarineProfileId);
   const checks={
     factionIdentity:!!(theater&&faction),
-    submarineAndPresentation:!!(sub&&STATION_PRESENTATION_PROFILES[sub.stationPresentationId]),
+    submarineAndPresentation:!!(sub&&getStationPresentation(sub.stationPresentationId)),
     equipmentByDate:!!campaign.historicalModel,
     vesselRosters:!!(campaign.primaryConvoyProfile&&campaign.ambientTrafficProfile),
     aircraftAndAswDoctrine:!!campaign.doctrineProfile,
@@ -1109,28 +1114,29 @@ function verticalSliceReadiness(profileId){
   return Object.freeze({ready:missing.length===0,missing:Object.freeze([...new Set(missing)])});
 }
 function getSelectableCampaignProfiles(){
-  return Object.freeze(Object.values(CAMPAIGN_PROFILES).filter(c=>c.id===DEFAULT_GAME_IDENTITY.campaignProfileId||(c.devSelectable&&verticalSliceReadiness(c.id).ready)));
+  const all=Object.values({...CAMPAIGN_PROFILES,...(typeof MULTI_CAMPAIGN_PROFILES!=='undefined'?MULTI_CAMPAIGN_PROFILES:{})});
+  return Object.freeze(all.filter(c=>c.id===DEFAULT_GAME_IDENTITY.campaignProfileId||(c.devSelectable&&verticalSliceReadiness(c.id).ready)));
 }
 
 function getCampaignMissionProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   /* Deliberately no Pacific fallback for a known future campaign. A missing
      mission profile is an authoring error and must not leak COMSUBPAC orders
      or Pacific area selection into another theater. */
-  return CAMPAIGN_PROFILES[profileId]?.missionProfile||null;
+  return getCampaignProfile(profileId)?.missionProfile||null;
 }
 
 function getCampaignSpecialOperationsProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
-  return CAMPAIGN_PROFILES[profileId]?.specialOperationsProfile||null;
+  return getCampaignProfile(profileId)?.specialOperationsProfile||null;
 }
 
 function getCampaignDoctrineProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   /* Doctrine is campaign-authored. Do not hide an incomplete future theater by
      silently borrowing Pacific escort posture or Japanese aircraft rosters. */
-  return CAMPAIGN_PROFILES[profileId]?.doctrineProfile||null;
+  return getCampaignProfile(profileId)?.doctrineProfile||null;
 }
 
 function getCampaignRadioIntelProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
-  return CAMPAIGN_PROFILES[profileId]?.radioIntelProfile||null;
+  return getCampaignProfile(profileId)?.radioIntelProfile||null;
 }
 
 function getCampaignHarborOperationProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
@@ -1138,31 +1144,33 @@ function getCampaignHarborOperationProfile(profileId=DEFAULT_GAME_IDENTITY.campa
 }
 
 function getCampaignHistoricalModel(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
-  return CAMPAIGN_PROFILES[profileId]?.historicalModel||null;
+  return getCampaignProfile(profileId)?.historicalModel||null;
 }
 
 function getPrimaryConvoyProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   /* Do not fall back to Pacific for a known future campaign that forgot to
      author convoy data: that would silently spawn Japanese shipping in the
      Atlantic. Unknown IDs are already rejected by the identity validator. */
-  return CAMPAIGN_PROFILES[profileId]?.primaryConvoyProfile||null;
+  return getCampaignProfile(profileId)?.primaryConvoyProfile||null;
 }
 
 function getAmbientTrafficProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   /* As with primary convoys, a future campaign must author its own ambient
      world. Never disguise missing Atlantic content with Pacific traffic. */
-  return CAMPAIGN_PROFILES[profileId]?.ambientTrafficProfile||null;
+  return getCampaignProfile(profileId)?.ambientTrafficProfile||null;
 }
 
 function getSubmarineProfile(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
   // As with campaigns, an explicit future/unknown boat must fail closed rather
   // than silently materializing Silversides with the wrong historical identity.
-  return SUBMARINE_PROFILES[profileId]||null;
+  return SUBMARINE_PROFILES[profileId]||(typeof MULTI_SUBMARINE_PROFILES!=='undefined'&&MULTI_SUBMARINE_PROFILES[profileId])||null;
 }
 
 function getStationPresentation(profileId){
-  return STATION_PRESENTATION_PROFILES[profileId]||null;
+  return STATION_PRESENTATION_PROFILES[profileId]||(typeof MULTI_STATION_PRESENTATION_PROFILES!=='undefined'&&MULTI_STATION_PRESENTATION_PROFILES[profileId])||null;
 }
+
+function getFactionProfile(profileId){return FACTION_PROFILES[profileId]||(typeof MULTI_FACTION_PROFILES!=='undefined'&&MULTI_FACTION_PROFILES[profileId])||null;}
 
 function materializeSubmarinePresentation(submarineProfileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
   const sub=getSubmarineProfile(submarineProfileId),profile=getStationPresentation(sub?.stationPresentationId);
@@ -1199,7 +1207,10 @@ function getPlayerSensorPresentation(state=null){
 
 function resolveGameIdentity(state=null){
   const c=state?.campaign||{},sub=state?.playerSub||{};
+  const inferred=typeof resolveCampaignForRuntimeProfile==='function'?resolveCampaignForRuntimeProfile(c.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId):null;
   return Object.freeze({
+    campaignId:c.campaignId||inferred?.campaignId||DEFAULT_GAME_IDENTITY.campaignId,
+    warPartyId:c.warPartyId||inferred?.id||DEFAULT_GAME_IDENTITY.warPartyId,
     theaterId:c.theaterId||DEFAULT_GAME_IDENTITY.theaterId,
     playerFactionId:c.playerFactionId||DEFAULT_GAME_IDENTITY.playerFactionId,
     campaignProfileId:c.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId,
@@ -1208,11 +1219,13 @@ function resolveGameIdentity(state=null){
 }
 
 function validateGameIdentity(identity){
-  const x=identity||DEFAULT_GAME_IDENTITY,errors=[];
+  const supplied=identity||DEFAULT_GAME_IDENTITY,inferred=typeof resolveCampaignForRuntimeProfile==='function'?resolveCampaignForRuntimeProfile(supplied.campaignProfileId):null;
+  const x={...supplied,campaignId:supplied.campaignId||inferred?.campaignId||DEFAULT_GAME_IDENTITY.campaignId,warPartyId:supplied.warPartyId||inferred?.id||DEFAULT_GAME_IDENTITY.warPartyId},errors=[];
   const theater=THEATER_PROFILES[x.theaterId];
-  const faction=FACTION_PROFILES[x.playerFactionId];
-  const campaign=CAMPAIGN_PROFILES[x.campaignProfileId];
-  const sub=SUBMARINE_PROFILES[x.submarineProfileId];
+  const faction=getFactionProfile(x.playerFactionId);
+  const campaign=getCampaignProfile(x.campaignProfileId);
+  const sub=getSubmarineProfile(x.submarineProfileId);
+  const warParty=typeof getWarPartyProfile==='function'?getWarPartyProfile(x.warPartyId):null;
 
   if(!theater)errors.push(`Unknown theater profile: ${x.theaterId}`);
   if(!faction)errors.push(`Unknown player faction: ${x.playerFactionId}`);
@@ -1227,6 +1240,8 @@ function validateGameIdentity(identity){
     errors.push(`Submarine ${sub.id} belongs to ${sub.factionId}, not ${x.playerFactionId}`);
   if(sub&&sub.theaterId!==x.theaterId)
     errors.push(`Submarine ${sub.id} belongs to ${sub.theaterId}, not ${x.theaterId}`);
+  if(typeof getWarPartyProfile==='function'&&(!warParty||warParty.campaignId!==x.campaignId||warParty.runtimeCampaignProfileId!==x.campaignProfileId))
+    errors.push(`War party ${x.warPartyId||'UNKNOWN'} does not match campaign/runtime identity.`);
 
   return{ok:errors.length===0,errors,identity:{...x}};
 }
@@ -1241,6 +1256,7 @@ function materializeGameIdentity(state){
   if(!validation.ok)throw new Error(`Invalid game identity: ${validation.errors.join('; ')}`);
   const campaign=getCampaignProfile(identity.campaignProfileId);
   state.campaign.theaterId=identity.theaterId;
+  state.campaign.campaignId=identity.campaignId;state.campaign.warPartyId=identity.warPartyId;
   state.campaign.playerFactionId=identity.playerFactionId;
   state.campaign.campaignProfileId=identity.campaignProfileId;
   state.playerSub.profileId=identity.submarineProfileId;
