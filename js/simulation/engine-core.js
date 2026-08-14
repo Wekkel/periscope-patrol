@@ -331,6 +331,10 @@ class SimEngineCore{
       case'START_TRANSIT':{
         const t=this.state.time;
         if(sub.mode==='SUNK') break;
+        if(t.transitUntil>t.elapsedSeconds){
+          this.notify('TRANSIT ALREADY RUNNING — stop the current run before choosing another.','warn');
+          break;
+        }
         const activeAir=(this.state.world.aircraft||[]).some(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'));
         if(activeAir){t.timeScale=1;t.transitUntil=0;t.transitOpen=false;this.notify('Transit unavailable — aircraft attack in progress.','bad');break;}
         /* seconds:0 means "no clock" — she runs on until something actually
@@ -347,7 +351,7 @@ class SimEngineCore{
         break;}
       case'STOP_TRANSIT':{
         const t=this.state.time;
-        if(t.transitUntil){t.transitUntil=0;t.transitOpen=false;this.log('Transit ended.','warn');}
+        if(t.transitUntil){t.transitUntil=0;t.transitOpen=false;t.transitReason='stopped by player';t.stopReason='stopped by player';t.stopReasonAt=t.elapsedSeconds;this.log('Transit ended by player.','warn');}
         break;}
       case'SET_TIME_SCALE':{
         const v=[0,1,8,16,32].includes(+cmd.scale)?+cmd.scale:1;
@@ -401,6 +405,7 @@ class SimEngineCore{
       case'BRIDGE_TARGET_CENTER': this.markBridgeContact(null,true); break;
       case'BRIDGE_TARGET_CONTACT': this.markBridgeContact(cmd.trackId||null,true); break;
       case'ROTATE_PERISCOPE': this.state.tactical.periscopeBearing=normDeg(this.state.tactical.periscopeBearing+cmd.deltaDeg);this.refreshScopeVisualContacts?.(); break;
+      case'SET_PERISCOPE_ZOOM': this.state.tactical.periscopeZoom=Number(cmd.zoom)===2.5?2.5:1;this.refreshScopeVisualContacts?.(); break;
       case'TOGGLE_PERISCOPE_ZOOM': this.state.tactical.periscopeZoom=this.state.tactical.periscopeZoom===1?2.5:1;this.refreshScopeVisualContacts?.(); break;
       case'PERISCOPE_SELECT_CENTER_CONTACT': this.selectScopeContact(); break;
       case'DESELECT_TRACK':
@@ -479,6 +484,12 @@ class SimEngineCore{
       case'MAP_CLEAR_PLOT':
         this.state.map.plottedCourse=[];this.state.map.autoFollowPlot=false;
         this.log('Map plot cleared — manual helm.');break;
+      case'PLOT_INTERCEPT_ADVISORY':{
+        const a=this.intelSummary?.().find(x=>x.kind==='ULTRA'),plan=a?.icptNow||a?.icptFlank;
+        if(!a||!plan){this.notify('No usable shipping intercept is held. Copy radio traffic or develop a contact.','warn');break;}
+        this.state.map.interceptPlot={point:{...plan.point},courseDeg:plan.courseDeg,timeSec:plan.timeSec,uncertaintyNm:a.uncNm,sourceReceivedAt:this.state.world.ultra?.receivedAt,createdAt:this.state.time.elapsedSeconds};
+        this.notify(`Intercept advice plotted ${fmtDeg(plan.courseDeg)} — helm unchanged.`,'ok');
+        this.log(`Navigator plotted an advisory intercept ${fmtDeg(plan.courseDeg)}; commanding officer retains the helm.`);break;}
       case'TOGGLE_MAP_WEATHER':
         this.state.map.weatherOverlay=!this.state.map.weatherOverlay;
         this.notify(this.state.map.weatherOverlay?'Weather overlay shown — shaded cells are moving squalls; local visibility is shown on the chart.':'Weather overlay hidden.','ok');break;

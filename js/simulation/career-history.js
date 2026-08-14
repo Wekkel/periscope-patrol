@@ -2,7 +2,7 @@
 // Phase 4 keeps career history append-only. The active patrol carries only
 // the current captain's log; immutable patrol records live in SaveSystem.
 const CAREER_RECORD_VERSION=1;
-const GAME_DAY_SECONDS=7200; // same compressed-day contract as DayNightCycle
+const GAME_DAY_SECONDS=86400; // same one-second/one-world-second contract as DayNightCycle
 
 function _careerClone(v){return v==null?v:JSON.parse(JSON.stringify(v));}
 function _careerStampFrom(baseStamp,elapsedSec){

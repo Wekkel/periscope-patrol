@@ -5,6 +5,16 @@ class ScenarioSelector{
     this.bind();this.renderCards();this.renderHistorical();
   }
 
+  activePatrolNeedsGuard(){
+    const s=this.game?.getSnapshot?.(),status=s?.campaign?.missionStatus;
+    return !!s&&s.playerSub?.mode!=='SUNK'&&['PATROL','RETURN TO BASE'].includes(status);
+  }
+
+  confirmPatrolReplacement(action='continue'){
+    if(!this.activePatrolNeedsGuard())return true;
+    return confirm(`ACTIVE PATROL — ${action} will replace the current boat state. Saved slots remain available. Continue?`);
+  }
+
   open(){
     audio.ensure();
     // Opening the anchor/menu is the alternative acknowledgement path for the
@@ -188,6 +198,7 @@ class ScenarioSelector{
   loadSlot(slot){
     const state=SaveSystem.load(slot);
     if(!state){alert(`Load failed${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:'.'}`);return;}
+    if(!this.confirmPatrolReplacement(`loading slot ${slot+1}`))return;
     SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();
     Object.assign(this.game.state,state);
     this.close();
@@ -206,6 +217,7 @@ class ScenarioSelector{
     // a random patrol. Historical missions also require an explicit choice.
     if(this.activeTab!=='patrol'&&this.activeTab!=='historical')return;
     if(this.activeTab==='historical'&&!this.selHist){globalThis.Toast?.warn?.('Choose a historical mission first.');return;}
+    if(!this.confirmPatrolReplacement('launching a new mission'))return;
     if(this.activeTab==='historical'&&this.selHist){
       const h=HISTORICAL_SCENARIOS.find(s=>s.id===this.selHist);
       if(h){
@@ -237,4 +249,3 @@ class ScenarioSelector{
     if(this.activeTab==='patrol'&&this.selArea){SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO'});audio.event?.('MISSION_START');this.close();}
   }
 }
-

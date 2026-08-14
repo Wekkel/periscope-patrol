@@ -237,6 +237,9 @@ class TouchCtrl{
     bindRange('mHdg','mHdgV',v=>fmtDeg(v),v=>({type:'SET_ORDERED_HEADING',heading:v}));
     bindRange('mRpm',null,v=>v,v=>({type:'SET_ENGINE_RPM',rpm:v}));
     bindRange('mDpt',null,v=>v,v=>({type:'SET_ORDERED_DEPTH',depthFeet:v}));
+    document.querySelectorAll('#touchShell [data-hstep]').forEach(b=>b.addEventListener('click',()=>{this._press(b);this.nudgeHeading(Number(b.dataset.hstep));},{passive:true}));
+    g('mHeadingNumberInput')?.addEventListener('change',e=>{const v=Math.round(normDeg(Number(e.target.value)||0));this.setHeadingSlider(v);D({type:'SET_ORDERED_HEADING',heading:v});});
+    document.querySelectorAll('#touchShell [data-scope-zoom]').forEach(b=>b.addEventListener('click',()=>D({type:'SET_PERISCOPE_ZOOM',zoom:Number(b.dataset.scopeZoom)}),{passive:true}));
     btn('mHdgM10',()=>this.nudgeHeading(-10));
     btn('mHdgP10',()=>this.nudgeHeading(10));
     document.querySelectorAll('#paneHelm [data-hdg]').forEach(b=>b.addEventListener('click',()=>{
@@ -319,13 +322,14 @@ class TouchCtrl{
     btn('mDcOptics', ()=>D({type:'SET_REPAIR_PRIORITY',priority:'OPTICS_FIRE_CONTROL'}));
     btn('mSteerWp',  ()=>D({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('mAutoPilot',()=>{D({type:'TOGGLE_AUTOPILOT'});buzz(10);});
-    const transit=secs=>{D({type:'START_TRANSIT',seconds:secs});this.setPane('view');buzz(12);};
+    const transit=secs=>{const T=this.game.getSnapshot().time;if(this.transitRequestPending||T.transitUntil>T.elapsedSeconds){Toast.warn('Transit already running — stop it before choosing another.');return;}this.transitRequestPending=true;D({type:'START_TRANSIT',seconds:secs});this.setPane('view');buzz(12);};
     btn('mTransit30',()=>transit(1800));
     btn('mTransit2h',()=>transit(7200));
     btn('mTransit8h',()=>transit(28800));
     btn('mTransitOpen',()=>transit(0));       // 0 = no clock, only events
-    btn('transitStop',()=>D({type:'STOP_TRANSIT'}));
+    btn('transitStop',()=>{this.transitRequestPending=false;D({type:'STOP_TRANSIT'});});
     btn('mClearPlot',()=>{D({type:'MAP_CLEAR_PLOT'});Toast.ok('Plot cleared — manual helm');});
+    btn('mPlotIntercept',()=>D({type:'PLOT_INTERCEPT_ADVISORY'}));
     btn('mPortBtn',  ()=>D({type:'HEAD_TO_PORT'}));
     btn('mHelpBtn',  ()=>document.getElementById('hotkeyOverlay')?.classList.add('open'));
 
@@ -361,7 +365,7 @@ class TouchCtrl{
   setDepthSlider(v){const el=document.getElementById('mDpt');if(el)el.value=v;
     const d=document.getElementById('depthInput');if(d)d.value=v;}
   setHeadingSlider(v){const el=document.getElementById('mHdg');if(el)el.value=v;
-    const t=document.getElementById('mHdgV');if(t)t.textContent=fmtDeg(v);}
+    const t=document.getElementById('mHdgV');if(t)t.textContent=fmtDeg(v);const exact=document.getElementById('mHeadingNumberInput');if(exact)exact.value=String(Math.round(normDeg(v)));}
   nudgeHeading(d){
     const s=this.game.getSnapshot();
     const v=normDeg(s.playerSub.orderedHeading+d);
@@ -666,12 +670,14 @@ class TouchCtrl{
     // transit banner
     const T=state.time;
     const running=T.transitUntil>T.elapsedSeconds;
+    if(running)this.transitRequestPending=false;
     cls('transitBar','on',running);
+    for(const id of ['mTransit30','mTransit2h','mTransit8h','mTransitOpen']){const el=g(id);if(el)el.disabled=running||!!this.transitRequestPending;}
     if(running){
       const done=T.elapsedSeconds-(T.transitFrom||0);
       const left=T.transitUntil-T.elapsedSeconds;
       set('transitTxt',isFinite(left)
-        ? `⏩ TRANSIT — ${fmtTime(done)} run · ${fmtTime(left)} to go`
+        ? `⏩ TRANSIT — start ${DayNightCycle.getTimeString(T.transitFrom||0)} · ${fmtTime(T.transitUntil-(T.transitFrom||0))} planned · ${fmtTime(done)} run · ${fmtTime(left)} left · ends ${DayNightCycle.getTimeString(T.transitUntil)}`
         : `⏩ TRANSIT — ${fmtTime(done)} run · until something happens`);
     }
 
@@ -810,7 +816,8 @@ class TouchCtrl{
 
     // sync sliders with the sim (unless the finger is on them)
     if(this.dragging!=='mHdg'){const el=g('mHdg');const v=Math.round(sub.orderedHeading);
-      if(el&&+el.value!==v){el.value=v;}set('mHdgV',fmtDeg(sub.orderedHeading));}
+      if(el&&+el.value!==v){el.value=v;}const exact=g('mHeadingNumberInput');if(exact&&exact!==document.activeElement&&+exact.value!==v)exact.value=String(v);set('mHdgV',fmtDeg(sub.orderedHeading));}
+    document.querySelectorAll('#touchShell [data-scope-zoom]').forEach(b=>b.classList.toggle('on',Number(b.dataset.scopeZoom)===Number(state.tactical.periscopeZoom)));
     if(this.dragging!=='mRpm'){const el=g('mRpm');if(el&&+el.value!==Math.round(p.orderedRpm))el.value=Math.round(p.orderedRpm);}
     if(this.dragging!=='mDpt'){const el=g('mDpt');if(el&&+el.value!==Math.round(sub.orderedDepthFeet))el.value=Math.round(sub.orderedDepthFeet);}
     if(this.dragging!=='oGunElev'){
@@ -883,7 +890,7 @@ class TouchCtrl{
         return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
       }).join('<br>');
       const missionProgress=typeof missionProgressText==='function'?missionProgressText(state):'';
-      html('mMission',`<strong style="color:var(--alert)">${c2.missionStatus}</strong><br>${missionProgress?`<span style="color:var(--alert);font-size:10px;">${missionProgress}</span><br>`:''}`+
+      html('mMission',`<strong style="color:var(--alert)">${c2.primaryMission?.title||c2.missionName||'Assigned patrol'}</strong> · ${c2.missionStatus}<br>${missionProgress?`<span style="color:var(--alert);font-size:10px;">${missionProgress}</span><br>`:''}`+
         c2.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
         (opt2?`<br>${opt2}`:'')+
         `<br><span style="color:var(--dim);font-size:10px;">Tonnage ${c2.tonnageSunk.toLocaleString()}t · patrol #${c2.patrolNumber} · career ${c2.totalScore}</span>`);
@@ -922,7 +929,7 @@ class TouchCtrl{
         const cls2=o.kind==='ULTRA'?'ultra':o.kind==='ESCORT'?'escort':'contact';
         const ageCls=o.ageSec<120?'fresh':o.ageSec<1800?'stale':'cold';
         const trust=o.kind==='ULTRA'
-          ? `estimate ±${o.uncNm.toFixed(1)} nm${o.closing?' · CLOSING':' · opening'}`
+          ? `estimate ±${o.uncNm.toFixed(1)} nm · ${o.trend|| (o.closing?'CLOSING':'OPENING')} ${Math.abs(o.rangeRateKn||0).toFixed(1)} kn · CPA ${Number.isFinite(o.cpaNm)?o.cpaNm.toFixed(1):'--'} nm`
           : `${o.source==='VISUAL'?'sighted':'sonar'} · ${Math.round((o.confidence||0)*100)}% sure`;
         /* Steering at the bearing is a stern chase you never win. This line
            is the collision course and the time it takes — and when there is
