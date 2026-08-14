@@ -102,37 +102,41 @@ class BridgeController{
     // Keyboard
     window.addEventListener('keydown',e=>{
       if(e.target&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName)) return;
+      if(globalThis.ppKeyboardBlocked?.()) return;
+      if(e.ctrlKey||e.metaKey||e.altKey) return;
       const k=e.key.toLowerCase();
-      if(k==='1'&&stT) stT.click(); if(k==='2'&&stP) stP.click(); if(k==='3'&&stM) stM.click(); if(k==='4'&&stG) stG.click(); if(k==='5'&&stB) stB.click(); if(k==='6'&&stS) stS.click();
-      if(k==='s') this.game.dispatch({type:'TOGGLE_SILENT_RUNNING'});
-      if(k==='e') this.game.dispatch({type:'EMERGENCY_BLOW'});
-      if(k==='p') this.game.dispatch({type:'TOGGLE_PUMPS'});
-      if(k==='h') this.game.dispatch({type:'HEAD_TO_PORT'});
-      if(k==='arrowleft'){const q=this.game.getSnapshot(),a=q.tactical.activeStation;this.game.dispatch({type:a==='BRIDGE'?'ROTATE_BRIDGE':a==='SOUND'?'ROTATE_SOUND':'ROTATE_PERISCOPE',deltaDeg:-5});}
-      if(k==='arrowright'){const q=this.game.getSnapshot(),a=q.tactical.activeStation;this.game.dispatch({type:a==='BRIDGE'?'ROTATE_BRIDGE':a==='SOUND'?'ROTATE_SOUND':'ROTATE_PERISCOPE',deltaDeg:5});}
-      if(k===' '){e.preventDefault();const s=this.game.getSnapshot();s.time.timeScale=s.time.timeScale===0?1:0;}
-    });
-
-    // Map click (desktop)
-    this.cv.canvas.addEventListener('click',e=>{
-      // touch devices are served by TouchCtrl's gesture handler; without this
-      // guard the synthetic click fires a second time on every tap
-      if(document.documentElement.dataset.lay!=='desk') return;
-      const s=this.game.getSnapshot();
-      if(s.tactical.activeStation!=='MAP') return;
-      const wi=this.cv.pickWaypoint(s,e.clientX,e.clientY);
-      if(wi>=0){this.game.dispatch({type:'MAP_REMOVE_WAYPOINT',index:wi});return;}
-      const id=this.cv.pickTrack(s,e.clientX,e.clientY);
-      if(id){
-        if(id===s.tactical.selectedTrackId)this.game.dispatch({type:'DESELECT_TRACK'});
-        else {this.game.dispatch({type:'SELECT_TRACK',trackId:id});
-              this.game.dispatch({type:'TDC_SEND_SCOPE_OBSERVATION'});}
-        return;
+      const stationKeys={1:stT,2:stP,3:stM,4:stG,5:stB,6:stS};
+      if(stationKeys[k]){if(!e.repeat)stationKeys[k].click();e.preventDefault();return;}
+      const snap=this.game.getSnapshot(),sub=snap.playerSub,p=sub.propulsion;
+      const order=(type,value,key)=>{this.game.dispatch({type,[key]:value});e.preventDefault();};
+      if(k==='['){order('SET_ORDERED_HEADING',normDeg(sub.orderedHeading-5),'heading');return;}
+      if(k===']'){order('SET_ORDERED_HEADING',normDeg(sub.orderedHeading+5),'heading');return;}
+      if(k===','||k==='<'){order('SET_ENGINE_RPM',clamp(p.orderedRpm-25,0,p.characteristics?.normalizedMaxRpm??450),'rpm');return;}
+      if(k==='.'||k==='>'){order('SET_ENGINE_RPM',clamp(p.orderedRpm+25,0,p.characteristics?.normalizedMaxRpm??450),'rpm');return;}
+      if(k==='pageup'){order('SET_ORDERED_DEPTH',clamp(sub.orderedDepthFeet-10,0,300),'depthFeet');return;}
+      if(k==='pagedown'){order('SET_ORDERED_DEPTH',clamp(sub.orderedDepthFeet+10,0,300),'depthFeet');return;}
+      if(k==='s'&&!e.repeat){this.game.dispatch({type:'TOGGLE_SILENT_RUNNING'});return;}
+      if(k==='e'&&!e.repeat){this.game.dispatch({type:'EMERGENCY_BLOW'});return;}
+      if(k==='p'&&!e.repeat){this.game.dispatch({type:'TOGGLE_PUMPS'});return;}
+      if(k==='h'&&!e.repeat){this.game.dispatch({type:'HEAD_TO_PORT'});return;}
+      const a=snap.tactical.activeStation;
+      if(k==='arrowleft'||k==='arrowright'){
+        const d=k==='arrowleft'?-5:5;
+        if(a==='BRIDGE')this.game.dispatch({type:'ROTATE_BRIDGE',deltaDeg:d});
+        else if(a==='SOUND')this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:d});
+        else if(a==='DECK_GUN')this.game.dispatch({type:'ADJUST_DECK_GUN',deltaTrainDeg:d>0?1:-1});
+        else if(a==='TACTICAL')this.game.dispatch({type:'SET_ORDERED_HEADING',heading:normDeg(sub.orderedHeading+d)});
+        else if(a==='MAP')this.cv.panBy(d<0?35:-35,0);
+        else if(a==='PERISCOPE')this.game.dispatch({type:'ROTATE_PERISCOPE',deltaDeg:d});
+        e.preventDefault();return;
       }
-      const w=this.cv.screenToWorldMap(e.clientX,e.clientY);
-      const snap=0.25;
-      this.game.dispatch({type:'MAP_ADD_WAYPOINT',xNm:Math.round(w.xNm/snap)*snap,yNm:Math.round(w.yNm/snap)*snap});
-      this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'});
+      if((k==='arrowup'||k==='arrowdown')&&a==='DECK_GUN'){
+        this.game.dispatch({type:'ADJUST_DECK_GUN',deltaElevDeg:k==='arrowup'?.2:-.2});e.preventDefault();return;
+      }
+      if((k==='arrowup'||k==='arrowdown')&&a==='MAP'){
+        this.cv.panBy(0,k==='arrowup'?35:-35);e.preventDefault();return;
+      }
+      if(k===' '){e.preventDefault();this.game.dispatch({type:'SET_TIME_SCALE',scale:snap.time.timeScale===0?1:0});}
     });
   }
   confirmActiveEcho(){
@@ -153,4 +157,3 @@ class BridgeController{
   }
 
 }
-

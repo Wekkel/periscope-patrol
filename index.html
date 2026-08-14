@@ -79,11 +79,8 @@
 </div>
 
 <div id="legacyHelmSinks" style="display:none">
-  <span id="hdgOrdered"></span><span id="mHdgV"></span><span id="rpmOrdered"></span>
-  <span id="dptOrdered"></span><span id="rpmNote"></span><span id="dptNote"></span>
+  <span id="hdgOrdered"></span><span id="mHdgV"></span><span id="dptNote"></span>
   <input id="mHdg" type="range" min="0" max="359" value="90"/>
-  <input id="mRpm" type="range" min="0" max="450" value="250"/>
-  <input id="mDpt" type="range" min="0" max="300" value="0"/>
 </div>
 
 <div id="updBar">
@@ -118,7 +115,9 @@
     <div class="hk-section">
       <div class="hk-title">Helm</div>
       <div class="hk-row"><span class="hk-key">Space</span><span class="hk-desc">Pause / resume</span></div>
-      <div class="hk-row"><span class="hk-key">← →</span><span class="hk-desc">Rotate periscope</span></div>
+      <div class="hk-row"><span class="hk-key">[ ]</span><span class="hk-desc">Ordered heading −/+ 5°</span></div>
+      <div class="hk-row"><span class="hk-key">, .</span><span class="hk-desc">Ordered RPM −/+ 25</span></div>
+      <div class="hk-row"><span class="hk-key">PgUp PgDn</span><span class="hk-desc">Ordered depth −/+ 10 ft</span></div>
       <div class="hk-row"><span class="hk-key">S</span><span class="hk-desc">Toggle silent running</span></div>
       <div class="hk-row"><span class="hk-key">E</span><span class="hk-desc">Emergency blow</span></div>
       <div class="hk-row"><span class="hk-key">P</span><span class="hk-desc">Toggle pumps</span></div>
@@ -148,6 +147,13 @@
     <div class="hk-section">
       <div class="hk-title">Map</div>
       <div class="hk-row"><span class="hk-key">Click</span><span class="hk-desc">Plot waypoint</span></div>
+      <div class="hk-row"><span class="hk-key">Drag / wheel</span><span class="hk-desc">Pan / zoom chart</span></div>
+    </div>
+    <div class="hk-section">
+      <div class="hk-title">Station view</div>
+      <div class="hk-row"><span class="hk-key">← →</span><span class="hk-desc">Train scope, bridge, sound or gun</span></div>
+      <div class="hk-row"><span class="hk-key">↑ ↓</span><span class="hk-desc">Deck-gun elevation</span></div>
+      <div class="hk-row"><span class="hk-key">Wheel</span><span class="hk-desc">Station zoom / train / elevation</span></div>
     </div>
     <div class="hk-section">
       <div class="hk-title">Time Scales</div>
@@ -406,7 +412,7 @@
       <button id="portButton">Head To Port (H)</button>
       <button id="newScenarioButton">⚓ Mission Select (M)</button>
       <button id="saveGameButton">💾 Save Game</button>
-      <div class="note">Hotkeys: 1=Tactical 2=Scope 3=Map 4=Deck Gun 5=Bridge 6=Sound Space=Pause S=Silent E=Blow P=Pumps ←/→=Scope H=Port M=Mission</div>
+      <div class="note">Hotkeys: 1–6 stations · Space pause · [ ] heading · , . RPM · PgUp/PgDn depth · arrows/wheel station view · ? full reference</div>
     </div>
     </section>
   </aside>
@@ -438,6 +444,7 @@
     <div id="dayNightLabel"></div>
     <canvas id="gyroIndicator"></canvas>
     <canvas id="mainCanvas" width="960" height="560"></canvas>
+    <div id="deskInputHint" aria-live="polite"></div>
   </section>
 
   <!-- RIGHT COL -->

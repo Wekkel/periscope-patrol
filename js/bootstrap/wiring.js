@@ -59,15 +59,43 @@ layoutToggle?.addEventListener('click',()=>{
   Toast.ok(cur==='touch'?'Desktop layout':'Touch layout — tabs at the bottom');
 });
 
-// keyboard shortcuts
+/* Keyboard ownership is shared by the global shell and BridgeController.
+   Both consult the same top-layer guard so an arrow pressed in the AAR cannot
+   also train the periscope behind it. Escape closes exactly one visible layer,
+   highest first; it never tears down two stacked overlays in one keypress. */
+function ppKeyboardBlocked(){
+  const open=id=>document.getElementById(id)?.classList.contains('open');
+  const briefing=document.getElementById('briefingOverlay');
+  return !!globalThis.Picker?.open||open('aarOverlay')||open('hotkeyOverlay')||
+    open('scenarioOverlay')||!!(briefing&&getComputedStyle(briefing).display!=='none')||
+    open('tSheet')||document.getElementById('orderPad')?.classList.contains('on');
+}
+globalThis.ppKeyboardBlocked=ppKeyboardBlocked;
+function closeTopUiLayer(){
+  if(globalThis.Picker?.open){Picker.close();return true;}
+  if(document.getElementById('aarOverlay')?.classList.contains('open')){aarController.close(false);return true;}
+  const briefing=document.getElementById('briefingOverlay');
+  if(briefing&&getComputedStyle(briefing).display!=='none'){document.getElementById('briefingDismiss')?.click();return true;}
+  if(hotkeyOverlay?.classList.contains('open')){hotkeyOverlay.classList.remove('open');return true;}
+  if(document.getElementById('scenarioOverlay')?.classList.contains('open')){sceneSelector.close();return true;}
+  if(document.getElementById('orderPad')?.classList.contains('on')){touchCtrl.closePad?.();return true;}
+  if(document.getElementById('tSheet')?.classList.contains('open')){touchCtrl.setPane('view');return true;}
+  return false;
+}
+
+// global keyboard shortcuts
 window.addEventListener('keydown',e=>{
-  if(e.target&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
   const k=e.key.toLowerCase();
+  if(k==='escape'){
+    if(closeTopUiLayer())e.preventDefault();
+    return;
+  }
+  if(e.target&&['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
+  if(ppKeyboardBlocked())return;
   if(k==='m'){sceneSelector.open();return;}
   if(k==='l'){tutorial.active?tutorial.next():tutorial.start();return;}
   if(k==='t'){const on=audio.toggle();Toast.ok(on?'Audio ON':'Audio OFF');return;}
   if(k==='?'||k==='/'){hotkeyOverlay?.classList.toggle('open');refreshDiag();return;}
-  if(k==='escape'){hotkeyOverlay?.classList.remove('open');sceneSelector.close();return;}
   if(k==='tab'){e.preventDefault();game.dispatch({type:'CYCLE_TIME_SCALE'});return;}
   if(k==='f'){game.dispatch({type:'FLOOD_ALL_TUBES'});Toast.ok('Fwd tubes flooded');}
   if(k==='g'){game.dispatch({type:'FIRE_TORPEDO',tubeId:1});}
