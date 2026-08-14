@@ -1,6 +1,9 @@
 class HelmGauges{
   constructor(game,touch){
     this.game=game; this.touch=touch; this.views=[]; this.focus=null; this.raf=null; this.currentLayout=LayoutService.get();
+    // Keep the hidden/just-shown gauge canvas sized during a browser resize or
+    // viewport-toolbar change even when the simulation loop is throttled. A
+    // caller-supplied layout still always wins in size(layout).
     LayoutService.subscribe(layout=>{this.currentLayout=layout;this.scheduleSize();});
     const host=document.getElementById('helmGauges');
     if(!host) return;
