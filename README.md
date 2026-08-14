@@ -340,3 +340,13 @@ A few design rules have become important as the game has grown:
 - Keep distant entities abstract and cheap; spend full AI/collision/render work only inside the tactical bubble.
 
 No server, npm build, bundler or local Git installation is required to play or deploy the game.
+
+### Refactor test command
+
+Run the pure behaviour tests and quality gates together from the repository root:
+
+```sh
+node tests/behaviour.mjs && node tests/quality-gates.mjs .
+```
+
+Set `PP_STRICT_LAYERS=1` when the simulation-layer boundary is ready to become blocking.
