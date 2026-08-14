@@ -7,7 +7,7 @@ function showBriefing(areaKey,state){
   const camp=state.campaign;
   const mission=camp.primaryMission,missionText=typeof missionBriefingText==='function'?missionBriefingText(state):'';
   document.getElementById('briefingText').innerHTML=
-    `<strong>PATROL AREA:</strong> ${areaKey}<br><strong>PRIMARY:</strong> ${mission?.title||camp.missionName||'CONVOY INTERDICTION'}<br><strong>SITUATION:</strong> ${area.description}${missionText?`<br><br><strong>ORDERS:</strong> ${missionText}`:''}`;
+    `<strong>PATROL AREA:</strong> ${area?.displayName||areaKey}<br><strong>PRIMARY:</strong> ${mission?.title||camp.missionName||'CONVOY INTERDICTION'}<br><strong>SITUATION:</strong> ${area.description}${missionText?`<br><br><strong>ORDERS:</strong> ${missionText}`:''}`;
   document.getElementById('briefingObjectives').innerHTML=
     '<strong>OBJECTIVES:</strong><br>'+camp.objectives.map(o=>`○ ${o.text}`).join('<br>');
   const fp=camp.friendlyPort;
@@ -25,4 +25,3 @@ function showBriefing(areaKey,state){
 
 
 // ═══════════════════════════════════════════════════ GAME LOOP
-

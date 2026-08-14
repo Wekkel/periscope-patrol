@@ -35,7 +35,13 @@ const PP_BUILD=(()=>{
   // patch so a tester can report the exact patch without translating a SHA.
   const devPatch=isDev?55:null;
   const api={channel:isDev?'atlantic-dev':'production',isDev,devPatch,storagePrefix,
-    storageKey:key=>storagePrefix+String(key)};
+    storageKey:key=>storagePrefix+String(key),
+    // Lets support diagnostics distinguish a coherent touch shell from a
+    // page where an older cached stylesheet was combined with newer scripts.
+    touchUiContract:()=>{
+      try{return getComputedStyle(document.documentElement).getPropertyValue('--pp-touch-ui-contract').trim().replace(/^['"]|['"]$/g,'')||'missing';}
+      catch(_){return 'unavailable';}
+    }};
   return Object.freeze(api);
 })();
 globalThis.PP_BUILD=PP_BUILD;

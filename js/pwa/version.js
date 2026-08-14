@@ -113,9 +113,9 @@ const AppVersion = {
 for(const id of ['appVerTouch','appVerDesk']){
   document.getElementById(id)?.addEventListener('click',()=>{
     const patch=globalThis.PP_BUILD?.isDev?(Number(globalThis.PP_BUILD?.devPatch)||null):null;
-    const s=`Periscope Patrol${globalThis.PP_BUILD?.isDev?' AD DEV':''}${patch?` patch ${patch}`:''} v${AppVersion.value||'?'} · ${navigator.userAgent}`;
+    const contract=globalThis.PP_BUILD?.touchUiContract?.()||'unavailable';
+    const s=`Periscope Patrol${globalThis.PP_BUILD?.isDev?' AD DEV':''}${patch?` patch ${patch}`:''} v${AppVersion.value||'?'} · touch-ui ${contract} · ${navigator.userAgent}`;
     navigator.clipboard?.writeText(s).then(()=>Toast.ok('Build details copied'),
                                           ()=>Toast.warn('v'+(AppVersion.value||'?')));
   });
 }
-

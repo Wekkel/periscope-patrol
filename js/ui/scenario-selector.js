@@ -12,9 +12,9 @@ class ScenarioSelector{
     return !!s&&s.playerSub?.mode!=='SUNK'&&['PATROL','RETURN TO BASE'].includes(status);
   }
 
-  confirmPatrolReplacement(action='continue'){
+  async confirmPatrolReplacement(action='continue'){
     if(!this.activePatrolNeedsGuard())return true;
-    return confirm(`ACTIVE PATROL — ${action} will replace the current boat state. Saved slots remain available. Continue?`);
+    return DecisionDialog.confirm({title:'ACTIVE PATROL',message:`${action} will replace the current boat state. Manual save slots remain available.`,confirmLabel:'REPLACE PATROL',danger:true});
   }
 
   open(){
@@ -80,6 +80,17 @@ class ScenarioSelector{
     }
   }
 
+  campaignAccess(definition,career=SaveSystem.getCareer()){
+    const defs=getSelectableCampaignDefinitions(),index=defs.findIndex(x=>x.id===definition.id);
+    /* Atlantic-dev is deliberately open for testing. When this selector is
+       promoted to MAIN, PP_BUILD.isDev becomes false and the progression rule
+       below activates without maintaining a second campaign implementation. */
+    if(PP_BUILD.isDev)return{unlocked:true,label:'DEV OPEN',successes:3,required:3};
+    if(index<=0)return{unlocked:true,label:'AVAILABLE',successes:3,required:3};
+    const previous=defs[index-1],successes=(career.patrolHistory||[]).filter(r=>r.campaignId===previous.id&&r.outcome==='COMPLETED').length,required=3;
+    return{unlocked:successes>=required,label:successes>=required?'UNLOCKED':`${successes}/${required} successful patrols in ${previous.displayName}`,successes,required,previous};
+  }
+
   renderCards(){
     const c=document.getElementById('stabPatrol');if(!c)return;
     const state=this.game?.getSnapshot?.(),activeCampaign=getCampaignProfile(state?.campaign?.campaignProfileId),definition=getCampaignDefinition(this.selCampaignId)||getCampaignDefinition(DEFAULT_GAME_IDENTITY.campaignId),
@@ -90,12 +101,20 @@ class ScenarioSelector{
     const missionTypes=(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).filter(k=>missionProfile?.definitions?.[k]);
     const missionOpts=[['AUTO','AUTO — varied patrol orders'],...missionTypes.map(k=>[k,missionProfile.definitions[k].title||k.replaceAll('_',' ')])];
     const missionHint=missionProfile?.autoDescription||'One primary mission per patrol. AUTO chooses orders appropriate to the selected patrol area.';
-    const defs=getSelectableCampaignDefinitions();
-    const campaignPicker=`<div class="hist-card campaign-flow" style="grid-column:1/-1"><h3>1 · CAMPAIGN</h3><select id="campaignDefinitionSelect" class="tsel">${defs.map(x=>`<option value="${x.id}"${x.id===definition.id?' selected':''}>${x.displayName}</option>`).join('')}</select><h3>2 · WAR PARTY</h3><select id="warPartySelect" class="tsel">${parties.map(x=>`<option value="${x.id}"${x.id===party?.id?' selected':''}>${getFactionProfile(x.factionId).displayName} · ${x.commandName}</option>`).join('')}</select><h3>3 · BOAT / DATE / REFIT</h3><div class="hist-desc">${getSubmarineProfile(party.submarineProfileId).displayName} · ${party.dateWindow[0]}–${party.dateWindow[1]} · ${party.doctrine}. Equipment availability follows the selected patrol date.</div><h3>4 · MISSION</h3></div>`;
+    const defs=getSelectableCampaignDefinitions(),career=SaveSystem.getCareer(),subProfile=getSubmarineProfile(party.submarineProfileId);
+    const campaignPicker=`<section class="campaign-command" style="grid-column:1/-1">
+      <div class="campaign-step"><span>01</span><div><b>CAMPAIGN</b><small>Choose the theatre. Later theatres require three successful patrols in the previous campaign.</small></div></div>
+      <div class="campaign-choice-grid" role="listbox" aria-label="Campaign">${defs.map((x,i)=>{const access=this.campaignAccess(x,career),selected=x.id===definition.id;return`<button type="button" class="campaign-choice${selected?' selected':''}${access.unlocked?'':' locked'}" data-campaign-id="${x.id}" role="option" aria-selected="${selected}" ${access.unlocked?'':'disabled'}><span class="campaign-index">${String(i+1).padStart(2,'0')} · ${x.theaterId.replaceAll('-',' ')}</span><strong>${x.displayName}</strong><small>${x.historicalContext}</small><em>${access.unlocked?'◆':'🔒'} ${access.label}</em></button>`;}).join('')}</div>
+      <div class="campaign-step"><span>02</span><div><b>WAR PARTY</b><small>Your navy changes boat, terminology, equipment and doctrine.</small></div></div>
+      <div class="war-party-choice-grid" role="listbox" aria-label="War party">${parties.map(x=>{const faction=getFactionProfile(x.factionId),boat=getSubmarineProfile(x.submarineProfileId),selected=x.id===party?.id;return`<button type="button" class="war-party-choice${selected?' selected':''}" data-war-party-id="${x.id}" role="option" aria-selected="${selected}"><span>${x.shortName}</span><div><strong>${faction.displayName}</strong><b>${x.commandName}</b><small>${boat.displayName} · ${x.doctrine}</small></div></button>`;}).join('')}</div>
+      <div class="campaign-step"><span>03</span><div><b>BOAT / DATE / REFIT</b><small>Equipment availability follows the selected patrol date.</small></div></div>
+      <div class="boat-assignment"><strong>${subProfile.displayName}</strong><span>${party.dateWindow[0]} — ${party.dateWindow[1]}</span><p>${party.doctrine}</p></div>
+      <div class="campaign-step mission-step"><span>04</span><div><b>PATROL &amp; MISSION</b><small>Options below belong to this campaign and war party.</small></div></div>
+    </section>`;
     c.innerHTML=campaignPicker+areaIds.map(name=>[name,PATROL_AREAS[name]]).filter(([,area])=>!!area).map(([name,area])=>{
       const dl=String(area.difficulty||'MEDIUM').toUpperCase(),d=dl==='HARD'?{l:dl,cls:'diff-hard',s:'★★★'}:dl==='EASY'?{l:dl,cls:'diff-easy',s:'★☆☆'}:{l:dl,cls:'diff-med',s:'★★☆'};
       return `<div class="area-card${name===this.selArea?' selected':''}" data-area="${name}">
-        <h3>${name.toUpperCase()}</h3>
+        <h3>${(area.displayName||name).toUpperCase()}</h3>
         <div class="area-desc">${area.description}</div>
         <div class="area-stats">
           <span>Visibility</span><span>${area.environment.visibilityNm.toFixed(0)} nm</span>
@@ -107,8 +126,8 @@ class ScenarioSelector{
         <span class="area-diff ${d.cls}">${d.s} ${d.l}</span>
       </div>`;
     }).join('')+`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">PRIMARY MISSION</h3><div class="hist-desc">${missionHint}</div></div><select id="missionTypeSelect" class="tsel" style="min-width:250px;max-width:100%;">${missionOpts.map(([v,l])=>`<option value="${v}"${v===this.selMission?' selected':''}>${l}</option>`).join('')}</select></div>`;
-    const cd=c.querySelector('#campaignDefinitionSelect');if(cd){cd.addEventListener('change',()=>{this.selCampaignId=cd.value;const next=getSelectableWarParties(this.selCampaignId)[0];this.selWarPartyId=next.id;const runtime=getCampaignProfile(next.runtimeCampaignProfileId);this.selArea=runtime.defaultArea;this.selMission='AUTO';this.renderCards();this.syncFooter();});if(typeof Picker!=='undefined')Picker.enhance(cd);}
-    const wp=c.querySelector('#warPartySelect');if(wp){wp.addEventListener('change',()=>{this.selWarPartyId=wp.value;const next=getWarPartyProfile(wp.value),runtime=getCampaignProfile(next.runtimeCampaignProfileId);this.selArea=runtime.defaultArea;this.selMission='AUTO';this.renderCards();this.syncFooter();});if(typeof Picker!=='undefined')Picker.enhance(wp);}
+    c.querySelectorAll('[data-campaign-id]').forEach(button=>button.addEventListener('click',()=>{this.selCampaignId=button.dataset.campaignId;const next=getSelectableWarParties(this.selCampaignId)[0];if(!next)return;this.selWarPartyId=next.id;const runtime=getCampaignProfile(next.runtimeCampaignProfileId);this.selArea=runtime.defaultArea;this.selMission='AUTO';this.renderCards();this.syncFooter();}));
+    c.querySelectorAll('[data-war-party-id]').forEach(button=>button.addEventListener('click',()=>{this.selWarPartyId=button.dataset.warPartyId;const next=getWarPartyProfile(this.selWarPartyId),runtime=getCampaignProfile(next.runtimeCampaignProfileId);this.selArea=runtime.defaultArea;this.selMission='AUTO';this.renderCards();this.syncFooter();}));
     const ms=c.querySelector('#missionTypeSelect');if(ms){ms.addEventListener('change',()=>{this.selMission=ms.value;});if(typeof Picker!=='undefined')Picker.enhance(ms);}
     c.querySelectorAll('.area-card').forEach(card=>{
       card.addEventListener('click',()=>{
@@ -187,12 +206,12 @@ class ScenarioSelector{
       a.href=url;a.download=`periscope-patrol-profile-${stamp}.ppprofile.json`;document.body.appendChild(a);a.click();a.remove();
       setTimeout(()=>URL.revokeObjectURL(url),1000);
       globalThis.Toast?.ok?.('Player profile exported — keep the file somewhere safe.');
-    }catch(e){console.warn('Profile export failed',e);alert(`Profile export failed: ${e?.message||e}`);}
+    }catch(e){console.warn('Profile export failed',e);Toast.bad(`Profile export failed: ${e?.message||e}`);}
   }
 
   async importPlayerProfile(file){
     try{
-      if(!confirm('Import this player profile? Your local career, manual save slots and resumable patrol will be replaced.'))return;
+      if(!await DecisionDialog.confirm({title:'IMPORT PROFILE',message:'Your local career, manual save slots and resumable patrol will be replaced.',confirmLabel:'IMPORT',danger:true}))return;
       const text=await file.text(),result=await SaveSystem.importProfile(text);
       this.renderSaveSlots();this.renderCareer();
       const career=SaveSystem.getCareer(),score=document.getElementById('scenCareerScore'),meta=document.getElementById('scenCareerMeta');
@@ -203,18 +222,18 @@ class ScenarioSelector{
       // SaveSystem suppresses autosave writes so the device we are importing ON
       // cannot overwrite the transferred boat before the player makes a choice.
       if(result.resumeState&&typeof AutoSave!=='undefined')AutoSave.offer();
-    }catch(e){console.warn('Profile import failed',e);alert(`Profile import failed: ${e?.message||e}`);}
+    }catch(e){console.warn('Profile import failed',e);Toast.bad(`Profile import failed: ${e?.message||e}`);}
   }
 
   saveToSlot(slot){
     if(SaveSystem.save(slot,this.game.getSnapshot())){audio.event?.('SAVE_CONFIRMED');this.renderSaveSlots();}
-    else alert('Save failed.');
+    else Toast.bad('Save failed.');
   }
 
-  loadSlot(slot){
+  async loadSlot(slot){
     const state=SaveSystem.load(slot);
-    if(!state){alert(`Load failed${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:'.'}`);return;}
-    if(!this.confirmPatrolReplacement(`loading slot ${slot+1}`))return;
+    if(!state){Toast.bad(`Load failed${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:'.'}`);return;}
+    if(!await this.confirmPatrolReplacement(`Loading slot ${slot+1}`))return;
     SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();
     Object.assign(this.game.state,state);
     this.close();
@@ -222,18 +241,18 @@ class ScenarioSelector{
     audio.event?.('RESUME_CONFIRMED');
   }
 
-  deleteSlot(slot){
-    if(!confirm('Delete this save?'))return;
+  async deleteSlot(slot){
+    if(!await DecisionDialog.confirm({title:'DELETE SAVE',message:`Delete manual save slot ${slot+1}? This cannot be undone.`,confirmLabel:'DELETE',danger:true}))return;
     SaveSystem.delete(slot);this.renderSaveSlots();
   }
 
-  launch(){
+  async launch(){
     // The footer is shared by all tabs, but launching is not. Career and
     // Save/Load are review/management screens and must never fall through to
     // a random patrol. Historical missions also require an explicit choice.
     if(this.activeTab!=='patrol'&&this.activeTab!=='historical')return;
     if(this.activeTab==='historical'&&!this.selHist){globalThis.Toast?.warn?.('Choose a historical mission first.');return;}
-    if(!this.confirmPatrolReplacement('launching a new mission'))return;
+    if(!await this.confirmPatrolReplacement('Launching a new mission'))return;
     if(this.activeTab==='historical'&&this.selHist){
       const h=HISTORICAL_SCENARIOS.find(s=>s.id===this.selHist);
       if(h){

@@ -277,7 +277,7 @@ class SimEngineIntel extends SimEngineAAGun {
         receivedAt:this.state.time.elapsedSeconds,label:m.subject};
       delete W.contactTracks['ULTRA'];
       const advisory=this.intelSummary().find(x=>x.kind==='ULTRA');
-      if(advisory) this.state.map.intelFitRequest={seq:((this.state.map.intelFitRequest?.seq)||0)+1,own:{...this.state.playerSub.position},estimate:{...advisory.pos},receivedAt:this.state.time.elapsedSeconds};
+      if(advisory) this.state.map.intelFitRequest={seq:((this.state.map.intelFitRequest?.seq)||0)+1,own:{...this.state.playerSub.position},estimate:{...advisory.pos},receivedAt:this.state.time.elapsedSeconds,historyId:this.state.campaign.historyId};
       const T=this.state.time||{},compressed=!!T.transitUntil||(T.timeScale||1)>1;
       if(compressed){
         // Do not let a long skip manufacture a vertical stack of identical

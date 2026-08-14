@@ -2,7 +2,12 @@ class CanvasView extends CanvasViewSound {
   drawMap(ctx,w,h,state){
     const sub=state.playerSub, map=state.map, k=this.k;
     this._mapViewport={w,h};
-    const fit=map.intelFitRequest;
+    const intelContextSeq=map.intelContextSeq||0;
+    if(this._intelContextSeq!==intelContextSeq){
+      this._intelContextSeq=intelContextSeq;
+      this._intelFitSeq=null;this._intelFocusUntil=0;
+    }
+    const fit=map.intelFitRequest?.historyId&&map.intelFitRequest.historyId!==state.campaign?.historyId?null:map.intelFitRequest;
     if(fit&&this._intelFitSeq!==fit.seq){
       this._intelFitSeq=fit.seq;
       const dx=Math.abs(fit.estimate.xNm-fit.own.xNm),dy=Math.abs(fit.estimate.yNm-fit.own.yNm);
@@ -141,6 +146,7 @@ class CanvasView extends CanvasViewSound {
 
   drawInterceptAdvice(ctx,state,w2s,w,h){
     const p=state.map?.interceptPlot;if(!p?.point)return;
+    if(p.historyId&&p.historyId!==state.campaign?.historyId)return;
     const K=this.k,path=(p.waterPath?.length>1?p.waterPath:[state.playerSub.position,p.point]).map(q=>w2s(q.xNm,q.yNm)),b=path.at(-1);
     ctx.save();ctx.strokeStyle='rgba(111,224,143,.8)';ctx.fillStyle='rgba(111,224,143,.9)';ctx.lineWidth=Math.max(1,1.5*K);ctx.setLineDash([7*K,5*K]);
     ctx.beginPath();path.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.arc(b.x,b.y,5*K,0,Math.PI*2);ctx.stroke();
@@ -378,7 +384,7 @@ class CanvasView extends CanvasViewSound {
      margin where the boat is considered to be standing out of it shaded. */
   drawAreaBounds(ctx,state,w2s){
     const B=this._bathy; if(!B) return;
-    const A={x0:B.x0,y0:B.y0,x1:B.x0+(B.nx-1)*B.cell,y1:B.y0+(B.ny-1)*B.cell};
+    const A=state.world.chartBounds||{x0:B.x0,y0:B.y0,x1:B.x0+(B.nx-1)*B.cell,y1:B.y0+(B.ny-1)*B.cell};
     const p=w2s(A.x0,A.y0), q=w2s(A.x1,A.y1);
     const m0=w2s(A.x0+6,A.y0+6), m1=w2s(A.x1-6,A.y1-6);
     ctx.save();

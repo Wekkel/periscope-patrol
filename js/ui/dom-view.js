@@ -43,7 +43,7 @@ class DomView{
     const dudSel=document.getElementById('dudSelect');
     if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
     const torpSel=document.getElementById('torpTypeSelect');if(torpSel){const keys=torpedoSpecKeysForState(state),oldKeys=[...(torpSel.options||[])].map(o=>o.value);if(keys.join('|')!==oldKeys.join('|'))torpSel.innerHTML=keys.map(k=>`<option value="${k}">${torpedoOptionLabel(k)}</option>`).join('');for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
-    if(this.hArea)  this.hArea.textContent=state.campaign.patrolArea;
+    if(this.hArea)  this.hArea.textContent=PATROL_AREAS[state.campaign.patrolArea]?.displayName||state.campaign.patrolArea;
     if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
     {const env=state.world.environment||{},dl=Number(env.daylight)||0,icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=Number(env.visibilityNm)||0,quality=vis>=8?'GOOD VIS':vis>=4?'FAIR VIS':'POOR VIS',el=document.getElementById('hTimeConditions');if(el)el.textContent=`${icon} ${DayNightCycle.getTimeString(state.time.elapsedSeconds)} · ${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis.toFixed(1)} NM ${quality}`;}
     const headingExact=document.getElementById('headingNumberInput'),rpmExact=document.getElementById('rpmNumberInput'),depthExact=document.getElementById('depthNumberInput');if(headingExact&&headingExact!==document.activeElement)headingExact.value=String(Math.round(sub.orderedHeading));if(rpmExact&&rpmExact!==document.activeElement)rpmExact.value=String(Math.round(p.orderedRpm));if(depthExact&&depthExact!==document.activeElement)depthExact.value=String(Math.round(sub.orderedDepthFeet));
@@ -189,6 +189,6 @@ class DomView{
       `<span>Shallow</span><strong style="color:${sub.inShallowWater?'var(--alert)':'var(--muted)'}">${sub.inShallowWater?'YES':'NO'}</strong>`+
       `<span>Radar fit</span><strong>${state.world.radar?.fitLabel||'—'}</strong>`+
       `<span>Score</span><strong>${state.campaign.score.toLocaleString()}</strong>`+
-      `<span>Area</span><strong>${state.campaign.patrolArea}</strong>`;
+      `<span>Area</span><strong>${PATROL_AREAS[state.campaign.patrolArea]?.displayName||state.campaign.patrolArea}</strong>`;
   }
 }

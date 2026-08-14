@@ -35,10 +35,11 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
   const fresh=materializeFreshSubmarine(identity.submarineProfileId);
   const subProfile=fresh.profile,weaponProfile=fresh.weapons;
   const startDate=campaignProfile.defaultStartDate;
+  const historyId=`p1-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`;
   // Terrain remains lazy: Pacific expands only its selected chart, while an
   // explicitly terrain-less open-ocean area materializes no coastline at all.
   // Never rebuild a whole theater catalogue here on low-memory devices.
-  const terrain=area.terrainKey?getPatrolTerrain(area.terrainKey):[];
+  const terrain=materializePatrolTerrain(area),chartBounds=patrolChartBounds(area);
   return{
     time:{elapsedSeconds:0,timeScale:1,campaignDate:startDate},
     log:[{t:0,level:'info',message:`Patrol commenced. Area: ${resolvedAreaKey}. Good hunting.`}],
@@ -64,7 +65,7 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
       campaignProfileId:identity.campaignProfileId,
       patrolArea:resolvedAreaKey,score:0,scenarioSeed:1,missionStatus:'PATROL',
       patrolNumber:1,totalScore:0,startDate:startDate,
-      historyId:`p1-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
+      historyId,
       _careerStartDate:`${startDate} 06:00`,_historyRecorded:false,_historyRecordId:null,
       importantEvents:[],_captainEventSeq:0,
       objectives:[
@@ -79,6 +80,7 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
     },
     map:{cellSizeNm:5,exploredCells:{},ownshipTrail:[],plottedCourse:[],
       estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true,
+      interceptPlot:null,intelFitRequest:null,intelContextSeq:0,
       recenterSeq:0,weatherOverlay:false},
     world:{
       contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
@@ -93,6 +95,8 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
         searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0},
       depthCharges:[],
       harbor:null,harborInitialized:false,harborIntel:null,
+      patrolContext:{...makePatrolRuntimeContext(identity,resolvedAreaKey,historyId)},
+      chartBounds,
       terrain,
       portScenes:materializePortScenes(area),
       ports:area.ports,

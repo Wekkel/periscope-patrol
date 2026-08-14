@@ -103,6 +103,7 @@ class TouchCtrl{
     if(deskC) deskC.style.cssText='position:absolute;inset:0;padding:0;margin:0;border:none;'+
       'background:none;box-shadow:none;border-radius:0;';
     this.canvasMoved=true;
+    this.setDesktopScopeControlsHidden(true);
     if(!this.wired) this.wire();
     this.setPane(this.pane||'view');
   }
@@ -114,7 +115,20 @@ class TouchCtrl{
     if(shell&&deskC&&right&&deskC.parentElement!==shell) shell.insertBefore(deskC,right);
     if(deskC) deskC.style.cssText='';          // back to the stylesheet's grid cell
     this.canvasMoved=false;
+    this.setDesktopScopeControlsHidden(false);
     if(!this.wired) this.wire();
+  }
+
+  /* The desktop scope strip lives beside the canvas in desktop mode, but that
+     canvas is deliberately moved into the touch stage. CSS is the normal
+     presentation boundary; this DOM boundary makes the rule survive stale
+     style state, station changes and assistive-technology navigation too. */
+  setDesktopScopeControlsHidden(hidden){
+    const controls=document.getElementById('deskScopeControls');
+    if(!controls) return;
+    controls.toggleAttribute('hidden',!!hidden);
+    controls.toggleAttribute('inert',!!hidden);
+    controls.setAttribute('aria-hidden',hidden?'true':'false');
   }
 
   /* ── one-time wiring ── */
@@ -657,6 +671,7 @@ class TouchCtrl{
   /* ── DOM refresh (throttled by the game loop) ── */
   updateTouch(state,force){
     if(!this.touch) return;
+    this.setDesktopScopeControlsHidden(true);
     const g=id=>document.getElementById(id);
     const C=this.cache;
     const set=(id,v)=>{if(C[id]===v)return;C[id]=v;const el=g(id);if(el)el.textContent=v;};
@@ -666,6 +681,17 @@ class TouchCtrl{
     const warn=sub.damage.warnings||[], enemy=state.world.enemy.alertState;
     const sta=state.tactical.activeStation;
     document.documentElement.dataset.station=sta;
+    /* Touch layout does not run DomView.render(), so it must synchronize the
+       selected boat presentation itself. Otherwise a newly launched boat keeps
+       the title and instrument skin that were present in index.html. */
+    {const profile=getSubmarineProfile(sub.profileId),key=`${ui.id}|${sub.profileId}`;
+      if(C.presentationKey!==key){C.presentationKey=key;document.documentElement.dataset.stationTheme=ui.theme||ui.id;
+        set('touchBoatTitle',profile?.displayName||'Submarine');
+        set('touchTubeTitle',`${tui.roomTitle||'Tubes'} — ${tui.flood||'flood'} / ${tui.fire||'fire'}`);
+        const engine=g('touchEngineTitle')?.firstChild;if(engine)engine.nodeValue=(ui.gauges?.power||'Engine')+' ';
+        const depth=g('touchDepthTitle')?.firstChild;if(depth)depth.nodeValue=(ui.gauges?.depth||'Depth')+' ';
+      }
+    }
 
     // transit banner
     const T=state.time;

@@ -56,6 +56,7 @@ const SaveSystem={
     // explicit unknown/mismatched future identity must fail rather than load as
     // Silversides in the Pacific.
     const identity=typeof materializeGameIdentity==='function'?materializeGameIdentity(state):null;
+    if(typeof materializePatrolRuntimeContext==='function')materializePatrolRuntimeContext(state);
     if(identity&&typeof materializeSubmarinePropulsionCharacteristics==='function'&&state.playerSub?.propulsion)
       state.playerSub.propulsion.characteristics=materializeSubmarinePropulsionCharacteristics(identity.submarineProfileId);
     // Phase-1 vessel identity is additive. Old saves keep their exact `type`

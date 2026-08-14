@@ -245,7 +245,10 @@ class Tutorial{
       searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0};
     s.tdc.dudMode='none';s.tdc.targetId=null;s.tdc.solutionQuality=0;
     s.tactical.selectedTrackId=null;s.tactical.activeStation='TACTICAL';s.tactical.periscopeBearing=20;
-    s.map.plottedCourse=[];s.map.ownshipTrail=[];s.map.exploredCells={};
+    // Keep the sandbox defensively clean even if a future setup path bypasses
+    // part of NEW_PATROL. The lifecycle transaction performs the authoritative
+    // reset; this makes the tutorial's own contract explicit as well.
+    s.map.plottedCourse=[];s.map.ownshipTrail=[];s.map.exploredCells={};s.map.interceptPlot=null;s.map.intelFitRequest=null;s.map.visibilityFootprint=null;
     sub.heading=20;sub.orderedHeading=20;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;
     sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;

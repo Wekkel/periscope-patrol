@@ -38,6 +38,8 @@ class SimEngine extends SimEngineCareer {
      boundary drawn on the map, the transit interrupt, where contacts are
      allowed to be, and where a decoded intelligence plot may fall. */
   areaBounds(){
+    const authored=this.state.world?.chartBounds;
+    if(authored&&Number.isFinite(authored.x0)&&Number.isFinite(authored.y0)&&Number.isFinite(authored.x1)&&Number.isFinite(authored.y1))return{x0:authored.x0,y0:authored.y0,x1:authored.x1,y1:authored.y1};
     const B=Bathy.ensure(this.state.world.terrain);
     if(!B) return null;
     return {x0:B.x0,y0:B.y0,x1:B.x0+(B.nx-1)*B.cell,y1:B.y0+(B.ny-1)*B.cell};

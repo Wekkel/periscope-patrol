@@ -28,10 +28,10 @@ if(window.ResizeObserver){
     }
   });
 });
-['loadGameButton','mLoadGame'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>{
+['loadGameButton','mLoadGame'].forEach(id=>document.getElementById(id)?.addEventListener('click',async()=>{
   const state=SaveSystem.quickLoad();
   if(!state){Toast.warn(`No quick save available${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:''}.`);return;}
-  if(!confirm('Load the quick save? Unsaved progress in the current patrol will be replaced.'))return;
+  if(!await DecisionDialog.confirm({title:'LOAD QUICK SAVE',message:'Unsaved progress in the current patrol will be replaced.',confirmLabel:'LOAD',danger:true}))return;
   SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();Object.assign(game.state,state);
   document.getElementById('scenarioOverlay')?.classList.remove('open');showBriefing(state.campaign.patrolArea,state);audio.event?.('RESUME_CONFIRMED');Toast.ok('Quick save loaded');
 }));
@@ -312,7 +312,13 @@ if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem(PP_BUIL
     downloadCurrent(filename='periscope-current.png'){return saveDataUrl(this.captureCurrentDataUrl(),filename);},
     captureScenarioDataUrl(name,opts={}){const s=makeScenario(name,opts),map=name==='map-labels'||name==='map-harbor-approach',harbor=name==='map-harbor-approach',center=harbor?{xNm:(s.playerSub.position.xNm+s.world.harbor.center.xNm)/2,yNm:(s.playerSub.position.yNm+s.world.harbor.center.yNm)/2}:{...s.playerSub.position};return capture(s,{strategy:opts.strategy||null,zoom:map?(Number(opts.zoom)||(harbor?54:72)):null,center:map?center:null});},
     downloadScenario(name,opts={}){const strategy=String(opts.strategy||'').toLowerCase(),suffix=strategy?`-${strategy}`:'';return saveDataUrl(this.captureScenarioDataUrl(name,opts),opts.filename||`periscope-${name}${suffix}.png`);},
-    build(){return{channel:PP_BUILD.channel,isDev:PP_BUILD.isDev,path:location.pathname,storagePrefix:PP_BUILD.storagePrefix,serviceWorker:navigator.serviceWorker?.controller?.scriptURL||null};},
+    build(){const scope=document.getElementById('deskScopeControls'),s=game.getSnapshot();return{channel:PP_BUILD.channel,isDev:PP_BUILD.isDev,path:location.pathname,storagePrefix:PP_BUILD.storagePrefix,touchUiContract:PP_BUILD.touchUiContract?.()||'unavailable',patrolRuntimeContext:s.world?.patrolContext||null,patrolRuntimeContextMatches:typeof patrolRuntimeContextMatches==='function'?patrolRuntimeContextMatches(s):null,desktopScopeControls:scope?{hidden:scope.hidden,ariaHidden:scope.getAttribute('aria-hidden'),display:getComputedStyle(scope).display}:null,serviceWorker:navigator.serviceWorker?.controller?.scriptURL||null};},
+    qualityBudget(samples=6){
+      const s=game.getSnapshot(),counts={contacts:(s.world.contacts||[]).length,tracks:Object.keys(s.world.contactTracks||{}).length,aircraft:(s.world.aircraft||[]).length,torpedoes:(s.weapons.activeTorpedoes||[]).length,depthCharges:(s.world.depthCharges||[]).length,particles:(particles.particles||[]).length,sparks:(particles.sparks||[]).length,log:(s.log||[]).length},limits={objects:180,particles:420,sparks:120,log:100,renderAverageMs:22,audioDecodedBytes:8*1024*1024,heapBytes:180*1024*1024};
+      const total=counts.contacts+counts.tracks+counts.aircraft+counts.torpedoes+counts.depthCharges,t0=performance.now(),n=clamp(samples|0,1,20);for(let i=0;i<n;i++)canvasView.render(s);const renderAverageMs=(performance.now()-t0)/n,heapBytes=performance.memory?.usedJSHeapSize??null,audioDecodedBytes=audio.hybridDecodedBytes||0;
+      const warnings=[];if(total>limits.objects)warnings.push(`objects ${total}/${limits.objects}`);if(counts.particles>limits.particles)warnings.push(`particles ${counts.particles}/${limits.particles}`);if(counts.sparks>limits.sparks)warnings.push(`sparks ${counts.sparks}/${limits.sparks}`);if(counts.log>limits.log)warnings.push(`log ${counts.log}/${limits.log}`);if(renderAverageMs>limits.renderAverageMs)warnings.push(`render ${renderAverageMs.toFixed(1)}ms/${limits.renderAverageMs}ms`);if(audioDecodedBytes>limits.audioDecodedBytes)warnings.push(`audio ${audioDecodedBytes}/${limits.audioDecodedBytes}`);if(heapBytes&&heapBytes>limits.heapBytes)warnings.push(`heap ${heapBytes}/${limits.heapBytes}`);
+      return{ok:!warnings.length,counts,total,renderAverageMs,audioDecodedBytes,heapBytes,limits,warnings};
+    },
     audio:{
       // Audio review never mutates simulation state. Use it to audition a
       // recipe immediately after a code change instead of playing a patrol.

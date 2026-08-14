@@ -31,7 +31,7 @@ class CanvasViewTactical extends CanvasViewCore {
     ctx.fillStyle=silent?'#a9d0c4':'#8fb8a8';ctx.font=this.fnt(11.5,true);
     ctx.fillText('TACTICAL STATUS',pad,sceneTop+bannerH+Math.round(18*k));
     ctx.font=this.fnt(9.5);ctx.fillStyle='rgba(140,175,160,.9)';
-    ctx.fillText(`${sub.position.xNm.toFixed(1)}E / ${(-sub.position.yNm).toFixed(1)}N nm — ${state.campaign.patrolArea}`,pad,sceneTop+bannerH+Math.round(32*k));
+    ctx.fillText(`${sub.position.xNm.toFixed(1)}E / ${(-sub.position.yNm).toFixed(1)}N nm — ${PATROL_AREAS[state.campaign.patrolArea]?.displayName||state.campaign.patrolArea}`,pad,sceneTop+bannerH+Math.round(32*k));
     const en=state.world.enemy;
     let sonarTxt='';
     if(alertState!=='UNAWARE'){

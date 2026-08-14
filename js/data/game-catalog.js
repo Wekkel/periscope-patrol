@@ -1249,8 +1249,12 @@ function validateGameIdentity(identity){
     errors.push(`Submarine ${sub.id} belongs to ${sub.factionId}, not ${x.playerFactionId}`);
   if(sub&&sub.theaterId!==x.theaterId)
     errors.push(`Submarine ${sub.id} belongs to ${sub.theaterId}, not ${x.theaterId}`);
+  if(campaign&&sub&&campaign.submarineProfileId!==sub.id)
+    errors.push(`Campaign ${campaign.id} requires submarine ${campaign.submarineProfileId}, not ${sub.id}`);
   if(typeof getWarPartyProfile==='function'&&(!warParty||warParty.campaignId!==x.campaignId||warParty.runtimeCampaignProfileId!==x.campaignProfileId))
     errors.push(`War party ${x.warPartyId||'UNKNOWN'} does not match campaign/runtime identity.`);
+  if(warParty&&sub&&warParty.submarineProfileId!==sub.id)
+    errors.push(`War party ${warParty.id} requires submarine ${warParty.submarineProfileId}, not ${sub.id}`);
 
   return{ok:errors.length===0,errors,identity:{...x}};
 }
@@ -1276,4 +1280,42 @@ function materializeGameIdentity(state){
   if(Array.isArray(campaign.patrolAreaIds)&&!campaign.patrolAreaIds.includes(state.campaign.patrolArea))
     throw new Error(`Patrol area ${state.campaign.patrolArea} does not belong to campaign ${campaign.id}.`);
   return identity;
+}
+
+/* A patrol has one indivisible identity: the selected campaign/war party and
+   boat determine the only valid patrol-area catalogue and terrain source. The
+   small context object is intentionally saved with the world so a stale chart
+   cannot survive a campaign switch or be rendered under a different boat. */
+const PATROL_RUNTIME_CONTEXT_FIELDS=Object.freeze(['historyId','campaignId','warPartyId','theaterId','playerFactionId','campaignProfileId','submarineProfileId','patrolArea','terrainKey']);
+
+function makePatrolRuntimeContext(identity,areaKey,historyId=''){
+  const validation=validateGameIdentity(identity);
+  if(!validation.ok)throw new Error(`Invalid patrol runtime identity: ${validation.errors.join('; ')}`);
+  const x=validation.identity,campaign=getCampaignProfile(x.campaignProfileId),area=PATROL_AREAS[areaKey];
+  if(!area)throw new Error(`Patrol runtime context has no area ${areaKey}.`);
+  if(!campaign?.patrolAreaIds?.includes(areaKey))throw new Error(`Patrol area ${areaKey} does not belong to campaign ${campaign?.id||'UNKNOWN'}.`);
+  return Object.freeze({version:1,historyId:String(historyId||''),campaignId:x.campaignId,warPartyId:x.warPartyId,theaterId:x.theaterId,playerFactionId:x.playerFactionId,campaignProfileId:x.campaignProfileId,submarineProfileId:x.submarineProfileId,patrolArea:areaKey,terrainKey:area.terrainKey||null});
+}
+
+function patrolRuntimeContextMatches(state){
+  try{
+    const c=state?.campaign,actual=state?.world?.patrolContext;
+    if(!c||!actual)return false;
+    const expected=makePatrolRuntimeContext(resolveGameIdentity(state),c.patrolArea,c.historyId);
+    return PATROL_RUNTIME_CONTEXT_FIELDS.every(k=>actual[k]===expected[k]);
+  }catch(_){return false;}
+}
+
+function materializePatrolRuntimeContext(state,{refreshTerrain=true}={}){
+  const identity=materializeGameIdentity(state),c=state.campaign,W=state.world;
+  if(!W)throw new Error('Game state has no world patrol context boundary.');
+  const expected=makePatrolRuntimeContext(identity,c.patrolArea,c.historyId),actual=W.patrolContext;
+  if(actual&&!PATROL_RUNTIME_CONTEXT_FIELDS.every(k=>actual[k]===expected[k]))
+    throw new Error(`Patrol runtime context mismatch for ${c.patrolArea}; refusing to mix boat, campaign and chart state.`);
+  W.patrolContext={...expected};
+  if(refreshTerrain){
+    const area=PATROL_AREAS[c.patrolArea],terrain=materializePatrolTerrain(area);
+    W.chartBounds=patrolChartBounds(area);W.terrain=terrain;W.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
+  }
+  return W.patrolContext;
 }
