@@ -25,9 +25,10 @@ const scripts=[...dom.window.document.querySelectorAll('script[src]')].map(s=>s.
 const context=dom.getInternalVMContext();
 for(const src of scripts){const file=src.replace(/^\.\//,'');try{vm.runInContext(await readFile(path.join(root,file),'utf8')+`\n//# sourceURL=${file}`,context,{filename:file});}catch(error){errors.push({kind:'script',file,message:error.message,stack:error.stack});break;}}
 for(let i=0;i<5&&rafQueue.length;i++){const fn=rafQueue.shift();try{fn(i*16.67);}catch(error){errors.push({kind:'raf',message:error.message,stack:error.stack});}}
-for(const button of [...window.document.querySelectorAll('[data-sta]')]){try{button.dispatchEvent(new window.Event('click',{bubbles:true}));for(let i=0;i<2&&rafQueue.length;i++){const fn=rafQueue.shift();try{fn(100+i*16.67);}catch(error){errors.push({kind:'station',station:button.dataset.sta,message:error.message,stack:error.stack});}}}catch(error){errors.push({kind:'station-dispatch',station:button.dataset.sta,message:error.message,stack:error.stack});}}
+const stationResults=[];
+for(const station of [...new Set([...window.document.querySelectorAll('[data-sta]')].map(b=>b.dataset.sta).filter(Boolean))]){const button=[...window.document.querySelectorAll('[data-sta]')].find(b=>b.dataset.sta===station),beforeErrors=errors.length;try{button.dispatchEvent(new window.Event('click',{bubbles:true}));}catch(error){errors.push({kind:'station-dispatch',station,message:error.message,stack:error.stack});}stationResults.push({station,rendered:errors.length===beforeErrors,ok:errors.length===beforeErrors});}
 const gameLoopStarted=errors.every(e=>e.file!=='js/bootstrap/start.js')&&rafId>0;
 const canvases=[...window.document.querySelectorAll('canvas')].map(c=>({id:c.id,width:c.width,height:c.height,clientWidth:c.clientWidth,clientHeight:c.clientHeight}));
 dom.window.close();
-console.log(JSON.stringify({root,firstException:errors[0]||null,errors,gameLoopStarted,drawCalls:draw.count,drawMethods:[...draw.methods],canvases},null,2));
+console.log(JSON.stringify({root,firstException:errors[0]||null,errors,gameLoopStarted,drawCalls:draw.count,drawMethods:[...draw.methods],canvases,stations:stationResults},null,2));
 if(errors.length||!draw.count||canvases.some(c=>c.width<=0||c.height<=0))process.exitCode=1;
