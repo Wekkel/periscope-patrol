@@ -243,7 +243,7 @@ class HelmGauges{
     const portrait=layout.orientation==='portrait';
     const vis=this.views.filter(v=>!this.focus||v.key===this.focus);
     const n=Math.max(1,vis.length);
-    const cols=this.focus?1:(touch?(portrait?Math.min(2,n):Math.min(3,n)):Math.min(3,n));
+    const cols=this.focus?1:(layout.device==='phone'&&portrait?Math.min(2,n):Math.min(3,n));
     const raw=(W-GAP*(cols-1))/cols;
     // On a very narrow phone the physical width can be below the preferred
     // 152 px floor; never overflow the bank just to satisfy the preference.
