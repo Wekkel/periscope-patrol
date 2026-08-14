@@ -76,12 +76,11 @@ function getPatrolTerrain(areaKey){
 // Natural Earth 10m coastlines (public domain), clipped to each patrol area and
 // simplified to 0.3 nm. Islands carry their real names and summit heights.
 function buildTerrain(areaKey){
-  const src=COASTLINES[areaKey]||[];
-  return src.map((s,i)=>{
+  const src=COASTLINES[areaKey]||[],seen=new Set();
+  return src.filter(s=>{const key=`${s.n}|${s.pk}|${s.a}|${(s.p||[]).join(',')}`;if(seen.has(key))return false;seen.add(key);return true;}).map((s,i)=>{
     const pts=[];
     for(let j=0;j<s.p.length;j+=2) pts.push({xNm:s.p[j],yNm:s.p[j+1]});
     return{id:`LAND-${i}`,name:s.n,type:s.a>140?'ISLAND':s.a>12?'ISLAND':'REEF',
       depth:s.a>60?'SHOAL':'SHALLOW',peakM:s.pk,areaNm2:s.a,points:pts};
   });
 }
-

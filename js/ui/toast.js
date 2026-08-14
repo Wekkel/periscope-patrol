@@ -47,10 +47,11 @@ const Toast = {
     setTimeout(() => div.remove(), duration + 60);
     return div;
   },
-  action(msg,label,fn,duration=6500,type='ok'){
+  action(msg,label,fn,duration=6500,type='ok',role=''){
     const c=document.getElementById('toastContainer');if(!c)return null;
     duration=this.durationFor(msg,type,duration);
     const div=document.createElement('div');div.className=`toast ${type} action-toast`;div.dataset.duration=String(duration);
+    if(role){c.querySelectorAll(`.toast[data-role="${role}"]`).forEach(x=>x.remove());div.dataset.role=role;}
     const txt=document.createElement('span');txt.textContent=msg;div.appendChild(txt);
     const b=document.createElement('button');b.type='button';b.className='toast-action-btn';b.textContent=label;
     b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();try{fn?.();}finally{div.remove();}});
@@ -69,7 +70,7 @@ const Toast = {
   },
   dismissRole(role){
     if(!role)return;
-    document.querySelectorAll(`#toastContainer .sticky-toast[data-role="${role}"]`).forEach(x=>x.remove());
+    document.querySelectorAll(`#toastContainer .toast[data-role="${role}"]`).forEach(x=>x.remove());
   },
   impactAction(msg,fn){
     const c=document.getElementById('toastContainer');if(!c)return null;
@@ -87,6 +88,26 @@ const Toast = {
   ok(msg)   { return this.show(msg,'ok'); },
   warn(msg) { return this.show(msg,'warn'); },
   bad(msg)  { return this.show(msg,'bad',3500); }
+};
+
+/* A game-native confirmation surface. Native confirm() leaves the naval UI,
+   uses browser wording, and is especially oversized on Android. */
+const DecisionDialog={
+  confirm({title='CONFIRM ORDER',message='',confirmLabel='CONFIRM',cancelLabel='CANCEL',danger=false}={}){
+    return new Promise(resolve=>{
+      document.querySelector('.decision-overlay')?.remove();
+      const overlay=document.createElement('div');overlay.className='decision-overlay';
+      overlay.innerHTML=`<section class="decision-box" role="alertdialog" aria-modal="true" aria-labelledby="decisionTitle" aria-describedby="decisionMessage"><div class="decision-kicker">CAPTAIN'S AUTHORIZATION</div><h2 id="decisionTitle"></h2><p id="decisionMessage"></p><div class="decision-actions"><button type="button" data-decision="cancel"></button><button type="button" data-decision="confirm" class="${danger?'danger':'confirm'}"></button></div></section>`;
+      overlay.querySelector('#decisionTitle').textContent=title;
+      overlay.querySelector('#decisionMessage').textContent=message;
+      overlay.querySelector('[data-decision="cancel"]').textContent=cancelLabel;
+      overlay.querySelector('[data-decision="confirm"]').textContent=confirmLabel;
+      let done=false;const finish=value=>{if(done)return;done=true;document.removeEventListener('keydown',key);overlay.remove();resolve(value);};
+      const key=e=>{if(e.key==='Escape')finish(false);};document.addEventListener('keydown',key);
+      overlay.addEventListener('click',e=>{const action=e.target.closest?.('[data-decision]')?.dataset.decision;if(action)finish(action==='confirm');else if(e.target===overlay)finish(false);});
+      document.body.appendChild(overlay);overlay.querySelector('[data-decision="confirm"]')?.focus();
+    });
+  }
 };
 
 function transitStopToastKind(why){

@@ -56,9 +56,9 @@ class SimEngineCore{
   }
 
   offerLossAar(record){
-    const c=this.state.campaign;if(!record||c._lossAarOffered)return false;c._lossAarOffered=true;
+    const c=this.state.campaign;if(!record||c._lossAarOffered)return false;c._lossAarOffered=true;const historyId=c.historyId;
     try{SaveSystem.autoClear?.();}catch(_){ }
-    setTimeout(()=>{if(typeof Toast==='undefined'||!globalThis.aarController?.open)return;Toast.action('BOAT LOST — After Action Report ready.','VIEW AAR',()=>globalThis.aarController.open(record,{completed:false}),10000,'bad');},0);return true;
+    setTimeout(()=>{const live=this.state.campaign;if(live?.historyId!==historyId||live?.missionStatus!=='LOST'||typeof Toast==='undefined'||!globalThis.aarController?.open)return;Toast.action('BOAT LOST — After Action Report ready.','VIEW AAR',()=>globalThis.aarController.open(record,{completed:false}),10000,'warn','patrol-aar');},0);return true;
   }
 
   /* Open-ended transit is intentionally CPU-bounded so a budget phone does
@@ -462,11 +462,15 @@ class SimEngineCore{
         for(const t of this.state.weapons.tubes.filter(t=>t.pos==='AFT')) this.floodTube(t.id,false);
         this.log('Aft tubes flooded.');audio.playTubeFlood?.();setTimeout(()=>audio.playTubeReady?.(),680); break;
       case'FIRE_AFT_SPREAD': this.fireSpreadByPos('AFT'); break;
-      case'MAP_ADD_WAYPOINT':
-        this.state.map.plottedCourse.push({xNm:cmd.xNm,yNm:cmd.yNm});
+      case'MAP_ADD_WAYPOINT':{
+        const target=this.clampToArea({xNm:cmd.xNm,yNm:cmd.yNm}),plot=this.state.map.plottedCourse;
+        if(!this.isNavigableMapPoint(target)){this.notify('WAYPOINT REFUSED — land or unsafe shoal. Tap navigable water.','warn');break;}
+        const from=plot.at(-1)||this.state.playerSub.position,path=this.planNavigableCourse(from,target);
+        if(!path){this.notify('WAYPOINT REFUSED — no safe water route can be plotted.','warn');break;}
+        for(const p of path.slice(1))if(distNm(plot.at(-1)||from,p)>.03)plot.push({...p});
         this.state.map.autoFollowPlot=true;
-        this.log(`Waypoint ${this.state.map.plottedCourse.length} plotted.`);
-        break;
+        this.log(`Water route plotted — ${plot.length} waypoint${plot.length===1?'':'s'}.`);
+        break;}
       case'MAP_REMOVE_WAYPOINT':{
         const plot=this.state.map.plottedCourse;
         const i=cmd.index;
@@ -487,7 +491,9 @@ class SimEngineCore{
       case'PLOT_INTERCEPT_ADVISORY':{
         const a=this.intelSummary?.().find(x=>x.kind==='ULTRA'),plan=a?.icptNow||a?.icptFlank;
         if(!a||!plan){this.notify('No usable shipping intercept is held. Copy radio traffic or develop a contact.','warn');break;}
-        this.state.map.interceptPlot={point:{...plan.point},courseDeg:plan.courseDeg,timeSec:plan.timeSec,uncertaintyNm:a.uncNm,sourceReceivedAt:this.state.world.ultra?.receivedAt,createdAt:this.state.time.elapsedSeconds};
+        const waterPath=this.planNavigableCourse(this.state.playerSub.position,this.clampToArea(plan.point));
+        if(!waterPath){this.notify('Intercept estimate falls outside safely navigable water. Helm unchanged.','warn');break;}
+        this.state.map.interceptPlot={point:{...waterPath.at(-1)},waterPath,courseDeg:plan.courseDeg,timeSec:plan.timeSec,uncertaintyNm:a.uncNm,sourceReceivedAt:this.state.world.ultra?.receivedAt,createdAt:this.state.time.elapsedSeconds};
         this.notify(`Intercept advice plotted ${fmtDeg(plan.courseDeg)} — helm unchanged.`,'ok');
         this.log(`Navigator plotted an advisory intercept ${fmtDeg(plan.courseDeg)}; commanding officer retains the helm.`);break;}
       case'TOGGLE_MAP_WEATHER':
@@ -1036,12 +1042,12 @@ class SimEngineCore{
     const keys=Object.keys(PATROL_AREAS);
     const key=areaKey||keys[Math.floor(Math.random()*keys.length)];
     const area=PATROL_AREAS[key];
-    const s=this.state;
+    const s=this.state,training=options.training===true;
     const prevTotal=Number(s.campaign.totalScore)||0;
     const prevPatrol=s.campaign.patrolNumber||1;
     const prevHistoricalProfile=s.campaign.historicalProfile||null;
     const pristineBootstrap=prevPatrol===1&&s.campaign.missionStatus==='PATROL'&&(s.time.elapsedSeconds||0)===0&&!s.campaign.primaryMission;
-    const nextPatrol=pristineBootstrap?1:prevPatrol+1;
+    const nextPatrol=training?prevPatrol:(pristineBootstrap?1:prevPatrol+1);
     const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||'1943-08-17';
     const careerStart=`${patrolStartDate} 06:00`;
 
@@ -1049,8 +1055,10 @@ class SimEngineCore{
     // stale alarm or AAR-pause state may leak across it.
     Object.assign(s.time,{elapsedSeconds:0,timeScale:1,campaignDate:patrolStartDate,
       transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null,_pre:null});
-    s.log=[{t:0,level:'info',message:`Patrol commenced. Area: ${key}. Good hunting.`}];
+    s.log=[{t:0,level:'info',message:training?`Training waters prepared. Area: ${key}.`:`Patrol commenced. Area: ${key}. Good hunting.`}];
     if(s.ui){s.ui.toasts=[];s.ui.toastSeq=0;}
+    try{Toast.clear?.();globalThis.aarController?.close?.(false);}catch(_){ }
+    if(typeof document!=='undefined')document.getElementById('resumeBar')?.classList.remove('on');
     // Reset world
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];s.world.nextDcId=0;
     s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
@@ -1063,11 +1071,15 @@ class SimEngineCore{
     // Terrain is a patrol-scoped resource. getPatrolTerrain keeps one processed
     // Pacific chart alive at a time so adding areas does not multiply startup/RAM.
     const terrain=getPatrolTerrain(area.terrainKey||key);
-    s.world.terrain=terrain; s.world.portScenes=materializePortScenes(area); s.world.ports=area.ports;
-    s.world.convoyRoutes=area.convoyRoutes;
+    s.world.terrain=terrain; s.world.portScenes=training?[]:materializePortScenes(area); s.world.ports=training?[]:area.ports;
+    s.world.convoyRoutes=training?[]:area.convoyRoutes;
+    // Charted approaches are authored navigation context, never collision
+    // volumes or guaranteed-safe arcade lanes. Copy them per patrol so save
+    // migration and validation cannot mutate the catalogue.
+    s.world.navigationCorridors=training?[]:(area.navigationCorridors||[]).map(c=>({...c,points:(c.points||[]).map(p=>({...p}))}));
     s.world.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment=makePatrolEnvironment(area.environment);s.world.weatherSystem=null;s.world.traffic=null;
-    s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=true;s.map.weatherOverlay=false;
+    s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=!training;s.map.weatherOverlay=false;
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
     // this sequence once, so a map that was panned/free on the previous patrol
     // cannot strand the new boat off-screen.  Undefined in old saves is fine.
@@ -1078,21 +1090,22 @@ class SimEngineCore{
     s.tdc.angleOnBow=null;s.tdc.timeToImpactSec=null;s.tdc.solutionQuality=0;s.tdc.status='NO TARGET';s.tdc.autoTrack=true;s.tdc.trackSource='PLOT';
     s.campaign={
       patrolArea:key,score:0,scenarioSeed:Math.floor(Math.random()*9999),
-      missionStatus:'PATROL',patrolNumber:nextPatrol,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
-      historyId:`p${nextPatrol}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
+      missionStatus:training?'TRAINING':'PATROL',patrolNumber:nextPatrol,totalScore:prevTotal,startDate:patrolStartDate,difficulty:options.difficulty||null,
+      historyId:`${training?'training':'p'+nextPatrol}-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
       _careerStartDate:careerStart,_historyRecorded:false,_historyRecordId:null,importantEvents:[],_captainEventSeq:0,
       objectives:[
         {text:'Locate enemy convoy',done:false},{text:'Attack merchant shipping',done:false},
         {text:'Evade escort vessels',done:false},{text:'Return to friendly port',done:false}
       ],
       optionalObjectives:[],
-      friendlyPort:area.ports.find(p=>p.side==='FRIENDLY'),
+      friendlyPort:training?null:area.ports.find(p=>p.side==='FRIENDLY'),
       tonnageSunk:0,escortsSunk:0,patrolDuration:0,alongside:0,portService:0,_portServiceLock:false,lastPortServiceAt:-999,_rvSeen:false,_approachReached:false,portApproach:null,portRangeNm:null
     };
     // fresh boat for a fresh patrol — otherwise you inherit a wrecked, empty
     // (or sunk) submarine from the previous one
     const sub=s.playerSub;
     sub.position=area.start?{...area.start}:{xNm:0,yNm:0};
+    if(training){const safe=this.findNavigablePointNear(sub.position,80);if(!safe)throw new Error(`No navigable training start in ${key}`);sub.position=safe;}
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
@@ -1112,13 +1125,20 @@ class SimEngineCore{
     s.tactical.periscopeBearing=90;s.tactical.periscopeZoom=1;s.tactical.bridgeBearing=sub.heading;s.tactical.bridgeBinoculars=false;s.tactical.bridgeZoom=0;s.tactical.bridgeMarkedId=null;
     s.tactical.soundBearing=sub.heading;s.tactical.soundDisplay='PASSIVE';
     s.world.sound=null;s.world.radar=null;
-    s.world.airThreat={level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,
-      alarmedAt:-999,sdOn:true,nextCheck:120};
-    s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0};
+    s.world.airThreat={level:training?0:(area.environment.airThreat===undefined?0.55:area.environment.airThreat),
+      alarmedAt:-999,sdOn:true,nextCheck:training?1e9:120};
+    s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:training?1e9:300,copying:0};
     const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
-    s.world.contacts=this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
+    s.world.contacts=training?[]:this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
-    this.setupHarbor(key);this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
+    this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
+    if(training){
+      s.world.traffic={enabled:false,generated:true,groups:[],primaryGroup:null};
+      s.campaign.objectives=[{text:'Find the merchant',done:false},{text:'Sink it',done:false},{text:'Evade the escort',done:false},{text:'Finish the training',done:false}];
+      this.log(`=== TRAINING PATROL — ${key} ===`,'warn');
+      return;
+    }
+    this.setupHarbor(key);
     // Patch 6: mission setup happens only after world truth (convoy/harbor) exists,
     // but before the briefing is rendered. Historical scenarios can pin a type;
     // ordinary patrols may use AUTO or the player's explicit selection.
@@ -1137,6 +1157,37 @@ class SimEngineCore{
   clampToArea(pos){
     const A=this.areaBounds(); if(!A) return pos;
     return {xNm:clamp(pos.xNm,A.x0+1,A.x1-1),yNm:clamp(pos.yNm,A.y0+1,A.y1-1)};
+  }
+
+  isNavigableMapPoint(pos,minDepthFeet=30){
+    if(!pos||!Number.isFinite(pos.xNm)||!Number.isFinite(pos.yNm))return false;
+    const depth=Bathy.ensure(this.state.world.terrain)?Bathy.feet(pos.xNm,pos.yNm):3000;
+    return depth>=minDepthFeet&&!this.checkTerrainCollision({position:pos}).collision;
+  }
+
+  findNavigablePointNear(origin,minDepthFeet=80){
+    const start=this.clampToArea(origin),rings=[0,1.5,3,5,8,12,18,26];
+    for(const r of rings)for(let a=0;a<360;a+=r?30:360){const h=degToRad(a),p=this.clampToArea({xNm:start.xNm+Math.sin(h)*r,yNm:start.yNm-Math.cos(h)*r});if(this.isNavigableMapPoint(p,minDepthFeet))return p;}
+    return null;
+  }
+
+  endTrainingScenario(){
+    const s=this.state;if(s.campaign?.missionStatus!=='TRAINING')return false;
+    Object.assign(s.time,{timeScale:0,transitUntil:0,transitOpen:false,transitReason:null,stopReason:'training ended'});
+    s.world.contacts=[];s.world.contactTracks={};s.world.depthCharges=[];s.world.aircraft=[];s.world.missionObjects=[];
+    s.weapons.activeTorpedoes=[];s.weapons.explosions=[];s.map.plottedCourse=[];s.map.autoFollowPlot=false;
+    s.tdc.targetId=null;s.tactical.selectedTrackId=null;s.campaign.missionStatus='MENU';s.campaign.trainingEnded=true;s.campaign.objectives=[];return true;
+  }
+
+  planNavigableCourse(from,to){
+    if(!this.isNavigableMapPoint(from)||!this.isNavigableMapPoint(to))return null;
+    const route={from:{...from},to:{...to}},path=this.ensureWaterRoute(route);
+    if(!path||path.length<2)return null;
+    for(let i=0;i<path.length-1;i++){
+      const a=path[i],b=path[i+1],steps=Math.max(1,Math.ceil(distNm(a,b)/.20));
+      for(let n=0;n<=steps;n++){const t=n/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(!this.isNavigableMapPoint(p))return null;}
+    }
+    return path;
   }
 
   /* Build a shipping lane through water, once per patrol area. The bathymetry
@@ -1204,6 +1255,16 @@ class SimEngineCore{
       routes.push({label:route.label,vertices:path.length,lengthNm:length});
     }
     for(const p of W.portScenes||[])safePoint(p.position,`port ${p.name}`);
+    for(const [i,corridor] of (W.navigationCorridors||[]).entries()){
+      const pts=corridor.points||[];if(pts.length<2){errors.push(`corridor ${i} has fewer than two points`);continue;}
+      for(let n=0;n<pts.length-1;n++){
+        const a=pts[n],b=pts[n+1],steps=Math.max(1,Math.ceil(distNm(a,b)/.20));
+        for(let q=0;q<=steps;q++){
+          const t=q/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)},d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;
+          minimum=Math.min(minimum,d);if(land||d<Math.max(minDepthFeet,Number(corridor.minDepthFeet)||0)){errors.push(`corridor ${i} leaves navigable water`);n=pts.length;break;}
+        }
+      }
+    }
     const rv=this.friendlyPortApproach?.(this.state.campaign.friendlyPort);if(rv?.pos)safePoint(rv.pos,'friendly return');
     return{ok:errors.length===0,errors,routes,terrainVertices:(W.terrain||[]).reduce((n,f)=>n+(f.points?.length||0),0),portScenes:(W.portScenes||[]).length,minDepthFeet:minimum};
   }
@@ -1211,7 +1272,17 @@ class SimEngineCore{
   makeConvoy(area,options={}){
     const cr=area.convoyRoutes[0];
     const path=this.ensureWaterRoute(cr);
-    const spawn=path[0]||cr.from, next=path[1]||cr.to;
+    let spawn=path[0]||cr.from,next=path[1]||cr.to;
+    // Put the persistent primary convoy inside a bounded intercept envelope at
+    // patrol start. This is a one-time authored pacing decision, not a runtime
+    // relocation: once commissioned, the convoy keeps one identity and route.
+    // Transit and sensors still determine when the player actually finds it.
+    if(path.length>1&&area.pacingProfile!==false){
+      const C=routeCum(path),L=C.at(-1),own=this.state.playerSub.position,pr=routeProject(path,own),range=area.pacingProfile?.contactRangeNm||[16,26],seed=Number(this.state.campaign?.scenarioSeed)||1;
+      const f=((Math.imul(seed,1103515245)+12345)>>>0)/4294967295,target=lerp(Number(range[0])||16,Number(range[1])||26,f),ahead=pr.s+target;
+      const s0=ahead<=L-2?ahead:Math.max(0,pr.s-target),q=routeAdvanceOneWay(path,s0,0),q2=routeAdvanceOneWay(path,s0,1.25);
+      spawn=q.pos;next=q2.pos;
+    }
     const hp=options.historicalProfile||this.state.campaign?.historicalProfile||null;
     const spd=area.convoySpeedRange[0]+Math.random()*(area.convoySpeedRange[1]-area.convoySpeedRange[0])+(hp?.merchantSpeedBonus||0);
     const rawCount=Math.floor(area.convoyCountRange[0]+Math.random()*(area.convoyCountRange[1]-area.convoyCountRange[0]+1));

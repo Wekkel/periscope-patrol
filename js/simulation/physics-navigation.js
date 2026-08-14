@@ -117,6 +117,7 @@ class SimEngine extends SimEngineCareer {
   // Subsystem damage and damage-control doctrine live in damage-control.js.
 
   checkMissionObjectives(){
+    if(this.state.campaign?.missionStatus==='TRAINING'||this.state.campaign?.missionStatus==='MENU')return;
     // Patch 6 owns objectives for configured missions. If the mission module is
     // absent (old isolated tests/builds), the legacy convoy contract below remains.
     if(this.checkPrimaryMission?.()) return;

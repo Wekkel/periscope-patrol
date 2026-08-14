@@ -41,6 +41,22 @@ function _missionHash(seed,text){
 }
 function _missionObj(c,id){return (c.objectives||[]).find(o=>o.id===id);}
 function _missionSetDone(c,id,done=true){const o=_missionObj(c,id);if(o)o.done=!!done;return o;}
+function _missionPacingStage(c,m){
+  if(m.result!=='ACTIVE')return'RETURN';const done=id=>!!_missionObj(c,id)?.done;
+  if(['escape','evade','withdraw'].some(done))return'WITHDRAW';
+  const actionId=m.type==='SHADOW_REPORT'?(m.contactKeeperVersion?'attack':'report'):{CONVOY_INTERDICTION:'attack',HIGH_VALUE_INTERCEPT:'neutralize',RECONNAISSANCE:'identify',LIFEGUARD:'recover',SPECIAL_TRANSPORT:'transfer',RECON_INSERTION:'transfer',RECON_EXTRACTION:'transfer',MINELAYING:'lay',ESCORT_HUNT:'neutralize',HARBOR_STRIKE:'neutralize',WEATHER_AMBUSH:'attack'}[m.type];
+  if(done(actionId))return'ACTION';
+  if(['locate','intercept','approach','zone','rendezvous','station'].some(done))return'CONTACT';
+  return'TRANSIT';
+}
+function _missionUpdatePacing(engine,m,dt){
+  const s=engine.state,c=s.campaign,p=m.pacing=m.pacing||{version:1,targetMinutes:30,activeSeconds:0,cues:{}};
+  const scale=Number(s.time.timeScale)||0;if(scale>0&&!s.time.transitUntil)p.activeSeconds+=Math.min(1,dt/Math.max(1,scale));
+  p.stage=_missionPacingStage(c,m);const min=p.activeSeconds/60,cue=(key,text)=>{if(p.cues[key])return;p.cues[key]=true;engine.captainLog?.('MISSION_PACING',text,{stage:p.stage,activeMinutes:Math.round(min)},`pacing:${key}`);engine.notify(text,'warn');};
+  if(min>=8&&p.stage==='TRANSIT')cue('contact','NAVIGATOR — contact window is slipping. Plot the latest intelligence, choose a water-safe intercept and use TRANSIT for the empty sea miles.');
+  if(min>=20&&['TRANSIT','CONTACT'].includes(p.stage))cue('action','CAPTAIN — the tactical window is narrowing. Recheck course, target movement and disengagement water before committing.');
+  if(min>=26&&p.stage==='ACTION')cue('withdraw','EXECUTIVE OFFICER — primary action is complete. Break contact and preserve a clear route toward friendly water.');
+}
 function _missionSafePoint(engine,origin,bearingDeg,distanceNm,minDepthFt=24){
   const A=engine.areaBounds?.(),base=origin||engine.state.playerSub.position;
   for(let ring=0;ring<5;ring++)for(let side=0;side<12;side++){
@@ -143,9 +159,10 @@ function missionProgressText(state){
   if(typeof SimEngine==='undefined')return;
   Object.assign(SimEngine.prototype,{
     ensureMissionFramework(){
-      const s=this.state,c=s.campaign,W=s.world;c.optionalObjectives=Array.isArray(c.optionalObjectives)?c.optionalObjectives:[];W.missionObjects=Array.isArray(W.missionObjects)?W.missionObjects:[];
+      const s=this.state,c=s.campaign,W=s.world;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return null;c.optionalObjectives=Array.isArray(c.optionalObjectives)?c.optionalObjectives:[];W.missionObjects=Array.isArray(W.missionObjects)?W.missionObjects:[];
       if(!MISSION_PRIMARY_TYPES.includes(c.missionType))c.missionType='CONVOY_INTERDICTION';
-      if(!c.primaryMission){const d=MISSION_DEFINITIONS[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true};}
+      if(!c.primaryMission){const d=MISSION_DEFINITIONS[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true,pacing:{version:1,targetMinutes:30,activeSeconds:0,cues:{}}};}
+      c.primaryMission.pacing=c.primaryMission.pacing||{version:1,targetMinutes:30,activeSeconds:0,cues:{}};
       const ids=c.missionType==='CONVOY_INTERDICTION'?['locate','attack','evade','return']:[];if(ids.length&&(c.objectives||[]).every(o=>!o.id))(c.objectives||[]).forEach((o,i)=>o.id=ids[i]||`objective-${i+1}`);
       return c.primaryMission;
     },
@@ -168,7 +185,7 @@ function missionProgressText(state){
 
     configureMission(requested='AUTO',options={}){
       const s=this.state,c=s.campaign,W=s.world,type=this.chooseMissionType(requested),d=MISSION_DEFINITIONS[type],now=s.time.elapsedSeconds||0;
-      c.missionType=type;c.primaryMission={type,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:now};c.optionalObjectives=[];W.missionObjects=[];
+      c.missionType=type;c.primaryMission={type,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:now,pacing:{version:1,targetMinutes:Number(options.targetMinutes)||30,activeSeconds:0,cues:{}}};c.optionalObjectives=[];W.missionObjects=[];
       const m=c.primaryMission,setObjs=rows=>{c.objectives=rows.map(([id,text])=>({id,text,done:false,failed:false}));};
       if(type==='CONVOY_INTERDICTION'){
         setObjs([['locate','Locate enemy convoy'],['attack','Neutralize a meaningful share of enemy shipping'],['evade','Evade escort vessels'],['return','Return to friendly port']]);
@@ -212,7 +229,7 @@ function missionProgressText(state){
     },
 
     updateMissionFramework(dt){
-      const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;
+      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return;const m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(!m||m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;_missionUpdatePacing(this,m,dt);
       if(m.type==='HIGH_VALUE_INTERCEPT'||m.type==='ESCORT_HUNT')_missionRefreshIntel(this,m,false);
       if(m.type==='LIFEGUARD'){
         if(Number.isFinite(m.strikeAt)&&now>=m.strikeAt&&!m.survivorSpawned)this._spawnLifeguardSurvivor(m);const raft=m.survivorSpawned&&W.contacts.find(x=>x.id===m.survivorId),tr=raft&&W.contactTracks[m.survivorId];if(raft&&tr&&!m.survivorSeen&&((tr.positionSource||tr.source)==='VISUAL'||(tr.positionSource||tr.source)==='SJ RADAR'||tr.lastSensorSource==='SJ RADAR')){m.survivorSeen=true;m.survivorPos={...(tr.plotPosition||raft.position)};_missionSetDone(c,'locate');this.notify('LIFEGUARD — LIFE RAFT LOCATED. Close surfaced and slow for recovery.','ok');}if(raft&&m.survivorSeen){const close=distNm(sub.position,raft.position)<=.08&&sub.depthFeet<8&&sub.propulsion.speedKnots<=2.5;m.rescueHold=close?m.rescueHold+dt:Math.max(0,m.rescueHold-dt*.5);if(m.rescueHold>=15&&!m.recovered){m.recovered=true;_missionSetDone(c,'recover');W.contacts=W.contacts.filter(x=>x.id!==m.survivorId);delete W.contactTracks[m.survivorId];this.captainLog?.('AIRMAN_RECOVERED','Downed airman recovered.',{},'airman-recovered');this._missionFinish(true);}}
@@ -230,7 +247,7 @@ function missionProgressText(state){
     },
 
     checkPrimaryMission(){
-      const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),W=s.world;if(!MISSION_PRIMARY_TYPES.includes(m.type))return false;if(m.result!=='ACTIVE')return true;
+      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return false;const m=this.ensureMissionFramework(),W=s.world;if(!m||!MISSION_PRIMARY_TYPES.includes(m.type))return false;if(m.result!=='ACTIVE')return true;
       if(m.type==='CONVOY_INTERDICTION'){
         const members=_missionMainMerchants(this),convoyIds=new Set([...W.contacts.filter(x=>x.convoyId==='MAIN').map(x=>x.id),...(W.traffic?.primaryGroup?.savedMembers||[]).map(x=>x.id)]),located=Object.keys(W.contactTracks).some(id=>convoyIds.has(id));if(located&&!_missionObj(c,'locate')?.done){_missionSetDone(c,'locate');this.captainLog?.('CONVOY_SIGHTED','Enemy convoy sighted.',{},'convoy-sighted');}const neutralized=members.filter(_missionShipNeutralized),neutralizedTonnage=neutralized.reduce((n,x)=>n+(x.tonsFactor||0),0);m.neutralizedShips=neutralized.length;m.neutralizedTonnage=neutralizedTonnage;const initialCount=Math.max(1,m.initialMerchantCount||members.length),initialTons=Math.max(1,m.initialMerchantTonnage||members.reduce((n,x)=>n+(x.tonsFactor||0),0)),shipGoal=Math.max(1,Math.min(m.requiredNeutralizedShips||2,initialCount)),tonGoal=initialTons*(m.requiredNeutralizedTonnagePct||.45),allGone=!members.some(x=>!x.sunk)&&!this.primaryConvoyExists?.(),tacticalWin=neutralized.length>=shipGoal&&neutralizedTonnage>=tonGoal;_missionSetDone(c,'attack',allGone||tacticalWin);if(allGone||tacticalWin)this._missionFinish(true);return true;
       }
