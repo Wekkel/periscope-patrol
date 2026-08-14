@@ -14,28 +14,83 @@
    - legacy saves may omit these additive IDs; resolveGameIdentity() deliberately
      falls back to the current Pacific defaults until the formal save migration. */
 
-const PP_CATALOG_VERSION=10;
+const PP_CATALOG_VERSION=12;
+
+/* Geography has one canonical owner. A family groups campaigns for navigation
+   and presentation, but never causes its terrain to be loaded. In particular,
+   Baltic is a European theater of its own: it is not copied into Pacific or
+   Atlantic data merely because Soviet, German or British forces may appear. */
+const THEATER_FAMILIES=Object.freeze({
+  pacific:Object.freeze({id:'pacific',displayName:'Pacific family'}),
+  europe:Object.freeze({id:'europe',displayName:'European waters'}),
+  'indian-ocean':Object.freeze({id:'indian-ocean',displayName:'Indian Ocean family'})
+});
 
 const THEATER_PROFILES=Object.freeze({
   pacific:Object.freeze({
     id:'pacific',
     displayName:'The Pacific',
+    familyId:'pacific',
     terrainProvider:'pacific',
     defaultCampaignId:'us-pacific'
   }),
   atlantic:Object.freeze({
     id:'atlantic',
     displayName:'The Atlantic',
+    familyId:'europe',
     terrainProvider:'open-ocean',
     defaultCampaignId:'german-atlantic-1941'
-  })
+  }),
+  baltic:Object.freeze({id:'baltic',displayName:'The Baltic Sea',familyId:'europe',terrainProvider:'reserved',defaultCampaignId:null,status:'REFERENCE_ONLY'}),
+  mediterranean:Object.freeze({id:'mediterranean',displayName:'The Mediterranean',familyId:'europe',terrainProvider:'reserved',defaultCampaignId:null,status:'REFERENCE_ONLY'}),
+  'indian-ocean':Object.freeze({id:'indian-ocean',displayName:'The Indian Ocean',familyId:'indian-ocean',terrainProvider:'reserved',defaultCampaignId:null,status:'REFERENCE_ONLY'})
+});
+
+const REGION_PROFILES=Object.freeze({
+  'pacific-ocean':Object.freeze({id:'pacific-ocean',theaterId:'pacific'}),
+  'north-atlantic':Object.freeze({id:'north-atlantic',theaterId:'atlantic'}),
+  'norwegian-arctic':Object.freeze({id:'norwegian-arctic',theaterId:'atlantic',presentationFamily:'atlantic'}),
+  'baltic-sea':Object.freeze({id:'baltic-sea',theaterId:'baltic',canonicalTerrainOwner:true}),
+  mediterranean:Object.freeze({id:'mediterranean',theaterId:'mediterranean'}),
+  'indian-ocean':Object.freeze({id:'indian-ocean',theaterId:'indian-ocean'})
 });
 
 const FACTION_PROFILES=Object.freeze({
   usa:Object.freeze({id:'usa',displayName:'United States Navy',shortName:'USN'}),
   japan:Object.freeze({id:'japan',displayName:'Imperial Japanese Navy',shortName:'IJN'}),
   germany:Object.freeze({id:'germany',displayName:'Kriegsmarine',shortName:'KM'}),
-  britain:Object.freeze({id:'britain',displayName:'Royal Navy',shortName:'RN'})
+  britain:Object.freeze({id:'britain',displayName:'Royal Navy',shortName:'RN'}),
+  canada:Object.freeze({id:'canada',displayName:'Royal Canadian Navy',shortName:'RCN'}),
+  soviet:Object.freeze({id:'soviet',displayName:'Soviet Navy',shortName:'VMF'})
+});
+
+/* Station presentation is intentionally data, not a theater switch. The
+   selected profile is copied into patrol state once at the lifecycle boundary;
+   renderers can then read cheap strings/numbers without resolving identity or
+   walking the catalog every frame. Simulation remains in feet, knots and RPM. */
+const STATION_PRESENTATION_PROFILES=Object.freeze({
+  'us-fleet-submarine':Object.freeze({
+    id:'us-fleet-submarine',theme:'us-fleet',language:'en-US',
+    palette:Object.freeze({faceInner:'#0d2029',faceOuter:'#050f13',bezel:'#2f5f56',ink:'#dfeee8',muted:'#8fb3a8',order:'#f5c65c'}),
+    depth:Object.freeze({factor:1,suffix:'ft',unit:'FEET',fine:'FINE',deep:'DEEP',scopeFeet:55,detentsDisplay:Object.freeze([0,55,100,150,200,250])}),
+    gauges:Object.freeze({course:'Course',depth:'Depth',power:'Power',courseLegends:Object.freeze(['GYRO','REPEATER']),powerSurface:'DIESEL',powerSubmerged:'BATTERY',rpm:'RPM',speed:'KNOTS'}),
+    orders:Object.freeze({heading:'Heading',depth:'Depth',power:'RPM',speed:'Speed',engine:'Engine',ballast:'Ballast',silent:'Silent',alarm:'ALARM'}),
+    tubes:Object.freeze({prefix:'T',forward:'FWD',aft:'AFT',forwardTitle:'Fwd Tubes',aftTitle:'Aft Tubes',flood:'Flood',fire:'Fire',roomTitle:'Tubes'}),
+    sensors:Object.freeze({room:'Sound Room',operator:'sound operator'}),
+    roles:Object.freeze({captain:'Skipper',executive:'Executive Officer',engineer:'Chief of the Boat',radio:'Radioman'}),
+    engineOrders:Object.freeze(['STOP','SLOW','2/3','STD','FULL','FLANK'])
+  }),
+  'km-type-vii':Object.freeze({
+    id:'km-type-vii',theme:'km-bakelite',language:'de-DE',
+    palette:Object.freeze({faceInner:'#171712',faceOuter:'#070806',bezel:'#5d5543',ink:'#e7e0c7',muted:'#aaa185',order:'#d6a84a'}),
+    depth:Object.freeze({factor:.3048,suffix:'m',unit:'METER',fine:'FEIN',deep:'TIEF',scopeFeet:55,detentsDisplay:Object.freeze([0,20,40,60,80,100,120,140])}),
+    gauges:Object.freeze({course:'Kurs',depth:'Tiefe',power:'Fahrt',courseLegends:Object.freeze(['KREISEL','KOMPASS']),powerSurface:'DIESEL',powerSubmerged:'E-MOTOR',rpm:'U/MIN',speed:'KNOTEN'}),
+    orders:Object.freeze({heading:'Kurs',depth:'Tiefe',power:'U/min',speed:'Fahrt',engine:'Maschine',ballast:'Tauchzellen',silent:'Schleichfahrt',alarm:'ALARM'}),
+    tubes:Object.freeze({prefix:'Rohr ',forward:'BUG',aft:'HECK',forwardTitle:'Bugrohre',aftTitle:'Heckrohr',flood:'Fluten',fire:'Los',roomTitle:'Torpedoraum'}),
+    sensors:Object.freeze({room:'Horchraum',operator:'Horchoperator'}),
+    roles:Object.freeze({captain:'Kaleu',executive:'I WO',engineer:'LI',radio:'Funker'}),
+    engineOrders:Object.freeze(['STOP','LANGSAM','HALBE','GROSSE','VOLLE','ÄUSSERSTE'])
+  })
 });
 
 const SUBMARINE_PROFILES=Object.freeze({
@@ -46,6 +101,7 @@ const SUBMARINE_PROFILES=Object.freeze({
     hullNumber:'SS-236',
     factionId:'usa',
     theaterId:'pacific',
+    stationPresentationId:'us-fleet-submarine',
 
     // Static boat facts only. Mutable quantities such as current ammunition,
     // damage, RPM, battery and flooded-tube state always belong in runtime state.
@@ -66,7 +122,7 @@ const SUBMARINE_PROFILES=Object.freeze({
         Object.freeze({id:5,pos:'AFT',gyroAngle:180}),
         Object.freeze({id:6,pos:'AFT',gyroAngle:180})
       ]),
-      deckGun:Object.freeze({ammo:120}),
+      deckGun:Object.freeze({ammo:120,label:'3-inch/50 deck gun',shortLabel:'3-IN/50',muzzleVelocityMS:820,maxRangeNm:14600/2025,reloadSec:1.35,audioPower:1}),
       aaGun:Object.freeze({ammo:1200})
     }),
 
@@ -96,6 +152,7 @@ const SUBMARINE_PROFILES=Object.freeze({
         pumpPctPerHour:1.0,electricalDamageLoadFactor:.35,emptySpeedFactor:.05,emptyRpmFactor:.1
       })
     }),
+    audio:Object.freeze({key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1}),
     damage:Object.freeze({crushDepthFeet:420})
   }),
 
@@ -116,6 +173,7 @@ const SUBMARINE_PROFILES=Object.freeze({
     hullNumber:null,
     factionId:'germany',
     theaterId:'atlantic',
+    stationPresentationId:'km-type-vii',
     // Renderer-facing identity only; simulation geometry continues to use the
     // authored dimensions above. This avoids teaching shared bridge/gun code
     // that `germany` implies one particular submarine hull.
@@ -132,7 +190,7 @@ const SUBMARINE_PROFILES=Object.freeze({
         Object.freeze({id:4,pos:'FWD',gyroAngle:0}),
         Object.freeze({id:5,pos:'AFT',gyroAngle:180})
       ]),
-      deckGun:Object.freeze({ammo:205}),
+      deckGun:Object.freeze({ammo:205,label:'8.8 cm SK C/35 deck gun',shortLabel:'8.8 CM SK C/35',muzzleVelocityMS:700,maxRangeNm:12350/1852,reloadSec:1.5,audioPower:.96}),
       aaGun:Object.freeze({ammo:1500})
     }),
     sensors:Object.freeze({
@@ -149,11 +207,22 @@ const SUBMARINE_PROFILES=Object.freeze({
         pumpPctPerHour:1.0,electricalDamageLoadFactor:.35,emptySpeedFactor:.05,emptyRpmFactor:.1
       })
     }),
+    audio:Object.freeze({key:'TYPE_VII',electricPitch:1.08,dieselPitch:1.13,dieselLevel:.92,hullMass:.88,commandPitch:1.08}),
     damage:Object.freeze({
       constructionDepthFeet:328,pressureDockTestDepthFeet:344,
       crushDepthFeet:500,crushDepthProvisional:true
     })
   })
+});
+
+/* Recognition/reference variants are deliberately separate from selectable
+   boat profiles. P29 can therefore record real Type VII development without
+   pretending that an unimplemented hull is already player-ready. Dates are
+   capability gates, not cosmetic labels. */
+const SUBMARINE_VARIANT_CATALOG=Object.freeze({
+  'type-viib':Object.freeze({id:'type-viib',factionId:'germany',availableFrom:19380801,availableUntil:19440101,lengthFt:218.2,beamFt:20.3,surfaceSpeedKn:17.9,submergedSpeedKn:8,recognition:'Shorter saddle tanks; single stern tube; compact early Type VII tower',status:'REFERENCE_ONLY'}),
+  'type-viic':Object.freeze({id:'type-viic',factionId:'germany',availableFrom:19400801,lengthFt:220.2,beamFt:20.3,surfaceSpeedKn:17.7,submergedSpeedKn:7.6,recognition:'Raised casing, saddle tanks and one external stern tube; 4+1 tubes',status:'PLAYABLE',submarineProfileId:'type-viic-1941'}),
+  'type-viic-41':Object.freeze({id:'type-viic-41',factionId:'germany',availableFrom:19430801,lengthFt:220.2,beamFt:20.3,surfaceSpeedKn:17.7,submergedSpeedKn:7.6,recognition:'VIIC hull with strengthened pressure hull and late-war tower fits',status:'REFERENCE_ONLY'})
 });
 
 /* Surface-vessel identity boundary. Runtime contacts historically used `type`
@@ -183,14 +252,35 @@ const VESSEL_PROFILES=Object.freeze({
   // Phase-2 Atlantic visual identities. Gameplay class stays separate from
   // silhouette selection so later British/Canadian escort classes can share
   // ESCORT behaviour without sharing one hull.
-  'uk-merchant-1941':Object.freeze({id:'uk-merchant-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_FREIGHTER'}),
-  'uk-tramp-1941':Object.freeze({id:'uk-tramp-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_TRAMP'}),
-  'uk-cargo-liner-1941':Object.freeze({id:'uk-cargo-liner-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_CARGO_LINER'}),
-  'uk-coaster-1941':Object.freeze({id:'uk-coaster-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_COASTER'}),
-  'uk-tanker-1941':Object.freeze({id:'uk-tanker-1941',factionId:'britain',gameplayType:'TANKER',modelKey:'ATLANTIC_TANKER'}),
-  'uk-flower-corvette-1941':Object.freeze({id:'uk-flower-corvette-1941',factionId:'britain',gameplayType:'ESCORT',modelKey:'FLOWER_CORVETTE_1941'}),
-  'uk-town-destroyer-1941':Object.freeze({id:'uk-town-destroyer-1941',factionId:'britain',gameplayType:'DESTROYER',modelKey:'DESTROYER'})
+  'uk-merchant-1941':Object.freeze({id:'uk-merchant-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_FREIGHTER',availableFrom:19390903,speedKnots:Object.freeze([7,11]),dimensionsFt:Object.freeze({length:410,beam:56}),rarity:'COMMON',recognition:'Raised forecastle, aft island, two cargo holds'}),
+  'uk-tramp-1941':Object.freeze({id:'uk-tramp-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_TRAMP',availableFrom:19390903,speedKnots:Object.freeze([6,9]),dimensionsFt:Object.freeze({length:350,beam:50}),rarity:'COMMON',recognition:'Small aft bridge, single funnel, low cargo well'}),
+  'uk-cargo-liner-1941':Object.freeze({id:'uk-cargo-liner-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_CARGO_LINER',availableFrom:19390903,speedKnots:Object.freeze([10,16]),dimensionsFt:Object.freeze({length:455,beam:61}),rarity:'UNCOMMON',recognition:'Longer hull, central island and paired funnels'}),
+  'uk-coaster-1941':Object.freeze({id:'uk-coaster-1941',factionId:'britain',gameplayType:'MERCHANT',modelKey:'ATLANTIC_COASTER',availableFrom:19390903,speedKnots:Object.freeze([6,9]),dimensionsFt:Object.freeze({length:260,beam:41}),rarity:'COMMON',recognition:'Short hull, single hold and low aft house'}),
+  'uk-tanker-1941':Object.freeze({id:'uk-tanker-1941',factionId:'britain',gameplayType:'TANKER',modelKey:'ATLANTIC_TANKER',availableFrom:19390903,speedKnots:Object.freeze([7,12]),dimensionsFt:Object.freeze({length:485,beam:63}),rarity:'UNCOMMON',recognition:'Aft machinery island and exposed midships pipe deck'}),
+  'uk-flower-corvette-1941':Object.freeze({id:'uk-flower-corvette-1941',factionId:'britain',gameplayType:'ESCORT',modelKey:'FLOWER_CORVETTE_1941',availableFrom:19400401,speedKnots:Object.freeze([12,16]),dimensionsFt:Object.freeze({length:205,beam:33}),rarity:'COMMON',armament:'1×4-in, light AA, depth charges',sensors:Object.freeze(['ASDIC']),recognition:'Short whaler hull, raised forecastle, single funnel and mast'}),
+  'ca-flower-corvette-1941':Object.freeze({id:'ca-flower-corvette-1941',factionId:'canada',gameplayType:'ESCORT',modelKey:'FLOWER_CORVETTE_1941',availableFrom:19401101,speedKnots:Object.freeze([12,16]),dimensionsFt:Object.freeze({length:205,beam:33}),rarity:'COMMON',armament:'1×4-in, light AA, depth charges',sensors:Object.freeze(['ASDIC']),recognition:'RCN Flower-class; compact whaler hull and single funnel'}),
+  'uk-town-destroyer-1941':Object.freeze({id:'uk-town-destroyer-1941',factionId:'britain',gameplayType:'DESTROYER',modelKey:'DESTROYER',availableFrom:19400909,speedKnots:Object.freeze([20,35]),dimensionsFt:Object.freeze({length:314,beam:31}),rarity:'UNCOMMON',armament:'4×4-in, torpedoes, depth charges',sensors:Object.freeze(['ASDIC']),recognition:'Flush deck, four funnels and narrow Great War destroyer hull'}),
+  'uk-black-swan-sloop':Object.freeze({id:'uk-black-swan-sloop',factionId:'britain',gameplayType:'ESCORT',modelKey:'BLACK_SWAN_SLOOP',availableFrom:19390701,speedKnots:Object.freeze([15,20]),dimensionsFt:Object.freeze({length:299,beam:38.5}),rarity:'RARE',armament:'6×4-in dual-purpose, AA, depth charges',sensors:Object.freeze(['ASDIC']),recognition:'Long high forecastle, twin funnels and three enclosed twin mounts'}),
+  'uk-river-frigate-1942':Object.freeze({id:'uk-river-frigate-1942',factionId:'britain',gameplayType:'ESCORT',modelKey:'RIVER_FRIGATE_1942',availableFrom:19420401,speedKnots:Object.freeze([15,20]),dimensionsFt:Object.freeze({length:301,beam:36.5}),rarity:'UNCOMMON',armament:'2×4-in, AA, depth charges',sensors:Object.freeze(['ASDIC','TYPE_271_RADAR']),recognition:'Long forecastle, two widely spaced guns and compact funnel'}),
+  'uk-armed-trawler':Object.freeze({id:'uk-armed-trawler',factionId:'britain',gameplayType:'PATROL_CRAFT',modelKey:'ARMED_TRAWLER',availableFrom:19390903,speedKnots:Object.freeze([8,12]),dimensionsFt:Object.freeze({length:150,beam:27}),rarity:'UNCOMMON',armament:'1×4-in or 12-pdr, depth charges',sensors:Object.freeze(['ASDIC_OPTIONAL']),recognition:'Deep fishing hull, high bow and small aft working deck'})
 });
+
+/* Aircraft identity is shared by spawning, audio and the cheap vector model.
+   The IWM catalogue confirms Hudson operations from Northern Ireland in May
+   1941, Catalina service in Scotland in March 1941, and VLR Liberator Atlantic
+   operations by 1943. No aircraft profile is selected outside its date band. */
+const AIRCRAFT_PROFILES=Object.freeze({
+  'raf-sunderland':Object.freeze({id:'raf-sunderland',factionId:'britain',name:'Short Sunderland',kind:'FLYING_BOAT',availableFrom:19390601,engines:4,spanM:34.4,lengthM:26.0,speedKnots:Object.freeze([145,183]),ordnance:'DEPTH_CHARGE',recognition:'High parasol wing, boat hull and four engines'}),
+  'raf-hudson':Object.freeze({id:'raf-hudson',factionId:'britain',name:'Lockheed Hudson',kind:'BOMBER',availableFrom:19391201,engines:2,spanM:19.96,lengthM:13.51,speedKnots:Object.freeze([175,215]),ordnance:'DEPTH_CHARGE',recognition:'Twin-engine low wing with glazed nose and twin tail'}),
+  'raf-catalina':Object.freeze({id:'raf-catalina',factionId:'britain',name:'Consolidated Catalina',kind:'FLYING_BOAT',availableFrom:19410301,engines:2,spanM:31.7,lengthM:19.5,speedKnots:Object.freeze([105,170]),ordnance:'DEPTH_CHARGE',recognition:'High wing, boat hull and retracting wingtip floats'}),
+  'raf-wellington-leigh':Object.freeze({id:'raf-wellington-leigh',factionId:'britain',name:'Vickers Wellington',kind:'BOMBER',availableFrom:19420601,engines:2,spanM:26.3,lengthM:19.7,speedKnots:Object.freeze([180,220]),ordnance:'DEPTH_CHARGE',recognition:'Twin-engine mid-wing bomber; radar/Leigh Light fit'}),
+  'raf-vlr-liberator':Object.freeze({id:'raf-vlr-liberator',factionId:'britain',name:'Very Long Range Liberator',kind:'BOMBER',availableFrom:19430301,engines:4,spanM:33.5,lengthM:20.6,speedKnots:Object.freeze([190,250]),ordnance:'DEPTH_CHARGE',recognition:'Four engines, Davis wing and twin oval tail fins'}),
+  'luftwaffe-fw200':Object.freeze({id:'luftwaffe-fw200',factionId:'germany',name:'Focke-Wulf Fw 200',kind:'BOMBER',availableFrom:19400601,engines:4,spanM:32.9,lengthM:23.5,speedKnots:Object.freeze([180,225]),ordnance:'BOMB',recognition:'Long four-engine airliner-derived maritime patrol aircraft'}),
+  'luftwaffe-ju88':Object.freeze({id:'luftwaffe-ju88',factionId:'germany',name:'Junkers Ju 88',kind:'BOMBER',availableFrom:19390901,engines:2,spanM:20.0,lengthM:14.4,speedKnots:Object.freeze([220,270]),ordnance:'BOMB',recognition:'Twin-engine bomber with glazed nose and single fin'})
+});
+function getAircraftProfile(profileId){return profileId?AIRCRAFT_PROFILES[profileId]||null:null;}
+function historicalDateKey(value){return Number(String(value||'').replace(/[^0-9]/g,'').slice(0,8).padEnd(8,'0'))||0;}
+function historicalTemplateAvailable(template,date){const key=historicalDateKey(date),profile=getVesselProfile(template?.vesselProfileId)||getAircraftProfile(template?.aircraftProfileId);return(!template?.availableFrom||key>=template.availableFrom)&&(!template?.availableUntil||key<template.availableUntil)&&(!profile?.availableFrom||key>=profile.availableFrom)&&(!profile?.availableUntil||key<profile.availableUntil);}
 
 function getVesselProfile(profileId){return profileId?VESSEL_PROFILES[profileId]||null:null;}
 function vesselGameplayType(v){return String(v?.gameplayType||v?.type||'MERCHANT').toUpperCase();}
@@ -424,9 +514,11 @@ const GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE=Object.freeze({
   ]),
   escortTemplates:Object.freeze([
     Object.freeze({id:'AE-01',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
-    Object.freeze({id:'AE-02',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
-    Object.freeze({id:'AE-03',name:'Flower-class Corvette',type:'ESCORT',vesselProfileId:'uk-flower-corvette-1941',side:'ENEMY',displayType:'FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
-    Object.freeze({id:'AE-04',name:'Town-class Destroyer',type:'DESTROYER',vesselProfileId:'uk-town-destroyer-1941',side:'ENEMY',displayType:'TOWN-CLASS DESTROYER',lengthYards:314,visualProfile:.72,acousticBase:.68,tonsFactor:1200,hasSonar:true})
+    Object.freeze({id:'AE-02',name:'RCN Flower-class Corvette',type:'ESCORT',vesselProfileId:'ca-flower-corvette-1941',side:'ENEMY',displayType:'RCN FLOWER-CLASS CORVETTE',lengthYards:205,visualProfile:.58,acousticBase:.52,tonsFactor:925,hasSonar:true}),
+    Object.freeze({id:'AE-03',name:'Town-class Destroyer',type:'DESTROYER',vesselProfileId:'uk-town-destroyer-1941',side:'ENEMY',displayType:'TOWN-CLASS DESTROYER',lengthYards:314,visualProfile:.72,acousticBase:.68,tonsFactor:1200,hasSonar:true}),
+    Object.freeze({id:'AE-04',name:'Black Swan-class Sloop',type:'ESCORT',vesselProfileId:'uk-black-swan-sloop',side:'ENEMY',displayType:'BLACK SWAN-CLASS SLOOP',lengthYards:299,visualProfile:.69,acousticBase:.57,tonsFactor:1250,hasSonar:true}),
+    Object.freeze({id:'AE-05',name:'Armed Trawler',type:'PATROL_CRAFT',vesselProfileId:'uk-armed-trawler',side:'ENEMY',displayType:'ARMED TRAWLER',lengthYards:150,visualProfile:.44,acousticBase:.42,tonsFactor:520,hasSonar:true}),
+    Object.freeze({id:'AE-06',name:'River-class Frigate',type:'ESCORT',vesselProfileId:'uk-river-frigate-1942',side:'ENEMY',displayType:'RIVER-CLASS FRIGATE',lengthYards:301,visualProfile:.70,acousticBase:.60,tonsFactor:1370,hasSonar:true})
   ]),
   formationOffsets:Object.freeze([
     Object.freeze({fwd:0,side:0}),
@@ -609,24 +701,35 @@ const GERMAN_ATLANTIC_1941_MISSION_PROFILE=Object.freeze({
   definitions:Object.freeze({
     CONVOY_INTERDICTION:Object.freeze({title:'CONVOY ATTACK',reward:2100,
       briefing:'B.d.U. has assigned a reported Allied convoy. Develop the intercept, break into the formation, neutralize a meaningful share of shipping and survive the escort response.'}),
+    HIGH_VALUE_INTERCEPT:Object.freeze({title:'PRIORITY SHIPPING',reward:2200,
+      briefing:'B.d.U. has an uncertain report of valuable Allied shipping. Intercept the estimate, identify the vessel before committing weapons, then break contact and return.'}),
+    MINELAYING:Object.freeze({title:'ARCTIC MINE OPERATION',reward:2050,
+      briefing:'Carry the TMB load through the confined Arctic approach, lay the complete pattern in the ordered channel and return without advertising the field.'}),
     SHADOW_REPORT:Object.freeze({title:'CONTACT KEEPER',reward:1800,
       briefing:'B.d.U. reports an Allied convoy crossing the North Atlantic. Find it, develop a reliable movement picture, shadow without provoking the escorts and transmit a contact report so other U-boats can be directed toward the convoy.'}),
     WEATHER_AMBUSH:Object.freeze({title:'FRONT-LINE AMBUSH',reward:1900,
       briefing:'A weather front is crossing the reported convoy route. Use darkness, rain or a squall to close unseen and score a torpedo hit under genuine visual cover.'})
   }),
   missionPoolsByArea:Object.freeze({
-    'North Atlantic Convoy Lanes':Object.freeze(['SHADOW_REPORT','SHADOW_REPORT','CONVOY_INTERDICTION','WEATHER_AMBUSH']),
-    'Western Approaches':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','SHADOW_REPORT']),
-    'Greenland–Iceland Gap':Object.freeze(['SHADOW_REPORT','WEATHER_AMBUSH','CONVOY_INTERDICTION'])
+    'North Atlantic Convoy Lanes':Object.freeze(['SHADOW_REPORT','SHADOW_REPORT','CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','WEATHER_AMBUSH']),
+    'Western Approaches':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','SHADOW_REPORT']),
+    'Greenland–Iceland Gap':Object.freeze(['SHADOW_REPORT','WEATHER_AMBUSH','HIGH_VALUE_INTERCEPT','CONVOY_INTERDICTION']),
+    'Norwegian Arctic Fjord Approaches':Object.freeze(['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','MINELAYING','WEATHER_AMBUSH'])
   }),
   missionPoolsByEra:Object.freeze({
-    'ATLANTIC 1941':Object.freeze(['SHADOW_REPORT','SHADOW_REPORT','CONVOY_INTERDICTION','WEATHER_AMBUSH']),
-    'ATLANTIC 1942':Object.freeze(['SHADOW_REPORT','CONVOY_INTERDICTION','WEATHER_AMBUSH']),
-    'ATLANTIC 1943':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','SHADOW_REPORT']),
-    'ATLANTIC 1944':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','CONVOY_INTERDICTION'])
+    'ATLANTIC 1941':Object.freeze(['SHADOW_REPORT','SHADOW_REPORT','CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','WEATHER_AMBUSH']),
+    'ATLANTIC 1942':Object.freeze(['SHADOW_REPORT','CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','WEATHER_AMBUSH']),
+    'ATLANTIC 1943':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','MINELAYING','SHADOW_REPORT']),
+    'ATLANTIC 1944':Object.freeze(['WEATHER_AMBUSH','CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','MINELAYING'])
   }),
-  defaultMissionPool:Object.freeze(['SHADOW_REPORT','CONVOY_INTERDICTION','WEATHER_AMBUSH']),
+  defaultMissionPool:Object.freeze(['SHADOW_REPORT','CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','WEATHER_AMBUSH']),
   content:Object.freeze({
+    highValueIntercept:Object.freeze({
+      variants:Object.freeze([
+        Object.freeze({below:.52,kind:'TANKER',vessel:Object.freeze({name:'Allied Ocean Tanker',type:'TANKER',gameplayType:'TANKER',vesselProfileId:'uk-tanker-1941',modelKey:'ATLANTIC_TANKER',displayType:'OCEAN TANKER',lengthYards:485,tonsFactor:9100,visualProfile:1.14})}),
+        Object.freeze({kind:'FAST_CARGO_LINER',vessel:Object.freeze({name:'Allied Fast Cargo Liner',type:'MERCHANT',gameplayType:'MERCHANT',vesselProfileId:'uk-cargo-liner-1941',modelKey:'ATLANTIC_CARGO_LINER',displayType:'FAST CARGO LINER',lengthYards:455,tonsFactor:7900,visualProfile:1.08})})
+      ])
+    }),
     shadowReport:Object.freeze({
       mode:'CONTACT_KEEPER',
       objectiveTexts:Object.freeze({
@@ -814,9 +917,11 @@ const GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE=Object.freeze({
       friendlyPort:Object.freeze({unawareBlockNm:5,unawareInnerNm:9,unawareInnerFactor:.25,unawareOuterNm:15,unawareOuterFactor:.62,alertedInnerNm:5,alertedInnerFactor:.45}),
       coverage:Object.freeze({gapCenterXNm:0,gapHalfWidthNm:48,edgeBlendNm:28,gapFactorByYear:Object.freeze({'1941':.10,'1942':.18,'1943':.52,'1944':.78})}),
       roster:Object.freeze([
-        Object.freeze({throughYear:1942,before:.58,name:'Short Sunderland',kind:'FLYING_BOAT',ordnance:'DEPTH_CHARGE'}),
-        Object.freeze({fromYear:1942,before:.72,name:'Consolidated Catalina',kind:'FLYING_BOAT',ordnance:'DEPTH_CHARGE'}),
-        Object.freeze({fromYear:1943,name:'Very Long Range Liberator',kind:'BOMBER',ordnance:'DEPTH_CHARGE'})
+        Object.freeze({before:.28,aircraftProfileId:'raf-sunderland'}),
+        Object.freeze({throughYear:1942,before:.62,aircraftProfileId:'raf-hudson'}),
+        Object.freeze({fromYear:1941,before:.72,aircraftProfileId:'raf-catalina'}),
+        Object.freeze({fromYear:1942,before:.84,aircraftProfileId:'raf-wellington-leigh'}),
+        Object.freeze({fromYear:1943,aircraftProfileId:'raf-vlr-liberator'})
       ])
     }),
     // No friendly tactical air umbrella for a mid-ocean U-boat. The shared
@@ -864,7 +969,7 @@ const US_PACIFIC_RADIO_INTEL_PROFILE=Object.freeze({
    U-boats generated by CONTACT KEEPER are mission events only; they are not
    inserted into the tactical contact list. */
 const GERMAN_ATLANTIC_1941_RADIO_INTEL_PROFILE=Object.freeze({
-  id:'german-atlantic-1941-radio-v1',initialBroadcastSec:120,
+  id:'german-atlantic-1941-radio-v2',initialBroadcastSec:120,baseCopySec:42,enigmaWorkloadFactor:.10,
   routine:Object.freeze({shippingCeiling:.72,airCeiling:.72,lifeguardCeiling:.72}),
   shipping:Object.freeze({
     type:'B.D.U.',sourceLabel:'B.d.U. convoy report',estimateLabel:'B.d.U. estimate',
@@ -879,6 +984,35 @@ const GERMAN_ATLANTIC_1941_RADIO_INTEL_PROFILE=Object.freeze({
   }),
   weather:Object.freeze({type:'B.D.U.',subject:'WEATHER',text:'Atlantic weather report: deteriorating visibility and rising sea expected in the patrol area.'})
 });
+
+/* A future campaign is planning data, never selectable content. It moves into
+   CAMPAIGN_PROFILES only after every gate below is backed by real data and an
+   acceptance result. Module hints describe the intended lazy boundary; they
+   are not loaded, imported or added to the PWA shell while status is PLANNED. */
+const VERTICAL_SLICE_REQUIREMENTS=Object.freeze([
+  'factionIdentity','submarineAndPresentation','equipmentByDate','vesselRosters',
+  'aircraftAndAswDoctrine','patrolGeography','threeMissionVariants',
+  'radioAndCommandTerms','tutorials','aarContent','saveLoadAndPerformance'
+]);
+
+const FUTURE_VERTICAL_SLICE_BLUEPRINTS=Object.freeze({
+  'us-pacific-next':Object.freeze({id:'us-pacific-next',status:'PLANNED',theaterId:'pacific',regionId:'pacific-ocean',playerFactionId:'usa',boatFamilies:Object.freeze(['Balao','Tench']),campaignModule:'campaigns/us-pacific-next',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'}),
+  'japanese-pacific':Object.freeze({id:'japanese-pacific',status:'PLANNED',theaterId:'pacific',regionId:'pacific-ocean',playerFactionId:'japan',boatFamilies:Object.freeze(['I-class']),requiresDistinctDoctrine:true,campaignModule:'campaigns/japanese-pacific',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'}),
+  'british-atlantic':Object.freeze({id:'british-atlantic',status:'PLANNED',theaterId:'atlantic',regionId:'north-atlantic',playerFactionId:'britain',boatFamilies:Object.freeze(['T-class','S-class','U-class']),campaignModule:'campaigns/british-atlantic',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'}),
+  'british-mediterranean':Object.freeze({id:'british-mediterranean',status:'PLANNED',theaterId:'mediterranean',regionId:'mediterranean',playerFactionId:'britain',boatFamilies:Object.freeze(['T-class','U-class']),campaignModule:'campaigns/british-mediterranean',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'}),
+  'soviet-arctic':Object.freeze({id:'soviet-arctic',status:'PLANNED',theaterId:'atlantic',regionId:'norwegian-arctic',playerFactionId:'soviet',boatFamilies:Object.freeze(['S-class','K-class']),campaignModule:'campaigns/soviet-arctic',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'}),
+  'soviet-baltic':Object.freeze({id:'soviet-baltic',status:'PLANNED',theaterId:'baltic',regionId:'baltic-sea',playerFactionId:'soviet',boatFamilies:Object.freeze(['S-class','Shchuka']),campaignModule:'campaigns/soviet-baltic',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'}),
+  'german-baltic-late':Object.freeze({id:'german-baltic-late',status:'PLANNED',theaterId:'baltic',regionId:'baltic-sea',playerFactionId:'germany',boatFamilies:Object.freeze(['Type VII','Type XXIII']),campaignModule:'campaigns/german-baltic-late',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'}),
+  'german-atlantic-late':Object.freeze({id:'german-atlantic-late',status:'PLANNED',theaterId:'atlantic',regionId:'north-atlantic',playerFactionId:'germany',boatFamilies:Object.freeze(['Type VIIC/41','Type IX','Type XXI']),campaignModule:'campaigns/german-atlantic-late',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'}),
+  'british-indian-ocean':Object.freeze({id:'british-indian-ocean',status:'PLANNED',theaterId:'indian-ocean',regionId:'indian-ocean',playerFactionId:'britain',boatFamilies:Object.freeze(['T-class']),campaignModule:'campaigns/british-indian-ocean',terrainBoundary:'ONE_ACTIVE_PATROL_AREA'})
+});
+
+const CAMPAIGN_LOAD_BOUNDARIES=Object.freeze({
+  'us-pacific':Object.freeze({catalogPartition:'us-pacific',terrainStrategy:'PATROL_SCOPED',maximumResidentLargeAreas:1}),
+  'german-atlantic-1941':Object.freeze({catalogPartition:'german-atlantic-1941',terrainStrategy:'PATROL_SCOPED',maximumResidentLargeAreas:1})
+});
+
+const VERTICAL_SLICE_ACCEPTED=Object.freeze(Object.fromEntries(VERTICAL_SLICE_REQUIREMENTS.map(key=>[key,true])));
 
 const CAMPAIGN_PROFILES=Object.freeze({
   'us-pacific':Object.freeze({
@@ -902,7 +1036,8 @@ const CAMPAIGN_PROFILES=Object.freeze({
     missionProfile:US_PACIFIC_MISSION_PROFILE,
     specialOperationsProfile:US_PACIFIC_SPECIAL_OPERATIONS_PROFILE,
     doctrineProfile:US_PACIFIC_DOCTRINE_PROFILE,
-    radioIntelProfile:US_PACIFIC_RADIO_INTEL_PROFILE
+    radioIntelProfile:US_PACIFIC_RADIO_INTEL_PROFILE,
+    verticalSliceAcceptance:VERTICAL_SLICE_ACCEPTED
   }),
   'german-atlantic-1941':Object.freeze({
     id:'german-atlantic-1941',
@@ -913,7 +1048,7 @@ const CAMPAIGN_PROFILES=Object.freeze({
     submarineProfileId:'type-viic-1941',
     commandName:'B.d.U.',
     defaultArea:'North Atlantic Convoy Lanes',
-    patrolAreaIds:Object.freeze(['North Atlantic Convoy Lanes','Western Approaches','Greenland–Iceland Gap']),
+    patrolAreaIds:Object.freeze(['North Atlantic Convoy Lanes','Western Approaches','Greenland–Iceland Gap','Norwegian Arctic Fjord Approaches']),
     defaultStartDate:'1941-09-01',
     historicalModel:GERMAN_ATLANTIC_1941_HISTORICAL_MODEL,
     primaryConvoyProfile:GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE,
@@ -921,6 +1056,7 @@ const CAMPAIGN_PROFILES=Object.freeze({
     missionProfile:GERMAN_ATLANTIC_1941_MISSION_PROFILE,
     doctrineProfile:GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE,
     radioIntelProfile:GERMAN_ATLANTIC_1941_RADIO_INTEL_PROFILE,
+    verticalSliceAcceptance:VERTICAL_SLICE_ACCEPTED,
     devSelectable:true,developmentStage:'ATLANTIC_CAMPAIGN_COMPLETE'
   })
 });
@@ -945,6 +1081,35 @@ function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   // Omitted ID means the current default; an explicit unknown ID is an authoring
   // or save-compatibility error and must never masquerade as the Pacific campaign.
   return CAMPAIGN_PROFILES[profileId]||null;
+}
+
+function getCampaignLoadBoundary(profileId){return CAMPAIGN_LOAD_BOUNDARIES[profileId]||null;}
+function getFutureVerticalSliceBlueprint(profileId){return FUTURE_VERTICAL_SLICE_BLUEPRINTS[profileId]||null;}
+function verticalSliceReadiness(profileId){
+  const campaign=getCampaignProfile(profileId),missing=[];
+  if(!campaign)return Object.freeze({ready:false,missing:Object.freeze(['registeredPlayableCampaign'])});
+  const theater=THEATER_PROFILES[campaign.theaterId],faction=FACTION_PROFILES[campaign.playerFactionId],sub=SUBMARINE_PROFILES[campaign.submarineProfileId];
+  const checks={
+    factionIdentity:!!(theater&&faction),
+    submarineAndPresentation:!!(sub&&STATION_PRESENTATION_PROFILES[sub.stationPresentationId]),
+    equipmentByDate:!!campaign.historicalModel,
+    vesselRosters:!!(campaign.primaryConvoyProfile&&campaign.ambientTrafficProfile),
+    aircraftAndAswDoctrine:!!campaign.doctrineProfile,
+    patrolGeography:Array.isArray(campaign.patrolAreaIds)&&campaign.patrolAreaIds.length>0,
+    threeMissionVariants:Object.keys(campaign.missionProfile?.definitions||{}).length>=3,
+    radioAndCommandTerms:!!(campaign.commandName&&campaign.radioIntelProfile),
+    tutorials:campaign.verticalSliceAcceptance?.tutorials===true,
+    aarContent:campaign.verticalSliceAcceptance?.aarContent===true,
+    saveLoadAndPerformance:campaign.verticalSliceAcceptance?.saveLoadAndPerformance===true
+  };
+  for(const requirement of VERTICAL_SLICE_REQUIREMENTS){
+    if(checks[requirement]!==true||campaign.verticalSliceAcceptance?.[requirement]!==true)missing.push(requirement);
+  }
+  if(!getCampaignLoadBoundary(profileId))missing.push('lazyCampaignBoundary');
+  return Object.freeze({ready:missing.length===0,missing:Object.freeze([...new Set(missing)])});
+}
+function getSelectableCampaignProfiles(){
+  return Object.freeze(Object.values(CAMPAIGN_PROFILES).filter(c=>c.id===DEFAULT_GAME_IDENTITY.campaignProfileId||(c.devSelectable&&verticalSliceReadiness(c.id).ready)));
 }
 
 function getCampaignMissionProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
@@ -993,6 +1158,32 @@ function getSubmarineProfile(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId)
   // As with campaigns, an explicit future/unknown boat must fail closed rather
   // than silently materializing Silversides with the wrong historical identity.
   return SUBMARINE_PROFILES[profileId]||null;
+}
+
+function getStationPresentation(profileId){
+  return STATION_PRESENTATION_PROFILES[profileId]||null;
+}
+
+function materializeSubmarinePresentation(submarineProfileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
+  const sub=getSubmarineProfile(submarineProfileId),profile=getStationPresentation(sub?.stationPresentationId);
+  if(!sub)throw new Error(`Unknown submarine profile: ${submarineProfileId}`);
+  if(!profile)throw new Error(`Submarine ${sub.id} has no station presentation profile.`);
+  return JSON.parse(JSON.stringify(profile));
+}
+
+function getPlayerStationPresentation(state=null){
+  const materialized=state?.playerSub?.presentation;
+  return materialized||materializeSubmarinePresentation(state?.playerSub?.profileId||DEFAULT_GAME_IDENTITY.submarineProfileId);
+}
+
+function playerDepthDisplay(state,feet,decimals=0){
+  const d=getPlayerStationPresentation(state).depth,f=Number(d.factor)||1;
+  return`${(Number(feet||0)*f).toFixed(decimals)} ${d.suffix||'ft'}`;
+}
+
+function playerDepthInternal(state,displayValue){
+  const f=Number(getPlayerStationPresentation(state).depth.factor)||1;
+  return Number(displayValue||0)/f;
 }
 
 
@@ -1053,6 +1244,9 @@ function materializeGameIdentity(state){
   state.campaign.playerFactionId=identity.playerFactionId;
   state.campaign.campaignProfileId=identity.campaignProfileId;
   state.playerSub.profileId=identity.submarineProfileId;
+  const expectedPresentationId=getSubmarineProfile(identity.submarineProfileId).stationPresentationId;
+  if(state.playerSub.presentation?.id!==expectedPresentationId)
+    state.playerSub.presentation=materializeSubmarinePresentation(identity.submarineProfileId);
   if(!state.campaign.patrolArea)state.campaign.patrolArea=campaign.defaultArea;
   if(Array.isArray(campaign.patrolAreaIds)&&!campaign.patrolAreaIds.includes(state.campaign.patrolArea))
     throw new Error(`Patrol area ${state.campaign.patrolArea} does not belong to campaign ${campaign.id}.`);

@@ -651,7 +651,7 @@ class TouchCtrl{
     const set=(id,v)=>{if(C[id]===v)return;C[id]=v;const el=g(id);if(el)el.textContent=v;};
     const html=(id,v)=>{if(C['h'+id]===v)return;C['h'+id]=v;const el=g(id);if(el)el.innerHTML=v;};
     const cls=(id,c,on)=>{const el=g(id);if(el)el.classList.toggle(c,!!on);};
-    const sub=state.playerSub, p=sub.propulsion, tdc=state.tdc, W=state.weapons;
+    const sub=state.playerSub, p=sub.propulsion, tdc=state.tdc, W=state.weapons,ui=getPlayerStationPresentation(state),dui=ui.depth||{},ord=ui.orders||{},tui=ui.tubes||{};
     const warn=sub.damage.warnings||[], enemy=state.world.enemy.alertState;
     const sta=state.tactical.activeStation;
     document.documentElement.dataset.station=sta;
@@ -688,14 +688,14 @@ class TouchCtrl{
     // quick status
     const qv=(id,val,c)=>{const el=g(id);if(!el)return;if(C[id]!==val){C[id]=val;el.textContent=val;}
       const k='c'+id;const cc='qs-v'+(c?' '+c:'');if(C[k]!==cc){C[k]=cc;el.className=cc;}};
-    qv('qDepth',`${sub.depthFeet.toFixed(0)}ft`,sub.depthFeet>sub.damage.crushDepthFeet*0.8?'d':sub.inShallowWater?'w':'');
+    qv('qDepth',playerDepthDisplay(state,sub.depthFeet,0),sub.depthFeet>sub.damage.crushDepthFeet*0.8?'d':sub.inShallowWater?'w':'');
     // the ordered value under the actual one: the gap between them IS the boat
-    set('qDepthOrd',Math.abs(sub.orderedDepthFeet-sub.depthFeet)<2?'':`→${sub.orderedDepthFeet.toFixed(0)}`);
+    set('qDepthOrd',Math.abs(sub.orderedDepthFeet-sub.depthFeet)<2?'':`→${playerDepthDisplay(state,sub.orderedDepthFeet,0)}`);
     // the fathometer: the number that decides what you are allowed to do
     {const sea=sub.seabedFeet??3000, cl=sea-sub.depthFeet;
-     qv('qKeel',sea>=3000?'deep':`${Math.max(0,cl).toFixed(0)}ft`,
+     qv('qKeel',sea>=3000?'deep':playerDepthDisplay(state,Math.max(0,cl),0),
         sub.bottomed?'':cl<25?'d':cl<60?'w':'');
-     set('qBottom',sub.bottomed?'ON BOTTOM':sea>=3000?'':`${sea.toFixed(0)}ft ${(sub.bottomType||'').toLowerCase()}`);}
+     set('qBottom',sub.bottomed?'ON BOTTOM':sea>=3000?'':`${playerDepthDisplay(state,sea,0)} ${(sub.bottomType||'').toLowerCase()}`);}
     set('qSpdOrd',sub.stealth.silentRunning
       ? `SILENT · ${p.actualRpm.toFixed(0)}rpm`
       : (Math.abs(p.orderedRpm-p.actualRpm)<8?'':`→${p.orderedRpm.toFixed(0)}rpm`));
@@ -703,21 +703,21 @@ class TouchCtrl{
       const pc=p.characteristics||{},maxKn=p.engineMode==='DIESEL'?(pc.maxSurfaceSpeedKn??18):(pc.maxSubmergedSpeedKn??8.5),
         maxRpm=pc.normalizedMaxRpm??450,response=pc.rpmResponse??170,
         kn=maxKn*(1-Math.exp(-clamp(p.orderedRpm,0,maxRpm)/response));
-      set('opDepthVal',`${sub.orderedDepthFeet.toFixed(0)} ft`);
+      set('opDepthVal',playerDepthDisplay(state,sub.orderedDepthFeet,0));
       set('opSpeedVal',`${p.orderedRpm.toFixed(0)} rpm`);
       set('opNow',this.pad==='depth'
-        ? `now ${sub.depthFeet.toFixed(0)} ft · ${sub.verticalSpeedFps>0.05?'going down':sub.verticalSpeedFps<-0.05?'coming up':'steady'}`
+        ? `now ${playerDepthDisplay(state,sub.depthFeet,0)} · ${sub.verticalSpeedFps>0.05?'going down':sub.verticalSpeedFps<-0.05?'coming up':'steady'}`
         : `now ${p.speedKnots.toFixed(1)} kn · ${p.engineMode.toLowerCase()}`);
       const sea=sub.seabedFeet??3000;
       set('opDepthNote',sub.bottomed
-        ? `Lying on the bottom in ${sea.toFixed(0)} ft of ${(sub.bottomType||'').toLowerCase()}. Order revs or a shallower depth to come off her.`
+        ? `Lying on the bottom in ${playerDepthDisplay(state,sea,0)} of ${(sub.bottomType||'').toLowerCase()}. Order revs or a shallower depth to come off her.`
         : sub.cannotHoldDepth
         ? 'SHE WILL NOT ANSWER THE PLANES — blow main ballast, pumps on, get way on her.'
         : (state.world.aaManned||state.weapons.deckGun?.manned)
         ? `${state.weapons.deckGun?.manned?'Deck-gun':'AA'} crew topside — a dive order will clear the deck automatically and wait briefly for the hatch.`
         : sea<3000
-        ? `Fathometer ${sea.toFixed(0)} ft, ${(sub.bottomType||'').toLowerCase()} — safe to ${Math.max(0,sea-25).toFixed(0)} ft. Crush depth ${sub.damage.crushDepthFeet.toFixed(0)} ft.`
-        : `Deep water. Periscope depth 55 ft. Crush depth ${sub.damage.crushDepthFeet.toFixed(0)} ft.`);
+        ? `Fathometer ${playerDepthDisplay(state,sea,0)}, ${(sub.bottomType||'').toLowerCase()} — safe to ${playerDepthDisplay(state,Math.max(0,sea-25),0)}. Crush depth ${playerDepthDisplay(state,sub.damage.crushDepthFeet,0)}.`
+        : `Deep water. Periscope depth ${playerDepthDisplay(state,dui.scopeFeet||55,0)}. Crush depth ${playerDepthDisplay(state,sub.damage.crushDepthFeet,0)}.`);
       const bb=document.getElementById('opBottom');
       if(bb) bb.textContent=sub.bottomed?'⚓ Come Off the Bottom':'⚓ Lie on the Bottom';
       set('opSpeedNote',`about ${kn.toFixed(1)} kn ordered · ${p.engineMode==='DIESEL'?'diesels — charging fastest at low revs':'battery '+p.battery.toFixed(0)+'% — flank drains it fast'}`);
@@ -814,7 +814,7 @@ class TouchCtrl{
     set('gunElevReadout',`${clamp(state.weapons.deckGun?.elevationDeg??0,0,22).toFixed(1)}°`);
     set('hdgOrdered',fmtDeg(sub.orderedHeading));
     set('rpmOrdered',`${p.orderedRpm.toFixed(0)} rpm`);
-    set('dptOrdered',`${sub.orderedDepthFeet.toFixed(0)} ft`);
+    set('dptOrdered',playerDepthDisplay(state,sub.orderedDepthFeet,0));
     const auto=state.map.autoFollowPlot&&state.map.plottedCourse.length>0;
     cls('mAutoPilot','on',auto);
     const wp=state.map.plottedCourse[0];
@@ -847,12 +847,12 @@ class TouchCtrl{
           :'No target. Lock a contact from the scope or the map, or enter a manual solution below.';
         if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');}
       }
-      {const ts=torpedoStoresStatus(state),fwd=state.weapons.tubes.filter(t=>t.pos==='FWD').map(t=>t.id),aft=state.weapons.tubes.filter(t=>t.pos==='AFT').map(t=>t.id);set('mTorpStores',`${ts.total} aboard · ${ts.loaded} loaded (${ts.loadedText}) · ${ts.reserve} reserve · reload ${ts.loadShort} · ${ts.ready} READY`);set('mFloodFwd',`Flood Fwd ${fwd.join('-')}`);set('mFloodAft',`Flood Aft ${aft.join('-')}`);}
+      {const ts=torpedoStoresStatus(state),fwd=state.weapons.tubes.filter(t=>t.pos==='FWD').map(t=>t.id),aft=state.weapons.tubes.filter(t=>t.pos==='AFT').map(t=>t.id);set('mTorpStores',`${ts.total} aboard · ${ts.loaded} loaded (${ts.loadedText}) · ${ts.reserve} reserve · reload ${ts.loadShort} · ${ts.ready} READY`);set('mFloodFwd',`${tui.flood||'Flood'} ${tui.forward||'Fwd'} ${fwd.join('-')}`);set('mFloodAft',`${tui.flood||'Flood'} ${tui.aft||'Aft'} ${aft.join('-')}`);}
       html('mTubes',W.tubes.map(t=>{
         const st=t.status==='READY'?'ready':t.status==='EMPTY'?'empty':'flooded';
         const sub2=t.status==='READY'?'FIRE':t.status==='EMPTY'?`${Math.round(t.reloadProgress*100)}%`:'FLOOD';
         const typ=t.status==='EMPTY'?'—':torpedoShortName(t.specKey||tdc.torpedoSpecKey);
-        return `<div class="tube ${st}" data-tube="${t.id}"><b>T${t.id}</b><span>${t.pos} · ${typ}</span><span>${sub2}</span></div>`;
+        return `<div class="tube ${st}" data-tube="${t.id}"><b>${tui.prefix||'T'}${t.id}</b><span>${t.pos==='FWD'?(tui.forward||'FWD'):(tui.aft||'AFT')} · ${typ}</span><span>${sub2==='FIRE'?(tui.fire||sub2):sub2==='FLOOD'?(tui.flood||sub2):sub2}</span></div>`;
       }).join(''));
     }
 
@@ -861,13 +861,13 @@ class TouchCtrl{
       const ch=(a,b)=>Math.abs(a-b)>0.5;
       const row=(l,c,o,f)=>`<span class="lbl">${l}</span><span class="val ${ch(c,o)?'changed':''}">${f(c)} → ${f(o)}</span>`;
       html('mOrdersGrid',
-        row('Heading',sub.heading,sub.orderedHeading,fmtDeg)+
-        row('Depth',sub.depthFeet,sub.orderedDepthFeet,v=>`${v.toFixed(0)}ft`)+
-        row('RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
-        `<span class="lbl">Speed</span><span class="val">${p.speedKnots.toFixed(1)} kn</span>`+
-        `<span class="lbl">Engine</span><span class="val">${p.engineMode}</span>`+
-        `<span class="lbl">Ballast</span><span class="val">${sub.ballastState}</span>`+
-        `<span class="lbl">Silent</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
+        row(ord.heading||'Heading',sub.heading,sub.orderedHeading,fmtDeg)+
+        row(ord.depth||'Depth',sub.depthFeet,sub.orderedDepthFeet,v=>playerDepthDisplay(state,v,0))+
+        row(ord.power||'RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
+        `<span class="lbl">${ord.speed||'Speed'}</span><span class="val">${p.speedKnots.toFixed(1)} kn</span>`+
+        `<span class="lbl">${ord.engine||'Engine'}</span><span class="val">${p.engineMode}</span>`+
+        `<span class="lbl">${ord.ballast||'Ballast'}</span><span class="val">${sub.ballastState}</span>`+
+        `<span class="lbl">${ord.silent||'Silent'}</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
         `<span class="lbl">TDC</span><span class="val">${tdc.status}</span>`+
         `<span class="lbl">Solution</span><span class="val">${sq}%</span>`+
         `<span class="lbl">Torps</span><span class="val">${(()=>{const ts=torpedoStoresStatus(state);return `${ts.total} aboard · ${ts.reserve} reserve · ${ts.loadShort}`;})()}</span>`+
@@ -904,8 +904,13 @@ class TouchCtrl{
       const sbw=(id,v)=>{const el=g(id);if(el&&C[id+'w']!==v){C[id+'w']=v;el.style.width=v+'%';}};
       sbw('mBattery',Math.round(p.battery));sbw('mFuel',Math.round(p.fuel));sbw('mHull',Math.round(sub.damage.hullIntegrity));
       const R=state.world.radio||{inbox:[],pending:null,copying:0};
-      set('radioState',R.pending?(sub.depthFeet<42?`copying ${Math.round(R.copying/40*100)}%`:'traffic waiting — come to antenna depth')
-                                :`${R.inbox.length} signal(s) on file`);
+      const copyNeed=Math.max(1,R.copyRequired||40),E=R.enigma||{};
+      set('radioState',R.pending?(sub.depthFeet<42?`copying ${Math.round(R.copying/copyNeed*100)}% · ${E.keyState||'KEY SET'}`:'traffic waiting — come to antenna depth')
+                                :`${R.inbox.length} signal(s) · ${E.keyState||'KEY SET'} · workload ${(E.workload||0).toFixed(1)}`);
+      const pm=state.campaign?.primaryMission,reportBtn=g('radioReportButton'),silenceBtn=g('radioSilenceButton'),partialBtn=g('radioPartialButton');
+      if(reportBtn){reportBtn.disabled=!(pm?.type==='SHADOW_REPORT'&&pm.reportReady&&!pm.reportedAt);reportBtn.classList.toggle('active',!!pm?.reportTransmitAuthorized);}
+      if(silenceBtn)silenceBtn.classList.toggle('active',!!R.txSilence);
+      if(partialBtn)partialBtn.disabled=!(R.pending&&R.copying>=copyNeed*.45);
       /* the intel board: nearest first, with a steer and an age on each */
       const now2=state.time.elapsedSeconds;
       const eng=this.game.engine||this.game;

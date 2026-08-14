@@ -186,6 +186,27 @@ SHIP_MODELS.FLOWER_CORVETTE_1941={
   ],
   masts:[{x:0,y:10.5,z:5,h:15,yard:4.8}],smoke:{x:0,y:15,z:-3}
 };
+SHIP_MODELS.BLACK_SWAN_SLOOP={
+  len:91.1,beam:11.7,fb:4.7,hull:[[-.50,.31],[-.44,.68],[-.31,.92],[-.05,1],[.22,.95],[.37,.72],[.47,.31],[.50,.04]],
+  parts:[{t:'b',x:0,y:4.7,z:31,w:7.4,h:2.1,d:8,c:'gun',big:1},{t:'b',x:0,y:4.7,z:18,w:7.4,h:2.1,d:8,c:'gun',big:1},
+    {t:'b',x:0,y:4.7,z:4,w:9.2,h:7,d:17,c:'house',big:1},{t:'b',x:0,y:11.7,z:7,w:5.8,h:3,d:7,c:'top'},
+    {t:'f',x:-1.7,y:5,z:-8,r:1.7,h:9,c:'funnel',rake:.05,big:1},{t:'f',x:1.7,y:5,z:-18,r:1.6,h:8,c:'funnel',rake:.05,big:1},
+    {t:'b',x:0,y:4.7,z:-33,w:7.0,h:2.0,d:8,c:'gun',big:1}],
+  masts:[{x:0,y:12,z:2,h:18,yard:6},{x:0,y:7,z:-27,h:11,yard:4}],smoke:{x:0,y:16,z:-13}
+};
+SHIP_MODELS.RIVER_FRIGATE_1942={
+  len:91.8,beam:11.1,fb:4.4,hull:[[-.50,.32],[-.43,.70],[-.29,.95],[-.03,1],[.23,.94],[.38,.69],[.47,.29],[.50,.04]],
+  parts:[{t:'b',x:0,y:4.4,z:31,w:6.7,h:2,d:8,c:'gun',big:1},{t:'b',x:0,y:4.4,z:12,w:8.8,h:6.5,d:17,c:'house',big:1},
+    {t:'b',x:0,y:10.9,z:14,w:5.4,h:2.7,d:6,c:'top'},{t:'f',x:0,y:4.7,z:-7,r:1.9,h:9.5,c:'funnel',rake:.07,big:1},
+    {t:'b',x:0,y:4.4,z:-31,w:6.5,h:1.9,d:8,c:'gun',big:1},{t:'b',x:-2.8,y:4.5,z:-39,w:1.4,h:.7,d:7,c:'dark'},{t:'b',x:2.8,y:4.5,z:-39,w:1.4,h:.7,d:7,c:'dark'}],
+  masts:[{x:0,y:11,z:8,h:18,yard:5.5}],smoke:{x:0,y:16,z:-7}
+};
+SHIP_MODELS.ARMED_TRAWLER={
+  len:45.7,beam:8.2,fb:4.0,hull:[[-.50,.42],[-.40,.79],[-.20,.98],[.08,1],[.29,.89],[.43,.60],[.49,.24],[.50,.05]],
+  parts:[{t:'b',x:0,y:4,z:15,w:5,h:1.5,d:5,c:'gun',big:1},{t:'b',x:0,y:4,z:-6,w:6.8,h:6.2,d:11,c:'house',big:1},
+    {t:'b',x:0,y:10.2,z:-5,w:4.5,h:2.3,d:5,c:'top'},{t:'f',x:0,y:5,z:-16,r:1.3,h:6.5,c:'funnel',rake:.08,big:1},{t:'b',x:0,y:4,z:-27,w:5.8,h:1.3,d:8,c:'dark'}],
+  masts:[{x:0,y:10,z:-1,h:12,yard:4}],smoke:{x:0,y:12,z:-16}
+};
 SHIP_MODELS.ATLANTIC_FREIGHTER={
   len:122,beam:16.8,fb:6.6,hull:SHIP_MODELS.MERCHANT.hull,
   parts:[{t:'b',x:0,y:6.6,z:45,w:12,h:4.2,d:16,c:'house'},
@@ -411,4 +432,3 @@ const Bathy = {
   },
   restable(kind){ return kind==='SAND'||kind==='MUD'; }
 };
-

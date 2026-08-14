@@ -20,6 +20,7 @@ class DomView{
   }
   render(state){
     const sub=state.playerSub; const p=sub.propulsion; const tdc=state.tdc;
+    const ui=getPlayerStationPresentation(state);this.applyPresentation(state,ui);
     if(this.clock) this.clock.textContent=Math.floor(state.time.elapsedSeconds).toString().padStart(5,'0');
     if(this.mode)  this.mode.textContent=sub.mode;
     if(this.station) this.station.textContent=state.tactical.activeStation;
@@ -36,6 +37,7 @@ class DomView{
     }
     if(this.timescale) this.timescale.textContent=state.time.timeScale===0?'PAUSED':`${state.time.timeScale}x`;
     const rpmInput=document.getElementById('rpmInput'),maxRpm=p.characteristics?.normalizedMaxRpm??450;if(rpmInput)rpmInput.max=String(maxRpm);
+    const depthMax=Math.min(600,Math.max(300,Math.floor((sub.damage.crushDepthFeet||420)-10)));for(const id of ['depthInput','mDpt']){const el=document.getElementById(id);if(el)el.max=String(depthMax);}
     const tsel=document.getElementById('timeSelect');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){tsel.value=String(state.time.timeScale);tsel._pkLabel?.();}
     const dudSel=document.getElementById('dudSelect');
@@ -70,23 +72,41 @@ class DomView{
       this.logEl.innerHTML=capHtml+state.log.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join('');
     }
   }
+  applyPresentation(state,ui){
+    if(this._presentationId===ui.id)return;this._presentationId=ui.id;
+    document.documentElement.dataset.stationTheme=ui.theme||ui.id;
+    const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text;};
+    const fwd=state.weapons.tubes.filter(t=>t.pos==='FWD').map(t=>t.id),aft=state.weapons.tubes.filter(t=>t.pos==='AFT').map(t=>t.id),t=ui.tubes||{},g=ui.gauges||{},o=ui.orders||{},sub=getSubmarineProfile(state.playerSub.profileId);
+    set('deskBoatTitle',`Periscope Patrol — ${sub?.displayName||'Submarine'}`);
+    set('deskHeadingLabel',`Ordered ${o.heading||'Heading'}`);set('deskPowerLabel',`Ordered ${o.power||'RPM'}`);set('deskDepthLabel',`Ordered ${o.depth||'Depth'}`);
+    set('deskFwdTubeTitle',`${t.forwardTitle||'Fwd Tubes'} (${fwd.join('–')})`);
+    set('deskAftTubeTitle',`${t.aftTitle||'Aft Tubes'} (${aft.join('–')})`);
+    set('touchTubeTitle',`${t.roomTitle||'Tubes'} — ${t.flood||'flood'} / ${t.fire||'fire'}`);
+    const eng=document.getElementById('touchEngineTitle')?.firstChild;if(eng)eng.nodeValue=(g.power||'Engine')+' ';
+    const dep=document.getElementById('touchDepthTitle')?.firstChild;if(dep)dep.nodeValue=(g.depth||'Depth')+' ';
+    set('hkDepthStep',`Ordered ${String(g.depth||'depth').toLowerCase()} −/+ ${ui.depth?.factor<.9?'3 m':'10 ft'}`);
+    set('periscopeButton',`${g.depth||'Periscope depth'} (${playerDepthDisplay(state,ui.depth?.scopeFeet||55,0)})`);
+    set('diveButton',`${g.depth||'Dive'} (${playerDepthDisplay(state,100,0)})`);
+    const qd=document.querySelector('#qsDepth .qs-l');if(qd)qd.textContent=`${String(g.depth||'DEPTH').toUpperCase()} ⇅`;
+    const qh=document.querySelector('#qsSpeed .qs-l');if(qh)qh.textContent=`${String(g.power||'SPEED').toUpperCase()} ⇅`;
+  }
   renderAlerts(state){
     const W=state.playerSub.damage.warnings||[{level:'normal',text:'SYSTEMS NOMINAL'}];
     if(this.alertEl) this.alertEl.innerHTML=W.map(w=>`<span class="${w.level}">${w.text}</span>`).join('<span style="color:#2f5f56"> ▪ </span>');
   }
   renderOrders(sub,state){
     if(!this.ordersGrid) return;
-    const p=sub.propulsion; const tdc=state.tdc;
+    const p=sub.propulsion; const tdc=state.tdc,ui=getPlayerStationPresentation(state),o=ui.orders||{};
     const ch=(a,b)=>Math.abs(a-b)>0.5;
     const row=(l,c,o,f)=>`<span class="lbl">${l}</span><span class="val ${ch(c,o)?'changed':''}">${f(c)} → ${f(o)}</span>`;
     this.ordersGrid.innerHTML=
-      row('Heading',sub.heading,sub.orderedHeading,fmtDeg)+
-      row('Depth',sub.depthFeet,sub.orderedDepthFeet,v=>`${v.toFixed(0)}ft`)+
-      row('RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
-      `<span class="lbl">Speed</span><span class="val">${p.speedKnots.toFixed(1)} kn</span>`+
-      `<span class="lbl">Engine</span><span class="val">${p.engineMode}</span>`+
-      `<span class="lbl">Ballast</span><span class="val">${sub.ballastState}</span>`+
-      `<span class="lbl">Silent</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
+      row(o.heading||'Heading',sub.heading,sub.orderedHeading,fmtDeg)+
+      row(o.depth||'Depth',sub.depthFeet,sub.orderedDepthFeet,v=>playerDepthDisplay(state,v,0))+
+      row(o.power||'RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
+      `<span class="lbl">${o.speed||'Speed'}</span><span class="val">${p.speedKnots.toFixed(1)} kn</span>`+
+      `<span class="lbl">${o.engine||'Engine'}</span><span class="val">${p.engineMode}</span>`+
+      `<span class="lbl">${o.ballast||'Ballast'}</span><span class="val">${sub.ballastState}</span>`+
+      `<span class="lbl">${o.silent||'Silent'}</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
       `<span class="lbl">TDC</span><span class="val">${tdc.status}</span>`+
       `<span class="lbl">Solution</span><span class="val">${Math.round(tdc.solutionQuality*100)}%</span>`+
       `<span class="lbl">Launch</span><span class="val">${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'}</span>`+
@@ -103,7 +123,7 @@ class DomView{
       const col=t.status==='READY'?'var(--ok)':t.status==='EMPTY'?'var(--danger)':'var(--muted)';
       const pct=t.status==='EMPTY'?` ${Math.round(t.reloadProgress*100)}%`:'';
       const typ=t.status==='EMPTY'?'—':torpedoShortName(t.specKey||tdc.torpedoSpecKey);
-      return `<span style="color:${col}">T${t.id}[${t.pos}] ${typ}: ${t.status.replace('LOADED_DRY','LOADED')}${pct}</span>`;
+      const tp=ui.tubes||{};return `<span style="color:${col}">${tp.prefix||'T'}${t.id}[${t.pos==='FWD'?(tp.forward||'FWD'):(tp.aft||'AFT')}] ${typ}: ${t.status.replace('LOADED_DRY','LOADED')}${pct}</span>`;
     }).join('<br>');
 
     // TDC note

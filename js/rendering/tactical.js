@@ -190,7 +190,8 @@ class CanvasViewTactical extends CanvasViewCore {
 
   /* ── Depth column (water cross-section) ── */
   drawDepthColumn(ctx,R,sub,state){
-    const k=this.k, maxD=300,safe=(this.portrait&&this.touchSafeTactical)||null;
+    const ui=getPlayerStationPresentation(state),df=Number(ui.depth?.factor)||1,depthSuffix=ui.depth?.suffix||'ft';
+    const k=this.k, maxD=Math.max(300,Math.min(600,Math.ceil((sub.damage.crushDepthFeet||420)/100)*100)),safe=(this.portrait&&this.touchSafeTactical)||null;
     const x=R.x,y=R.y,cw=R.w,chh=R.h;
     const lab=Math.round(34*k);                 // left label gutter
     const top=y+Math.round(14*k), bot=y+chh-Math.round(6*k);
@@ -219,17 +220,18 @@ class CanvasViewTactical extends CanvasViewCore {
       ctx.strokeStyle='rgba(239,106,88,.65)';ctx.setLineDash([5,4]);
       ctx.beginPath();ctx.moveTo(wx,cy2);ctx.lineTo(wx+ww,cy2);ctx.stroke();ctx.setLineDash([]);
       ctx.fillStyle='rgba(239,106,88,.9)';ctx.font=this.fnt(8.5,true);
-      ctx.fillText(`CRUSH ${cd.toFixed(0)}ft`,wx+Math.round(4*k),cy2+Math.round(10*k));
+      ctx.fillText(`CRUSH ${(cd*df).toFixed(0)}${depthSuffix}`,wx+Math.round(4*k),cy2+Math.round(10*k));
     }
 
     // depth ladder
     ctx.font=this.fnt(8.5);
-    for(let d=0;d<=maxD;d+=50){
+    const tickDisplay=df<.9?20:50,tickInternal=tickDisplay/df;
+    for(let d=0;d<=maxD+1e-6;d+=tickInternal){
       const dy=d2y(d);
       ctx.strokeStyle='rgba(120,170,158,.18)';ctx.lineWidth=1;
       ctx.beginPath();ctx.moveTo(wx,dy+.5);ctx.lineTo(wx+ww,dy+.5);ctx.stroke();
       ctx.fillStyle='rgba(130,168,154,.75)';ctx.textAlign='right';
-      ctx.fillText(String(d),x+lab-Math.round(5*k),dy+Math.round(3.5*k));
+      ctx.fillText(String(Math.round(d*df)),x+lab-Math.round(5*k),dy+Math.round(3.5*k));
     }
     ctx.textAlign='left';
     // thermal layer — sonar's blind spot, and your best cover
@@ -245,14 +247,14 @@ class CanvasViewTactical extends CanvasViewCore {
       ctx.lineWidth=Math.max(1,1.4*k);
       ctx.beginPath();ctx.moveTo(wx,ly);ctx.lineTo(wx+ww,ly);ctx.stroke();ctx.setLineDash([]);
       ctx.fillStyle='rgba(140,225,245,.9)';ctx.font=this.fnt(8,true);
-      ctx.fillText(`THERMAL LAYER ${layer}ft`,wx+Math.round(4*k),ly-Math.round(4*k));
+      ctx.fillText(`THERMAL LAYER ${(layer*df).toFixed(0)}${depthSuffix}`,wx+Math.round(4*k),ly-Math.round(4*k));
       if(sub.depthFeet>layer+15){
         ctx.fillStyle='rgba(111,224,143,.85)';ctx.font=this.fnt(8.5,true);
         ctx.fillText('▼ BELOW THE LAYER — SONAR RETURNS WEAK',wx+Math.round(4*k),ly+Math.round(14*k));
       }
     }
     // periscope depth reference
-    const py=d2y(55);
+    const py=d2y(ui.depth?.scopeFeet||55);
     ctx.strokeStyle='rgba(245,198,92,.35)';ctx.setLineDash([2,4]);
     ctx.beginPath();ctx.moveTo(wx,py);ctx.lineTo(wx+ww,py);ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle='rgba(245,198,92,.55)';ctx.font=this.fnt(8);
@@ -315,13 +317,13 @@ class CanvasViewTactical extends CanvasViewCore {
       ? clamp(Math.min(normalReadX,safeRight-Math.round(10*k)),minReadX,normalReadX)
       : normalReadX;
     ctx.font=this.fnt(17,true);ctx.fillStyle=hullCol;ctx.textAlign='right';
-    ctx.fillText(`${sub.depthFeet.toFixed(0)} ft`,readX,top+Math.round(17*k));
+    ctx.fillText(playerDepthDisplay(state,sub.depthFeet,0),readX,top+Math.round(17*k));
     ctx.font=this.fnt(8.5);ctx.fillStyle='#82a89a';
-    ctx.fillText(`${sub.mode.replace(/_/g,' ')} → ${sub.orderedDepthFeet.toFixed(0)}ft`,readX,top+Math.round(28*k));
+    ctx.fillText(`${sub.mode.replace(/_/g,' ')} → ${playerDepthDisplay(state,sub.orderedDepthFeet,0)}`,readX,top+Math.round(28*k));
     const vs=sub.verticalSpeedFps;
     if(Math.abs(vs)>0.15){
       ctx.fillStyle=vs>0?'#54b6ff':'#f5c65c';
-      ctx.fillText(`${vs>0?'▼':'▲'} ${Math.abs(vs).toFixed(1)} ft/s`,readX,top+Math.round(38*k));
+      ctx.fillText(`${vs>0?'▼':'▲'} ${(Math.abs(vs)*df).toFixed(1)} ${depthSuffix}/s`,readX,top+Math.round(38*k));
     }
     ctx.textAlign='left';
   }

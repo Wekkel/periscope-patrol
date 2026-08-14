@@ -223,16 +223,21 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         const bear=Math.random()*360, rng=D.spawnRangeMinNm+Math.random()*D.spawnRangeSpreadNm;
         const r=degToRad(bear),hunt=(W.enemy.alertState!=='UNAWARE'&&W.enemy.lastKnownSubPosition)?W.enemy.lastKnownSubPosition:sub.position;
         const year=Number(String(this.state.campaign?.startDate||this.state.time?.campaignDate||'1941').slice(0,4))||1941;
-        const roster=(D.roster||[]).filter(x=>(x.fromYear===undefined||year>=x.fromYear)&&(x.throughYear===undefined||year<=x.throughYear));
+        const patrolDate=this.state.campaign?.startDate||this.state.time?.campaignDate||`${year}-01-01`;
+        const roster=(D.roster||[]).filter(x=>(x.fromYear===undefined||year>=x.fromYear)&&(x.throughYear===undefined||year<=x.throughYear)&&
+          (typeof historicalTemplateAvailable!=='function'||historicalTemplateAvailable(x,patrolDate)));
         const rosterRoll=Math.random(),template=roster.find(x=>x.before===undefined||rosterRoll<x.before)||roster[roster.length-1];
-        if(template)W.aircraft.push({
-          id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,side:'ENEMY',name:template.name,kind:template.kind,ordnance:template.ordnance,
+        const aircraftProfile=template&&typeof getAircraftProfile==='function'?getAircraftProfile(template.aircraftProfileId):null;
+        if(template){const speedBand=aircraftProfile?.speedKnots;
+          W.aircraft.push({
+          id:`AIR-${(W.nextAirId=(W.nextAirId||0)+1)}`,side:'ENEMY',aircraftProfileId:template.aircraftProfileId||null,
+          factionId:aircraftProfile?.factionId||null,name:aircraftProfile?.name||template.name,kind:aircraftProfile?.kind||template.kind,ordnance:aircraftProfile?.ordnance||template.ordnance,
           position:{xNm:hunt.xNm+Math.sin(r)*rng,yNm:hunt.yNm-Math.cos(r)*rng},
           heading:normDeg(bear+180+(Math.random()-0.5)*D.headingJitterDeg),
-          speedKnots:D.speedMinKn+Math.random()*D.speedSpreadKn, state:'SEARCHING',
+          speedKnots:speedBand?speedBand[0]+Math.random()*(speedBand[1]-speedBand[0]):D.speedMinKn+Math.random()*D.speedSpreadKn, state:'SEARCHING',
           bombs:D.bombMin+Math.floor(Math.random()*D.bombExtraExclusive), runTimer:0, spotted:false, seenBySub:false,
           bornAt:now
-        });
+        });}
       }
     }
 

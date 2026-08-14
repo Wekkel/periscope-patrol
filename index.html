@@ -11,9 +11,8 @@
   <meta name="description" content="A World War II fleet submarine simulator: stalk convoys, work the TDC, and take her down before the escorts find you."/>
   <meta name="apple-mobile-web-app-title" content="Periscope"/>
   <link rel="manifest" href="./manifest.webmanifest"/>
-  <link rel="icon" href="./periscope-patrol-icon-192-v2.png" type="image/png">
-  <link rel="apple-touch-icon" href="./periscope-patrol-apple-touch-icon-v2.png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png"/>
+  <link rel="icon" href="./periscope-patrol-icon-192-v3.png" type="image/png">
+  <link rel="apple-touch-icon" href="./periscope-patrol-apple-touch-icon-v3.png">
   <link rel="stylesheet" href="./css/app.css"/>
 </head>
 <body>
@@ -117,7 +116,7 @@
       <div class="hk-row"><span class="hk-key">Space</span><span class="hk-desc">Pause / resume</span></div>
       <div class="hk-row"><span class="hk-key">[ ]</span><span class="hk-desc">Ordered heading −/+ 5°</span></div>
       <div class="hk-row"><span class="hk-key">, .</span><span class="hk-desc">Ordered RPM −/+ 25</span></div>
-      <div class="hk-row"><span class="hk-key">PgUp PgDn</span><span class="hk-desc">Ordered depth −/+ 10 ft</span></div>
+      <div class="hk-row"><span class="hk-key">PgUp PgDn</span><span id="hkDepthStep" class="hk-desc">Ordered depth −/+ 10 ft</span></div>
       <div class="hk-row"><span class="hk-key">S</span><span class="hk-desc">Toggle silent running</span></div>
       <div class="hk-row"><span class="hk-key">E</span><span class="hk-desc">Emergency blow</span></div>
       <div class="hk-row"><span class="hk-key">P</span><span class="hk-desc">Toggle pumps</span></div>
@@ -246,12 +245,17 @@
     <div class="aar-main">
       <section class="aar-debrief">
         <div id="aarMission" class="aar-mission"></div>
+        <div class="aar-section-head"><div><span>PATROL PLOT</span><small>Player knowledge is the default reconstruction</small></div><button id="aarTruthToggle" class="aar-truth" type="button">OMNISCIENT: OFF</button></div>
+        <div id="aarRouteMap" class="aar-route-map"></div>
         <div class="aar-section-head">
           <div><span>ENGAGEMENT RECORD</span><small>Swipe or use the arrows to review damaged and sunk ships.</small></div>
           <div class="aar-engagement-nav"><button id="aarEngagementPrev" aria-label="Previous engagement">‹</button><b id="aarEngagementCounter">0 / 0</b><button id="aarEngagementNext" aria-label="Next engagement">›</button></div>
         </div>
         <div id="aarEngagementPanel" class="aar-engagement-panel"><div id="aarEngagements"></div></div>
         <div id="aarPatrolHonors" class="aar-honors"></div>
+        <div id="aarOwnBoat" class="aar-detail-grid"></div>
+        <div id="aarWeapons" class="aar-weapons"></div>
+        <div id="aarLessons" class="aar-lessons"></div>
       </section>
       <aside class="aar-log"><h3>CAPTAIN'S LOG</h3><div id="aarCaptainLog"></div></aside>
     </div>
@@ -275,7 +279,7 @@
 ═══════════════════════════════════════════ -->
 <div id="desktopShell">
   <header id="deskHeader" class="panel">
-    <h1>Periscope Patrol — USS Silversides</h1><span class="verchip" id="appVerDesk">v—</span>
+    <h1 id="deskBoatTitle">Periscope Patrol — USS Silversides</h1><span class="verchip" id="appVerDesk">v—</span>
     <div class="hstatus">
       <span id="hDate">1943-08-17</span>
       <span>T+<strong id="clock">00000</strong>s</span>
@@ -304,15 +308,15 @@
     <section class="desk-cmd-pane active" data-desk-cmd="helm">
     <div class="ptitle">Bridge Commands</div>
     <div class="cgroup">
-      <label><span>Ordered Heading</span><strong id="orderedHeadingValue">090°</strong></label>
+      <label><span id="deskHeadingLabel">Ordered Heading</span><strong id="orderedHeadingValue">090°</strong></label>
       <input id="headingInput" type="range" min="0" max="359" value="90"/>
     </div>
     <div class="cgroup">
-      <label><span>Ordered RPM</span><strong id="rpmValue">250</strong></label>
+      <label><span id="deskPowerLabel">Ordered RPM</span><strong id="rpmValue">250</strong></label>
       <input id="rpmInput" type="range" min="0" max="450" value="250"/>
     </div>
     <div class="cgroup">
-      <label><span>Ordered Depth</span><strong id="depthValue">0 ft</strong></label>
+      <label><span id="deskDepthLabel">Ordered Depth</span><strong id="depthValue">0 ft</strong></label>
       <input id="depthInput" type="range" min="0" max="300" value="0"/>
     </div>
     <div class="cgroup">
@@ -381,11 +385,11 @@
       </select>
     </div>
     <div class="cgroup">
-      <div class="ptitle">Fwd Tubes (1-4)</div>
+      <div class="ptitle" id="deskFwdTubeTitle">Fwd Tubes (1-4)</div>
       <button id="floodTubeButton">Flood All Fwd Tubes</button>
       <button id="fireTubeButton" class="danger">Fire Tube 1</button>
       <button id="fireSpreadButton" class="danger">Fire Fwd Spread</button>
-      <div class="ptitle" style="margin-top:6px;">Aft Tubes (5-6)</div>
+      <div class="ptitle" id="deskAftTubeTitle" style="margin-top:6px;">Aft Tubes (5-6)</div>
       <button id="floodAftButton">Flood Aft Tubes</button>
       <button id="fireAftButton" class="danger">Fire Aft Spread</button>
       <div id="tubeStatusDisplay" class="note" style="margin-top:4px;line-height:1.8;"></div>
@@ -599,7 +603,7 @@
         </div>
         <div class="note" id="navNote"></div>
 
-        <div class="ptitle" style="margin-top:14px;">Engine <span id="rpmOrdered" style="color:var(--ink)">250</span></div>
+        <div class="ptitle" id="touchEngineTitle" style="margin-top:14px;">Engine <span id="rpmOrdered" style="color:var(--ink)">250</span></div>
         <div class="g5">
           <button data-rpm="0">Stop</button><button data-rpm="120">Slow</button>
           <button data-rpm="250">Std</button><button data-rpm="450">Flank</button>
@@ -611,7 +615,7 @@
         <input id="mRpm" type="range" min="0" max="450" value="250" class="fine"/>
         <div class="note" id="rpmNote">Diesel on the surface, battery submerged. Flank speed is loud.</div>
 
-        <div class="ptitle" style="margin-top:14px;">Depth <span id="dptOrdered" style="color:var(--ink)">0 ft</span></div>
+        <div class="ptitle" id="touchDepthTitle" style="margin-top:14px;">Depth <span id="dptOrdered" style="color:var(--ink)">0 ft</span></div>
         <div class="g4">
           <button id="mSurface">Surface</button><button id="mPeriscope">55 ft</button>
           <button id="mDive">100 ft</button><button id="mDeep">200 ft</button>
@@ -671,7 +675,7 @@
           <button id="mSendTdc" class="go">➤ Scope → TDC</button>
         </div>
 
-        <div class="ptitle" style="margin-top:14px;">Tubes — tap to flood / fire</div>
+        <div class="ptitle" id="touchTubeTitle" style="margin-top:14px;">Tubes — tap to flood / fire</div>
         <div id="mTorpStores" class="note torp-stores-note">22 aboard · 6 loaded · 16 reserve</div>
         <div class="tubes" id="mTubes"></div>
         <div class="g2">
@@ -734,6 +738,11 @@
         <div id="mIntel"></div>
 
         <div class="ptitle" style="margin-top:12px;">Radio Room <span id="radioState" style="color:var(--muted);font-size:10px;"></span></div>
+        <div class="radio-actions" aria-label="Radio orders">
+          <button id="radioReportButton" type="button">SEND REPORT</button>
+          <button id="radioSilenceButton" type="button">TX SILENCE</button>
+          <button id="radioPartialButton" type="button">USE PARTIAL</button>
+        </div>
         <div id="mRadio" style="font-size:11.5px;color:var(--muted);line-height:1.55;"></div>
         <div class="ptitle" style="margin-top:12px;">Captain's Log</div>
         <div id="mCaptainLog" style="font-size:11px;color:var(--muted);line-height:1.55;"></div>

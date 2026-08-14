@@ -30,6 +30,7 @@ class HelmGauges{
   /* ── the dial definitions, read straight off the boat ─────────────── */
   spec(key){
     const s=this.game.getSnapshot(), sub=s.playerSub, p=sub.propulsion;
+    const ui=getPlayerStationPresentation(s),depthUi=ui.depth||{},depthFactor=Number(depthUi.factor)||1;
     const seabed=sub.seabedFeet??3000, crush=sub.damage.crushDepthFeet||420;
     const test=crush*0.73;
     const pc=p.characteristics||{},surf=p.engineMode==='DIESEL',
@@ -38,26 +39,27 @@ class HelmGauges{
     const knots=r=>ms*(1-Math.exp(-clamp(r,0,maxRpm)/response));
     const noise=r=>{const kn=knots(r);
       return clamp(((r/maxRpm)*0.6+Math.pow(kn/surfaceMax,2)*0.8)*(sub.depthFeet>65?0.85:1),0,1.5);};
-    const maxDepth=Math.max(0,Math.min(crush-10,seabed-25));
+    const maxDepth=Math.max(0,Math.min(crush-10,seabed-25)),maxDepthDisplay=maxDepth*depthFactor;
 
     if(key==='depth') return {
       key,start:-90,sweep:270,wrap:false,gain:1,
-      max:this._dMax||200, unit:'FEET',
-      ordered:sub.orderedDepthFeet, actual:sub.depthFeet,
-      limit:[0,maxDepth], detents:[0,55,100,150,200,250].filter(d=>d<=maxDepth),
-      step:(this._dMax||200)<=230?[10,50]:[25,100],
-      send:v=>this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:Math.round(v)}),
-      big:sub.depthFeet.toFixed(0), danger:sub.depthFeet>test,
-      legend:[(this._dMax||200)<=230?'FINE':'DEEP','FEET'],
-      ctx:{seabed,test,crush,maxDepth,scope:55,bottomed:!!sub.bottomed},
+      max:this._dMax||200*depthFactor, unit:depthUi.unit||'FEET',
+      ordered:sub.orderedDepthFeet*depthFactor, actual:sub.depthFeet*depthFactor,
+      limit:[0,maxDepthDisplay], detents:(depthUi.detentsDisplay||[0,55,100,150,200,250]).filter(d=>d<=maxDepthDisplay),
+      step:(this._dMax||200*depthFactor)<=230*depthFactor?(depthFactor<.9?[5,20]:[10,50]):(depthFactor<.9?[10,50]:[25,100]),
+      send:v=>this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:Math.round(v/depthFactor)}),
+      big:(sub.depthFeet*depthFactor).toFixed(0), danger:sub.depthFeet>test,
+      legend:[(this._dMax||200*depthFactor)<=230*depthFactor?(depthUi.fine||'FINE'):(depthUi.deep||'DEEP'),depthUi.unit||'FEET'],
+      ctx:{seabed:seabed*depthFactor,test:test*depthFactor,crush:crush*depthFactor,maxDepth:maxDepthDisplay,scope:(depthUi.scopeFeet||55)*depthFactor,bottomed:!!sub.bottomed},
+      presentation:ui,
       lines:(()=>{
-        const gap=sub.orderedDepthFeet-sub.depthFeet, fpm=sub.verticalSpeedFps*60, out=[];
+        const gap=(sub.orderedDepthFeet-sub.depthFeet)*depthFactor, fpm=sub.verticalSpeedFps*60*depthFactor, out=[];
         if(sub.bottomed) out.push(['on the bottom','ok']);
         else if(Math.abs(gap)<1.5) out.push(['steady','dim']);
         else if(Math.abs(fpm)<3) out.push([`${Math.abs(gap).toFixed(0)} ft to go — not answering`,'alert']);
-        else out.push([`${fpm>0?'↓':'↑'} ${Math.abs(fpm).toFixed(0)} ft/min · ${Math.abs(gap/sub.verticalSpeedFps).toFixed(0)}s`,'dim']);
-        const clr=seabed-sub.depthFeet;
-        if(seabed<3000) out.push([`${clr.toFixed(0)} ft under keel`,clr<25?'danger':clr<60?'alert':'dim']);
+        else out.push([`${fpm>0?'↓':'↑'} ${Math.abs(fpm).toFixed(0)} ${depthUi.suffix||'ft'}/min · ${Math.abs((sub.orderedDepthFeet-sub.depthFeet)/sub.verticalSpeedFps).toFixed(0)}s`,'dim']);
+        const clr=(seabed-sub.depthFeet)*depthFactor;
+        if(seabed<3000) out.push([`${clr.toFixed(0)} ${depthUi.suffix||'ft'} under keel`,clr<25*depthFactor?'danger':clr<60*depthFactor?'alert':'dim']);
         return out;})()
     };
 
@@ -72,7 +74,8 @@ class HelmGauges{
         limit:null, detents:det, soft:[0,45,90,135,180,225,270,315], step:[5,30],
         send:v=>this.game.dispatch({type:'SET_ORDERED_HEADING',heading:normDeg(v)}),
         big:String(Math.round(normDeg(sub.heading))).padStart(3,'0'), danger:false,
-        legend:['GYRO','REPEATER'],
+        legend:ui.gauges?.courseLegends||['GYRO','REPEATER'],
+        presentation:ui,
         ctx:{tgt,wp,heading:sub.heading},
         lines:(()=>{
           const d=shortDelta(sub.heading,sub.orderedHeading), out=[];   // to − from
@@ -90,10 +93,11 @@ class HelmGauges{
       key,start:135,sweep:270,wrap:false,gain:1,max:maxRpm,unit:'RPM',
       ordered:p.orderedRpm, actual:p.actualRpm,
       limit:[0,maxRpm], detents:[0,120,200,250,350,maxRpm], step:[25,100],
-      bells:[[0,'STOP'],[120,'SLOW'],[200,'2/3'],[250,'STD'],[350,'FULL'],[maxRpm,'FLANK']],
+      bells:[[0,ui.engineOrders?.[0]||'STOP'],[120,ui.engineOrders?.[1]||'SLOW'],[200,ui.engineOrders?.[2]||'2/3'],[250,ui.engineOrders?.[3]||'STD'],[350,ui.engineOrders?.[4]||'FULL'],[maxRpm,ui.engineOrders?.[5]||'FLANK']],
       send:v=>this.game.dispatch({type:'SET_ENGINE_RPM',rpm:Math.round(v)}),
       big:p.speedKnots.toFixed(1), danger:false,
-      legend:[p.engineMode==='DIESEL'?'DIESEL':'BATTERY','RPM'],
+      legend:[p.engineMode==='DIESEL'?(ui.gauges?.powerSurface||'DIESEL'):(ui.gauges?.powerSubmerged||'BATTERY'),ui.gauges?.rpm||'RPM'],
+      presentation:ui,
       ctx:{knots,noise,ms,surf,silent:sub.stealth.silentRunning,maxRpm,response},
       lines:(()=>{
         const out=[[`${p.actualRpm.toFixed(0)} rpm`,'dim']], n=sub.stealth.acousticSignature;
@@ -115,14 +119,16 @@ class HelmGauges{
      with nothing to show for further dragging. */
   stepScale(dt){
     const s=this.game.getSnapshot(), sub=s.playerSub;
-    const deepest=Math.max(sub.depthFeet,sub.orderedDepthFeet);
+    const ui=getPlayerStationPresentation(s),factor=Number(ui.depth?.factor)||1;
+    const deepest=Math.max(sub.depthFeet,sub.orderedDepthFeet)*factor;
     if(this._dFine===undefined) this._dFine=true;
-    if(this._dFine&&deepest>150) this._dFine=false;
-    if(!this._dFine&&deepest<120) this._dFine=true;
+    if(this._dFine&&deepest>150*factor) this._dFine=false;
+    if(!this._dFine&&deepest<120*factor) this._dFine=true;
     const seabed=sub.seabedFeet??3000;
-    const target=this._dFine?200
-      :Math.max(300,Math.ceil((Math.min(seabed,sub.damage.crushDepthFeet||420)+40)/50)*50);
-    this._dMax=this._dMax||200;
+    const quantum=factor<.9?20:50;
+    const target=this._dFine?200*factor
+      :Math.max(300*factor,Math.ceil(((Math.min(seabed,sub.damage.crushDepthFeet||420)+40)*factor)/quantum)*quantum);
+    this._dMax=this._dMax||200*factor;
     this._dMax=this._dMax+(target-this._dMax)*clamp(dt*4.5,0,1);
   }
 
@@ -263,6 +269,8 @@ class HelmGauges{
   /* ── drawing ──────────────────────────────────────────────────────── */
   draw(v,dt){
     const G=this.spec(v.key), {ctx,geom}=v, {cx,cy,R}=geom;
+    const ui=G.presentation||{},pal=ui.palette||{};
+    const title=v.el.querySelector('.hg-t');if(title)title.textContent=ui.gauges?.[v.key]||v.key;
     /* Three tiers, not one cliff. At 165 px — what a phone in portrait
        actually gives us — the dial must still show its scale, or it is a
        picture of an instrument rather than an instrument. */
@@ -270,9 +278,9 @@ class HelmGauges{
     v.flash=Math.max(0,v.flash-dt*2.2);
     ctx.clearRect(0,0,v.cv.width,v.cv.height);
     const bg=ctx.createRadialGradient(cx,cy-R*0.3,R*0.1,cx,cy,R);
-    bg.addColorStop(0,'#0d2029'); bg.addColorStop(1,'#050f13');
+    bg.addColorStop(0,pal.faceInner||'#0d2029'); bg.addColorStop(1,pal.faceOuter||'#050f13');
     ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill();
-    ctx.strokeStyle='#2f5f56'; ctx.lineWidth=Math.max(2,R*0.02);
+    ctx.strokeStyle=pal.bezel||'#2f5f56'; ctx.lineWidth=Math.max(2,R*0.02);
     ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
 
     const rOut=R*0.90, rIn=R*0.70, A=val=>degToRad(this.v2a(G,val));
@@ -386,18 +394,18 @@ class HelmGauges{
 
     {const a=A(G.ordered);
      ctx.save();ctx.translate(cx,cy);ctx.rotate(a);
-     ctx.fillStyle='rgba(245,198,92,.95)';
+     ctx.fillStyle=pal.order||'rgba(245,198,92,.95)';
      ctx.beginPath();
      ctx.moveTo(rOut*0.99,0);ctx.lineTo(rOut*0.86,-R*0.030);
      ctx.lineTo(R*0.10,-R*0.012);ctx.lineTo(R*0.10,R*0.012);
      ctx.lineTo(rOut*0.86,R*0.030);ctx.closePath();ctx.fill();ctx.restore();
-     ctx.fillStyle='#f5c65c';
+     ctx.fillStyle=pal.order||'#f5c65c';
      ctx.beginPath();ctx.arc(cx+Math.cos(a)*R*0.955,cy+Math.sin(a)*R*0.955,Math.max(3,R*0.028),0,7);ctx.fill();}
 
     {const a=A(G.actual);
      ctx.save();ctx.translate(cx,cy);ctx.rotate(a);
      ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=R*0.05;ctx.shadowOffsetY=R*0.012;
-     ctx.fillStyle=G.danger?'#ef6a58':'#dfeee8';
+     ctx.fillStyle=G.danger?'#ef6a58':(pal.ink||'#dfeee8');
      ctx.beginPath();
      ctx.moveTo(rOut*0.93,0);ctx.lineTo(rOut*0.74,-R*0.055);
      ctx.lineTo(-R*0.16,-R*0.026);ctx.lineTo(-R*0.16,R*0.026);
@@ -407,11 +415,11 @@ class HelmGauges{
 
     const low=v.pointer&&v.pointer.y>cy, ty=low?cy-R*0.30:cy+R*0.30;
     ctx.textAlign='center';ctx.textBaseline='alphabetic';
-    ctx.fillStyle=G.danger?'#ef6a58':'#dfeee8';
+    ctx.fillStyle=G.danger?'#ef6a58':(pal.ink||'#dfeee8');
     ctx.font=this.fnt(R*0.30*F,true);
     ctx.fillText(G.big,cx,ty);
     ctx.font=this.fnt(R*0.095*F);ctx.fillStyle='rgba(143,179,168,.85)';
-    ctx.fillText(G.key==='power'?'KNOTS':G.unit,cx,ty+R*0.11);
+    ctx.fillText(G.key==='power'?(ui.gauges?.speed||'KNOTS'):G.unit,cx,ty+R*0.11);
     if(!tiny){
       const cols={dim:'rgba(143,179,168,.9)',alert:'#f5c65c',danger:'#ef6a58',ok:'#6fe08f'};
       ctx.font=this.fnt(Math.max(8.5,R*0.082));
@@ -442,10 +450,10 @@ class HelmGauges{
       el.id='hgChip';
       document.body.appendChild(el);
     }
-    const label=G.key==='course'?'COURSE':G.key==='depth'?'DEPTH':'ENGINE';
+    const ui=G.presentation||{},label=G.key==='course'?(ui.gauges?.course||'COURSE'):G.key==='depth'?(ui.gauges?.depth||'DEPTH'):(ui.gauges?.power||'ENGINE');
     const val=G.wrap?String(Math.round(G.ordered)).padStart(3,'0')+'°'
-                    :G.key==='power'?Math.round(G.ordered)+' rpm'
-                    :Math.round(G.ordered)+' ft';
+                    :G.key==='power'?Math.round(G.ordered)+' '+(ui.gauges?.rpm||'rpm')
+                    :Math.round(G.ordered)+' '+(ui.depth?.suffix||'ft');
     el.innerHTML=`<span>ORDER ${label}</span><b>${val}</b>`;
     const h=(typeof innerHeight==='number'?innerHeight:800);
     el.classList.toggle('low',clientY<h*0.45);       // hand high → chip low
@@ -478,4 +486,3 @@ class HelmGauges{
     this.raf=requestAnimationFrame(loop);
   }
 }
-

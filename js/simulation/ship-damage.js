@@ -28,6 +28,7 @@ function ensureShipDamage(c){
   D.hitCount=Math.max(0,Number(D.hitCount)||0);
   D.lastHitAt=Number.isFinite(D.lastHitAt)?D.lastHitAt:-999;
   D.lastHitLocation=D.lastHitLocation||null;
+  D.lastHitMaterial=D.lastHitMaterial||null;
   D.lastHitFrac=Number.isFinite(D.lastHitFrac)?D.lastHitFrac:null;
   D.lastWeapon=D.lastWeapon||null;
   D.lastWeaponId=D.lastWeaponId||null;
@@ -165,7 +166,8 @@ function applyDeckGunShipDamage(engine,c,hit){
   const D=ensureShipDamage(c),now=engine.state.time.elapsedSeconds||0;
   const len=hit?.lenNm||((c.lengthYards||400)*0.3048/1852);
   const frac=clamp((hit?.along||0)/(len||1),-.5,.5);
-  const location=shipTorpedoHitLocation(frac);
+  const location=shipTorpedoHitLocation(frac),impactZ=Number(hit?.z)||0;
+  const material=impactZ<2.7?'HULL':impactZ<7?'DECK':'SUPERSTRUCTURE';
   const heavy=/CARRIER|CRUISER/i.test(c.displayType||'');
   const typeScale=heavy ? .34 : isSurfaceCombatant(c) ? .62 : c.type==='TANKER' ? .86 : 1;
   const n=D.hitCount+1,h=.88+_shipHash01(`${c.id}:DG:${n}:${location}`)*.24;
@@ -174,6 +176,7 @@ function applyDeckGunShipDamage(engine,c,hit){
   else if(location==='BOW'){f=.060;prop=.012;fire=.04;}
   else if(location==='STERN'){f=.030;prop=.035;steer=.12;fire=.045;}
   else {f=.050;prop=.025;fire=.09;}
+  if(material==='HULL'){f*=1.35;fire*=.72;}else if(material==='SUPERSTRUCTURE'){f*=.35;prop*=.55;steer*=.65;fire*=1.55;}
   if(c.type==='TANKER')fire*=1.32;
   _shipSetDamage(c,D,'flotation',f*typeScale*h);_shipSetDamage(c,D,'propulsion',prop*typeScale*h);
   _shipSetDamage(c,D,'steering',steer*typeScale*h);_shipSetDamage(c,D,'fire',fire*typeScale*h);
@@ -181,7 +184,7 @@ function applyDeckGunShipDamage(engine,c,hit){
   D.fireRate=Math.max(D.fireRate,D.fire>.3?.000025:0);
   D.trim=clamp(D.trim+(location==='BOW'?.035:location==='STERN'?-.025:0)*typeScale,-1,1);
   const npcSurface=hit?.source==='NPC_SURFACE_GUN';
-  D.hitCount++;D.lastHitAt=now;D.lastHitLocation=location;D.lastHitFrac=frac;
+  D.hitCount++;D.lastHitAt=now;D.lastHitLocation=location;D.lastHitMaterial=material;D.lastHitFrac=frac;
   D.lastWeapon=npcSurface?'SURFACE_GUN':'DECK_GUN';
   D.lastWeaponId=npcSurface?`SG-${hit?.attackerId||'NPC'}-${D.hitCount}`:`DG-${engine.state.weapons.deckGun?.hits||D.hitCount}`;
   D.lastAttackerSide=npcSurface?(hit?.attackerSide||'ENEMY'):'PLAYER';
@@ -196,7 +199,7 @@ function applyDeckGunShipDamage(engine,c,hit){
     D.flotation=Math.max(D.flotation,.985);D.fire=Math.max(D.fire,.72);D.legacyNearSink=false;
   }
   _shipScheduleOutcome(engine,c,D,`DG:${n}:${location}`);
-  return{location,state:D,condition:shipDamageCondition(c)};
+  return{location,material,state:D,condition:shipDamageCondition(c)};
 }
 
 function _shipSinkStyle(c,D){

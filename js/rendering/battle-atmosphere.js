@@ -7,9 +7,22 @@
     battlePoint(cam,p,z=0){return p?this.proj(cam,p.xNm*NM_M,-p.yNm*NM_M,z):null;},
 
     drawBattleAtmosphereBack(ctx,cam,state,dl,t){
+      this.drawPortScenes3D(ctx,cam,state,dl);
       this.drawHarborSearchlight3D(ctx,cam,state,dl,t);
       this.drawDistantDamageCues3D(ctx,cam,state,dl,t);
       this.drawSignalLamps3D(ctx,cam,state,dl,t);
+    },
+
+    drawPortScenes3D(ctx,cam,state,dl){
+      const own=state.playerSub.position,k=this.k,maxFeatures=this.lowSpec?12:24;let drawn=0;
+      for(const scene of state.world.portScenes||[]){if(!scene.known||distNm(own,scene.position)>10)continue;const a=degToRad(scene.heading||0),sin=Math.sin(a),cos=Math.cos(a);
+        for(const f of scene.features||[]){if(drawn++>=maxFeatures)return;const q={xNm:scene.position.xNm+sin*f.alongNm+cos*f.lateralNm,yNm:scene.position.yNm-cos*f.alongNm+sin*f.lateralNm},p=this.battlePoint(cam,q,0);if(!p)continue;
+          const scale=cam.f/Math.max(120,p.d),height=Math.max(1.5,(f.heightM||5)*scale),width=Math.max(1.5,(f.sizeM||12)*scale);
+          if(f.kind==='crane'){ctx.strokeStyle=`rgba(145,145,130,${.38+.34*dl})`;ctx.lineWidth=Math.max(1,k);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x,p.y-height);ctx.lineTo(p.x+width*.65,p.y-height);ctx.stroke();}
+          else if(f.kind==='pier'){ctx.strokeStyle='rgba(112,105,84,.58)';ctx.lineWidth=Math.max(1.5,2*k);ctx.beginPath();ctx.moveTo(p.x-width*.45,p.y);ctx.lineTo(p.x+width*.45,p.y);ctx.stroke();}
+          else{ctx.fillStyle=f.kind==='tank'?`rgba(154,158,145,${.30+.40*dl})`:`rgba(116,111,94,${.38+.42*dl})`;ctx.fillRect(p.x-width*.45,p.y-height,width*.9,height);}
+        }
+      }
     },
 
     drawBattleAtmosphereFront(ctx,cam,state,dl,t){

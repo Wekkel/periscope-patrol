@@ -117,6 +117,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.searchCenter={xNm:q.xNm,yNm:q.yNm};
     e.searchPattern=reason==='SHIP_HIT'?'COORDINATED':['TORPEDO_LAUNCH','TORPEDO_SIGHTED'].includes(reason)?'CONVERGE':'CREEPING';e.searchPhase=0;
     const via=relayed.length&&!direct.length?(relayed[0].lastAlarmVia||'signal'):'local observation';
+    this.aarEnemyResponse?.(reason,{...q,confidence:conf,source:reason},localEscorts,via);
     this.log(`Escort screen alerted by ${reason} via ${via}; datum uncertainty about ${Math.round((q.errNm||.1)*2025)} yd.`);
     return true;
   }

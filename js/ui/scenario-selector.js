@@ -79,7 +79,7 @@ class ScenarioSelector{
     const missionTypes=(typeof MISSION_PRIMARY_TYPES!=='undefined'?MISSION_PRIMARY_TYPES:[]).filter(k=>missionProfile?.definitions?.[k]);
     const missionOpts=[['AUTO','AUTO — varied patrol orders'],...missionTypes.map(k=>[k,missionProfile.definitions[k].title||k.replaceAll('_',' ')])];
     const missionHint=missionProfile?.autoDescription||'One primary mission per patrol. AUTO chooses orders appropriate to the selected patrol area.';
-    const devCampaigns=PP_BUILD?.isDev?Object.values(CAMPAIGN_PROFILES).filter(x=>x.id===DEFAULT_GAME_IDENTITY.campaignProfileId||x.devSelectable):[campaign].filter(Boolean);
+    const devCampaigns=PP_BUILD?.isDev?getSelectableCampaignProfiles():[campaign].filter(Boolean);
     const campaignPicker=PP_BUILD?.isDev?`<div class="hist-card" style="grid-column:1/-1;display:flex;gap:12px;align-items:center;flex-wrap:wrap;"><div style="min-width:210px;flex:1"><h3 style="margin:0 0 4px">THEATER / CAMPAIGN</h3><div class="hist-desc">Atlantic DEV can launch the stable Pacific campaign or the current experimental vertical slice.</div></div><select id="campaignProfileSelect" class="tsel" style="min-width:250px;max-width:100%;">${devCampaigns.map(x=>`<option value="${x.id}"${x.id===campaign?.id?' selected':''}>${x.displayName}</option>`).join('')}</select></div>`:'';
     c.innerHTML=campaignPicker+areaIds.map(name=>[name,PATROL_AREAS[name]]).filter(([,area])=>!!area).map(([name,area])=>{
       const dl=String(area.difficulty||'MEDIUM').toUpperCase(),d=dl==='HARD'?{l:dl,cls:'diff-hard',s:'★★★'}:dl==='EASY'?{l:dl,cls:'diff-easy',s:'★☆☆'}:{l:dl,cls:'diff-med',s:'★★☆'};
@@ -227,7 +227,8 @@ class ScenarioSelector{
         // turned the old Yellow Sea/Wahoo entry into a Solomon Sea patrol.
         if(!aKey){globalThis.Toast?.bad?.(`Historical chart missing: ${h.area}`);return;}
         SaveSystem.autoClear?.();
-        this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty,missionType:h.missionType||'CONVOY_INTERDICTION',gameIdentity:DEFAULT_GAME_IDENTITY});
+        const hp=h.campaignProfileId&&getCampaignProfile(h.campaignProfileId),gameIdentity=hp?{theaterId:hp.theaterId,playerFactionId:hp.playerFactionId,campaignProfileId:hp.id,submarineProfileId:hp.submarineProfileId}:DEFAULT_GAME_IDENTITY;
+        this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty,missionType:h.missionType||'CONVOY_INTERDICTION',gameIdentity});
         const s=this.game.getSnapshot();
         Object.assign(s.world.environment,h.environment);
         rerollPatrolThermalLayer(s.world.environment,h.environment?.layerDepthFt);
@@ -250,4 +251,3 @@ class ScenarioSelector{
     if(this.activeTab==='patrol'&&this.selArea){const campaign=getCampaignProfile(this.selCampaignId),gameIdentity=campaign?{theaterId:campaign.theaterId,playerFactionId:campaign.playerFactionId,campaignProfileId:campaign.id,submarineProfileId:campaign.submarineProfileId}:DEFAULT_GAME_IDENTITY;SaveSystem.autoClear?.();this.game.dispatch({type:'NEW_PATROL',areaKey:this.selArea,missionType:this.selMission||'AUTO',gameIdentity});audio.event?.('MISSION_START');this.close();}
   }
 }
-

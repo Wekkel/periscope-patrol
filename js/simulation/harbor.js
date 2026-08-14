@@ -5,6 +5,7 @@ class SimEngineHarbor extends SimEngineCore {
      swept approach, torpedo net, hydrophones, searchlights and coastal batteries. */
   ensureWorldExtensions(){
     const W=this.state.world, G=this.state.weapons, C=this.state.campaign;
+    if(!Array.isArray(W.portScenes))W.portScenes=materializePortScenes(PATROL_AREAS[C.patrolArea]);
     if(!Array.isArray(C.optionalObjectives)) C.optionalObjectives=[]; // migrate pre-Phase-2 saves
     if(W.harborInitialized===undefined) W.harborInitialized=false; // migrate old saves
     const subProfile=getSubmarineProfile(this.state.playerSub?.profileId);

@@ -558,3 +558,38 @@ terrain, three tactical traffic groups and capped battle-atmosphere lists are
 retained. The general particle system now also has hard 420-particle and
 120-spark ceilings, preventing simultaneous convoy wakes, gunfire and depth
 charges from creating an unbounded transient render list.
+
+## Atlantic DEV patch 35 — future campaign gates
+
+`THEATER_FAMILIES`, `THEATER_PROFILES` and `REGION_PROFILES` separate
+presentation grouping from geography. The Baltic Sea has one canonical region
+under the European family and is neither Pacific nor Atlantic terrain. The
+Norwegian Arctic remains an Atlantic-presented region. Future Japanese,
+British, Soviet, German, Mediterranean and Indian Ocean slices live only in
+`FUTURE_VERTICAL_SLICE_BLUEPRINTS`; these reference records are never scenario
+options and do not import their proposed campaign modules.
+
+A campaign may become DEV-selectable only when `verticalSliceReadiness()`
+passes the complete `VERTICAL_SLICE_REQUIREMENTS` contract: identity, boat and
+station presentation, dated equipment, rosters, air/ASW doctrine, geography,
+at least three missions, terminology, tutorials, AAR, persistence and
+performance acceptance. `getSelectableCampaignProfiles()` is the sole selector
+source, so a partial catalog entry fails closed instead of exposing an empty
+campaign.
+
+`CAMPAIGN_LOAD_BOUNDARIES` records a one-active-area terrain budget for every
+playable campaign. Terrain continues through `getPatrolTerrain(areaKey)`, whose
+one-entry cache evicts the previous large chart. Planned module names are only
+ownership boundaries: they must not enter `index.html`, `sw.js` or the offline
+shell until a complete vertical slice is implemented.
+
+## Atlantic DEV patch 36 — release-candidate acceptance
+
+The cumulative candidate is gated by syntax and assetgraph checks, the full
+P27–P35 targeted regression set, a 24-run Atlantic matrix (three areas, 1941–44,
+NORMAL/HARD, 600 simulated seconds each) and a separate 7,200-second heavy
+scene. That scene requires four escorts, three tactical ambient groups and an
+aircraft while driving battle-atmosphere lists to their hard ceilings. It also
+round-trips patrol start, mid-mission, attack/cinematic, damage and return/AAR
+states. Browser/device interaction remains a physical acceptance gate; the VM
+stress result is not presented as a measured device frame rate.

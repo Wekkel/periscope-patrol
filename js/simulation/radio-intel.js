@@ -1,9 +1,37 @@
 class SimEngineIntel extends SimEngineAAGun {
+  ensureRadioOperations(){
+    const R=this.state.world.radio=this.state.world.radio||{pending:null,inbox:[],unread:0,nextBroadcast:240,copying:0};
+    R.txSilence=!!R.txSilence;R.copyRequired=Math.max(1,Number(R.copyRequired)||40);
+    const keyDate=String(this.state.time?.campaignDate||this.state.campaign?.startDate||'').slice(0,10);
+    R.enigma=R.enigma||{keyDate,keyState:'IN FORCE',workload:0,processedGroups:0,lastCategory:null};
+    if(R.enigma.keyDate!==keyDate){R.enigma.keyDate=keyDate;R.enigma.keyState='CHANGEOVER';R.enigma.workload=Math.max(1,R.enigma.workload||0);}
+    return R;
+  }
+
+  radioCopyRequirement(signal){
+    const s=this.state,R=this.ensureRadioOperations(),profile=getCampaignRadioIntelProfile(s.campaign.campaignProfileId)||{},env=s.world.environment||{},d=s.playerSub.damage||{};
+    const category=String(signal?.subject||signal?.type||'ROUTINE').toUpperCase(),priority=/ATTACK ORDER|WARNING|SPECIAL/.test(category)?1.15:/WEATHER/.test(category)?.76:1;
+    const weather=1+clamp(Number(env.precipitation)||0,0,1)*.22+clamp(Number(env.radioTerrainMask)||0,0,.5);
+    const damage=1+clamp((Number(d.electricalDamage)||0)/100,0,1)*.85+clamp((100-(Number(d.hullIntegrity)||100))/100,0,1)*.18;
+    const workload=1+clamp(Number(R.enigma?.workload)||0,0,6)*(Number(profile.enigmaWorkloadFactor)||.08);
+    return Math.round(clamp((Number(profile.baseCopySec)||40)*priority*weather*damage*workload,25,105));
+  }
+
+  acceptPartialRadio(){
+    const R=this.ensureRadioOperations(),need=Math.max(1,R.copyRequired||40);
+    if(!R.pending){this.notify('RADIO ROOM — no signal is currently being copied.','warn');return false;}
+    if(R.copying<need*.45){this.notify('RADIO ROOM — too few groups copied for a useful partial message.','warn');return false;}
+    const m={...R.pending,partial:true,text:`${R.pending.text} [PARTIAL COPY — positions and timing carry extra uncertainty.]`};
+    if(m.intel)m.intel={...m.intel,uncBaseNm:(m.intel.uncBaseNm||.8)*1.9,ageSec:(m.intel.ageSec||0)+1200};
+    R.pending=null;R.copying=0;R.copyRequired=40;m.time=this.state.time.elapsedSeconds;m.seq=(R.seq=(R.seq||0)+1);R.inbox.unshift(m);R.unread++;if(R.inbox.length>12)R.inbox.pop();
+    R.enigma.workload=clamp((R.enigma.workload||0)+.7,0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';
+    this.applySignal(m);audio.event?.('RADIO_MESSAGE');this.captainLog?.('RADIO_PARTIAL_COPY','Radio operator accepted an incomplete encoded message.',{subject:m.subject},'radio-partial');return true;
+  }
+
   updateRadio(dt){
     const W=this.state.world, sub=this.state.playerSub;
     const now=this.state.time.elapsedSeconds;
-    W.radio=W.radio||{pending:null,inbox:[],unread:0,nextBroadcast:240,copying:0};
-    const R=W.radio;
+    const R=this.ensureRadioOperations();R.enigma.workload=Math.max(0,(R.enigma.workload||0)-dt/900);
 
     if(!R.pending){
       // Mission-authored priority traffic uses the same antenna-depth/copying
@@ -12,7 +40,7 @@ class SimEngineIntel extends SimEngineAAGun {
       const priority=Array.isArray(R.priority)?R.priority:null;
       if(priority?.length){
         const i=priority.findIndex(x=>x&&now>=(x.eligibleAt||0));
-        if(i>=0){const q=priority.splice(i,1)[0];R.pending={...(q.signal||{})};this.log(q.announce||'Radio room: priority signal is up. Antenna depth to copy it.','warn');return;}
+        if(i>=0){const q=priority.splice(i,1)[0];R.pending={...(q.signal||{})};R.copyRequired=this.radioCopyRequirement(R.pending);this.log(q.announce||'Radio room: priority signal is up. Antenna depth to copy it.','warn');return;}
       }
       // A campaign-authored harbor report is a broadcast like any other: knowing
       // that the transmitter is up is not the same as copying the message. Once
@@ -31,7 +59,7 @@ class SimEngineIntel extends SimEngineAAGun {
       R.nextBroadcast-=dt;
       if(R.nextBroadcast<=0){
         R.nextBroadcast=900+Math.random()*700;
-        R.pending=this.composeSignal();
+        R.pending=this.composeSignal();R.copyRequired=this.radioCopyRequirement(R.pending);
         this.log('Radio room: shore broadcast is up. Antenna depth to copy it.','warn');
       }
       return;
@@ -40,11 +68,11 @@ class SimEngineIntel extends SimEngineAAGun {
     const canCopy=sub.depthFeet<42&&sub.damage.hullIntegrity>5;
     if(canCopy){
       R.copying+=dt;
-      if(R.copying>40){
+      if(R.copying>R.copyRequired){
         const m=R.pending;R.pending=null;R.copying=0;
         m.time=now;m.seq=(R.seq=(R.seq||0)+1);R.inbox.unshift(m);R.unread++;
         if(R.inbox.length>12) R.inbox.pop();
-        this.applySignal(m);
+        R.enigma.workload=clamp((R.enigma.workload||0)+(/ATTACK ORDER|SPECIAL/.test(String(m.subject||m.type))?1.1:.55),0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';R.copyRequired=40;this.applySignal(m);
         audio.event?.('RADIO_MESSAGE');
       }
     }else if(R.copying>0){

@@ -209,19 +209,21 @@ class Tutorial{
   /* controlled sandbox: one slow merchant, good weather, no duds */
   setupScenario(){
     const g=this.game;
-    g.dispatch({type:'NEW_PATROL',areaKey:'Java Sea'});
+    const before=g.getSnapshot(),identity=resolveGameIdentity(before),campaign=getCampaignProfile(identity.campaignProfileId),areaKey=campaign?.defaultArea||before.campaign?.patrolArea;
+    g.dispatch({type:'NEW_PATROL',areaKey,gameIdentity:identity});
     g.update(0.001);                       // drain the command queue
     const s=g.getSnapshot();
     s.time.elapsedSeconds=0;s.time.timeScale=1;
+    const atlantic=identity.playerFactionId==='germany';
     s.world.contacts=[materializeVesselIdentity({
-      id:'TGT-1',name:'Kaiyo Maru',type:'MERCHANT',lengthYards:430,
+      id:'TGT-1',name:atlantic?'Training Freighter':'Kaiyo Maru',type:'MERCHANT',vesselProfileId:atlantic?'uk-tramp-1941':undefined,lengthYards:430,
       visualProfile:1.05,acousticBase:0.42,tonsFactor:5000,
       position:{xNm:2.6,yNm:-3.4},heading:262,speedKnots:8,
       convoyRole:'MERCHANT',formationIndex:0
     },s)];
     s.world.contactTracks={};s.world.depthCharges=[];
     s.weapons.activeTorpedoes=[];s.weapons.hits=[];s.weapons.duds=[];s.weapons.explosions=[];
-    s.weapons.torpedoInventory=16;
+    s.weapons.torpedoInventory=getSubmarineProfile(identity.submarineProfileId).weapons.torpedoInventory;
     for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;}
     s.world.environment={daylight:0.9,visibilityNm:16,seaState:0.15,weather:'CLEAR',_baseVisibilityNm:16};
     // Training is a scripted sandbox. NEW_PATROL also creates the ordinary
@@ -250,8 +252,23 @@ class Tutorial{
     s.campaign.objectives=[
       {text:'Find the merchant',done:false},{text:'Sink it',done:false},
       {text:'Evade the escort',done:false},{text:'Finish the training',done:false}];
-    s.log=[{t:0,level:'warn',message:'=== TRAINING PATROL — Java Sea ==='}];
+    s.log=[{t:0,level:'warn',message:`=== TRAINING PATROL — ${areaKey} ===`}];
     const sel=document.getElementById('mDudSel');if(sel)sel.value='none';
+  }
+
+  presentationBody(st,state){
+    const sub=getSubmarineProfile(state.playerSub.profileId),ui=getPlayerStationPresentation(state),sensor=getPlayerSensorPresentation(state),tubes=state.weapons.tubes||[],f=tubes.filter(t=>t.pos==='FWD').map(t=>t.id),a=tubes.filter(t=>t.pos==='AFT').map(t=>t.id),torp=TORPEDO_SPECS[state.tdc.torpedoSpecKey]||{},gun=sub?.weapons?.deckGun?.label||'deck gun';
+    let body=String(st.body||'')
+      .replace(/USS Silversides/g,sub?.displayName||'your submarine')
+      .replace(/off Java/g,`in ${state.campaign.patrolArea}`)
+      .replace(/the 3-inch deck gun/gi,`the ${gun}`)
+      .replace(/Tubes 1–4 fire forward, 5–6 fire aft\./g,`${ui.tubes.forwardTitle} ${f.join('–')} fire forward; ${ui.tubes.aftTitle} ${a.join('–')} fires aft.`)
+      .replace(/A Mark 14 runs at 46 kn/g,`${torp.name||'The selected torpedo'} runs at ${Number(torp.speedKnots||0).toFixed(0)} kn`)
+      .replace(/Historically about a quarter of Mark 14s were duds;/g,'Historical reliability varied by weapon and period;');
+    if(sensor.surfaceSearchRadar)body=body.replace(/SJ radar/gi,sensor.surfaceSearchRadar.label);
+    else body=body.replace(/, or view SJ radar when fitted/gi,'').replace(/<b>SJ Radar<\/b> switches this station to surface-search radar only on patrol dates when the set is fitted\./g,'No surface-search radar is fitted to this boat on this patrol.');
+    if(!sensor.activeEcho)body=body.replace(/<br><br><b>Do not confuse that with ◉ Echo Range\.<\/b>[\s\S]*?worth giving away your presence\./,'<br><br>No active echo-ranging control is fitted to this boat; the station presents only equipment actually materialized for the patrol date.');
+    return body;
   }
 
   soundMarkCount(s){
@@ -532,7 +549,7 @@ class Tutorial{
     const g=id=>document.getElementById(id);
     const t=g('tutTitle'),b=g('tutBody'),go=g('tutGoal'),pr=g('tutProg'),nx=g('tutNext');
     if(t) t.textContent=st.title;
-    if(b) b.innerHTML=st.body;
+    if(b) b.innerHTML=this.presentationBody(st,this.game.getSnapshot());
     if(go){
       go.innerHTML=st.goal?`<span class="tick">${st.check?(done?'✓':'○'):'›'}</span> ${st.goal}`:'';
       go.classList.toggle('done',done);

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════ PATCH 8 — AFTER ACTION REPORT
 // A compact patrol recorder. It stores low-frequency, grouped samples only;
 // there is no replay simulation and no render loop during the patrol.
-const AAR_VERSION=1;
+const AAR_VERSION=2;
 const AAR_ROUTE_SAMPLE_SEC=15;
 const AAR_TRACK_SAMPLE_SEC=30;
 const AAR_MAX_ROUTE=900;
@@ -19,11 +19,11 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
   Object.assign(SimEngine.prototype,{
     ensureAfterActionReport(reset=false){
       const c=this.state.campaign;
-      if(reset||!c.afterAction||c.afterAction.version!==AAR_VERSION){
-        c.afterAction={version:AAR_VERSION,route:[],observedById:{},truthById:{},events:[],torpedoes:[],aircraftEvaded:0,
+      if(reset||!c.afterAction){
+        c.afterAction={version:AAR_VERSION,route:[],observedById:{},truthById:{},events:[],torpedoes:[],gunRounds:[],enemyResponses:[],aircraftEvaded:0,
           _routeClock:999,_trackClock:999,_airStates:{},_seenTrackIds:{},_harborPenetrationLogged:false};
       }
-      return c.afterAction;
+      const A=c.afterAction;A.version=AAR_VERSION;A.gunRounds=Array.isArray(A.gunRounds)?A.gunRounds:[];A.enemyResponses=Array.isArray(A.enemyResponses)?A.enemyResponses:[];return A;
     },
 
     aarRecordEvent(type,text,data={},position=null,targetPosition=null){
@@ -56,16 +56,20 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
     aarTorpedoLaunch(t){
       if(!t)return;const A=this.ensureAfterActionReport(),now=this.state.time.elapsedSeconds||0;
       if(A.torpedoes.some(x=>x.id===t.id))return;
-      A.torpedoes.push({id:t.id,launchT:now,start:_aarPos(t.position),launchHeading:t.heading,courseSet:t.courseSet,
-        targetId:t.targetId||null,endT:null,end:null,status:'RUNNING',contactId:null});
+      A.torpedoes.push({id:t.id,tubeId:t.tubeId??null,tubePos:t.tubePos||null,specKey:t.specKey||null,specName:t.specName||null,launchT:now,start:_aarPos(t.position),launchHeading:t.heading,courseSet:t.courseSet,gyroDeg:t.gyroTurn??null,solutionQuality:t.launchSolutionQuality??null,runDepthFt:t.runDepthFt??null,
+        targetId:t.targetId||null,intendedTargetId:t.intendedTargetId||null,endT:null,end:null,status:'RUNNING',contactId:null});
       if(A.torpedoes.length>80)A.torpedoes.shift();
       this.aarRecordEvent('TORPEDO_ATTACK',`${t.id} fired.`,{torpedoId:t.id,targetId:t.targetId||null},t.position);
     },
 
     aarTorpedoFinish(t,status,contactId=null){
       if(!t)return;const A=this.ensureAfterActionReport(),r=A.torpedoes.find(x=>x.id===t.id);if(!r)return;
-      r.endT=this.state.time.elapsedSeconds||0;r.end=_aarPos(t.position);r.status=status||t.status||'ENDED';r.contactId=contactId||null;
+      r.endT=this.state.time.elapsedSeconds||0;r.end=_aarPos(t.position);r.status=status||t.status||'ENDED';r.contactId=contactId||null;r.runNm=Number(t.rangeRunNm)||0;r.intendedCpaNm=Number.isFinite(t.cpa?.gap)?Number(t.cpa.gap):null;
     },
+
+    aarGunRound(shell){if(!shell)return;const A=this.ensureAfterActionReport(),sub=this.state.playerSub;_aarPush(A.gunRounds,{id:shell.id,t:this.state.time.elapsedSeconds||0,bearing:shell.bearing,elevation:shell.elevation,muzzleVelocityMS:shell.muzzleVelocityMS,weaponLabel:shell.weaponLabel,start:_aarPos({xNm:shell.xNm,yNm:shell.yNm}),ownHeading:sub.heading,status:'IN_FLIGHT',contactId:null,material:null},120);},
+    aarGunFinish(shell,status,position=null,contact=null,material=null){const A=this.ensureAfterActionReport(),r=A.gunRounds.find(x=>x.id===shell?.id);if(!r)return;r.status=status;r.endT=this.state.time.elapsedSeconds||0;r.end=_aarPos(position);r.contactId=contact?.id||null;r.material=material||null;if(r.start&&r.end)r.rangeNm=distNm(r.start,r.end);},
+    aarEnemyResponse(reason,cue,receivers=[],via='local observation'){const A=this.ensureAfterActionReport(),now=this.state.time.elapsedSeconds||0;_aarPush(A.enemyResponses,{t:now,reason:String(reason||'UNKNOWN'),source:String(cue?.source||reason||'UNKNOWN'),via:String(via||'local observation'),confidence:Number(cue?.confidence)||0,uncertaintyNm:Number(cue?.errNm)||0,receiverIds:receivers.map(x=>typeof x==='string'?x:x?.id).filter(Boolean),datum:_aarPos(cue)},80);},
 
     updateAfterActionRecorder(dt){
       const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING')return;const A=this.ensureAfterActionReport(),now=s.time.elapsedSeconds||0,sub=s.playerSub,W=s.world;
@@ -106,7 +110,7 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
 
     buildAfterActionReplay(){
       const A=this.ensureAfterActionReport();return{version:AAR_VERSION,route:_aarClone(A.route),observedTracks:_aarClone(Object.values(A.observedById||{})),truthTracks:_aarClone(Object.values(A.truthById||{})),
-        events:_aarClone(A.events),torpedoes:_aarClone(A.torpedoes),aircraftEvaded:Number(A.aircraftEvaded)||0};
+        events:_aarClone(A.events),torpedoes:_aarClone(A.torpedoes),gunRounds:_aarClone(A.gunRounds),enemyResponses:_aarClone(A.enemyResponses),aircraftEvaded:Number(A.aircraftEvaded)||0};
     }
   });
 })();

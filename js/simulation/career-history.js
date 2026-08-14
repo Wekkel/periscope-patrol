@@ -91,6 +91,18 @@ function _careerEngagements(state){
   return out.sort((a,b)=>(b.status==='SUNK')-(a.status==='SUNK')||b.rarityScore-a.rarityScore||b.difficultyScore-a.difficultyScore||b.tons-a.tons);
 }
 
+function _careerOwnBoat(state){const s=state.playerSub,p=s.propulsion||{},d=s.damage||{},W=state.weapons||{};return{profileId:s.profileId||null,hullIntegrity:Number(d.hullIntegrity)||0,flooding:Number(d.flooding)||0,battery:Number(p.battery)||0,fuel:Number(p.fuel)||0,oxygen:Number(d.oxygen)||0,crewFatigue:Number(d.crewFatigue)||0,torpedoReserve:Number(W.torpedoInventory)||0,loadedTubes:(W.tubes||[]).filter(t=>t.status!=='EMPTY').length,deckGunAmmo:Number(W.deckGun?.ammo)||0,aircraftKills:Number(state.world?.aaKills)||0};}
+function _careerLessons(state,engagements){
+  const A=state.campaign?.afterAction||{},torps=A.torpedoes||[],guns=A.gunRounds||[],responses=A.enemyResponses||[],out=[];
+  if(torps.length){const hits=torps.filter(t=>t.status==='HIT').length,duds=torps.filter(t=>t.status==='DUD').length,misses=torps.filter(t=>!['HIT','DUD','DEFLECTED','NETTED'].includes(t.status)).filter(t=>t.status!=='RUNNING'),low=torps.filter(t=>Number(t.solutionQuality)<.55).length,cpa=misses.map(t=>t.intendedCpaNm).filter(Number.isFinite).sort((a,b)=>a-b)[0];out.push(`${hits}/${torps.length} torpedoes hit${duds?`; ${duds} failed as duds`:''}${low?`; ${low} left the tubes below 55% solution quality`:''}${Number.isFinite(cpa)?`; best intended-target miss was ${Math.round(cpa*2025)} yd`:''}.`);}
+  if(guns.length){const gh=guns.filter(x=>x.status==='HIT').length,deck=guns.filter(x=>x.material==='DECK').length;out.push(`Deck gun: ${gh}/${guns.length} recorded rounds hit${deck?`, including ${deck} deck strike${deck===1?'':'s'}`:''}; fall-of-shot remained physical rather than score-only.`);}
+  if(responses.length){const q=responses[0];out.push(`The first recorded escort reaction followed ${String(q.reason).replaceAll('_',' ').toLowerCase()} via ${q.via}, with about ${Math.round((q.uncertaintyNm||0)*2025)} yd datum uncertainty.`);}
+  if(out.length<2&&engagements.length)out.push(`${engagements.length} damaging engagement${engagements.length===1?' was':'s were'} recorded; the hardest scored ${Math.max(...engagements.map(e=>e.difficultyScore||0))}/100.`);
+  if(out.length<2)out.push(`No damaging weapon engagement was recorded; the debrief is based on the actual mission, route and contact log.`);
+  if(out.length<2)out.push(`The boat returned with ${Math.round(state.playerSub.damage?.hullIntegrity??100)}% hull, ${Math.round(state.playerSub.propulsion?.fuel??0)}% fuel and ${Math.round(state.playerSub.propulsion?.battery??0)}% battery.`);
+  return out.slice(0,3);
+}
+
 class SimEngineCareer extends SimEngineDamage {
   ensureCareerPatrolState(){
     const c=this.state.campaign;
@@ -136,6 +148,7 @@ class SimEngineCareer extends SimEngineDamage {
     });
     const torpHits=(W.hits||[]).filter(h=>h.weapon!=='DECK_GUN').length;
     const engagements=_careerEngagements(s);
+    const ownBoat=_careerOwnBoat(s),lessons=_careerLessons(s,engagements),hp=c.historicalProfile||{};
     const I=s.world.harborIntel;
     const opts=(c.optionalObjectives||[]).map(o=>({text:o.text,done:!!o.done,failed:!!o.failed,result:o.result||null}));
     return Object.freeze({
@@ -160,6 +173,7 @@ class SimEngineCareer extends SimEngineDamage {
       aircraftEvaded:Number(c.afterAction?.aircraftEvaded)||0,
       importantEvents:_careerClone(c.importantEvents),
       engagements:_careerClone(engagements),
+      ownBoat:_careerClone(ownBoat),lessons:_careerClone(lessons),historicalContext:{era:hp.era||null,date:hp.date||c.startDate||null,area:c.patrolArea||null,equipment:_careerClone(hp.equipment||c.equipment||[])},
       // Keep the compact recorder payload for save compatibility and for the
       // static per-engagement mini maps. The AAR UI no longer runs an animated replay.
       replay:this.buildAfterActionReplay?.()||null,

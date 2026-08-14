@@ -5,12 +5,13 @@
 // replay timer, camera state or canvas render loop exists here.
 class AfterActionReport{
   constructor(game){
-    this.game=game;this.record=null;this.completedOpen=false;this._preScale=null;this.engagementIndex=0;this._swipe=null;
+    this.game=game;this.record=null;this.completedOpen=false;this._preScale=null;this.engagementIndex=0;this._swipe=null;this.showTruth=false;
     this.overlay=document.getElementById('aarOverlay');
     document.getElementById('aarClose')?.addEventListener('click',()=>this.close(false));
     document.getElementById('aarContinue')?.addEventListener('click',()=>this.close(true));
     document.getElementById('aarEngagementPrev')?.addEventListener('click',()=>this.moveEngagement(-1));
     document.getElementById('aarEngagementNext')?.addEventListener('click',()=>this.moveEngagement(1));
+    document.getElementById('aarTruthToggle')?.addEventListener('click',()=>{this.showTruth=!this.showTruth;this.renderRouteMap();});
     const panel=document.getElementById('aarEngagementPanel');
     panel?.addEventListener('pointerdown',e=>{this._swipe={id:e.pointerId,x:e.clientX,y:e.clientY};});
     panel?.addEventListener('pointerup',e=>{if(!this._swipe||this._swipe.id!==e.pointerId)return;const dx=e.clientX-this._swipe.x,dy=e.clientY-this._swipe.y;this._swipe=null;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.15)this.moveEngagement(dx<0?1:-1);});
@@ -19,9 +20,9 @@ class AfterActionReport{
   }
 
   open(record,opts={}){
-    if(!record)return;this.record=JSON.parse(JSON.stringify(record));this.completedOpen=!!opts.completed;this.engagementIndex=0;
+    if(!record)return;this.record=JSON.parse(JSON.stringify(record));this.completedOpen=!!opts.completed;this.engagementIndex=0;this.showTruth=false;
     const s=this.game?.getSnapshot?.();if(s?.time){this._preScale=s.time.timeScale;s.time.timeScale=0;}
-    this.renderHeader();this.renderStats();this.renderMission();this.renderEngagement();this.renderHonors();this.renderLog();
+    this.renderHeader();this.renderStats();this.renderMission();this.renderRouteMap();this.renderEngagement();this.renderHonors();this.renderDetails();this.renderLog();
     const cont=document.getElementById('aarContinue');if(cont)cont.textContent=this.completedOpen?'CONTINUE TO WAR RECORD':'CLOSE REPORT';
     this.overlay?.classList.add('open');
   }
@@ -61,7 +62,26 @@ class AfterActionReport{
     const title=r.missionName||r.primaryMission?.title||String(r.missionType||'PATROL').replace(/_/g,' ');
     const objective=r.primaryMission?.description||r.primaryMission?.briefing||r.primaryMission?.title||'Complete assigned patrol orders and return safely.';
     const opts=(r.optionalObjectives||[]).map(o=>`<span class="aar-objective ${o.done?'done':o.failed?'failed':''}">${o.done?'✓':o.failed?'×':'○'} ${this.esc(o.text||'Optional objective')}</span>`).join('');
-    el.innerHTML=`<div class="aar-mission-kicker">MISSION DEBRIEF</div><div class="aar-mission-title">${this.esc(title)}</div><div class="aar-mission-copy">${this.esc(objective)}</div><div class="aar-mission-meta"><span>Return: ${this.esc(r.returnPort||'—')}</span><span>Aircraft evaded: ${Number(r.aircraftEvaded)||0}</span><span>Aircraft kills: ${Number(r.aircraftKills)||0}</span><span>Duds: ${Number(r.torpedoDuds)||0}</span></div>${opts?`<div class="aar-objectives">${opts}</div>`:''}`;
+    const h=r.historicalContext||{},hist=[h.date,h.era,h.area].filter(Boolean).join(' · '),equipment=Array.isArray(h.equipment)?h.equipment.join(' / '):'';
+    el.innerHTML=`<div class="aar-mission-kicker">MISSION DEBRIEF</div><div class="aar-mission-title">${this.esc(title)}</div><div class="aar-mission-copy">${this.esc(objective)}</div><div class="aar-mission-meta"><span>Return: ${this.esc(r.returnPort||'—')}</span><span>Aircraft evaded: ${Number(r.aircraftEvaded)||0}</span><span>Aircraft kills: ${Number(r.aircraftKills)||0}</span><span>Duds: ${Number(r.torpedoDuds)||0}</span>${hist?`<span>Context: ${this.esc(hist)}</span>`:''}${equipment?`<span>Fit: ${this.esc(equipment)}</span>`:''}</div>${opts?`<div class="aar-objectives">${opts}</div>`:''}`;
+  }
+
+  renderRouteMap(){
+    const host=document.getElementById('aarRouteMap'),btn=document.getElementById('aarTruthToggle'),R=this.record?.replay||{};if(!host)return;
+    if(btn){btn.classList.toggle('active',this.showTruth);btn.textContent=`OMNISCIENT: ${this.showTruth?'ON':'OFF'}`;btn.title=this.showTruth?'Post-patrol world truth is visible.':'Only information available to the boat is visible.';}
+    const route=(R.route||[]).filter(p=>Number.isFinite(p?.[1])&&Number.isFinite(p?.[2])),obs=(R.observedTracks||[]).flatMap(g=>(g.points||[]).map(p=>[p[1],p[2]])),truth=this.showTruth?(R.truthTracks||[]).flatMap(g=>(g.points||[]).map(p=>[p[1],p[2]])):[],events=(R.events||[]).filter(e=>Number.isFinite(e?.position?.xNm)&&Number.isFinite(e?.position?.yNm));
+    const all=[...route.map(p=>[p[1],p[2]]),...obs,...truth,...events.map(e=>[e.position.xNm,e.position.yNm])];if(!all.length){host.innerHTML='<div class="aar-mini-empty">No patrol plot recorded.</div>';return;}
+    let minX=Math.min(...all.map(p=>p[0])),maxX=Math.max(...all.map(p=>p[0])),minY=Math.min(...all.map(p=>p[1])),maxY=Math.max(...all.map(p=>p[1]));const dx=Math.max(.2,maxX-minX),dy=Math.max(.2,maxY-minY);minX-=dx*.08;maxX+=dx*.08;minY-=dy*.10;maxY+=dy*.10;const P=(x,y)=>[18+(x-minX)/(maxX-minX)*424,146-(y-minY)/(maxY-minY)*128],path=pts=>pts.map((p,i)=>{const q=P(p[0],p[1]);return`${i?'L':'M'}${q[0].toFixed(1)} ${q[1].toFixed(1)}`;}).join(' ');
+    const observed=(R.observedTracks||[]).map(g=>`<path class="observed" d="${path((g.points||[]).map(p=>[p[1],p[2]]))}"/>`).join(''),world=this.showTruth?(R.truthTracks||[]).map(g=>`<path class="truth" d="${path((g.points||[]).map(p=>[p[1],p[2]]))}"/>`).join(''):'';
+    const marks=events.filter(e=>/ATTACK|HIT|REPORT|SIGHT|EVADE|RETURN/i.test(e.type)).slice(-24).map(e=>{const p=P(e.position.xNm,e.position.yNm);return`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="2.6" fill="#f1b463"><title>${this.esc(e.text||e.type)}</title></circle>`;}).join('');
+    host.innerHTML=`<svg viewBox="0 0 460 158" role="img" aria-label="Patrol route and observed contact tracks"><path d="M18 18H442M18 50H442M18 82H442M18 114H442M18 146H442" stroke="rgba(125,175,176,.08)"/>${route.length?`<path class="route" d="${path(route.map(p=>[p[1],p[2]]))}"/>`:''}${observed}${world}${marks}<text x="20" y="155">OWN ROUTE · OBSERVED TRACKS${this.showTruth?' · OMNISCIENT WORLD TRUTH':''}</text></svg>`;
+  }
+
+  renderDetails(){
+    const r=this.record||{},o=r.ownBoat||{},boat=document.getElementById('aarOwnBoat'),weapons=document.getElementById('aarWeapons'),lessons=document.getElementById('aarLessons'),R=r.replay||{};
+    if(boat)boat.innerHTML=[['HULL',`${Math.round(o.hullIntegrity??r.hullAtEnd??0)}%`],['FLOODING',`${Math.round(o.flooding||0)}%`],['FUEL',`${Math.round(o.fuel||0)}%`],['BATTERY',`${Math.round(o.battery||0)}%`],['AIR',`${Math.round(o.oxygen||0)}%`],['FATIGUE',`${Math.round((o.crewFatigue||0)*100)}%`],['TORPEDOES',`${o.torpedoReserve??'—'} reserve`],['GUN AMMO',`${o.deckGunAmmo??'—'} rounds`]].map(([a,b])=>`<div><small>${a}</small><b>${this.esc(b)}</b></div>`).join('');
+    if(weapons){const torps=(R.torpedoes||[]).map(t=>`<div class="aar-weapon-row"><b>${this.esc(t.id)} · tube ${this.esc(t.tubeId??'—')} · ${this.esc(t.specName||t.specKey||'torpedo')}</b> — ${this.esc(t.status||'UNKNOWN')}; solution ${Number.isFinite(t.solutionQuality)?Math.round(t.solutionQuality*100)+'%':'—'}, gyro ${Number.isFinite(t.gyroDeg)?Math.round(t.gyroDeg)+'°':'—'}, run ${Number(t.runNm||0).toFixed(2)} nm${Number.isFinite(t.intendedCpaNm)?`, intended CPA ${Math.round(t.intendedCpaNm*2025)} yd`:''}</div>`).join('');const guns=R.gunRounds||[],gh=guns.filter(g=>g.status==='HIT').length,resp=R.enemyResponses||[];weapons.innerHTML=`<h4>WEAPONS & ENEMY RESPONSE</h4>${torps||'<div class="aar-weapon-row">No torpedoes recorded.</div>'}<div class="aar-weapon-row">Deck gun: ${gh}/${guns.length} recorded hits; ${guns.filter(g=>g.status==='SPLASH').length} splashes.</div>${resp.map(q=>`<div class="aar-weapon-row">Enemy response: ${this.esc(String(q.reason||'cue').replaceAll('_',' '))} via ${this.esc(q.via||'observation')} · ±${Math.round((q.uncertaintyNm||0)*2025)} yd · ${q.receiverIds?.length||0} receiver(s)</div>`).join('')}`;}
+    if(lessons){const rows=(r.lessons||[]).slice(0,3);lessons.innerHTML=`<h4>TACTICAL LESSONS</h4>${rows.map(x=>`<div class="aar-lesson">${this.esc(x)}</div>`).join('')||'<div class="aar-lesson">No lesson data recorded for this legacy patrol.</div>'}`;}
   }
 
   fallbackRarity(type,tons=0){

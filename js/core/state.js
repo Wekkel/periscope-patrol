@@ -93,12 +93,13 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
       depthCharges:[],
       harbor:null,harborInitialized:false,harborIntel:null,
       terrain,
+      portScenes:materializePortScenes(area),
       ports:area.ports,
       convoyRoutes:area.convoyRoutes,
       shallowZones:terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF')
     },
     playerSub:{
-      profileId:subProfile.id,dimensions:{...subProfile.dimensions},
+      profileId:subProfile.id,presentation:materializeSubmarinePresentation(subProfile.id),dimensions:{...subProfile.dimensions},
       mode:'SURFACED',position:{...(area.start||{xNm:0,yNm:0})},heading:90,orderedHeading:90,rudder:0,
       depthFeet:0,orderedDepthFeet:0,verticalSpeedFps:0,ballastState:'NEUTRAL',trim:0,
       propulsion:{characteristics:fresh.propulsionProfile,engineMode:'DIESEL',orderedRpm:250,actualRpm:0,speedKnots:0,fuel:100,battery:100,chargeRate:0},
@@ -113,4 +114,3 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
     }
   };
 }
-

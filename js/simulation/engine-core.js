@@ -32,6 +32,7 @@ class SimEngineCore{
       originStation,viewBearing,originFov,targetBearing,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
       condition:meta.condition||null,rangeNm:distNm(sub.position,targetPosition),preImpactMs:1500,durationMs:9000,
       torpedoHeading:Number.isFinite(meta.torpedoHeading)?normDeg(meta.torpedoHeading):null,
+      impactSide:meta.impactSide===-1?-1:1,incidenceDeg:Number.isFinite(meta.incidenceDeg)?meta.incidenceDeg:null,warheadKg:Number(meta.warheadKg)||null,
       torpedoWakePath:clone(meta.torpedoWakePath||[]),torpedoWakeNm:Number.isFinite(meta.torpedoWakeNm)?Math.max(0,meta.torpedoWakeNm):0,torpedoWakeVisible:!!meta.torpedoWakeVisible
     };
   }
@@ -319,6 +320,14 @@ class SimEngineCore{
       case'LAY_DECK_GUN': this.layDeckGun(); break;
       case'FIRE_DECK_GUN': this.fireDeckGun(); break;
       case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); break;
+      case'RADIO_TOGGLE_SILENCE':{
+        const R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});R.txSilence=!R.txSilence;
+        this.log(R.txSilence?'Radio transmission silence ordered. Incoming traffic may still be copied.':'Radio transmission silence lifted.','warn');audio.playUiConfirm?.(.2);break;}
+      case'RADIO_AUTHORIZE_REPORT':{
+        const m=this.state.campaign?.primaryMission,R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});
+        if(m?.type!=='SHADOW_REPORT'||!m.reportReady){this.notify('RADIO ROOM — no contact report is ready for transmission.','warn');break;}
+        m.reportTransmitAuthorized=true;R.txSilence=false;this.captainLog?.('REPORT_TRANSMISSION_AUTHORIZED','Skipper authorized transmission of the contact report.',{},'report-authorized');this.notify('CONTACT REPORT AUTHORIZED — remain at antenna depth until transmission is complete.','ok');audio.playRadioMessage?.();break;}
+      case'RADIO_ACCEPT_PARTIAL': this.acceptPartialRadio?.(); break;
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
         this.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); audio.playSurface(); break;
@@ -1064,7 +1073,7 @@ class SimEngineCore{
     // Terrain is a patrol-scoped resource. getPatrolTerrain keeps one processed
     // Pacific chart alive at a time so adding areas does not multiply startup/RAM.
     const terrain=area.terrainKey?getPatrolTerrain(area.terrainKey):[];
-    s.world.terrain=terrain; s.world.ports=area.ports;
+    s.world.terrain=terrain; s.world.portScenes=materializePortScenes(area); s.world.ports=area.ports;
     s.world.convoyRoutes=area.convoyRoutes;
     s.world.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment=makePatrolEnvironment(area.environment);s.world.weatherSystem=null;s.world.traffic=null;
@@ -1095,7 +1104,7 @@ class SimEngineCore{
     // fresh boat for a fresh patrol — otherwise you inherit a wrecked, empty
     // (or sunk) submarine from the previous one
     const sub=s.playerSub;
-    sub.profileId=subProfile.id;sub.dimensions={...subProfile.dimensions};
+    sub.profileId=subProfile.id;sub.presentation=materializeSubmarinePresentation(subProfile.id);sub.dimensions={...subProfile.dimensions};
     sub.position=area.start?{...area.start}:{xNm:0,yNm:0};
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
@@ -1157,7 +1166,8 @@ class SimEngineCore{
     const B=Bathy.ensure(this.state.world.terrain);
     if(!B){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
     const {grid,nx,ny,x0,y0,cell}=B;
-    const valid=(i,j)=>i>=0&&j>=0&&i<nx&&j<ny&&grid[j*nx+i]>=5; // >=30 ft
+    const valid=(i,j)=>i>=0&&j>=0&&i<nx&&j<ny&&grid[j*nx+i]>=5&&
+      !this.checkTerrainCollision({position:{xNm:x0+i*cell,yNm:y0+j*cell}}).collision; // >=30 ft and exact polygon water
     const nearest=(p)=>{
       const ci=Math.round((p.xNm-x0)/cell),cj=Math.round((p.yNm-y0)/cell);
       if(valid(ci,cj))return[ci,cj];
@@ -1192,7 +1202,7 @@ class SimEngineCore{
     if(parent[gi]<0&&gi!==si){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
     const raw=[];let u=gi;raw.push(u);while(u!==si&&u>=0){u=parent[u];if(u>=0)raw.push(u);}raw.reverse();
     let pts=raw.map(k=>({xNm:x0+(k%nx)*cell,yNm:y0+((k/nx)|0)*cell}));
-    const waterLine=(a,b)=>{const L=distNm(a,b),n=Math.max(1,Math.ceil(L/Math.max(.25,cell*.20)));for(let q=0;q<=n;q++){const t=q/n;if(Bathy.feet(lerp(a.xNm,b.xNm,t),lerp(a.yNm,b.yNm,t))<30)return false;}return true;};
+    const waterLine=(a,b)=>{const L=distNm(a,b),n=Math.max(1,Math.ceil(L/Math.max(.25,cell*.20)));for(let q=0;q<=n;q++){const t=q/n,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(Bathy.feet(p.xNm,p.yNm)<30||this.checkTerrainCollision({position:p}).collision)return false;}return true;};
     if(Bathy.feet(route.from.xNm,route.from.yNm)>=30&&waterLine(route.from,pts[0]))pts[0]={...route.from};
     if(Bathy.feet(route.to.xNm,route.to.yNm)>=30&&waterLine(pts[pts.length-1],route.to))pts[pts.length-1]={...route.to};
     // Line-of-sight simplification removes A* stair-steps but never replaces a
@@ -1200,6 +1210,20 @@ class SimEngineCore{
     const simple=[];let i=0;simple.push(pts[0]);
     while(i<pts.length-1){let j=pts.length-1;while(j>i+1&&!waterLine(pts[i],pts[j]))j--;simple.push(pts[j]);i=j;}
     route.waterPath=simple;return route.waterPath;
+  }
+
+  validateActiveWaterNetwork(minDepthFeet=30){
+    const W=this.state.world,area=PATROL_AREAS[this.state.campaign.patrolArea],errors=[],B=Bathy.ensure(W.terrain),routes=[];let minimum=3000;
+    const safePoint=(p,label)=>{if(!p)return;const d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;minimum=Math.min(minimum,d);if(land||d<minDepthFeet)errors.push(`${label} is ${land?'on land':`only ${d.toFixed(0)} ft deep`}`);};
+    safePoint(area?.start,'start');
+    for(const [i,route] of (W.convoyRoutes||[]).entries()){
+      const path=this.ensureWaterRoute(route);if(path.length<2){errors.push(`route ${i} has no water path`);continue;}let length=0;
+      let routeSafe=true;for(let n=0;n<path.length-1&&routeSafe;n++){length+=distNm(path[n],path[n+1]);const steps=Math.max(1,Math.ceil(distNm(path[n],path[n+1])/.25));for(let q=0;q<=steps;q++){const t=q/steps,p={xNm:lerp(path[n].xNm,path[n+1].xNm,t),yNm:lerp(path[n].yNm,path[n+1].yNm,t)},d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;minimum=Math.min(minimum,d);if(land||d<minDepthFeet){errors.push(`route ${i} leaves navigable water`);routeSafe=false;break;}}}
+      routes.push({label:route.label,vertices:path.length,lengthNm:length});
+    }
+    for(const p of W.portScenes||[])safePoint(p.position,`port ${p.name}`);
+    const rv=this.friendlyPortApproach?.(this.state.campaign.friendlyPort);if(rv?.pos)safePoint(rv.pos,'friendly return');
+    return{ok:errors.length===0,errors,routes,terrainVertices:(W.terrain||[]).reduce((n,f)=>n+(f.points?.length||0),0),portScenes:(W.portScenes||[]).length,minDepthFeet:minimum};
   }
 
   makeConvoy(area,options={}){
@@ -1220,8 +1244,10 @@ class SimEngineCore{
     // Pacific/Japanese hull names as a fallback for future theaters.
     const convoyProfile=getPrimaryConvoyProfile(this.state.campaign?.campaignProfileId);
     if(!convoyProfile)throw new Error(`Campaign ${this.state.campaign?.campaignProfileId||'UNKNOWN'} has no primary convoy profile`);
-    const merchantTemplates=convoyProfile.merchantTemplates||[];
-    const escortTemplates=convoyProfile.escortTemplates||[];
+    const patrolDate=this.state.campaign?.startDate||this.state.time?.campaignDate||'1941-09-01';
+    const available=template=>typeof historicalTemplateAvailable!=='function'||historicalTemplateAvailable(template,patrolDate);
+    const merchantTemplates=(convoyProfile.merchantTemplates||[]).filter(available);
+    const escortTemplates=(convoyProfile.escortTemplates||[]).filter(available);
     const formationOffsets=convoyProfile.formationOffsets||[];
     const worldDynamics=convoyProfile.worldDynamics||null;
     const natural=worldDynamics?.naturalStraggler||null;
@@ -1262,8 +1288,9 @@ class SimEngineCore{
     const campaignProfileId=this.state.campaign?.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId;
     const numEscorts=Math.min(escortTemplates.length,aswEscortCount(areaKey,numMerchants,options,campaignProfileId));
     const screenRoles=aswScreenRoles(numEscorts,areaKey,options,campaignProfileId);
+    const escortOffset=escortTemplates.length?Math.max(0,(Number(String(patrolDate).slice(0,4))||1941)-1941)%escortTemplates.length:0;
     for(let i=0;i<numEscorts;i++){
-      const role=screenRoles[i]||'REAR_GUARD',off=ASW_SCREEN_STATIONS[role]||{fwd:0,side:0},t=escortTemplates[i];
+      const role=screenRoles[i]||'REAR_GUARD',off=ASW_SCREEN_STATIONS[role]||{fwd:0,side:0},t=escortTemplates[(i+escortOffset)%escortTemplates.length];
       contacts.push({...t,
         position:{xNm:spawn.xNm+Math.sin(crsRad)*off.fwd+Math.cos(crsRad)*off.side,
           yNm:spawn.yNm-Math.cos(crsRad)*off.fwd+Math.sin(crsRad)*off.side},

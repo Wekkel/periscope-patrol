@@ -9,7 +9,7 @@ class CanvasViewSound extends CanvasViewBridge {
   }
 
   drawHydrophone(ctx,w,h,state){
-    const k=this.k,T=state.tactical,S=state.world.sound||{},sig=soundSignalAt(state,T.soundBearing),cx=w/2,cy=this.portrait?h*.43:h*.49;
+    const k=this.k,T=state.tactical,S=state.world.sound||{},sig=soundSignalAt(state,T.soundBearing),cx=w/2,cy=this.portrait?h*.43:h*.49,ui=getPlayerStationPresentation(state),sensorUi=getPlayerSensorPresentation(state);
     const r=Math.min(w*(this.portrait?.38:.30),h*(this.portrait?.27:.36),210*k);
     this.soundGeom={cx,cy,r};
     // Bakelite receiver / bearing dial.
@@ -34,7 +34,7 @@ class CanvasViewSound extends CanvasViewBridge {
     const hx=cx,hy=cy+r*1.24;ctx.strokeStyle='rgba(190,218,205,.72)';ctx.lineWidth=Math.max(2,2*k);ctx.beginPath();ctx.arc(hx,hy,22*k,Math.PI,Math.PI*2);ctx.stroke();ctx.strokeRect(hx-25*k,hy-2*k,7*k,15*k);ctx.strokeRect(hx+18*k,hy-2*k,7*k,15*k);
     const meterW=Math.min(w*.58,280*k),mx=cx-meterW/2,my=Math.min(h-54*k,hy+28*k);ctx.strokeStyle='rgba(70,115,103,.8)';ctx.strokeRect(mx,my,meterW,10*k);ctx.fillStyle=sig.strength>.35?'#6fe08f':sig.strength>.13?'#f5c65c':'#315c54';ctx.fillRect(mx+1,my+1,(meterW-2)*clamp(sig.strength*1.8,0,1),8*k);
 
-    ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText('SOUND ROOM — PASSIVE LISTENING',12*k,22*k);
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText(`${String(ui.sensors?.room||'SOUND ROOM').toUpperCase()} — ${String(sensorUi.passiveSound?.label||'PASSIVE LISTENING').toUpperCase()}`,12*k,22*k);
     ctx.font=this.fnt(8.4);ctx.fillStyle='rgba(205,233,220,.78)';ctx.fillText(`TRAIN ${fmtDeg(T.soundBearing)} · OWN SPEED ${state.playerSub.propulsion.speedKnots.toFixed(1)} kn · LISTEN ${Math.round(soundOwnNoiseFactor(state)*100)}%`,12*k,39*k);
     const line=sig.contact&&sig.strength>.035?`SCREWS ${sig.offsetDeg<3?'CENTRED':sig.offsetDeg<12?'BUILDING':'FAINT'} · signal ${Math.round(sig.strength*100)}%`:'NO DISTINCT SCREWS ON THIS BEARING';
     ctx.fillStyle=sig.strength>.10?'#f5c65c':'#71988c';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(line,cx,Math.min(h-20*k,my+31*k));
@@ -59,7 +59,7 @@ class CanvasViewSound extends CanvasViewBridge {
     const shortName=radarUi.shortLabel||radarUi.label||'RADAR',plotTitle=radarUi.plotTitle||`${radarUi.label||'SURFACE-SEARCH RADAR'}`;
     ctx.fillStyle='#a6f3b8';ctx.font=this.fnt(10,true);ctx.fillText(`${plotTitle} — ${range.toFixed(1)} NM`,12*k,22*k);ctx.font=this.fnt(8.2);ctx.fillStyle='rgba(158,220,174,.75)';ctx.fillText(`${fit} · heading-up plot · ${usable?'SCANNING':'STANDBY'}`,12*k,39*k);
     if(!available){ctx.fillStyle='#f5c65c';ctx.font=this.fnt(12,true);ctx.textAlign='center';ctx.fillText(`${shortName.toUpperCase()} NOT FITTED ON THIS PATROL DATE`,cx,cy);ctx.textAlign='left';}
-    else if(!usable){ctx.fillStyle='#f5c65c';ctx.font=this.fnt(11,true);ctx.textAlign='center';ctx.fillText(`${radarUi.mastLabel||'RADAR MAST'} BELOW WATER — usable to ${mastDepth} ft`,cx,cy);ctx.textAlign='left';}
+    else if(!usable){ctx.fillStyle='#f5c65c';ctx.font=this.fnt(11,true);ctx.textAlign='center';ctx.fillText(`${radarUi.mastLabel||'RADAR MAST'} BELOW WATER — usable to ${playerDepthDisplay(state,mastDepth,0)}`,cx,cy);ctx.textAlign='left';}
     ctx.fillStyle='rgba(166,243,184,.74)';ctx.font=this.fnt(7.5);ctx.textAlign='center';for(let n=1;n<=4;n++)ctx.fillText(`${(range*n/4).toFixed(range<7?1:0)}`,cx+3*k,cy-r*n/4+10*k);ctx.textAlign='left';
   }
 }

@@ -27,5 +27,10 @@ const HISTORICAL_SCENARIOS=[
     description:'Trigger begins her sixth war patrol north of Formosa, where tankers, freighters and maddening torpedo duds await.',
     difficulty:'HARD',environment:{daylight:0.55,visibilityNm:11,seaState:0.45,layerDepthFt:195,weather:'PARTLY CLOUDY'},
     briefing:'Patrol the East China Sea north of Formosa. Attack valuable tanker traffic and expect escorts and unreliable hits.',
-    patrolBonus:2500,forceDudMode:'historical'}
+    patrolBonus:2500,forceDudMode:'historical'},
+  {id:'U973_ARCTIC_1944',name:'U-973 — Narvik Arctic Departure',date:'1944-03-01',area:'Norwegian Arctic Fjord Approaches',missionType:'CONVOY_INTERDICTION',campaignProfileId:'german-atlantic-1941',
+    description:'A Type VIIC leaves Narvik into the Arctic approaches. The chart is a gameplay-scale fjord composite; the date, boat type and northern convoy task are historically grounded.',
+    difficulty:'HARD',environment:{daylight:.30,visibilityNm:6,seaState:.48,layerDepthFt:145,weather:'ARCTIC OVERCAST',airThreat:.72,radioTerrainMask:.22},
+    briefing:'Work out through the deep central channel, keep clear of skerries and shore patrols, then intercept Allied Arctic shipping without losing the return route.',
+    patrolBonus:3200}
 ];
