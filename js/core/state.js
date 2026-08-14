@@ -97,6 +97,7 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
       portScenes:materializePortScenes(area),
       ports:area.ports,
       convoyRoutes:area.convoyRoutes,
+      navigationCorridors:(area.navigationCorridors||[]).map(c=>({...c,points:(c.points||[]).map(p=>({...p}))})),
       shallowZones:terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF')
     },
     playerSub:{

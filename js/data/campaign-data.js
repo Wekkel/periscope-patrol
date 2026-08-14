@@ -90,6 +90,8 @@ const PATROL_AREAS={
     convoyRoutes:[{from:{xNm:-132,yNm:34},to:{xNm:96,yNm:-28},label:'WESTERN APPROACHES CONVOY ROUTE'}],start:{xNm:-18,yNm:92},
     ports:[{name:'B.d.U. return rendezvous',pos:{xNm:0,yNm:125},side:'FRIENDLY'},
       {name:'Liverpool outer approaches',pos:{xNm:104,yNm:-26},side:'ENEMY',scene:'CONVOY_PORT',heading:286,known:true}],
+    navigationCorridors:[{label:'WESTERN APPROACH SOUNDINGS',side:'ENEMY',widthNm:2.4,minDepthFeet:60,points:[{xNm:72,yNm:-15},{xNm:89,yNm:-21},{xNm:104,yNm:-26}]}],
+    pacingProfile:{targetMinutes:30,contactRangeNm:[14,23]},
     environment:{daylight:.42,visibilityNm:8,seaState:.62,layerDepthFt:185,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC',airThreat:.88},convoySpeedRange:[7,10],convoyCountRange:[6,9],difficulty:'HARD'},
   'Greenland–Iceland Gap':{
     description:'Cold northern convoy route: long swell, low horizons and a tighter escort screen.',terrainKey:'Greenland–Iceland Gap',chartStartZoom:1.65,
@@ -102,6 +104,8 @@ const PATROL_AREAS={
     convoyRoutes:[{from:{xNm:0,yNm:118},to:{xNm:0,yNm:-74},label:'ARCTIC COASTAL CONVOY CHANNEL'}],start:{xNm:0,yNm:-111},
     ports:[{name:'Narvik U-boat berth',pos:{xNm:0,yNm:-118},side:'FRIENDLY',scene:'SUB_BASE',heading:0,known:true},
       {name:'Outer fjord roadstead',pos:{xNm:3,yNm:88},side:'ENEMY',scene:'ROADSTEAD',heading:180,known:true}],
+    navigationCorridors:[{label:'FJORD DEEP-WATER LEAD',side:'ENEMY',widthNm:1.1,minDepthFeet:45,points:[{xNm:0,yNm:42},{xNm:-2,yNm:64},{xNm:3,yNm:88}]}],
+    pacingProfile:{targetMinutes:30,contactRangeNm:[10,18]},
     environment:{daylight:.28,visibilityNm:6,seaState:.46,layerDepthFt:145,weather:'ARCTIC OVERCAST',climateId:'ARCTIC_1942',visualTone:'ARCTIC_FJORD',airThreat:.62,radioTerrainMask:.22},convoySpeedRange:[6,9],convoyCountRange:[3,6],difficulty:'HARD'}
 };
 

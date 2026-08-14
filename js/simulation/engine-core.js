@@ -473,11 +473,15 @@ class SimEngineCore{
         for(const t of this.state.weapons.tubes.filter(t=>t.pos==='AFT')) this.floodTube(t.id,false);
         this.log('Aft tubes flooded.');audio.playTubeFlood?.();setTimeout(()=>audio.playTubeReady?.(),680); break;
       case'FIRE_AFT_SPREAD': this.fireSpreadByPos('AFT'); break;
-      case'MAP_ADD_WAYPOINT':
-        this.state.map.plottedCourse.push({xNm:cmd.xNm,yNm:cmd.yNm});
+      case'MAP_ADD_WAYPOINT':{
+        const target=this.clampToArea({xNm:cmd.xNm,yNm:cmd.yNm}),plot=this.state.map.plottedCourse;
+        if(!this.isNavigableMapPoint(target)){this.notify('WAYPOINT REFUSED — land or unsafe shoal. Tap navigable water.','warn');break;}
+        const from=plot.at(-1)||this.state.playerSub.position,path=this.planNavigableCourse(from,target);
+        if(!path){this.notify('WAYPOINT REFUSED — no safe water route can be plotted.','warn');break;}
+        for(const p of path.slice(1))if(distNm(plot.at(-1)||from,p)>.03)plot.push({...p});
         this.state.map.autoFollowPlot=true;
-        this.log(`Waypoint ${this.state.map.plottedCourse.length} plotted.`);
-        break;
+        this.log(`Water route plotted — ${plot.length} waypoint${plot.length===1?'':'s'}.`);
+        break;}
       case'MAP_REMOVE_WAYPOINT':{
         const plot=this.state.map.plottedCourse;
         const i=cmd.index;
@@ -498,7 +502,9 @@ class SimEngineCore{
       case'PLOT_INTERCEPT_ADVISORY':{
         const a=this.intelSummary?.().find(x=>x.kind==='ULTRA'),plan=a?.icptNow||a?.icptFlank;
         if(!a||!plan){this.notify('No usable shipping intercept is held. Copy radio traffic or develop a contact.','warn');break;}
-        this.state.map.interceptPlot={point:{...plan.point},courseDeg:plan.courseDeg,timeSec:plan.timeSec,uncertaintyNm:a.uncNm,sourceReceivedAt:this.state.world.ultra?.receivedAt,createdAt:this.state.time.elapsedSeconds};
+        const waterPath=this.planNavigableCourse(this.state.playerSub.position,this.clampToArea(plan.point));
+        if(!waterPath){this.notify('Intercept estimate falls outside safely navigable water. Helm unchanged.','warn');break;}
+        this.state.map.interceptPlot={point:{...waterPath.at(-1)},waterPath,courseDeg:plan.courseDeg,timeSec:plan.timeSec,uncertaintyNm:a.uncNm,sourceReceivedAt:this.state.world.ultra?.receivedAt,createdAt:this.state.time.elapsedSeconds};
         this.notify(`Intercept advice plotted ${fmtDeg(plan.courseDeg)} — helm unchanged.`,'ok');
         this.log(`Navigator plotted an advisory intercept ${fmtDeg(plan.courseDeg)}; commanding officer retains the helm.`);break;}
       case'TOGGLE_MAP_WEATHER':
@@ -1086,6 +1092,10 @@ class SimEngineCore{
     const terrain=area.terrainKey?getPatrolTerrain(area.terrainKey):[];
     s.world.terrain=terrain; s.world.portScenes=materializePortScenes(area); s.world.ports=area.ports;
     s.world.convoyRoutes=area.convoyRoutes;
+    // Charted approaches are authored navigation context, never collision
+    // volumes or guaranteed-safe arcade lanes. Copy them per patrol so save
+    // migration and validation cannot mutate the catalogue.
+    s.world.navigationCorridors=(area.navigationCorridors||[]).map(c=>({...c,points:(c.points||[]).map(p=>({...p}))}));
     s.world.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment=makePatrolEnvironment(area.environment);s.world.weatherSystem=null;s.world.traffic=null;
     s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=true;s.map.weatherOverlay=false;
@@ -1169,6 +1179,23 @@ class SimEngineCore{
     return {xNm:clamp(pos.xNm,A.x0+1,A.x1-1),yNm:clamp(pos.yNm,A.y0+1,A.y1-1)};
   }
 
+  isNavigableMapPoint(pos,minDepthFeet=30){
+    if(!pos||!Number.isFinite(pos.xNm)||!Number.isFinite(pos.yNm))return false;
+    const depth=Bathy.ensure(this.state.world.terrain)?Bathy.feet(pos.xNm,pos.yNm):3000;
+    return depth>=minDepthFeet&&!this.checkTerrainCollision({position:pos}).collision;
+  }
+
+  planNavigableCourse(from,to){
+    if(!this.isNavigableMapPoint(from)||!this.isNavigableMapPoint(to))return null;
+    const route={from:{...from},to:{...to}},path=this.ensureWaterRoute(route);
+    if(!path||path.length<2)return null;
+    for(let i=0;i<path.length-1;i++){
+      const a=path[i],b=path[i+1],steps=Math.max(1,Math.ceil(distNm(a,b)/.20));
+      for(let n=0;n<=steps;n++){const t=n/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(!this.isNavigableMapPoint(p))return null;}
+    }
+    return path;
+  }
+
   /* Build a shipping lane through water, once per patrol area. The bathymetry
      grid is already available for depth/grounding, so use that same truth for
      traffic. A* is paid once; ships then follow the resulting light polyline. */
@@ -1234,6 +1261,16 @@ class SimEngineCore{
       routes.push({label:route.label,vertices:path.length,lengthNm:length});
     }
     for(const p of W.portScenes||[])safePoint(p.position,`port ${p.name}`);
+    for(const [i,corridor] of (W.navigationCorridors||[]).entries()){
+      const pts=corridor.points||[];if(pts.length<2){errors.push(`corridor ${i} has fewer than two points`);continue;}
+      for(let n=0;n<pts.length-1;n++){
+        const a=pts[n],b=pts[n+1],steps=Math.max(1,Math.ceil(distNm(a,b)/.20));
+        for(let q=0;q<=steps;q++){
+          const t=q/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)},d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;
+          minimum=Math.min(minimum,d);if(land||d<Math.max(minDepthFeet,Number(corridor.minDepthFeet)||0)){errors.push(`corridor ${i} leaves navigable water`);n=pts.length;break;}
+        }
+      }
+    }
     const rv=this.friendlyPortApproach?.(this.state.campaign.friendlyPort);if(rv?.pos)safePoint(rv.pos,'friendly return');
     return{ok:errors.length===0,errors,routes,terrainVertices:(W.terrain||[]).reduce((n,f)=>n+(f.points?.length||0),0),portScenes:(W.portScenes||[]).length,minDepthFeet:minimum};
   }
@@ -1241,7 +1278,15 @@ class SimEngineCore{
   makeConvoy(area,options={}){
     const cr=area.convoyRoutes[0];
     const path=this.ensureWaterRoute(cr);
-    const spawn=path[0]||cr.from, next=path[1]||cr.to;
+    let spawn=path[0]||cr.from,next=path[1]||cr.to;
+    // One patrol-start pacing decision keeps the persistent convoy inside a
+    // bounded intercept envelope. It is never moved again after commissioning.
+    if(path.length>1&&area.pacingProfile!==false){
+      const C=routeCum(path),L=C.at(-1),own=this.state.playerSub.position,pr=routeProject(path,own),range=area.pacingProfile?.contactRangeNm||[16,26],seed=Number(this.state.campaign?.scenarioSeed)||1;
+      const f=((Math.imul(seed,1103515245)+12345)>>>0)/4294967295,target=lerp(Number(range[0])||16,Number(range[1])||26,f),ahead=pr.s+target;
+      const s0=ahead<=L-2?ahead:Math.max(0,pr.s-target),q=routeAdvanceOneWay(path,s0,0),q2=routeAdvanceOneWay(path,s0,1.25);
+      spawn=q.pos;next=q2.pos;
+    }
     const hp=options.historicalProfile||this.state.campaign?.historicalProfile||null;
     const spd=area.convoySpeedRange[0]+Math.random()*(area.convoySpeedRange[1]-area.convoySpeedRange[0])+(hp?.merchantSpeedBonus||0);
     const rawCount=Math.floor(area.convoyCountRange[0]+Math.random()*(area.convoyCountRange[1]-area.convoyCountRange[0]+1));

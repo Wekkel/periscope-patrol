@@ -35,6 +35,22 @@ function _missionHash(seed,text){
 }
 function _missionObj(c,id){return (c.objectives||[]).find(o=>o.id===id);}
 function _missionSetDone(c,id,done=true){const o=_missionObj(c,id);if(o)o.done=!!done;return o;}
+function _missionPacingStage(c,m){
+  if(m.result!=='ACTIVE')return'RETURN';const done=id=>!!_missionObj(c,id)?.done;
+  if(['escape','evade','withdraw'].some(done))return'WITHDRAW';
+  const actionId=m.type==='SHADOW_REPORT'?(m.contactKeeperVersion?'attack':'report'):{CONVOY_INTERDICTION:'attack',HIGH_VALUE_INTERCEPT:'neutralize',RECONNAISSANCE:'identify',LIFEGUARD:'recover',SPECIAL_TRANSPORT:'transfer',RECON_INSERTION:'transfer',RECON_EXTRACTION:'transfer',MINELAYING:'lay',ESCORT_HUNT:'neutralize',HARBOR_STRIKE:'neutralize',WEATHER_AMBUSH:'attack'}[m.type];
+  if(done(actionId))return'ACTION';
+  if(['locate','intercept','approach','zone','rendezvous','station'].some(done))return'CONTACT';
+  return'TRANSIT';
+}
+function _missionUpdatePacing(engine,m,dt){
+  const s=engine.state,c=s.campaign,p=m.pacing=m.pacing||{version:1,targetMinutes:30,activeSeconds:0,cues:{}};
+  const scale=Number(s.time.timeScale)||0;if(scale>0&&!s.time.transitUntil)p.activeSeconds+=Math.min(1,dt/Math.max(1,scale));
+  p.stage=_missionPacingStage(c,m);const min=p.activeSeconds/60,cue=(key,text)=>{if(p.cues[key])return;p.cues[key]=true;engine.captainLog?.('MISSION_PACING',text,{stage:p.stage,activeMinutes:Math.round(min)},`pacing:${key}`);engine.notify(text,'warn');};
+  if(min>=8&&p.stage==='TRANSIT')cue('contact','NAVIGATOR — contact window is slipping. Plot the latest intelligence, choose a water-safe intercept and use TRANSIT for the empty sea miles.');
+  if(min>=20&&['TRANSIT','CONTACT'].includes(p.stage))cue('action','CAPTAIN — the tactical window is narrowing. Recheck course, target movement and disengagement water before committing.');
+  if(min>=26&&p.stage==='ACTION')cue('withdraw','EXECUTIVE OFFICER — primary action is complete. Break contact and preserve a clear route toward friendly water.');
+}
 
 /* CONTACT KEEPER v3 carries the Phase-2 loop through the first torpedo attack
    and escape. Keep this as a narrow save migration rather than teaching generic
@@ -295,7 +311,8 @@ function missionProgressText(state){
       const s=this.state,c=s.campaign,W=s.world;c.optionalObjectives=Array.isArray(c.optionalObjectives)?c.optionalObjectives:[];W.missionObjects=Array.isArray(W.missionObjects)?W.missionObjects:[];
       const profile=_missionProfile(s);if(!profile)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no mission profile`);
       if(!MISSION_PRIMARY_TYPES.includes(c.missionType)||!profile.definitions?.[c.missionType])c.missionType=profile.defaultMissionType||'CONVOY_INTERDICTION';
-      if(!c.primaryMission){const d=profile.definitions[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true};}
+      if(!c.primaryMission){const d=profile.definitions[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true,pacing:{version:1,targetMinutes:30,activeSeconds:0,cues:{}}};}
+      c.primaryMission.pacing=c.primaryMission.pacing||{version:1,targetMinutes:30,activeSeconds:0,cues:{}};
       const ids=c.missionType==='CONVOY_INTERDICTION'?['locate','attack','evade','return']:[];if(ids.length&&(c.objectives||[]).every(o=>!o.id))(c.objectives||[]).forEach((o,i)=>o.id=ids[i]||`objective-${i+1}`);
       _missionEnsureContactKeeperV3(s);
       return c.primaryMission;
@@ -314,7 +331,7 @@ function missionProgressText(state){
 
     configureMission(requested='AUTO',options={}){
       const s=this.state,c=s.campaign,W=s.world,type=this.chooseMissionType(requested),d=_missionDefinition(s,type),now=s.time.elapsedSeconds||0;if(!d)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no definition for mission ${type}`);
-      c.missionType=type;c.primaryMission={type,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:now};c.optionalObjectives=[];W.missionObjects=[];
+      c.missionType=type;c.primaryMission={type,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:now,pacing:{version:1,targetMinutes:Number(options.targetMinutes)||30,activeSeconds:0,cues:{}}};c.optionalObjectives=[];W.missionObjects=[];
       const m=c.primaryMission,setObjs=rows=>{c.objectives=rows.map(([id,text])=>({id,text,done:false,failed:false}));};
       if(type==='CONVOY_INTERDICTION'){
         setObjs([['locate','Locate enemy convoy'],['attack','Neutralize a meaningful share of enemy shipping'],['evade','Evade escort vessels'],['return','Return to friendly port']]);
@@ -363,7 +380,7 @@ function missionProgressText(state){
     },
 
     updateMissionFramework(dt){
-      const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;
+      const s=this.state,c=s.campaign,m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;_missionUpdatePacing(this,m,dt);
       const coop=W.cooperativeSubmarines,shadowContent=m.type==='SHADOW_REPORT'?_missionContent(s,'shadowReport'):null,coopCfg=shadowContent?.supportAttack;
       if(coop&&coopCfg&&_missionObj(c,'release')?.done){
         if(!Number.isFinite(coop.eventsResolved))coop.eventsResolved=0;
