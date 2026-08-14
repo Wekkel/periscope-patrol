@@ -283,7 +283,10 @@ const Bathy = {
       }
     }
     if(!pts.length) return null;
-    minX-=34;maxX+=34;minY-=34;maxY+=34;
+    const authored=T.chartBounds;
+    if(authored&&Number.isFinite(authored.x0)&&Number.isFinite(authored.y0)&&Number.isFinite(authored.x1)&&Number.isFinite(authored.y1)){
+      minX=authored.x0;minY=authored.y0;maxX=authored.x1;maxY=authored.y1;
+    }else{minX-=34;maxX+=34;minY-=34;maxY+=34;}
     const span=Math.max(maxX-minX,maxY-minY);
     const cell=span/116;
     const nx=Math.ceil((maxX-minX)/cell)+1, ny=Math.ceil((maxY-minY)/cell)+1;

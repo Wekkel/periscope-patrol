@@ -493,7 +493,7 @@ class SimEngineCore{
         if(!a||!plan){this.notify('No usable shipping intercept is held. Copy radio traffic or develop a contact.','warn');break;}
         const waterPath=this.planNavigableCourse(this.state.playerSub.position,this.clampToArea(plan.point));
         if(!waterPath){this.notify('Intercept estimate falls outside safely navigable water. Helm unchanged.','warn');break;}
-        this.state.map.interceptPlot={point:{...waterPath.at(-1)},waterPath,courseDeg:plan.courseDeg,timeSec:plan.timeSec,uncertaintyNm:a.uncNm,sourceReceivedAt:this.state.world.ultra?.receivedAt,createdAt:this.state.time.elapsedSeconds};
+        this.state.map.interceptPlot={point:{...waterPath.at(-1)},waterPath,courseDeg:plan.courseDeg,timeSec:plan.timeSec,uncertaintyNm:a.uncNm,sourceReceivedAt:this.state.world.ultra?.receivedAt,createdAt:this.state.time.elapsedSeconds,historyId:this.state.campaign.historyId};
         this.notify(`Intercept advice plotted ${fmtDeg(plan.courseDeg)} — helm unchanged.`,'ok');
         this.log(`Navigator plotted an advisory intercept ${fmtDeg(plan.courseDeg)}; commanding officer retains the helm.`);break;}
       case'TOGGLE_MAP_WEATHER':
@@ -1070,8 +1070,8 @@ class SimEngineCore{
       searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0};
     // Terrain is a patrol-scoped resource. getPatrolTerrain keeps one processed
     // Pacific chart alive at a time so adding areas does not multiply startup/RAM.
-    const terrain=getPatrolTerrain(area.terrainKey||key);
-    s.world.terrain=terrain; s.world.portScenes=training?[]:materializePortScenes(area); s.world.ports=training?[]:area.ports;
+    const terrain=materializePatrolTerrain(area),chartBounds=patrolChartBounds(area);
+    s.world.chartBounds=chartBounds;s.world.terrain=terrain; s.world.portScenes=training?[]:materializePortScenes(area); s.world.ports=training?[]:area.ports;
     s.world.convoyRoutes=training?[]:area.convoyRoutes;
     // Charted approaches are authored navigation context, never collision
     // volumes or guaranteed-safe arcade lanes. Copy them per patrol so save
@@ -1079,7 +1079,11 @@ class SimEngineCore{
     s.world.navigationCorridors=training?[]:(area.navigationCorridors||[]).map(c=>({...c,points:(c.points||[]).map(p=>({...p}))}));
     s.world.shallowZones=terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF');
     s.world.environment=makePatrolEnvironment(area.environment);s.world.weatherSystem=null;s.world.traffic=null;
+    // Navigation and radio intelligence are patrol-scoped. A previous ULTRA
+    // estimate must never draw a green advisory lane or trigger map focus in a
+    // fresh patrol, particularly not in the controlled training sandbox.
     s.map.plottedCourse=[]; s.map.exploredCells={}; s.map.ownshipTrail=[];s.map.lastTrailSampleTime=-999;s.map.autoFollowPlot=!training;s.map.weatherOverlay=false;
+    s.map.interceptPlot=null;s.map.intelFitRequest=null;s.map.intelContextSeq=(s.map.intelContextSeq||0)+1;s.map.visibilityFootprint=null;
     // A fresh patrol always gets a fresh chart origin.  The renderer consumes
     // this sequence once, so a map that was panned/free on the previous patrol
     // cannot strand the new boat off-screen.  Undefined in old saves is fine.
@@ -1105,7 +1109,11 @@ class SimEngineCore{
     // (or sunk) submarine from the previous one
     const sub=s.playerSub;
     sub.position=area.start?{...area.start}:{xNm:0,yNm:0};
+    const inChart=p=>p&&p.xNm>=chartBounds.x0&&p.xNm<=chartBounds.x1&&p.yNm>=chartBounds.y0&&p.yNm<=chartBounds.y1;
+    if(!inChart(sub.position))throw new Error(`Patrol start lies outside the chart: ${key}`);
+    for(const port of s.world.ports.filter(p=>p.side==='FRIENDLY'))if(!inChart(port.pos))throw new Error(`Friendly harbour lies outside the chart: ${port.name}`);
     if(training){const safe=this.findNavigablePointNear(sub.position,80);if(!safe)throw new Error(`No navigable training start in ${key}`);sub.position=safe;}
+    else if(!this.isNavigableMapPoint(sub.position,30))throw new Error(`Patrol start is not navigable water: ${key}`);
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
@@ -1161,6 +1169,8 @@ class SimEngineCore{
 
   isNavigableMapPoint(pos,minDepthFeet=30){
     if(!pos||!Number.isFinite(pos.xNm)||!Number.isFinite(pos.yNm))return false;
+    const A=this.areaBounds();
+    if(A&&(pos.xNm<A.x0||pos.xNm>A.x1||pos.yNm<A.y0||pos.yNm>A.y1))return false;
     const depth=Bathy.ensure(this.state.world.terrain)?Bathy.feet(pos.xNm,pos.yNm):3000;
     return depth>=minDepthFeet&&!this.checkTerrainCollision({position:pos}).collision;
   }
@@ -1254,7 +1264,13 @@ class SimEngineCore{
       let routeSafe=true;for(let n=0;n<path.length-1&&routeSafe;n++){length+=distNm(path[n],path[n+1]);const steps=Math.max(1,Math.ceil(distNm(path[n],path[n+1])/.25));for(let q=0;q<=steps;q++){const t=q/steps,p={xNm:lerp(path[n].xNm,path[n+1].xNm,t),yNm:lerp(path[n].yNm,path[n+1].yNm,t)},d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;minimum=Math.min(minimum,d);if(land||d<minDepthFeet){errors.push(`route ${i} leaves navigable water`);routeSafe=false;break;}}}
       routes.push({label:route.label,vertices:path.length,lengthNm:length});
     }
-    for(const p of W.portScenes||[])safePoint(p.position,`port ${p.name}`);
+    /* A harbour symbol may correctly sit on the shore. What matters is that
+       every installation has a nearby water-side approach. */
+    for(const p of W.portScenes||[]){
+      const approach=this.findNavigablePointNear(p.position,Math.max(30,minDepthFeet));
+      if(!approach)errors.push(`port ${p.name} has no navigable water approach`);
+      else safePoint(approach,`port ${p.name} approach`);
+    }
     for(const [i,corridor] of (W.navigationCorridors||[]).entries()){
       const pts=corridor.points||[];if(pts.length<2){errors.push(`corridor ${i} has fewer than two points`);continue;}
       for(let n=0;n<pts.length-1;n++){

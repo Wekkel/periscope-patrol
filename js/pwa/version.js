@@ -111,9 +111,9 @@ const AppVersion = {
 // tap the chip to copy the build string
 for(const id of ['appVerTouch','appVerDesk']){
   document.getElementById(id)?.addEventListener('click',()=>{
-    const s=`Periscope Patrol${globalThis.PP_BUILD?.isDev?' AD DEV':''} v${AppVersion.value||'?'} · ${navigator.userAgent}`;
+    const contract=globalThis.PP_BUILD?.touchUiContract?.()||'unavailable';
+    const s=`Periscope Patrol${globalThis.PP_BUILD?.isDev?' AD DEV':''} v${AppVersion.value||'?'} · touch-ui ${contract} · ${navigator.userAgent}`;
     navigator.clipboard?.writeText(s).then(()=>Toast.ok('Build details copied'),
                                           ()=>Toast.warn('v'+(AppVersion.value||'?')));
   });
 }
-

@@ -4,7 +4,8 @@ function createState(areaKey){
   // MEGA PACIFIC: patrol metadata stays cheap at boot; only the selected chart
   // expands its terrain/bathymetry. Never reintroduce area.terrain here or the
   // ten-map catalogue will all be built on low-memory devices before play starts.
-  const terrain=getPatrolTerrain(area.terrainKey||areaKey);
+  const terrain=materializePatrolTerrain(area),chartBounds=patrolChartBounds(area);
+  const historyId=`p1-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`;
   return{
     time:{elapsedSeconds:0,timeScale:1,campaignDate:'1943-08-17'},
     log:[{t:0,level:'info',message:`Patrol commenced. Area: ${areaKey}. Good hunting.`}],
@@ -34,7 +35,7 @@ function createState(areaKey){
     campaign:{
       patrolArea:areaKey,score:0,scenarioSeed:1,missionStatus:'PATROL',
       patrolNumber:1,totalScore:0,startDate:'1943-08-17',
-      historyId:`p1-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`,
+      historyId,
       _careerStartDate:'1943-08-17 06:00',_historyRecorded:false,_historyRecordId:null,
       importantEvents:[],_captainEventSeq:0,
       objectives:[
@@ -49,6 +50,7 @@ function createState(areaKey){
     },
     map:{cellSizeNm:5,exploredCells:{},ownshipTrail:[],plottedCourse:[],
       estimatedPosition:{xNm:0,yNm:0},lastTrailSampleTime:-999,autoFollowPlot:true,
+      interceptPlot:null,intelFitRequest:null,intelContextSeq:0,
       recenterSeq:0,weatherOverlay:false},
     world:{
       contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
@@ -63,10 +65,12 @@ function createState(areaKey){
         searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0},
       depthCharges:[],
       harbor:null,harborInitialized:false,harborIntel:null,
+      chartBounds,
       terrain,
       portScenes:materializePortScenes(area),
       ports:area.ports,
       convoyRoutes:area.convoyRoutes,
+      navigationCorridors:(area.navigationCorridors||[]).map(c=>({...c,points:(c.points||[]).map(p=>({...p}))})),
       shallowZones:terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF')
     },
     playerSub:{

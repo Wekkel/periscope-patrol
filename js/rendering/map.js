@@ -2,12 +2,20 @@ class CanvasView extends CanvasViewSound {
   drawMap(ctx,w,h,state){
     const sub=state.playerSub, map=state.map, k=this.k;
     this._mapViewport={w,h};
-    const fit=map.intelFitRequest;
+    const intelContextSeq=map.intelContextSeq||0;
+    if(this._intelContextSeq!==intelContextSeq){
+      this._intelContextSeq=intelContextSeq;
+      this._intelFitSeq=null;this._intelFocusUntil=0;
+    }
+    const fit=map.intelFitRequest?.historyId&&map.intelFitRequest.historyId!==state.campaign?.historyId?null:map.intelFitRequest;
     if(fit&&this._intelFitSeq!==fit.seq){
       this._intelFitSeq=fit.seq;
       const dx=Math.abs(fit.estimate.xNm-fit.own.xNm),dy=Math.abs(fit.estimate.yNm-fit.own.yNm);
-      this.zoom=clamp(Math.min((w*.68)/Math.max(3,dx),(h*.62)/Math.max(3,dy)),this.minZoom,this.maxZoom);
-      this.mapCenter.xNm=(fit.estimate.xNm+fit.own.xNm)/2;this.mapCenter.yNm=(fit.estimate.yNm+fit.own.yNm)/2;this.follow=false;
+      const touch=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch',left=touch?74*k:38*k,right=touch?96*k:38*k,top=touch?74*k:42*k,bottom=touch?72*k:42*k;
+      this.zoom=clamp(Math.min((w-left-right)/Math.max(4,dx),(h-top-bottom)/Math.max(4,dy)),this.minZoom,this.maxZoom);
+      const mx=(fit.estimate.xNm+fit.own.xNm)/2,my=(fit.estimate.yNm+fit.own.yNm)/2,targetX=(left+w-right)/2,targetY=(top+h-bottom)/2;
+      this.mapCenter.xNm=mx-(targetX-w/2)/this.zoom;this.mapCenter.yNm=my-(targetY-h/2)/this.zoom;this.follow=false;
+      this._intelFocusUntil=(typeof performance!=='undefined'?performance.now():Date.now())+4200;
     }
     const pxPerNm=this.zoom;
     // NEW_PATROL raises a state-side recenter sequence. Consume it here rather
@@ -57,6 +65,7 @@ class CanvasView extends CanvasViewSound {
 
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
     this._mapFixedLabelRects=[];
+    this.drawNavigationCorridors(ctx,state.world.navigationCorridors||[],w2s);
     this.drawMapWeather(ctx,state,w2s,w,h);
     this.drawMapPortScenes(ctx,state.world.portScenes||[],w2s);
     this.drawMapPorts(ctx,state.world.ports,w2s);
@@ -129,14 +138,17 @@ class CanvasView extends CanvasViewSound {
     ctx.fillStyle='rgba(215,245,231,.8)';ctx.font=this.fnt(8.5);ctx.textAlign='center';
     ctx.fillText(`${nm} nm`,sbx+sbw/2,sby-6*k);ctx.textAlign='left';
 
+    const wall=typeof performance!=='undefined'?performance.now():Date.now();
+    if(this._intelFocusUntil>wall){const label='MAP FOCUS · OWN BOAT + INTEL ESTIMATE';ctx.font=this.fnt(7.5,true);const bw=ctx.measureText(label).width+14*k,x=(w-bw)/2,y=8*k;ctx.fillStyle='rgba(4,15,18,.88)';this.rr(ctx,x,y,bw,19*k,4*k);ctx.fill();ctx.strokeStyle='rgba(111,224,143,.45)';ctx.stroke();ctx.fillStyle='rgba(190,240,215,.95)';ctx.textAlign='center';ctx.fillText(label,w/2,y+13*k);ctx.textAlign='left';}
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
   }
 
   drawInterceptAdvice(ctx,state,w2s,w,h){
     const p=state.map?.interceptPlot;if(!p?.point)return;
-    const K=this.k,a=w2s(state.playerSub.position.xNm,state.playerSub.position.yNm),b=w2s(p.point.xNm,p.point.yNm);
+    if(p.historyId&&p.historyId!==state.campaign?.historyId)return;
+    const K=this.k,path=(p.waterPath?.length>1?p.waterPath:[state.playerSub.position,p.point]).map(q=>w2s(q.xNm,q.yNm)),b=path.at(-1);
     ctx.save();ctx.strokeStyle='rgba(111,224,143,.8)';ctx.fillStyle='rgba(111,224,143,.9)';ctx.lineWidth=Math.max(1,1.5*K);ctx.setLineDash([7*K,5*K]);
-    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.arc(b.x,b.y,5*K,0,Math.PI*2);ctx.stroke();
+    ctx.beginPath();path.forEach((q,i)=>i?ctx.lineTo(q.x,q.y):ctx.moveTo(q.x,q.y));ctx.stroke();ctx.setLineDash([]);ctx.beginPath();ctx.arc(b.x,b.y,5*K,0,Math.PI*2);ctx.stroke();
     const age=Math.max(0,state.time.elapsedSeconds-(p.sourceReceivedAt||p.createdAt||0)),eta=p.timeSec<3600?`${Math.round(p.timeSec/60)}m`:`${(p.timeSec/3600).toFixed(1)}h`;
     const label=`ADVICE ${fmtDeg(p.courseDeg)} · ETA ${eta} · ±${Number(p.uncertaintyNm||0).toFixed(1)} NM · ${age<60?Math.round(age)+'s':Math.round(age/60)+'m'} OLD · HELM UNCHANGED`;
     ctx.font=this.fnt(7.5,true);const bw=Math.min(w-16*K,ctx.measureText(label).width+16*K),x=w-bw-8*K,y=34*K;
@@ -362,7 +374,7 @@ class CanvasView extends CanvasViewSound {
      margin where the boat is considered to be standing out of it shaded. */
   drawAreaBounds(ctx,state,w2s){
     const B=this._bathy; if(!B) return;
-    const A={x0:B.x0,y0:B.y0,x1:B.x0+(B.nx-1)*B.cell,y1:B.y0+(B.ny-1)*B.cell};
+    const A=state.world.chartBounds||{x0:B.x0,y0:B.y0,x1:B.x0+(B.nx-1)*B.cell,y1:B.y0+(B.ny-1)*B.cell};
     const p=w2s(A.x0,A.y0), q=w2s(A.x1,A.y1);
     const m0=w2s(A.x0+6,A.y0+6), m1=w2s(A.x1-6,A.y1-6);
     ctx.save();
@@ -507,6 +519,16 @@ class CanvasView extends CanvasViewSound {
         const c=w2s(b.cx,b.cy),cx=c.x,cy=c.y;
         if(cx>-120&&cx<this.w+120&&cy>-60&&cy<this.h+60){ctx.fillStyle='rgba(226,238,180,0.8)';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(f.name.toUpperCase(),cx,cy);if(f.peakM>500){ctx.fillStyle='rgba(226,238,180,0.5)';ctx.font=this.fnt(7.5);ctx.fillText(`▲ ${f.peakM} m`,cx,cy+10*K);}ctx.textAlign='left';}
       }
+    }
+  }
+
+  drawNavigationCorridors(ctx,corridors,w2s){
+    const K=this.k;for(const corridor of corridors){const pts=corridor.points||[];if(pts.length<2)continue;
+      const P=pts.map(p=>w2s(p.xNm,p.yNm)),friendly=corridor.side!=='ENEMY',col=friendly?'111,224,143':'245,198,92',half=Math.max(3*K,(Number(corridor.widthNm)||1.2)*this.zoom*.5);
+      ctx.save();ctx.lineJoin='round';ctx.lineCap='round';ctx.strokeStyle=`rgba(${col},.10)`;ctx.lineWidth=Math.max(2,half*2);ctx.setLineDash([12*K,9*K]);ctx.beginPath();P.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();
+      ctx.strokeStyle=`rgba(${col},.54)`;ctx.lineWidth=Math.max(1,1.15*K);ctx.setLineDash([5*K,6*K]);ctx.beginPath();P.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.setLineDash([]);
+      const a=P[0],b=P[1],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,nx=-uy,ny=ux,tip={x:a.x+ux*14*K,y:a.y+uy*14*K};ctx.strokeStyle=`rgba(${col},.72)`;ctx.lineWidth=Math.max(1,1.25*K);ctx.beginPath();ctx.moveTo(tip.x,tip.y);ctx.lineTo(tip.x-ux*7*K+nx*4*K,tip.y-uy*7*K+ny*4*K);ctx.moveTo(tip.x,tip.y);ctx.lineTo(tip.x-ux*7*K-nx*4*K,tip.y-uy*7*K-ny*4*K);ctx.stroke();
+      const mid=P[(P.length/2)|0];ctx.fillStyle=`rgba(${col},.78)`;ctx.font=this.fnt(7.2,true);ctx.textAlign='center';ctx.fillText(String(corridor.label||'CHARTED APPROACH').toUpperCase(),mid.x,mid.y-7*K);ctx.textAlign='left';ctx.restore();
     }
   }
 
@@ -1008,7 +1030,12 @@ class CanvasView extends CanvasViewSound {
             Math.max(12*K,(tr.visualTransitionUncertaintyNm||.25)*this.zoom*K),K,false,a*fade,ownScreen);
         }
         const iconType=this._mapIconType(tr.contactType),isEsc=['ESCORT','CRUISER','CARRIER'].includes(iconType);
-        const shipCol=tr.affiliation==='FRIENDLY'?'#6fe08f':tr.affiliation==='NEUTRAL'?'#9ec9d3':isEsc?'#ef6a58':'#f5c65c';
+        /* Red means an observed immediate prosecution, not merely "enemy".
+           A confirmed hostile escort that is unaware/searching stays amber;
+           only behaviour the crew can actually see may promote it to red. */
+        const activeThreat=tr.affiliation==='ENEMY'&&isEsc&&liveVisual&&state?.world?.enemy?.alertState==='ATTACKING'&&
+          (contact?.aswRole==='PROSECUTOR'||contact?.sonarContact||state.world.enemy.visualOnSub);
+        const shipCol=tr.affiliation==='FRIENDLY'?'#6fe08f':tr.affiliation==='NEUTRAL'?'#9ec9d3':activeThreat?'#ef6a58':isEsc?'#e6a055':'#f5c65c';
         if(isSelected)this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
           '#6fe08f',K,`${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
         const lenNm=shipVisualLengthNm(tr,isEsc?300:450);

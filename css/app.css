@@ -469,6 +469,14 @@
 
     #briefingOverlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;
       display:flex;align-items:center;justify-content:center;padding:14px;}
+    .decision-overlay{position:fixed;inset:0;z-index:420;display:grid;place-items:center;padding:18px;background:rgba(0,7,9,.84);backdrop-filter:blur(3px);}
+    .decision-box{width:min(440px,100%);border:1px solid var(--line2);border-top:3px solid var(--alert);border-radius:8px;padding:18px;background:linear-gradient(180deg,#10262c,#061317);box-shadow:0 18px 54px rgba(0,0,0,.62),inset 0 1px rgba(255,255,255,.04);}
+    .decision-kicker{color:var(--dim);font-size:8px;letter-spacing:1.6px;margin-bottom:6px;}
+    .decision-box h2{margin:0;color:var(--alert);font-size:16px;letter-spacing:1.7px;}
+    .decision-box p{margin:12px 0 18px;color:var(--ink);font-size:11px;line-height:1.55;}
+    .decision-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+    .decision-actions button{margin:0;min-height:44px;font-size:10px;}
+    .decision-actions .confirm{border-color:var(--ok);color:var(--ok);}.decision-actions .danger{border-color:var(--danger);color:var(--danger);}
     #briefingBox{background:#0a191e;border:1px solid var(--alert);border-radius:10px;padding:22px 24px;
       max-width:520px;width:100%;max-height:88vh;overflow-y:auto;}
     #briefingBox h2{color:var(--alert);font-size:14px;letter-spacing:2px;margin-bottom:14px;}
@@ -938,6 +946,15 @@
     .intel-age{flex:0 0 auto;font-size:9.5px;text-align:right;line-height:1.35;}
     .intel-age .fresh{color:var(--ok);} .intel-age .stale{color:var(--alert);}
     .intel-age .cold{color:var(--danger);}
+    @media(max-width:560px){
+      .intel-row{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:start;gap:4px 8px;}
+      .intel-rng{grid-row:1 / span 2;align-self:center;}
+      .intel-main{grid-column:2;min-width:0;}
+      .intel-main b{white-space:normal;overflow:visible;}
+      .intel-age{grid-column:2;min-width:0;text-align:left;overflow-wrap:anywhere;}
+      .intel-age br{display:none;}
+      .intel-age span+span::before{content:' · ';color:var(--dim);}
+    }
     .intel-empty{font-size:11px;color:var(--dim);padding:4px 2px;}
     .intel-ic{display:block;margin-top:2px;font-size:10px;}
     .intel-ic b{font-weight:bold;letter-spacing:.4px;}
@@ -1193,7 +1210,14 @@ html[data-lay="desk"] #stationTabs{
   border-radius:7px;background:rgba(4,15,19,.55);padding:3px;
 }
 html[data-lay="desk"] #stationTabs button{padding:5px 7px;font-size:9px;letter-spacing:.45px;}
-html[data-lay="desk"] #deskScopeControls{display:none;position:absolute;z-index:9;left:50%;bottom:34px;transform:translateX(-50%);gap:5px;padding:4px;border:1px solid var(--line);border-radius:8px;background:rgba(3,17,21,.88);}
+#deskScopeControls{display:none;}
+/* #deskCanvas is re-parented into #tStage for the touch shell. Keep this
+   desktop-only periscope strip out of the mobile accessibility and paint trees
+   even if a partially stale client stylesheet would otherwise expose it. */
+#deskScopeControls[hidden]{display:none!important;}
+html[data-lay="touch"]{--pp-touch-ui-contract:'touch-scope-hidden-v1';}
+html[data-lay="touch"] #deskScopeControls{display:none!important;visibility:hidden!important;pointer-events:none!important;}
+html[data-lay="desk"] #deskScopeControls{position:absolute;z-index:9;left:50%;bottom:34px;transform:translateX(-50%);gap:5px;padding:4px;border:1px solid var(--line);border-radius:8px;background:rgba(3,17,21,.88);}
 html[data-lay="desk"][data-station="PERISCOPE"] #deskScopeControls{display:flex;}
 html[data-lay="desk"] #deskScopeControls button{width:auto;min-width:78px;margin:0;padding:8px 10px;font-size:10px;}
 html[data-lay="desk"] #deskRight{min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;gap:5px;}

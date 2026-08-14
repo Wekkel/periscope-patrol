@@ -23,6 +23,15 @@ function rerollPatrolThermalLayer(env,nominalFt=null){
   const rolled=makePatrolEnvironment(base);env.layerNominalDepthFt=rolled.layerNominalDepthFt;env.layerDepthFt=rolled.layerDepthFt;return env;
 }
 
+/* Patrol limits are gameplay geography, not a by-product of the outermost
+   coastline polygon. Sparse-ocean charts may have land on only one side; the
+   playable chart must still contain its spawn, rendezvous and patrol routes. */
+const DEFAULT_PATROL_CHART_BOUNDS=Object.freeze({x0:-172.5,y0:-172.5,x1:172.5,y1:172.5});
+function patrolChartBounds(area){
+  const b=area?.chartBounds||DEFAULT_PATROL_CHART_BOUNDS;
+  return{x0:Number(b.x0),y0:Number(b.y0),x1:Number(b.x1),y1:Number(b.y1)};
+}
+
 const PATROL_AREAS={
   'Solomon Sea':{
     description:'Vital Japanese supply route to Guadalcanal. Heavy convoy traffic expected.',terrainKey:'Solomon Sea',
@@ -76,6 +85,15 @@ const PATROL_AREAS={
     ports:[{name:'Nemuro',pos:{xNm:25,yNm:16},side:'ENEMY'},{name:'Kushiro',pos:{xNm:-27,yNm:37},side:'ENEMY'},{name:'Submarine rendezvous',pos:{xNm:87,yNm:108},side:'FRIENDLY'}],
     environment:{daylight:.58,visibilityNm:11,seaState:.52,layerDepthFt:225,weather:'COLD OVERCAST'},convoySpeedRange:[7,11],convoyCountRange:[2,5],difficulty:'MEDIUM'}
 };
+
+function materializePatrolTerrain(area){
+  const terrain=getPatrolTerrain(area?.terrainKey||'').slice();
+  /* Bathymetry must cover the authored patrol chart, not merely the extent of
+     islands currently visible on it. The copied array keeps this per-patrol
+     metadata out of the one-entry terrain cache. */
+  Object.defineProperty(terrain,'chartBounds',{value:patrolChartBounds(area),enumerable:false});
+  return terrain;
+}
 
 /* Cheap port dress is materialized once. It is visual/navigation context, not
    a permanent population of AI vessels. Offsets are deterministic so save/load

@@ -51,7 +51,13 @@ const SaveSystem={
   },
 
   _normalizeLoadedState(state){
-    if(!state)return state;const obs=state.tactical?.impactObservation;if(obs){state.tactical.impactObservation=null;if((state.time?.timeScale??0)===0)state.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}return state;
+    if(!state)return state;const obs=state.tactical?.impactObservation;if(obs){state.tactical.impactObservation=null;if((state.time?.timeScale??0)===0)state.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}
+    const area=PATROL_AREAS[state.campaign?.patrolArea];
+    if(area&&state.world){
+      state.world.chartBounds=patrolChartBounds(area);
+      if(Array.isArray(state.world.terrain))Object.defineProperty(state.world.terrain,'chartBounds',{value:state.world.chartBounds,enumerable:false,configurable:true});
+    }
+    return state;
   },
 
   _careerDefault(){return{version:2,totalScore:0,totalTonnage:0,totalShips:0,patrolHistory:[],commendations:[],legacyPatrols:0};},

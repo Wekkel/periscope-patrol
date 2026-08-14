@@ -31,7 +31,11 @@ const PP_BUILD=(()=>{
   const isDev=/(?:^|\/)dev(?:\/|$)/i.test(path);
   const storagePrefix=isDev?'ppdev_':'';
   const api={channel:isDev?'atlantic-dev':'production',isDev,storagePrefix,
-    storageKey:key=>storagePrefix+String(key)};
+    storageKey:key=>storagePrefix+String(key),
+    touchUiContract:()=>{
+      try{return getComputedStyle(document.documentElement).getPropertyValue('--pp-touch-ui-contract').trim().replace(/^['"]|['"]$/g,'')||'missing';}
+      catch(_){return 'unavailable';}
+    }};
   return Object.freeze(api);
 })();
 globalThis.PP_BUILD=PP_BUILD;
@@ -48,4 +52,3 @@ if(typeof document!=='undefined'){
 // has no snorkel, but a depth controller hovering at 2–5 ft must not strand her.
 const DIESEL_CUTOFF_FT=12;
 const DIESEL_RESTART_FT=8;
-
