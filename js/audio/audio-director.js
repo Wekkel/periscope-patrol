@@ -61,7 +61,8 @@ class AudioDirector{
       else if(now-this.lastASWReminderAt>19000){this.engine.playASWAlarm?.(true);this.lastASWReminderAt=now;}
     }
     if(this.previewState&&now<this.previewUntil)q={...q,...this.previewState};else if(this.previewState){this.previewState=null;this.previewUntil=0;}
-    this.state=q;this.engine.setAmbient?.(s.playerSub?.depthFeet||0,!!s.playerSub?.stealth?.silentRunning,s.playerSub?.propulsion);this.engine.setBattleAmbience?.(s);this.engine.applyMixProfile?.(this._profile(q));
+    const identity=this.engine._soundProfile?.(s)||null;
+    this.state=q;this.engine.setAmbient?.(s.playerSub?.depthFeet||0,!!s.playerSub?.stealth?.silentRunning,s.playerSub?.propulsion,identity);this.engine.setBattleAmbience?.(s);this.engine.applyMixProfile?.(this._profile(q));
   }
 
   preview(base='SILENT_RUNNING',threat='NONE',perspective=null,durationMs=8000){this.previewState={base,threat};if(perspective)this.previewState.perspective=perspective;this.previewUntil=performance.now()+Math.max(500,durationMs);return{...this.previewState,untilMs:durationMs};}

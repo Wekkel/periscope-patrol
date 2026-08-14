@@ -32,6 +32,8 @@ const SaveSystem={
       truthTracks:(replay.truthTracks||[]).slice(0,16).map(compactTrack),
       events:this._decimateArray(replay.events||[],140),
       torpedoes:(replay.torpedoes||[]).slice(-40),
+      gunRounds:(replay.gunRounds||[]).slice(-60),
+      enemyResponses:(replay.enemyResponses||[]).slice(-40),
       aircraftEvaded:Number(replay.aircraftEvaded)||0};
   },
 
@@ -332,4 +334,3 @@ const SaveSystem={
 
   autoClear(){this._importedResumePending=false;try{localStorage.removeItem(this.AUTO);}catch{}}
 };
-

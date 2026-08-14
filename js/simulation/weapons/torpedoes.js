@@ -66,7 +66,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     const willDud=Math.random()<dudChance;
 
     W.activeTorpedoes.push({
-      id:tid, specKey:tdc.torpedoSpecKey, specName:spec.name,
+      id:tid,tubeId:t.id,tubePos:t.pos,specKey:tdc.torpedoSpecKey, specName:spec.name,
       position:{...sub.position}, heading:launchBear,
       // Observation/TDC uncertainty belongs in solutionQuality; the gyro arc
       // itself is deterministic and already solved above. At 100% solution a
@@ -262,6 +262,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
           const angOff=Math.abs(shortDelta(t.heading,shipHeading));
           const incidence=Math.min(angOff,180-angOff);      // 90° = square hit on the beam
           const where=hitFrac>0.22?'bow':hitFrac<-0.22?'stern':'amidships';
+          const spec=TORPEDO_SPECS[t.specKey]||{};
           if(c.harborTarget) this.noteHarborAttack?.(c);
 
           // A very shallow track angle and the warhead simply glances off the
@@ -270,7 +271,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
             const pGlance=clamp((22-incidence)/22,0,1)*0.85;
             if(t.glanceRoll<pGlance){
               t.status='DEFLECTED';this.aarTorpedoFinish?.(t,'DEFLECTED',c.id);
-              W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'GLANCED OFF',kind:'dud'});
+              W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'GLANCED OFF',kind:'dud',targetId:c.id,impactSide:lateral>=0?1:-1,incidenceDeg:incidence,warheadKg:spec.warheadKg||292});
               this.log(`${t.id} struck ${c.name} at ${incidence.toFixed(0)}° and GLANCED OFF the hull — no detonation. Fire nearer the beam.`,'bad');
               this.alertEscorts('TORPEDO_DUD',{...t.position},0.5);
               audio.playDud();
@@ -280,7 +281,6 @@ class SimEngineTorpedoes extends SimEngineHarbor {
           // The Mark 14's contact exploder was crushed by its own inertia on a
           // square hit — oblique shots actually fired more reliably. That is
           // modelled here: perpendicular impacts raise the dud chance.
-          const spec=TORPEDO_SPECS[t.specKey]||{};
           const angleFactor=(spec.dudChanceBase>=0.2)
             ? 0.7+0.9*Math.pow(incidence/90,2)              // Mk14/23 family
             : 0.9+0.2*Math.pow(incidence/90,2);
@@ -288,7 +288,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
           if(t.dudRoll<pDud){
             t.status='DUD';this.aarTorpedoFinish?.(t,'DUD',c.id);
             W.duds.push({torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds});
-            W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:6,label:'DUD',kind:'dud'});
+            W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:6,label:'DUD',kind:'dud',targetId:c.id,impactSide:lateral>=0?1:-1,incidenceDeg:incidence,warheadKg:spec.warheadKg||292});
             const why=incidence>70&&spec.dudChanceBase>=0.2
               ? 'Contact exploder crushed — a square hit. Oblique tracks fire more reliably.'
               : `${t.specName} exploder failure.`;
@@ -303,7 +303,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
               warheadKg:spec.warheadKg||292,torpedoId:t.id,specKey:t.specKey});
             W.hits.push({weapon:'TORPEDO',torpedoId:t.id,contactId:c.id,t:this.state.time.elapsedSeconds,
               location:dmg.location});
-            W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:true,targetLengthFeet:Number(c.lengthYards)||300});
+            W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:true,targetId:c.id,targetLengthFeet:Number(c.lengthYards)||300,impactSide:c.hitSide,incidenceDeg:incidence,warheadKg:spec.warheadKg||292});
             particles.spawnExplosion(t.position.xNm,t.position.yNm,2.35,true);
             const automaticImpactView=['PERISCOPE','BRIDGE'].includes(this.state.tactical.activeStation);if(!automaticImpactView)audio.playTorpedoHit?.();
             if(c.harborTarget)this.noteHarborAttack?.(c);
@@ -317,7 +317,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
               {torpedoId:t.id,contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,location:dmg.location,
                incidenceDeg:Math.round(incidence),condition,weapon:'TORPEDO'},this.state.playerSub.position,shipPosition);
             this.offerImpactObservation?.(c,{weapon:'TORPEDO',location:dmg.location,condition,beforeShip,impactPosition:{...t.position},
-              targetPosition:{...shipPosition},targetHeading:shipHeading,torpedoHeading:t.heading,
+              targetPosition:{...shipPosition},targetHeading:shipHeading,torpedoHeading:t.heading,impactSide:c.hitSide,incidenceDeg:incidence,warheadKg:spec.warheadKg||292,
               torpedoWakePath:this.torpedoWakeForPreImpact(t,.48,1.5),torpedoWakeNm:Math.min(.48,Math.max(.10,t.rangeRunNm||0)),torpedoWakeVisible:!t.isElectric});
             if(!c.sunk){
               const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));

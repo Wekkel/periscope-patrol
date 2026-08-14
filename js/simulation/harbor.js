@@ -7,6 +7,7 @@ class SimEngineHarbor extends SimEngineCore {
      once per patrol and then stay where they are. */
   ensureWorldExtensions(){
     const W=this.state.world, G=this.state.weapons, C=this.state.campaign;
+    if(!Array.isArray(W.portScenes))W.portScenes=materializePortScenes(PATROL_AREAS[C.patrolArea]);
     if(!Array.isArray(C.optionalObjectives)) C.optionalObjectives=[]; // migrate pre-Phase-2 saves
     if(W.harborInitialized===undefined) W.harborInitialized=false; // migrate old saves
     if(!G.deckGun) G.deckGun={manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};

@@ -48,6 +48,7 @@ class CanvasView extends CanvasViewSound {
 
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
     this.drawMapWeather(ctx,state,w2s,w,h);
+    this.drawMapPortScenes(ctx,state.world.portScenes||[],w2s);
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
     this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds,state.campaign);
@@ -561,6 +562,16 @@ class CanvasView extends CanvasViewSound {
       ctx.font=this.fnt(7.5);
       ctx.fillText(friendly?'FRIENDLY PORT':'ENEMY PORT',p.x,p.y+22);
       ctx.textAlign='left';
+    }
+  }
+
+  drawMapPortScenes(ctx,scenes,w2s){
+    const K=this.k;for(const scene of scenes){if(!scene.known)continue;const c=w2s(scene.position.xNm,scene.position.yNm),a=degToRad(scene.heading||0),sin=Math.sin(a),cos=Math.cos(a);
+      ctx.save();ctx.strokeStyle=scene.side==='FRIENDLY'?'rgba(111,224,143,.38)':'rgba(227,107,93,.38)';ctx.fillStyle='rgba(205,215,190,.30)';ctx.lineWidth=Math.max(1,K);
+      for(const f of scene.features||[]){const x=c.x+(sin*f.alongNm+cos*f.lateralNm)*this.zoom,y=c.y+(-cos*f.alongNm+sin*f.lateralNm)*this.zoom;
+        if(f.kind==='pier'){ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(x,y);ctx.stroke();}
+        else{const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));ctx.fillRect(x-s*.5,y-s*.35,s,s*.7);}}
+      ctx.restore();
     }
   }
 

@@ -11,9 +11,8 @@
   <meta name="description" content="A World War II fleet submarine simulator: stalk convoys, work the TDC, and take her down before the escorts find you."/>
   <meta name="apple-mobile-web-app-title" content="Periscope"/>
   <link rel="manifest" href="./manifest.webmanifest"/>
-  <link rel="icon" href="./periscope-patrol-icon-192-v2.png" type="image/png">
-  <link rel="apple-touch-icon" href="./periscope-patrol-apple-touch-icon-v2.png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png"/>
+  <link rel="icon" href="./periscope-patrol-icon-192-v3.png" type="image/png">
+  <link rel="apple-touch-icon" href="./periscope-patrol-apple-touch-icon-v3.png">
   <link rel="stylesheet" href="./css/app.css"/>
 </head>
 <body>
@@ -246,12 +245,17 @@
     <div class="aar-main">
       <section class="aar-debrief">
         <div id="aarMission" class="aar-mission"></div>
+        <div class="aar-section-head"><div><span>PATROL PLOT</span><small>Player knowledge is the default reconstruction</small></div><button id="aarTruthToggle" class="aar-truth" type="button">OMNISCIENT: OFF</button></div>
+        <div id="aarRouteMap" class="aar-route-map"></div>
         <div class="aar-section-head">
           <div><span>ENGAGEMENT RECORD</span><small>Swipe or use the arrows to review damaged and sunk ships.</small></div>
           <div class="aar-engagement-nav"><button id="aarEngagementPrev" aria-label="Previous engagement">‹</button><b id="aarEngagementCounter">0 / 0</b><button id="aarEngagementNext" aria-label="Next engagement">›</button></div>
         </div>
         <div id="aarEngagementPanel" class="aar-engagement-panel"><div id="aarEngagements"></div></div>
         <div id="aarPatrolHonors" class="aar-honors"></div>
+        <div id="aarOwnBoat" class="aar-detail-grid"></div>
+        <div id="aarWeapons" class="aar-weapons"></div>
+        <div id="aarLessons" class="aar-lessons"></div>
       </section>
       <aside class="aar-log"><h3>CAPTAIN'S LOG</h3><div id="aarCaptainLog"></div></aside>
     </div>

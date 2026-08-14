@@ -390,19 +390,20 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     const touchSafe=(typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch')?this.touchOverlaySafe:null;
     const hudY=Math.max(8*k,(touchSafe?.top||0)+3*k),hudW=Math.min(270*k,w-16*k);
     ctx.fillStyle='rgba(3,13,16,.78)';this.rr(ctx,8*k,hudY,hudW,72*k,6*k);ctx.fill();
-    ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText('3\"/50 DECK GUN',16*k,hudY+17*k);
+    const gun=typeof deckGunSpecForState==='function'?deckGunSpecForState(state):{shortLabel:'3-IN/50',maxRangeNm:globalThis.DECK_GUN_MAX_RANGE_NM||7.2};
+    ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText(`${gun.shortLabel} DECK GUN`,16*k,hudY+17*k);
     ctx.font=this.fnt(8.5);ctx.fillStyle='rgba(210,235,224,.88)';
     ctx.fillText(`BRG ${fmtDeg(bearing)} · TRAIN ${(G?.trainDeg||0).toFixed(1)}° · ELEV ${(G?.elevationDeg||0).toFixed(1)}°`,16*k,hudY+33*k);
     ctx.fillStyle=G?.ammoFlashUntil>t?'#f5c65c':'rgba(210,235,224,.88)';ctx.fillText(`AMMO ${G?.ammo??0} · ${G?.manned?'CREW TOPSIDE':'GUN NOT MANNED'} · drag to aim`,16*k,hudY+48*k);
     const tgt=state.tactical.selectedTrackId&&state.world.contacts.find(c=>c.id===state.tactical.selectedTrackId&&!c.sunk);
     if(tgt){
-      const targetRange=distNm(sub.position,tgt.position),maxRange=globalThis.DECK_GUN_MAX_RANGE_NM||7.2;
+      const targetRange=distNm(sub.position,tgt.position),maxRange=gun.maxRangeNm;
       ctx.fillStyle=targetRange>maxRange?'rgba(239,106,88,.98)':'rgba(245,198,92,.95)';
       ctx.fillText(targetRange>maxRange
         ? `TARGET ${tgt.id} · ${targetRange.toFixed(2)} nm · OUT OF RANGE > ${maxRange.toFixed(1)} NM`
         : `TARGET ${tgt.id} · ${targetRange.toFixed(2)} nm · LAY available`,16*k,hudY+63*k);
     }
-    if(G?.ammoFlashUntil>t){const aw=Math.min(185*k,w-24*k),ax=(w-aw)/2,ay=Math.min(h-72*k,hudY+80*k);ctx.fillStyle='rgba(3,13,16,.86)';this.rr(ctx,ax,ay,aw,25*k,5*k);ctx.fill();ctx.strokeStyle='rgba(245,198,92,.72)';ctx.stroke();ctx.fillStyle='#f5c65c';ctx.font=this.fnt(9.5,true);ctx.textAlign='center';ctx.fillText(`3-IN GUN · ${G.ammoFlashCount??G.ammo} RDS`,w/2,ay+17*k);ctx.textAlign='left';}
+    if(G?.ammoFlashUntil>t){const aw=Math.min(205*k,w-24*k),ax=(w-aw)/2,ay=Math.min(h-72*k,hudY+80*k);ctx.fillStyle='rgba(3,13,16,.86)';this.rr(ctx,ax,ay,aw,25*k,5*k);ctx.fill();ctx.strokeStyle='rgba(245,198,92,.72)';ctx.stroke();ctx.fillStyle='#f5c65c';ctx.font=this.fnt(9.5,true);ctx.textAlign='center';ctx.fillText(`${gun.shortLabel} · ${G.ammoFlashCount??G.ammo} RDS`,w/2,ay+17*k);ctx.textAlign='left';}
     if(G?.lastFall&&G.lastFall.until>t){
       ctx.font=this.fnt(11,true);ctx.textAlign='center';ctx.fillStyle=/HIT|SUNK/.test(G.lastFall.text)?'#6fe08f':'#f5c65c';
       ctx.fillText(G.lastFall.text,cx,Math.min(h-86*k,crossY+70*k));ctx.textAlign='left';

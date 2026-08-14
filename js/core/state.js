@@ -64,6 +64,7 @@ function createState(areaKey){
       depthCharges:[],
       harbor:null,harborInitialized:false,harborIntel:null,
       terrain,
+      portScenes:materializePortScenes(area),
       ports:area.ports,
       convoyRoutes:area.convoyRoutes,
       shallowZones:terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF')
@@ -83,4 +84,3 @@ function createState(areaKey){
     }
   };
 }
-

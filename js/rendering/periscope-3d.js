@@ -90,7 +90,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       // cinematic effects may advance on wall-clock time while simulation stays paused.
       time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+Math.max(0,impactAge)},
       world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
-      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`,big:String(obs.weapon||'TORPEDO').toUpperCase()==='TORPEDO',targetLengthFeet:Number(target.lengthYards)||300}]}};
+      weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`,big:String(obs.weapon||'TORPEDO').toUpperCase()==='TORPEDO',targetLengthFeet:Number(target.lengthYards)||300,warheadKg:Number(obs.warheadKg)||292,impactSide:obs.impactSide,incidenceDeg:obs.incidenceDeg}]}};
     const cam=this.setupCam(viewState,fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'IMPACT',viewW:w,viewH:h});this.impactCam=cam;
 
     ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);
@@ -1711,7 +1711,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const sc=cam.f/p.d;                                   // pixels per metre
       const dud=e.kind==='dud'||/DUD|GLANCED/.test(e.label||'');
       const age=e.ageSec, tt=clamp(age/e.maxAgeSec,0,1);
-      const big=e.big?1.35:1;
+      const warheadScale=clamp(Math.sqrt((Number(e.warheadKg)||292)/292),.82,1.18),big=(e.big?1.35:1)*warheadScale;
       const hs=(i,s)=>{const v=Math.sin(i*127.1+s*311.7+(e.position.xNm*13.3))*43758.5453;return v-Math.floor(v);};
       ctx.save();
       if(gunHit&&!dud){
