@@ -137,7 +137,15 @@ window.addEventListener('keydown',e=>{
 // Audio needs a user gesture. The title identity belongs to a true app opening:
 // play it once after unlock, then let MISSION_START fade it instead of replaying
 // it every time the player starts another patrol in the same app session.
-document.addEventListener('pointerdown',()=>{audio.resumeFromGesture?.();audio.playTitleCue?.('START');},{once:true});
+(()=>{
+  const events=['pointerdown','touchstart','mousedown','keydown','click'];
+  const unlock=e=>{
+    Promise.resolve(audio.resumeFromGesture?.(e.type)).then(running=>{
+      if(running){events.forEach(type=>document.removeEventListener(type,unlock,true));audio.playTitleCue?.('START');}
+    });
+  };
+  events.forEach(type=>document.addEventListener(type,unlock,{capture:true,passive:true}));
+})();
 
 // Audio settings are profile-independent device preferences: a phone and a
 // tablet may need very different output levels. Keep them outside patrol saves.
@@ -177,7 +185,9 @@ function refreshDiag(){
     ` · build ${PP_BUILD.isDev?'AD DEV':'PROD'}`+
     (d?` · tabbar bottom ${d.tabsBottom}/${d.viewport}${d.overflow>2?' ⚠ OFF SCREEN':''}`+
        (d.blockedBy?` · ⚠ covered by ${d.blockedBy}`:' · tabs clear'):'')+
-    ` · pref ${localStorage.getItem(PP_BUILD.storageKey('ss_ui'))||'auto'}`;
+    ` · pref ${localStorage.getItem(PP_BUILD.storageKey('ss_ui'))||'auto'}`+
+    ` · audio ${audio.audioStats?.().context||'none'} · resume ${audio.audioStats?.().gestureResumeAttempts||0}×`+
+    ` (${audio.audioStats?.().lastGestureEvent||'none'})`;
 }
 document.getElementById('mHelpBtn')?.addEventListener('click',()=>setTimeout(refreshDiag,60));
 document.getElementById('tutHelpBtn')?.addEventListener('click',()=>setTimeout(refreshDiag,60));

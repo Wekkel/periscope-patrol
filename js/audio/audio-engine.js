@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════ AUDIO ENGINE
 class AudioEngine{
   constructor(){this.ctx=null;this.enabled=true;this.masterGain=null;this.musicGain=null;this.outputLimiter=null;this.initialized=false;
-    this._gestureResumeRequested=false;
+    this._gestureResumeRequested=false;this.gestureResumeAttempts=0;this.lastGestureEvent=null;
     this.sfxVolume=.62;this.musicVolume=.42;this.noiseBuffer=null;this.sonarVariant=3;
     this.busNodes={};this.mixTargets={system:1,command:1,sensor:1,world:1,machinery:1,weapons:1,mission:1};this.duckUntil=0;this.duckFactor=1;
     this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;this.lastRadio=0;
@@ -49,12 +49,14 @@ class AudioEngine{
     if(!this.initialized)this.init();
   }
 
-  resumeFromGesture(){
+  resumeFromGesture(eventType='unknown'){
     this.ensure();
+    this.gestureResumeAttempts++;this.lastGestureEvent=String(eventType||'unknown');
     if(this.ctx&&this.ctx.state==='suspended'&&!this._gestureResumeRequested){
       this._gestureResumeRequested=true;
-      this.ctx.resume().catch(()=>{this._gestureResumeRequested=false;});
+      return this.ctx.resume().then(()=>true).catch(()=>{this._gestureResumeRequested=false;return false;});
     }
+    return Promise.resolve(this.ctx?.state==='running');
   }
 
   _bus(name='system'){return this.busNodes?.[name]||this.masterGain;}
@@ -392,7 +394,7 @@ class AudioEngine{
     throw new Error(`Unknown audio review sound: ${name}`);
   }
 
-  audioStats(){return{initialized:this.initialized,context:this.ctx?.state||'none',enabled:this.enabled,sonarVariant:this.sonarVariant,sfxVolume:this.sfxVolume,musicVolume:this.musicVolume,sampleRate:this.ctx?.sampleRate||null,sharedNoiseBufferSeconds:this.noiseBuffer?this.noiseBuffer.length/this.noiseBuffer.sampleRate:0,busMix:{...this.mixTargets},hybrid:this.hybridStatus(),duckUntilMs:Math.max(0,(this.duckUntil||0)-performance.now()),lastEnemyPingAgeMs:this.lastEnemyPingAt?performance.now()-this.lastEnemyPingAt:null,nearbyEscort:this.escortMachinery?{id:this.escortMachinery.id,rangeNm:this.escortMachinery.rangeNm}:null};}
+  audioStats(){return{initialized:this.initialized,context:this.ctx?.state||'none',enabled:this.enabled,gestureResumeAttempts:this.gestureResumeAttempts,lastGestureEvent:this.lastGestureEvent,sonarVariant:this.sonarVariant,sfxVolume:this.sfxVolume,musicVolume:this.musicVolume,sampleRate:this.ctx?.sampleRate||null,sharedNoiseBufferSeconds:this.noiseBuffer?this.noiseBuffer.length/this.noiseBuffer.sampleRate:0,busMix:{...this.mixTargets},hybrid:this.hybridStatus(),duckUntilMs:Math.max(0,(this.duckUntil||0)-performance.now()),lastEnemyPingAgeMs:this.lastEnemyPingAt?performance.now()-this.lastEnemyPingAt:null,nearbyEscort:this.escortMachinery?{id:this.escortMachinery.id,rangeNm:this.escortMachinery.rangeNm}:null};}
 
   playDistantGunfire(bearingDeg=null,ownHeading=0,strength=.5){
     this.ensure();const v=clamp(strength,.08,.8);this._noise(.055,64,'sawtooth',.26*v,bearingDeg,ownHeading,'weapons');

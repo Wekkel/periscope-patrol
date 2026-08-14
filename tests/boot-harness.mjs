@@ -48,12 +48,18 @@ let rafId=0;const rafQueue=[];window.requestAnimationFrame=fn=>{if(rafQueue.leng
 const scripts=[...dom.window.document.querySelectorAll('script[src]')].map(s=>s.getAttribute('src'));
 const context=dom.getInternalVMContext();
 for(const src of scripts){const file=src.replace(/^\.\//,'');try{vm.runInContext(await readFile(path.join(root,file),'utf8')+`\n//# sourceURL=${file}`,context,{filename:file});}catch(error){errors.push({kind:'script',file,message:error.message,stack:error.stack});break;}}
-window.document.dispatchEvent(new window.Event('pointerdown',{bubbles:true}));
+const gestureStates=[];
+window.document.dispatchEvent(new window.MouseEvent('mousedown',{bubbles:true,button:0}));
+await Promise.resolve();
+gestureStates.push({event:'mousedown',state:vm.runInContext("typeof audio!=='undefined' ? (audio.ctx?.state||'none') : 'missing'",context)});
+window.document.dispatchEvent(new window.Event('touchstart',{bubbles:true}));
+await Promise.resolve();
+gestureStates.push({event:'touchstart',state:vm.runInContext("typeof audio!=='undefined' ? (audio.ctx?.state||'none') : 'missing'",context)});
 for(let i=0;i<5&&rafQueue.length;i++){const fn=rafQueue.shift();try{fn(i*16.67);}catch(error){errors.push({kind:'raf',message:error.message,stack:error.stack});}}
 const stationResults=[];
 for(const station of [...new Set([...window.document.querySelectorAll('[data-sta]')].map(b=>b.dataset.sta).filter(Boolean))]){const button=[...window.document.querySelectorAll('[data-sta]')].find(b=>b.dataset.sta===station),beforeErrors=errors.length;try{button.dispatchEvent(new window.Event('click',{bubbles:true}));}catch(error){errors.push({kind:'station-dispatch',station,message:error.message,stack:error.stack});}stationResults.push({station,rendered:errors.length===beforeErrors,ok:errors.length===beforeErrors});}
 const gameLoopStarted=errors.every(e=>e.file!=='js/bootstrap/start.js')&&rafId>0;
 const canvases=[...window.document.querySelectorAll('canvas')].map(c=>({id:c.id,width:c.width,height:c.height,clientWidth:c.clientWidth,clientHeight:c.clientHeight}));
 dom.window.close();
-console.log(JSON.stringify({root,firstException:errors[0]||null,errors,gameLoopStarted,drawCalls:draw.count,audioCalls:audio.count,audioMethods:[...audio.methods],drawMethods:[...draw.methods],canvases,stations:stationResults},null,2));
-if(errors.length||!draw.count||!audio.count||canvases.some(c=>c.width<=0||c.height<=0)||stationResults.some(s=>!s.rendered))process.exitCode=1;
+console.log(JSON.stringify({root,firstException:errors[0]||null,errors,gameLoopStarted,drawCalls:draw.count,audioCalls:audio.count,gestureStates,audioMethods:[...audio.methods],drawMethods:[...draw.methods],canvases,stations:stationResults},null,2));
+if(errors.length||!draw.count||!audio.count||gestureStates.some(g=>g.state!=='running')||canvases.some(c=>c.width<=0||c.height<=0)||stationResults.some(s=>!s.rendered))process.exitCode=1;
