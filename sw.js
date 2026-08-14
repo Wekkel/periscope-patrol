@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '1.0.3'; 
+const VERSION = '1.0.4'; 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
@@ -103,15 +103,7 @@ self.addEventListener('install', event => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE);
 
-    // Runtime/app-shell files are mandatory. If one of these cannot be
-    // cached, installation of this service worker must fail rather than
-    // activating an incomplete offline version.
-    const OPTIONAL_SHELL = new Set([
-      './icon-192.png',
-      './icon-512.png',
-      './icon-maskable-512.png',
-      './apple-touch-icon.png'
-    ]);
+    
 
     const required = SHELL.filter(url => !OPTIONAL_SHELL.has(url));
     const optional = SHELL.filter(url => OPTIONAL_SHELL.has(url));
