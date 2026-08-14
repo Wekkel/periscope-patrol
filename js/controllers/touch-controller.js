@@ -168,8 +168,8 @@ class TouchCtrl{
            This also keeps the bridge usable if a migrated save trips a
            simulation subsystem later in the frame. */
         const snap=this.game.getSnapshot();
-        this.cv.render(snap);
-        this.updateTouch(snap,true);
+        this.cv.render(snap,LayoutService.get());
+        this.updateTouch(snap,true,LayoutService.get());
         buzz(8);
       },{passive:true});
     });

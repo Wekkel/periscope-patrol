@@ -20,7 +20,7 @@ class BridgeController{
       this.game.dispatch({type:'SET_ACTIVE_STATION',station:s});
       const snap=this.game.getSnapshot(),actual=snap.tactical.activeStation;
       allStations.forEach(b=>b.classList.toggle('active',b===stationByName[actual]));
-      this.cv.render(snap);                 // navigation should feel immediate
+      this.cv.render(snap,LayoutService.get()); // navigation should feel immediate
     };
     const setHeading=value=>{const heading=Math.round(normDeg(Number(value)||0));if(hi)hi.value=String(heading);const exact=document.getElementById('headingNumberInput');if(exact&&exact!==document.activeElement)exact.value=String(heading);if(hv)hv.textContent=fmtDeg(heading);this.game.dispatch({type:'SET_ORDERED_HEADING',heading});};
     hi?.addEventListener('input',()=>setHeading(hi.value));

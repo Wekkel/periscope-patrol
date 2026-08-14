@@ -31,7 +31,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     ctx.restore();
     this.subRef=sub;
     this.drawScopeFrame(ctx,w,h,cx,cy,r,r,tact,opt,env.daylight,cam);
-    this.drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,prof,tooDeep);
+    this.drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,prof,tooDeep,layout);
   }
 
   drawImpactObservation(ctx,w,h,state){
@@ -932,7 +932,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     ctx.restore();
   }
 
-  drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,prof,tooDeep){
+  drawScopeHUD(ctx,w,h,state,opt,tact,env,sub,prof,tooDeep,layout){
     const k=this.k, pad=Math.round(9*k);
     ctx.fillStyle='rgba(4,12,15,.62)';this.rr(ctx,pad*0.6,pad*0.5,Math.round(178*k),Math.round(60*k),5*k);ctx.fill();
     ctx.fillStyle='#8fb8a8';ctx.font=this.fnt(10.5,true);
