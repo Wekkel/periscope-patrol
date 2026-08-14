@@ -40,10 +40,12 @@ class SimEngineCore{
   }
   startImpactObservation(snapshot){
     if(!snapshot)return false;
-    const s=this.state,token=snapshot.token||++this._impactSeq;
-    const replacing=!!s.tactical.impactObservation;
-    s.tactical.impactObservation={...snapshot,token};
-    PresentationBridge.emit(s,'impact-observed',{snapshot:s.tactical.impactObservation,replacing});
+    const s=this.state,token=snapshot.token||++this._impactSeq,active=!!s.tactical.impactObservation;
+    // Keep at most three impact views total: one active plus two waiting.
+    const queued=active&&((s.runtime?.presentation?.impactQueue||[]).length>=2);
+    if(queued)return false;
+    if(!active)s.tactical.impactObservation={...snapshot,token};
+    PresentationBridge.emit(s,'impact-observed',{snapshot:{...snapshot,token},queued:active});
     return true;
   }
   offerImpactObservation(c,meta={}){

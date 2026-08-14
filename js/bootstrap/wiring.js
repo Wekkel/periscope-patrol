@@ -14,11 +14,13 @@ globalThis.processPresentationEffects=()=>{
   for(const e of Object.values(desired)) audio[e.method]?.(...e.args);
   for(const e of PresentationBridge.take(game.state)){
     if(e.type==='impact-observed'){
-      const snap=e.payload.snapshot,token=snap?.token,replacing=!!e.payload.replacing;
-      game.state.runtime.presentation={...(game.state.runtime.presentation||{}),impactStartedWall:performance.now(),impactToken:token};
-      if(!replacing)game.dispatch({type:'PAUSE_FOR_MODAL'});
-      setTimeout(()=>{const cur=game.state.tactical?.impactObservation;if(cur?.token===token){const method=String(cur.weapon||'').toUpperCase()==='TORPEDO'?'playTorpedoHit':'playHit';game.dispatch({type:'PLAY_AUDIO',method});}},Math.max(0,snap?.preImpactMs||0));
-      setTimeout(()=>{if(game.state.runtime?.presentation?.impactToken===token)game.state.runtime.presentation={};game.dispatch({type:'END_IMPACT_OBSERVATION',token});},Math.max(0,snap?.durationMs||2350));
+      const snap=e.payload.snapshot,p=game.state.runtime.presentation||(game.state.runtime.presentation={}),q=p.impactQueue||(p.impactQueue=[]);
+      if(e.payload.queued){if(q.length<5)q.push(snap);continue;}
+      const startImpact=s=>{const token=s.token;p.impactStartedWall=performance.now();p.impactToken=token;p.impactQueue=q;game.state.tactical.impactObservation=s;
+        setTimeout(()=>{if(game.state.tactical?.impactObservation?.token===token){const method=String(s.weapon||'').toUpperCase()==='TORPEDO'?'playTorpedoHit':'playHit';game.dispatch({type:'PLAY_AUDIO',method});}},Math.max(0,s.preImpactMs||0));
+        p.impactTimer=setTimeout(()=>{if(p.impactToken!==token)return;const next=q.shift();if(next){startImpact(next);}else{p.impactStartedWall=null;p.impactToken=null;p.impactTimer=null;game.state.tactical.impactObservation=null;game.dispatch({type:'END_IMPACT_OBSERVATION',token});}},Math.max(0,s.durationMs||2350));};
+      if(!p.impactToken)game.dispatch({type:'PAUSE_FOR_MODAL'});
+      startImpact(snap);
       continue;
     }
     if(e.type==='audio-delay'){setTimeout(()=>game.dispatch({type:'PLAY_AUDIO',method:e.payload.method,args:e.payload.args}),Math.max(0,e.payload.delayMs||0));continue;}
@@ -31,6 +33,7 @@ globalThis.processPresentationEffects=()=>{
     if(e.type==='ui'&&e.payload.method==='resumeHide')document.getElementById('resumeBar')?.classList.remove('on');
   }
 };
+document.addEventListener('pointerdown',()=>{const p=game.state.runtime?.presentation;if(p?.impactToken){clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{p.impactToken=null;game.state.tactical.impactObservation=null;game.dispatch({type:'END_IMPACT_OBSERVATION',token:0});}}},{capture:true});
 showBriefing(game.getSnapshot().campaign.patrolArea,game.getSnapshot());
 
 // keep the canvas backing store in sync with its box
