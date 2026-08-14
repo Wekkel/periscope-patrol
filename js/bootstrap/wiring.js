@@ -23,11 +23,18 @@ if(window.ResizeObserver){
 ['newScenarioButton','mMissionSel'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>sceneSelector.open()));
 ['saveGameButton','mSaveGame'].forEach(id=>{
   document.getElementById(id)?.addEventListener('click',()=>{
-    if(SaveSystem.save(0,game.getSnapshot())){
-      audio.event?.('SAVE_CONFIRMED'); Toast.ok('Patrol saved to slot 1'); buzz(15);
+    if(SaveSystem.quickSave(game.getSnapshot())){
+      audio.event?.('SAVE_CONFIRMED'); Toast.ok('Quick save updated — manual slots unchanged'); buzz(15);
     }
   });
 });
+['loadGameButton','mLoadGame'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>{
+  const state=SaveSystem.quickLoad();
+  if(!state){Toast.warn(`No quick save available${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:''}.`);return;}
+  if(!confirm('Load the quick save? Unsaved progress in the current patrol will be replaced.'))return;
+  SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();Object.assign(game.state,state);
+  document.getElementById('scenarioOverlay')?.classList.remove('open');showBriefing(state.campaign.patrolArea,state);audio.event?.('RESUME_CONFIRMED');Toast.ok('Quick save loaded');
+}));
 
 // torpedo run-depth slider (desktop)
 const torpDepthInput=document.getElementById('torpDepthInput');
@@ -182,7 +189,7 @@ try{initialDeskCmd=localStorage.getItem(DESK_CMD_KEY)||'helm';}catch(_){}
 setDeskCommandPane(initialDeskCmd,false);
 const deskCmdForStation={
   stationTactical:'weapons', stationBridge:'helm', stationSound:'firecontrol',
-  stationPeriscope:'firecontrol', stationMap:'nav', stationDeckGun:'weapons'
+  stationPeriscope:'firecontrol', stationMap:'helm', stationDeckGun:'weapons'
 };
 for(const [id,pane] of Object.entries(deskCmdForStation)){
   document.getElementById(id)?.addEventListener('click',()=>{

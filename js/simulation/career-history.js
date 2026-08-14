@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════ CAREER HISTORY / CAPTAIN'S LOG
 // Phase 4 keeps career history append-only. The active patrol carries only
 // the current captain's log; immutable patrol records live in SaveSystem.
-const CAREER_RECORD_VERSION=1;
+const CAREER_RECORD_VERSION=2;
 const GAME_DAY_SECONDS=7200; // same compressed-day contract as DayNightCycle
 
 function _careerClone(v){return v==null?v:JSON.parse(JSON.stringify(v));}
@@ -22,6 +22,8 @@ function _careerPatrolId(c){
 }
 
 function _careerRarity(c){
+  const profile=typeof getVesselProfile==='function'?getVesselProfile(c?.vesselProfileId):null,authored=String(profile?.rarity||'').toUpperCase();
+  if(authored){const score={COMMON:25,UNCOMMON:55,RARE:82,'VERY RARE':94}[authored]??25;return{score,label:authored};}
   const id=String(c?.displayType||c?.type||'SHIP').toUpperCase();
   let score=25;
   if(/FLEET CARRIER/.test(id))score=98;
@@ -83,7 +85,9 @@ function _careerEngagements(state){
     if(c.sunk&&hits.length===1)badges.push('ONE-HIT SINKING');
     const ev=hardest.event,torpId=ev?.data?.torpedoId,torp=(A.torpedoes||[]).find(t=>t.id===torpId)||(torps.length?torps[0]:null);
     const attackMap=ev?{own:_careerClone(ev.position||torp?.start||null),launch:_careerClone(torp?.start||ev.position||null),target:_careerClone(ev.targetPosition||torp?.end||c.position||null),impact:_careerClone(torp?.end||ev.targetPosition||c.position||null),weapon:ev.data?.weapon||ev.type}:null;
-    out.push({id:c.id,name:c.name||c.id,type:c.displayType||c.type||'SHIP',role:c.type||'SHIP',tons:Number(c.tonsFactor)||0,lengthFeet:Number(c.lengthYards)||0,
+    const profile=typeof getVesselProfile==='function'?getVesselProfile(c.vesselProfileId):null;
+    out.push({id:c.id,name:c.name||c.id,type:c.displayType||c.type||'SHIP',role:c.type||'SHIP',tons:Number(c.tonsFactor)||0,lengthFeet:(Number(c.lengthYards)||0)*3,
+      vesselProfileId:c.vesselProfileId||null,modelKey:c.modelKey||profile?.modelKey||null,factionId:c.factionId||profile?.factionId||null,recognition:profile?.recognition||null,armament:profile?.armament||null,sensors:_careerClone(profile?.sensors||[]),doctrine:profile?.doctrine||null,
       maxSpeedKnots:Number(c.baseSpeed??c.speedKnots)||0,status,damage,points:Number(D.killPoints)||0,hits:hits.length,torpedoHits:torpHits,deckGunHits:gunHits,torpedoesFired:torpsFired,weapons,
       rarityLabel:rarity.label,rarityScore:rarity.score,difficultyScore:hardest.score,difficultyLabel:hardest.label,attackRangeNm:hardest.rangeNm,targetSpeedKnots:hardest.targetSpeedKnots,
       escortThreat:hardest.escortThreat,badges,attackMap,firstHitT:hits.length?Math.min(...hits.map(e=>e.t||0)):null,lastHitT:hits.length?Math.max(...hits.map(e=>e.t||0)):null});
@@ -148,6 +152,7 @@ class SimEngineCareer extends SimEngineDamage {
     });
     const torpHits=(W.hits||[]).filter(h=>h.weapon!=='DECK_GUN').length;
     const engagements=_careerEngagements(s);
+    const aircraftEncounters=Object.entries(c.afterAction?._airStates||{}).filter(([,a])=>a?.seen||a?.attacked||a?.shotDown).map(([id,a])=>{const p=typeof getAircraftProfile==='function'?getAircraftProfile(a.aircraftProfileId):null;return{id,name:a.name||p?.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,factionId:p?.factionId||null,kind:a.kind||p?.kind||null,status:a.shotDown?'SHOT DOWN':a.attacked?'ATTACK EVADED':'SIGHTED',dimensionsM:p?{span:p.spanM,length:p.lengthM}:null,speedKnots:_careerClone(p?.speedKnots||[]),ordnance:p?.ordnance||null,recognition:p?.recognition||null,doctrine:p?.doctrine||null};});
     const ownBoat=_careerOwnBoat(s),lessons=_careerLessons(s,engagements),hp=c.historicalProfile||{};
     const I=s.world.harborIntel;
     const opts=(c.optionalObjectives||[]).map(o=>({text:o.text,done:!!o.done,failed:!!o.failed,result:o.result||null}));
@@ -173,6 +178,7 @@ class SimEngineCareer extends SimEngineDamage {
       aircraftEvaded:Number(c.afterAction?.aircraftEvaded)||0,
       importantEvents:_careerClone(c.importantEvents),
       engagements:_careerClone(engagements),
+      aircraftEncounters:_careerClone(aircraftEncounters),
       ownBoat:_careerClone(ownBoat),lessons:_careerClone(lessons),historicalContext:{era:hp.era||null,date:hp.date||c.startDate||null,area:c.patrolArea||null,equipment:_careerClone(hp.equipment||c.equipment||[])},
       // Keep the compact recorder payload for save compatibility and for the
       // static per-engagement mini maps. The AAR UI no longer runs an animated replay.

@@ -30,7 +30,7 @@ The central view can be switched between six stations without loading a new page
 - `MAP` — navigation chart, bathymetry, terrain, ports, plotted waypoints, missions, contacts, weather overlay and tactical plotting.
 - `GUN` — manually trained and elevated 3-inch deck-gun sight with crew range lay, shell ballistics, splashes and ship damage.
 
-On touch devices the lower interface is divided into four skipper-level tabs: `View`, `Helm`, `Attack` and `Status`. Desktop/laptop browsers use a dedicated cockpit layout instead: the tactical canvas stays central, time scale/transit skip is permanently available in the top bar, and the left command column is divided into `HELM`, `TDC`, `WEAPONS` and `NAV` groups instead of stacking every control into one long panel. Each desktop column scrolls within its own viewport, so browser chrome or a short laptop screen cannot strand controls off-screen.
+On touch devices the lower interface is divided into four skipper-level tabs: `View`, `Helm`, `Attack` and `Status`. Desktop/laptop browsers use a dedicated cockpit layout instead: the tactical canvas stays central, time scale/transit skip is permanently available in the top bar, and the left command column switches rapidly between `HELM`, `TDC` and `WEAPONS`. Navigation is integrated into `HELM`, while mission selection and quick save/load have a permanent, separate command strip. Each desktop column scrolls within its own viewport, so browser chrome or a short laptop screen cannot strand controls off-screen.
 
 The layout selector is capability-aware: coarse-pointer phones/tablets default to touch UI, while a wide browser with a fine mouse/trackpad uses desktop UI even on hybrid touchscreen laptops. The explicit layout switch remains available when a player prefers the other shell.
 
@@ -248,7 +248,7 @@ Older saved patrol records without the newer engagement snapshots remain readabl
 
 ## Portable player profiles and save compatibility
 
-The `Save / Load` screen can export a portable player profile for reinstall/device migration. The profile contains the normalized career history, occupied manual save slots and (when meaningful) the current resumable patrol/autosave. Import is transactional at the application level: all profile-related `localStorage` keys are rolled back if a write fails part-way through.
+The `Save / Load` screen retains five named manual slots. The cockpit's quick-save and quick-load controls use one independent overwrite slot, so they never consume or replace a manual slot; autosave/resume is independent again. A portable player profile for reinstall/device migration contains the normalized career history, occupied manual slots, quick slot and (when meaningful) the current resumable patrol/autosave. Import is transactional at the application level: all profile-related `localStorage` keys are rolled back if a write fails part-way through.
 
 The portable envelope has its own `formatVersion`, deliberately separate from the career format and `STATE_SCHEMA_VERSION` used by serialized patrol snapshots. Future releases should migrate old profile envelopes in `SaveSystem._migrateProfile()` and old patrol-state schemas in `SaveSystem._migrateSnapshot()`, while keeping simulation migrations additive wherever practical. A newer, unsupported state schema is refused rather than half-loaded. Do not rewrite an imported backup file merely to migrate it; migration happens on the parsed copy before storage.
 

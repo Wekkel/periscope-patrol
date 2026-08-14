@@ -186,6 +186,12 @@ SHIP_MODELS.FLOWER_CORVETTE_1941={
   ],
   masts:[{x:0,y:10.5,z:5,h:15,yard:4.8}],smoke:{x:0,y:15,z:-3}
 };
+SHIP_MODELS.TOWN_DESTROYER_1941={
+  len:95.7,beam:9.5,fb:4.2,hull:[[-.50,.28],[-.44,.64],[-.30,.91],[-.04,1],[.22,.93],[.38,.66],[.48,.25],[.50,.03]],
+  parts:[{t:'b',x:0,y:4.2,z:34,w:6.2,h:1.8,d:7,c:'gun',big:1},{t:'b',x:0,y:4.2,z:18,w:7.7,h:5.6,d:14,c:'house',big:1},{t:'b',x:0,y:9.8,z:20,w:4.7,h:2.5,d:5,c:'top'},
+    {t:'f',x:0,y:4.5,z:7,r:1.15,h:8,c:'funnel',rake:.12,big:1},{t:'f',x:0,y:4.5,z:-3,r:1.15,h:8,c:'funnel',rake:.12,big:1},{t:'f',x:0,y:4.5,z:-13,r:1.15,h:8,c:'funnel',rake:.12,big:1},{t:'f',x:0,y:4.5,z:-23,r:1.15,h:8,c:'funnel',rake:.12,big:1},
+    {t:'b',x:0,y:4.2,z:-36,w:5.8,h:1.7,d:7,c:'gun',big:1}],masts:[{x:0,y:10,z:15,h:18,yard:5},{x:0,y:6,z:-29,h:11,yard:4}],smoke:{x:0,y:14,z:-8}
+};
 SHIP_MODELS.BLACK_SWAN_SLOOP={
   len:91.1,beam:11.7,fb:4.7,hull:[[-.50,.31],[-.44,.68],[-.31,.92],[-.05,1],[.22,.95],[.37,.72],[.47,.31],[.50,.04]],
   parts:[{t:'b',x:0,y:4.7,z:31,w:7.4,h:2.1,d:8,c:'gun',big:1},{t:'b',x:0,y:4.7,z:18,w:7.4,h:2.1,d:8,c:'gun',big:1},

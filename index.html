@@ -279,7 +279,7 @@
 ═══════════════════════════════════════════ -->
 <div id="desktopShell">
   <header id="deskHeader" class="panel">
-    <h1 id="deskBoatTitle">Periscope Patrol — USS Silversides</h1><span class="verchip" id="appVerDesk">v—</span>
+    <h1 id="deskBoatTitle">Periscope Patrol — Type VIIC</h1><span class="verchip" id="appVerDesk">v—</span>
     <div class="hstatus">
       <span id="hDate">1943-08-17</span>
       <span>T+<strong id="clock">00000</strong>s</span>
@@ -288,6 +288,7 @@
       <span class="desk-timescale-readout">TIME:<strong id="timescale">1x</strong></span>
       <span>AREA:<strong id="hArea">--</strong></span>
       <span>SCORE:<strong id="hScore">0</strong></span>
+      <span id="hTimeConditions">☀ 06:00 · CLEAR</span>
       <div class="desk-time-picker" title="Time scale / transit skip">
         <span>TIME</span>
         <select id="timeSelect" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
@@ -295,15 +296,20 @@
       <button id="deskLayoutBtn" title="Switch to the touch layout">⇄ TOUCH UI</button>
       <button id="deskTutBtn" title="Start the training patrol">🎓 TRAINING</button>
     </div>
+    <div id="deskAlert" aria-live="polite"></div>
   </header>
 
   <!-- LEFT BRIDGE -->
   <aside id="deskBridge" class="panel">
+    <div id="deskMissionActions" aria-label="Patrol and save controls">
+      <button id="newScenarioButton">⚓ MISSIONS</button>
+      <button id="saveGameButton">💾 QUICK SAVE</button>
+      <button id="loadGameButton">↺ QUICK LOAD</button>
+    </div>
     <nav id="deskCommandTabs" class="desk-command-tabs" aria-label="Desktop command groups">
       <button type="button" data-cmd="helm" class="active">HELM</button>
       <button type="button" data-cmd="firecontrol">TDC</button>
       <button type="button" data-cmd="weapons">WEAPONS</button>
-      <button type="button" data-cmd="nav">NAV</button>
     </nav>
     <section class="desk-cmd-pane active" data-desk-cmd="helm">
     <div class="ptitle">Bridge Commands</div>
@@ -314,10 +320,13 @@
     <div class="cgroup">
       <label><span id="deskPowerLabel">Ordered RPM</span><strong id="rpmValue">250</strong></label>
       <input id="rpmInput" type="range" min="0" max="450" value="250"/>
+      <div class="desk-order-presets"><button data-deskrpm="0">Stop</button><button data-deskrpm="120">Slow</button><button data-deskrpm="250">Standard</button><button data-deskrpm="450">Flank</button></div>
+      <div class="desk-order-fine"><button data-deskrstep="-25">−25</button><input id="rpmNumberInput" type="number" min="0" max="450" step="1" value="250" aria-label="Exact ordered RPM"><button data-deskrstep="25">+25</button></div>
     </div>
     <div class="cgroup">
       <label><span id="deskDepthLabel">Ordered Depth</span><strong id="depthValue">0 ft</strong></label>
       <input id="depthInput" type="range" min="0" max="300" value="0"/>
+      <div class="desk-order-fine"><button data-deskdstep="-10">−10</button><input id="depthNumberInput" type="number" min="0" max="300" step="1" value="0" aria-label="Exact ordered depth in feet"><button data-deskdstep="10">+10</button></div>
     </div>
     <div class="cgroup">
       <button id="surfaceButton">Surface</button>
@@ -330,6 +339,13 @@
       <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
       <button id="pumpButton">Toggle Pumps</button>
           </div>
+    <div class="ptitle" style="margin-top:8px;">Navigation</div>
+    <div class="cgroup desk-nav-grid">
+      <button id="clearPlotButton">Clear Plot</button>
+      <button id="mapWeatherButton">☁ Weather</button>
+      <button id="followPlotButton">Steer To Waypoint</button>
+      <button id="portButton">⚓ Head To Port</button>
+    </div>
     <div class="ptitle" style="margin-top:8px;">Damage Control Priority</div>
     <div class="cgroup" id="deskRepairPriority">
       <button id="dcFloodButton" class="on">Flooding</button>
@@ -407,18 +423,6 @@
       <div id="deckGunStatus" class="note">Enter the GUN station while surfaced; the crew mans and secures the gun automatically.</div>
     </div>
     </section>
-    <section class="desk-cmd-pane" data-desk-cmd="nav">
-    <div class="ptitle">Navigation</div>
-    <div class="cgroup">
-      <button id="clearPlotButton">Clear Map Plot</button>
-      <button id="mapWeatherButton">☁ Weather Overlay</button>
-      <button id="followPlotButton">Steer To Waypoint</button>
-      <button id="portButton">Head To Port (H)</button>
-      <button id="newScenarioButton">⚓ Mission Select (M)</button>
-      <button id="saveGameButton">💾 Save Game</button>
-      <div class="note">Hotkeys: 1–6 stations · Space pause · [ ] heading · , . RPM · PgUp/PgDn depth · arrows/wheel station view · ? full reference</div>
-    </div>
-    </section>
   </aside>
 
   <!-- CENTER CANVAS — shared canvas element lives here -->
@@ -444,6 +448,11 @@
       <button id="soundRadar">⌁ <span>Surface Radar</span></button>
       <button id="soundEcho" class="sound-active-qc">◉ <span>Active Echo</span></button>
     </div>
+    <div id="deskScopeControls" aria-label="Periscope rotation controls">
+      <button id="scopeOverlayLeft">◀ <span>Rotate</span></button>
+      <button id="scopeOverlayZoom">🔍 <span>Zoom</span></button>
+      <button id="scopeOverlayRight"><span>Rotate</span> ▶</button>
+    </div>
     <div id="dayNightBar"><div id="dayNightFill"></div></div>
     <div id="dayNightLabel"></div>
     <canvas id="gyroIndicator"></canvas>
@@ -454,9 +463,7 @@
   <!-- RIGHT COL -->
   <div id="deskRight">
     <div id="deskOrders" class="panel">
-      <div class="ptitle">Current vs Ordered</div>
-      <div class="orders-grid" id="ordersGrid"></div>
-      <div class="ptitle" style="margin-top:6px;">Mission</div>
+      <div class="ptitle">Mission Progress</div>
       <div id="missionStatus" style="font-size:12px;color:var(--muted);line-height:1.5;"></div>
     </div>
     <div id="deskDamage" class="panel">
@@ -467,17 +474,19 @@
       <div class="ptitle">Systems</div>
       <div id="gaugeReadout" class="readout"></div>
       <div style="margin-top:6px;">
-        <div style="font-size:11px;color:var(--muted);">Battery</div>
+        <div class="resource-label"><span>Battery</span><strong id="batteryPct">100%</strong></div>
         <div class="res-bar"><i id="batteryBar"></i></div>
-        <div style="font-size:11px;color:var(--muted);">Fuel</div>
+        <div class="resource-label"><span>Fuel</span><strong id="fuelPct">100%</strong></div>
         <div class="res-bar"><i id="fuelBar"></i></div>
-        <div style="font-size:11px;color:var(--muted);">Hull Integrity</div>
+        <div class="resource-label"><span>Hull Integrity</span><strong id="hullPct">100%</strong></div>
         <div class="res-bar"><i id="hullBar"></i></div>
       </div>
     </div>
+    <div id="deskCurrentOrders" class="panel">
+      <div class="ptitle">Current vs Ordered</div>
+      <div class="orders-grid" id="ordersGrid"></div>
+    </div>
   </div>
-
-  <div id="deskAlert" class="panel"></div>
   <footer id="deskLog" class="panel"></footer>
 </div><!-- end desktopShell -->
 
@@ -489,11 +498,12 @@
 
   <!-- TOP BAR -->
   <div id="tTop">
-    <span class="brand">USS Silversides</span><span class="verchip" id="appVerTouch">v—</span>
+    <span class="brand" id="touchBoatTitle">Type VIIC</span><span class="verchip" id="appVerTouch">v—</span>
     <div class="tstats">
       <span id="tDate">1943-08-17</span>
       <span><strong id="mMode">--</strong></span>
       <span><strong id="mClock">☀ 06:00</strong></span>
+      <span id="mConditions">CLEAR · GOOD VIS</span>
       <span>★<strong id="mScore">0</strong></span>
     </div>
     <select class="tsel" id="tBtnTime" title="Time scale"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
@@ -564,6 +574,7 @@
     <div class="qs-cell tapcell" id="qsSpeed"><span class="qs-l">SPEED ⇅</span><span class="qs-v" id="qSpd">0.0kn</span><span class="qs-ord" id="qSpdOrd">→0</span></div>
     <div class="qs-cell"><span class="qs-l">TORPS</span><span class="qs-v" id="qTorp">16</span></div>
     <div class="qs-cell"><span class="qs-l">BATTERY</span><span class="qs-v" id="qBatt">100%</span><span class="qs-ord" id="qBattState">FULL</span></div>
+    <div class="qs-cell"><span class="qs-l">FUEL</span><span class="qs-v" id="qFuel">100%</span></div>
     <div class="qs-cell"><span class="qs-l">THREAT</span><span class="qs-v" id="qThr">--</span></div>
     <div class="qs-cell"><span class="qs-l">HULL</span><span class="qs-v" id="qHull">100%</span></div>
   </div>
@@ -662,6 +673,7 @@
           <button id="mMissionSel">⚓ Missions</button>
           <button id="mTutorial">🎓 Training</button>
           <button id="mSaveGame">💾 Save</button>
+          <button id="mLoadGame">↺ Load</button>
           <button id="mHelpBtn">? Help</button>
         </div>
       </div>
@@ -719,9 +731,7 @@
 
       <!-- ── STATUS ── -->
       <div class="sheet-pane" id="paneStats">
-        <div class="ptitle">Current vs Ordered</div>
-        <div id="mOrdersGrid" class="orders-grid"></div>
-        <div class="ptitle" style="margin-top:12px;">Mission</div>
+        <div class="ptitle">Mission Progress</div>
         <div id="mMission" style="font-size:12px;color:var(--muted);line-height:1.65;"></div>
         <div class="ptitle" style="margin-top:12px;">Damage</div>
         <div id="mDamage"></div>
@@ -748,6 +758,8 @@
         <div id="mCaptainLog" style="font-size:11px;color:var(--muted);line-height:1.55;"></div>
         <div class="ptitle" style="margin-top:12px;">Patrol Log</div>
         <div id="mLog" style="font-size:11px;color:var(--muted);line-height:1.55;"></div>
+        <div class="ptitle" style="margin-top:12px;">Current vs Ordered</div>
+        <div id="mOrdersGrid" class="orders-grid"></div>
       </div>
 
     </div>

@@ -81,24 +81,24 @@ const PATROL_AREAS={
      claiming chart-grade georeferencing; named coast relationships and open
      water connections remain explicit and testable. */
   'North Atlantic Convoy Lanes':{
-    description:'Mid-ocean convoy hunting across the broad North Atlantic air gap.',terrainKey:'North Atlantic Convoy Lanes',
+    description:'Mid-ocean convoy hunting across the broad North Atlantic air gap.',terrainKey:'North Atlantic Convoy Lanes',chartStartZoom:1.65,
     convoyRoutes:[{from:{xNm:-130,yNm:15},to:{xNm:130,yNm:15},label:'NORTH ATLANTIC CONVOY LANE'}],start:{xNm:0,yNm:85},
     ports:[{name:'B.d.U. return rendezvous',pos:{xNm:0,yNm:125},side:'FRIENDLY'}],
     environment:{daylight:.48,visibilityNm:10,seaState:.58,layerDepthFt:210,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC',airThreat:.42},convoySpeedRange:[7,9],convoyCountRange:[5,9],difficulty:'MEDIUM'},
   'Western Approaches':{
-    description:'Heavily patrolled eastern convoy approaches with better air coverage and frequent foul weather.',terrainKey:'Western Approaches',
+    description:'Heavily patrolled eastern convoy approaches with better air coverage and frequent foul weather.',terrainKey:'Western Approaches',chartStartZoom:1.65,
     convoyRoutes:[{from:{xNm:-132,yNm:34},to:{xNm:96,yNm:-28},label:'WESTERN APPROACHES CONVOY ROUTE'}],start:{xNm:-18,yNm:92},
     ports:[{name:'B.d.U. return rendezvous',pos:{xNm:0,yNm:125},side:'FRIENDLY'},
       {name:'Liverpool outer approaches',pos:{xNm:104,yNm:-26},side:'ENEMY',scene:'CONVOY_PORT',heading:286,known:true}],
     environment:{daylight:.42,visibilityNm:8,seaState:.62,layerDepthFt:185,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC',airThreat:.88},convoySpeedRange:[7,10],convoyCountRange:[6,9],difficulty:'HARD'},
   'Greenland–Iceland Gap':{
-    description:'Cold northern convoy route: long swell, low horizons and a tighter escort screen.',terrainKey:'Greenland–Iceland Gap',
+    description:'Cold northern convoy route: long swell, low horizons and a tighter escort screen.',terrainKey:'Greenland–Iceland Gap',chartStartZoom:1.65,
     convoyRoutes:[{from:{xNm:-118,yNm:-72},to:{xNm:116,yNm:76},label:'GREENLAND–ICELAND CONVOY ROUTE'}],start:{xNm:-34,yNm:108},
     ports:[{name:'B.d.U. return rendezvous',pos:{xNm:0,yNm:126},side:'FRIENDLY'},
       {name:'Hvalfjörður roadstead',pos:{xNm:76,yNm:-48},side:'ENEMY',scene:'ROADSTEAD',heading:210,known:true}],
     environment:{daylight:.36,visibilityNm:7,seaState:.70,layerDepthFt:240,weather:'ATLANTIC OVERCAST',climateId:'NORTH_ATLANTIC_1941',visualTone:'NORTH_ATLANTIC',airThreat:.58},convoySpeedRange:[7,9],convoyCountRange:[5,8],difficulty:'HARD'},
   'Norwegian Arctic Fjord Approaches':{
-    description:'A separate 1942–44 Arctic coastal slice: a deep, confined Norwegian fjord approach with high shores, skerries and short sight lines. It is a gameplay-scale composite, not a navigation chart.',terrainKey:'Norwegian Arctic Fjord Approaches',
+    description:'A separate 1942–44 Arctic coastal slice: a deep, confined Norwegian fjord approach with high shores, skerries and short sight lines. It is a gameplay-scale composite, not a navigation chart.',terrainKey:'Norwegian Arctic Fjord Approaches',chartStartZoom:2.25,
     convoyRoutes:[{from:{xNm:0,yNm:118},to:{xNm:0,yNm:-74},label:'ARCTIC COASTAL CONVOY CHANNEL'}],start:{xNm:0,yNm:-111},
     ports:[{name:'Narvik U-boat berth',pos:{xNm:0,yNm:-118},side:'FRIENDLY',scene:'SUB_BASE',heading:0,known:true},
       {name:'Outer fjord roadstead',pos:{xNm:3,yNm:88},side:'ENEMY',scene:'ROADSTEAD',heading:180,known:true}],

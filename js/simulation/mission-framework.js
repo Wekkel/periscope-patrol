@@ -92,6 +92,19 @@ function _missionContactKeeperGeometry(state,m){
   const dx=sub.position.xNm-center.xNm,dy=sub.position.yNm-center.yNm,r=degToRad(heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
   return{center,heading,rangeNm:Math.hypot(dx,dy),forwardNm:dx*fx+dy*fy,lateralNm:Math.abs(dx*sx+dy*sy),daylight:W.environment?.daylight??1};
 }
+/* Player-facing night guidance is built only from plotted convoy contacts.
+   It never leaks the traffic director's true center into MAP or mission text. */
+function missionNightAttackGuidance(state){
+  const m=state?.campaign?.primaryMission;if(!m||m.type!=='SHADOW_REPORT'||!_missionObj(state.campaign,'release')?.done||_missionObj(state.campaign,'approach')?.done)return null;
+  const convoyIds=new Set((state.world?.contacts||[]).filter(c=>c?.convoyId==='MAIN'&&!c.sunk).map(c=>c.id));
+  const tracks=Object.values(state.world?.contactTracks||{}).filter(t=>convoyIds.has(t.id)&&(t.plotPosition||t.lastFixPosition));if(!tracks.length)return{known:false};
+  const center={xNm:tracks.reduce((n,t)=>n+(t.plotPosition||t.lastFixPosition).xNm,0)/tracks.length,yNm:tracks.reduce((n,t)=>n+(t.plotPosition||t.lastFixPosition).yNm,0)/tracks.length};
+  const courses=tracks.map(t=>Number(t.courseEstimate)).filter(Number.isFinite);if(!courses.length)return{known:false,center};
+  const sx=courses.reduce((n,h)=>n+Math.sin(degToRad(h)),0),sy=courses.reduce((n,h)=>n+Math.cos(degToRad(h)),0),heading=normDeg(radToDeg(Math.atan2(sx,sy)));
+  const sub=state.playerSub,dx=sub.position.xNm-center.xNm,dy=sub.position.yNm-center.yNm,r=degToRad(heading),rangeNm=Math.hypot(dx,dy),forwardNm=dx*Math.sin(r)-dy*Math.cos(r),lateralNm=Math.abs(dx*Math.cos(r)+dy*Math.sin(r));
+  const dark=(state.world.environment?.daylight??1)<=(m.approachMaxDaylight??.18),surfaced=sub.depthFeet<=(m.approachSurfaceDepthFt||12),inRange=rangeNm>=(m.approachMinNm||.8)&&rangeNm<=(m.approachMaxNm||3.5),ahead=forwardNm>=(m.approachForwardMinNm??.15),onTrack=lateralNm<=(m.approachLateralMaxNm||2.6),safe=state.world.enemy?.alertState!=='ATTACKING'&&!state.world.enemy?.contactHeld;
+  return{known:true,center,heading,rangeNm,forwardNm,lateralNm,dark,surfaced,inRange,ahead,onTrack,safe,ready:dark&&surfaced&&inRange&&ahead&&onTrack&&safe,minNm:m.approachMinNm||.8,maxNm:m.approachMaxNm||3.5,hold:m.approachSeconds||0,required:m.approachRequired||30};
+}
 function _missionContactKeeperAttackRecord(engine,m){
   const s=engine?.state,A=s?.campaign?.afterAction,torps=A?.torpedoes;if(!Array.isArray(torps)||!Number.isFinite(m?.attackPositionAt))return null;
   const group=s.world?.traffic?.primaryGroup,ships=(s.world?.contacts||[]).filter(x=>x?.convoyId==='MAIN'&&!x.sunk);
@@ -246,16 +259,17 @@ function missionProgressText(state){
       }
       if(_missionObj(state.campaign,'approach')?.done)return'NIGHT ATTACK POSITION — fire on convoy';
       if(_missionObj(state.campaign,'release')?.done){
-        const q=_missionContactKeeperGeometry(state,m),dark=(state.world.environment?.daylight??1)<=(m.approachMaxDaylight??.18);
-        if(!dark)return'ATTACK RELEASED · maintain contact and wait for darkness';
-        if(!q)return'NIGHT APPROACH · regain convoy position';
+        const q=_missionContactKeeperGeometry(state,m),dark=(state.world.environment?.daylight??1)<=(m.approachMaxDaylight??.18),g=missionNightAttackGuidance(state),mark=v=>v?'✓':'○';
+        const checklist=g?.known?`${mark(g.dark)} night · ${mark(g.surfaced)} surfaced · ${mark(g.inRange)} 0.8–3.5 nm · ${mark(g.ahead)} ahead · ${mark(g.onTrack)} near track · ${mark(g.safe)} unheld`:'○ regain a plotted convoy course';
+        if(!dark)return`NIGHT POSITION · ${checklist} · wait for darkness`;
+        if(!q)return`NIGHT APPROACH · ${checklist}`;
         if(state.playerSub.depthFeet>(m.approachSurfaceDepthFt||12))return`NIGHT APPROACH · surface · convoy ${q.rangeNm.toFixed(1)} nm`;
         if(q.rangeNm>(m.approachMaxNm||3.5))return`NIGHT APPROACH · close surfaced · convoy ${q.rangeNm.toFixed(1)} nm`;
         if(q.rangeNm<(m.approachMinNm||.8))return`NIGHT APPROACH · too close · open range`;
         if(q.forwardNm<(m.approachForwardMinNm??.15))return`NIGHT APPROACH · get ahead of convoy · ${q.rangeNm.toFixed(1)} nm`;
         if(q.lateralNm>(m.approachLateralMaxNm||2.6))return`NIGHT APPROACH · work toward convoy track · ${q.rangeNm.toFixed(1)} nm`;
         if(state.world.enemy?.alertState==='ATTACKING'||state.world.enemy?.contactHeld)return'NIGHT APPROACH · escort has firm contact — break prosecution';
-        return`NIGHT APPROACH · hold attack position ${Math.round(m.approachSeconds||0)}/${Math.ceil(m.approachRequired||30)} sec`;
+        return`NIGHT POSITION · ${checklist} · HOLD ${Math.round(m.approachSeconds||0)}/${Math.ceil(m.approachRequired||30)} sec`;
       }
       if(_missionObj(state.campaign,'report')?.done){const waiting=state.world.radio?.pending?.missionCommand===m.attackOrderCommand;return waiting?'B.d.U. priority signal up · antenna depth to copy':'Contact report sent · stand by for B.d.U. attack order';}
       if(m.reportReady)return`Report ready · transmit surfaced ${Math.round(m.reportTransmitSeconds||0)}/${Math.ceil(m.reportTransmitRequired||25)} sec`;

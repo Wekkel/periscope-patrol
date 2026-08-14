@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════ SAVE / LOAD SYSTEM
 const SaveSystem={
   KEY:PP_BUILD.storageKey('ss2_save_'), CAREER:PP_BUILD.storageKey('ss2_career'), MAX:5,
+  QUICK:PP_BUILD.storageKey('ss2_quick'),
   FULL_REPLAY_PATROLS:10,
 
   /* Portable profile envelope. Keep this version independent from individual
@@ -152,9 +153,8 @@ const SaveSystem={
     });
   },
 
-  save(slot,state){
-    try{
-      const snap={
+  _snapshot(state){
+    return{
         savedAt:new Date().toISOString(),version:8,stateSchemaVersion:this.STATE_SCHEMA_VERSION,
         area:state.campaign.patrolArea,score:state.campaign.score,
         patrol:state.campaign.patrolNumber,totalScore:state.campaign.totalScore,
@@ -164,7 +164,11 @@ const SaveSystem={
         elapsedSeconds:state.time.elapsedSeconds,
         fullState:this._cloneStateForStorage(state)
       };
-      localStorage.setItem(this.KEY+slot,JSON.stringify(snap));
+  },
+
+  save(slot,state){
+    try{
+      localStorage.setItem(this.KEY+slot,JSON.stringify(this._snapshot(state)));
       return true;
     }catch(e){console.warn('Save failed',e);return false;}
   },
@@ -185,6 +189,17 @@ const SaveSystem={
   load(slot){
     this.lastLoadError=null;
     try{const r=localStorage.getItem(this.KEY+slot);return r?this._migrateSnapshot(JSON.parse(r)).fullState:null;}
+    catch(e){this.lastLoadError=e?.message||String(e);return null;}
+  },
+
+  quickSave(state){
+    try{localStorage.setItem(this.QUICK,JSON.stringify(this._snapshot(state)));return true;}
+    catch(e){console.warn('Quick save failed',e);return false;}
+  },
+
+  quickLoad(){
+    this.lastLoadError=null;
+    try{const raw=localStorage.getItem(this.QUICK);return raw?this._migrateSnapshot(JSON.parse(raw)).fullState:null;}
     catch(e){this.lastLoadError=e?.message||String(e);return null;}
   },
 
@@ -233,7 +248,8 @@ const SaveSystem={
     // Prefer the boat currently in memory: an export made during a patrol should
     // be enough to move devices even if the player forgot to press Save first.
     const autosave=this._portableResume(activeState)||this.autoRead();
-    const payload={career:this.getCareer(),saves,autosave:autosave?.fullState?autosave:null};
+    let quick=null;try{const raw=localStorage.getItem(this.QUICK);if(raw)quick=this._migrateSnapshot(JSON.parse(raw));}catch{}
+    const payload={career:this.getCareer(),saves,quick:quick?.fullState?quick:null,autosave:autosave?.fullState?autosave:null};
     const algorithm=(globalThis.crypto?.subtle&&typeof TextEncoder!=='undefined')?'SHA-256':'FNV-1A-32';
     const value=await this._profileDigest(payload,algorithm);
     return JSON.stringify({
@@ -264,6 +280,7 @@ const SaveSystem={
       seen.add(slot);
     }
     if(payload.autosave!=null&&!payload.autosave?.fullState)throw new Error('Player profile contains an invalid resumable patrol.');
+    if(payload.quick!=null&&!payload.quick?.fullState)throw new Error('Player profile contains an invalid quick save.');
     return{saves};
   },
 
@@ -283,8 +300,9 @@ const SaveSystem={
     // be upgraded for storage on this device.
     const migratedSaves=saves.map(item=>({slot:Number(item.slot),snapshot:this._migrateSnapshot(JSON.parse(JSON.stringify(item.snapshot)))}));
     const migratedAutosave=doc.payload.autosave?.fullState?this._migrateSnapshot(JSON.parse(JSON.stringify(doc.payload.autosave))):null;
+    const migratedQuick=doc.payload.quick?.fullState?this._migrateSnapshot(JSON.parse(JSON.stringify(doc.payload.quick))):null;
 
-    const keys=[this.CAREER,...Array.from({length:this.MAX},(_,i)=>this.KEY+i),this.AUTO];
+    const keys=[this.CAREER,...Array.from({length:this.MAX},(_,i)=>this.KEY+i),this.QUICK,this.AUTO];
     const before=new Map(keys.map(k=>[k,localStorage.getItem(k)]));
     try{
       // Normalize career on entry so old career layouts remain importable while
@@ -292,6 +310,8 @@ const SaveSystem={
       localStorage.setItem(this.CAREER,JSON.stringify(this._normalizeCareer(doc.payload.career)));
       for(let i=0;i<this.MAX;i++)localStorage.removeItem(this.KEY+i);
       for(const item of migratedSaves)localStorage.setItem(this.KEY+item.slot,JSON.stringify(item.snapshot));
+      if(migratedQuick?.fullState)localStorage.setItem(this.QUICK,JSON.stringify(migratedQuick));
+      else localStorage.removeItem(this.QUICK);
       if(migratedAutosave?.fullState)localStorage.setItem(this.AUTO,JSON.stringify(migratedAutosave));
       else localStorage.removeItem(this.AUTO);
     }catch(e){

@@ -33,7 +33,7 @@ const PP_BUILD=(()=>{
   // Atlantic DEV patch number is a human test-build identity, separate from
   // the service-worker VERSION/cache token. Bump this in every atlantic-dev
   // patch so a tester can report the exact patch without translating a SHA.
-  const devPatch=isDev?36:null;
+  const devPatch=isDev?41:null;
   const api={channel:isDev?'atlantic-dev':'production',isDev,devPatch,storagePrefix,
     storageKey:key=>storagePrefix+String(key)};
   return Object.freeze(api);
