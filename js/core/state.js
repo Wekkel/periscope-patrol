@@ -41,7 +41,8 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
   // Never rebuild a whole theater catalogue here on low-memory devices.
   const terrain=materializePatrolTerrain(area),chartBounds=patrolChartBounds(area);
   return{
-    time:{elapsedSeconds:0,timeScale:1,campaignDate:startDate},
+    runtime:{effects:[],audioState:{}},
+    time:{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:startDate},
     log:[{t:0,level:'info',message:`Patrol commenced. Area: ${resolvedAreaKey}. Good hunting.`}],
     tactical:{activeStation:'TACTICAL',periscopeBearing:90,periscopeZoom:1,bridgeBearing:90,bridgeBinoculars:false,soundBearing:90,soundDisplay:'PASSIVE',selectedTrackId:null,impactObservation:null},
     tdc:{targetId:null,bearing:null,rangeNm:null,targetCourse:null,targetSpeedKnots:null,

@@ -129,7 +129,8 @@ class GameLoop{
       }
     }
 
-    const snap=this.game.getSnapshot();
+      const snap=this.game.getSnapshot();
+      globalThis.processPresentationEffects?.();
     // During transit the simulation, not 60-fps chart repainting, deserves the
     // CPU. Fifteen visual updates per second still show course, traffic and
     // day/night motion clearly, while freeing a large slice of a G88-class
@@ -155,7 +156,7 @@ class GameLoop{
       tutorial.update(snap,layout);
 
       const dn=DayNightCycle.update(snap);
-      DayNightCycle.renderBar(dn.daylight,dn.timeStr);
+      PresentationBridge.ui(snap,'dayNight',dn.daylight,dn.timeStr);
 
       const days=Math.floor(snap.time.elapsedSeconds/DayNightCycle.CYCLE_SECONDS);
       const base=new Date(snap.campaign.startDate||'1943-08-17');

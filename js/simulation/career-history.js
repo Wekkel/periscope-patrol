@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════ CAREER HISTORY / CAPTAIN'S LOG
 // Phase 4 keeps career history append-only. The active patrol carries only
-// the current captain's log; immutable patrol records live in SaveSystem.
+// the current captain's log; immutable patrol records use the persistence layer.
 const CAREER_RECORD_VERSION=2;
 const GAME_DAY_SECONDS=86400; // same one-second/one-world-second contract as DayNightCycle
 
@@ -193,15 +193,15 @@ class SimEngineCareer extends SimEngineDamage {
     if(c.missionStatus==='TRAINING'||outcome==='TRAINING')return null;
     if(outcome==='LOST')this.captainLog('BOAT_LOST','Boat lost.',{reason:meta.reason||'combat loss'},'boat-lost');
     if(c._historyRecorded){
-      const car=typeof SaveSystem!=='undefined'?SaveSystem.getCareer():null;
-      const old=car?.patrolHistory?.find(r=>r.id===c._historyRecordId||r.id===c.historyId);
+      const old=this.state.runtime?.careerRecords?.find(r=>r.id===c._historyRecordId||r.id===c.historyId);
       if(old)return old;
       c._historyRecorded=false;c._historyRecordId=null;
     }
     const rec=this.buildPatrolRecord(outcome,meta);
-    if(typeof SaveSystem==='undefined'||typeof SaveSystem.recordPatrol!=='function')return rec;
-    const stored=SaveSystem.recordPatrol(rec);
-    if(stored){c._historyRecorded=true;c._historyRecordId=rec.id;}
-    return stored;
+    const records=this.state.runtime.careerRecords=this.state.runtime.careerRecords||[];
+    records.push(rec);if(records.length>24)records.shift();
+    PresentationBridge.emit(this.state,'save',{method:'recordPatrol',args:[rec]});
+    c._historyRecorded=true;c._historyRecordId=rec.id;
+    return rec;
   }
 }

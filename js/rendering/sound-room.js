@@ -19,7 +19,7 @@ class CanvasViewSound extends CanvasViewBridge {
     // A transmitted active pulse is visible only as a short, directional wave
     // on the operator's trained bearing; it never paints a target by itself.
     if(S.qcVisual){
-      const wallNow=typeof performance!=='undefined'?performance.now():Date.now(),age=(wallNow-(S.qcVisual.wallAt||wallNow))/1000;
+      const wallNow=state.time?.elapsedSeconds||0,age=wallNow-(S.qcVisual.at||wallNow);
       if(age>=0&&age<1.65){
         const qa=degToRad(S.qcVisual.bearing||0),fade=1-age/1.65;
         ctx.save();ctx.strokeStyle=`rgba(239,106,88,${(.16+.34*fade).toFixed(3)})`;ctx.lineWidth=Math.max(1,1.7*k);
@@ -37,6 +37,7 @@ class CanvasViewSound extends CanvasViewBridge {
        the canvas. Reserve its measured top edge so the signal-strength bar
        moves upward when necessary instead of disappearing underneath Train,
        Mark, Radar or Echo. */
+    /* legitieme DOM-toegang: elementmeting, geen layoutclassificatie */
     const canvasRect=this.canvas?.getBoundingClientRect?.(),controls=this.canvas?.ownerDocument?.getElementById?.('soundControls'),controlRect=controls?.getBoundingClientRect?.();
     const controlTop=canvasRect&&controlRect&&controlRect.width>0?controlRect.top-canvasRect.top:Infinity;
     const meterCeiling=Number.isFinite(controlTop)?controlTop-14*k:Infinity;

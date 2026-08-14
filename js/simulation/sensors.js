@@ -120,7 +120,7 @@ class SimEngineSensors extends SimEngineIntel {
         const A=this.ensureASWState?.();if(A){A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:err,source:'VISUAL'};A.datumAt=now;A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;this.assignASWRoles?.(esc.id,true);}
         this.log(`${esc.name} lookouts sighted a ${what} at ${(r*2025).toFixed(0)} yards.`);
       }
-      audio.event?.('SUB_DETECTED');
+      PresentationBridge.audio(this.state).event?.('SUB_DETECTED');
     }
     if(day<.25&&e.alertState==='ATTACKING'&&e.visualOnSub&&this.state.time.elapsedSeconds>(e.starShellUntil||0)+70&&Math.random()<dt*.06){
       e.starShellUntil=this.state.time.elapsedSeconds+45;this.log('STAR SHELL — the sea around you is lit up like day.','bad');
@@ -155,8 +155,8 @@ class SimEngineSensors extends SimEngineIntel {
       const rng=distNm(esc.position,sub.position),sea=clamp(env.seaState||0,0,1),audibleRange=clamp(8.5*(1-sea*.22)*(belowLayer?.68:1),4.2,8.8),depthHear=sub.depthFeet>8?1:.32;
       if(rng<audibleRange){
         const brg=bearingBetween(sub.position,esc.position),lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear;
-        W.sound=W.sound||{};W.sound.lastEnemyPingVisual={t:now,wallAt:(typeof performance!=='undefined'?performance.now():Date.now()),escortId:esc.id,position:{...esc.position},bearing:brg,rangeNm:rng};
-        audio.playSonarPing(brg,sub.heading,undefined,lvl);
+        W.sound=W.sound||{};W.sound.lastEnemyPingVisual={t:now,escortId:esc.id,position:{...esc.position},bearing:brg,rangeNm:rng};
+      PresentationBridge.audio(this.state).playSonarPing(brg,sub.heading,undefined,lvl);
       }
       A.pingEvents=A.pingEvents||[];A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN'});if(A.pingEvents.length>80)A.pingEvents.shift();
 

@@ -9,6 +9,27 @@ const aarController=new AfterActionReport(game);
 globalThis.aarController=aarController;
 const touchCtrl=new TouchCtrl(game,canvasView);
 const tutorial=new Tutorial(game,canvasView,touchCtrl);
+globalThis.processPresentationEffects=()=>{
+  const desired=game.state.runtime?.audioState||{};
+  for(const e of Object.values(desired)) audio[e.method]?.(...e.args);
+  for(const e of PresentationBridge.take(game.state)){
+    if(e.type==='impact-observed'){
+      const snap=e.payload.snapshot,token=snap?.token;
+      game.dispatch({type:'PAUSE_FOR_MODAL'});
+      setTimeout(()=>{const cur=game.state.tactical?.impactObservation;if(cur?.token===token){const method=String(cur.weapon||'').toUpperCase()==='TORPEDO'?'playTorpedoHit':'playHit';game.dispatch({type:'PLAY_AUDIO',method});}},Math.max(0,snap?.preImpactMs||0));
+      setTimeout(()=>game.dispatch({type:'END_IMPACT_OBSERVATION',token}),Math.max(0,snap?.durationMs||2350));
+      continue;
+    }
+    if(e.type==='audio-delay'){setTimeout(()=>game.dispatch({type:'PLAY_AUDIO',method:e.payload.method,args:e.payload.args}),Math.max(0,e.payload.delayMs||0));continue;}
+    if(e.type==='command-delay'){setTimeout(()=>game.dispatch(e.payload.command),Math.max(0,e.payload.delayMs||0));continue;}
+    if(e.type==='audio'){audio[e.payload.method]?.(...e.payload.args);continue;}
+    if(e.type==='toast'){Toast[e.payload.method]?.(...e.payload.args);continue;}
+    if(e.type==='save'){SaveSystem[e.payload.method]?.(...e.payload.args);continue;}
+    if(e.type==='aar')aarController[e.payload.method]?.(...e.payload.args);
+    if(e.type==='ui'&&e.payload.method==='dayNight'){const [daylight,timeStr]=e.payload.args,fill=document.getElementById('dayNightFill'),label=document.getElementById('dayNightLabel');if(fill&&label){fill.style.width=`${daylight*100}%`;fill.style.background=daylight>.7?'#f0c35a':daylight>.3?'#f0a84a':'#4a6a8a';label.textContent=`${daylight>.6?'☀':daylight>.25?'🌅':'🌙'} ${timeStr}`;}}
+    if(e.type==='ui'&&e.payload.method==='resumeHide')document.getElementById('resumeBar')?.classList.remove('on');
+  }
+};
 showBriefing(game.getSnapshot().campaign.patrolArea,game.getSnapshot());
 
 // keep the canvas backing store in sync with its box

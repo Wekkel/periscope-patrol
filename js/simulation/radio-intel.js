@@ -39,7 +39,7 @@ class SimEngineIntel extends SimEngineAAGun {
     if(m.intel)m.intel={...m.intel,uncBaseNm:(m.intel.uncBaseNm||.8)*1.9,ageSec:(m.intel.ageSec||0)+1200};
     R.pending=null;R.copying=0;R.copyRequired=40;m.time=this.state.time.elapsedSeconds;m.seq=(R.seq=(R.seq||0)+1);this.threadShippingSignal(m);if(R.inbox.length>12)R.inbox.pop();
     R.enigma.workload=clamp((R.enigma.workload||0)+.7,0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';
-    this.applySignal(m);audio.event?.('RADIO_MESSAGE');this.captainLog?.('RADIO_PARTIAL_COPY','Radio operator accepted an incomplete encoded message.',{subject:m.subject},'radio-partial');return true;
+    this.applySignal(m);PresentationBridge.audio(this.state).event?.('RADIO_MESSAGE');this.captainLog?.('RADIO_PARTIAL_COPY','Radio operator accepted an incomplete encoded message.',{subject:m.subject},'radio-partial');return true;
   }
 
   updateRadio(dt){
@@ -87,7 +87,7 @@ class SimEngineIntel extends SimEngineAAGun {
         m.time=now;m.seq=(R.seq=(R.seq||0)+1);this.threadShippingSignal(m);
         if(R.inbox.length>12) R.inbox.pop();
         R.enigma.workload=clamp((R.enigma.workload||0)+(/ATTACK ORDER|SPECIAL/.test(String(m.subject||m.type))?1.1:.55),0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';R.copyRequired=40;this.applySignal(m);
-        audio.event?.('RADIO_MESSAGE');
+        PresentationBridge.audio(this.state).event?.('RADIO_MESSAGE');
       }
     }else if(R.copying>0){
       R.copying=Math.max(0,R.copying-dt*2);
@@ -291,7 +291,7 @@ class SimEngineIntel extends SimEngineAAGun {
           item.seq=(u.toastSeq=(u.toastSeq||0)+1);q.splice(itemIndex,1);q.push(item); // latest repeated signal stays at the tail
         } else q.push({msg:shippingCopy?.toastSingle||'Shipping intelligence intercept plotted — steer to cut her off',kind:'ok',tag,count:1,seq:(u.toastSeq=(u.toastSeq||0)+1)});
         if(q.length>40)q.splice(0,q.length-40);
-      }else Toast.ok(shippingCopy?.toastSingle||'Shipping intelligence intercept plotted — steer to cut her off');
+      }else PresentationBridge.toast(this.state).ok(shippingCopy?.toastSingle||'Shipping intelligence intercept plotted — steer to cut her off');
     }
     if(m.airThreat){W.airThreat=W.airThreat||{};W.airThreat.level=m.airThreat;}
     if(m.score) this.state.campaign.score+=m.score;

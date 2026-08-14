@@ -8,7 +8,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     // field as a human-readable snapshot for old saves/UI only.
     const axis=t.pos==='AFT'?normDeg(this.state.playerSub.heading+180):this.state.playerSub.heading;
     t.gyroAngle=this.state.tdc.solutionCourse==null?0:shortDelta(axis,this.state.tdc.solutionCourse);
-    if(doLog){this.log(`Tube ${id} (${t.pos}) flooded and ready. TDC tube turn currently ${t.gyroAngle.toFixed(1)}°.`);audio.playTubeFlood?.();setTimeout(()=>audio.playTubeReady?.(),620);}
+    if(doLog){this.log(`Tube ${id} (${t.pos}) flooded and ready. TDC tube turn currently ${t.gyroAngle.toFixed(1)}°.`);PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,620,'playTubeReady');}
   }
 
   /* How far the fish actually has to swim: the target keeps moving while it
@@ -100,7 +100,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
     sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.35*(1-spec.acousticPenalty*2),0,1.5);
     this.log(`Tube ${id} (${t.pos}) fired ${spec.name}. ${tid} gyro ${turn.toFixed(0)}° → course ${fmtDeg(courseSet)}. Reserve: ${W.torpedoInventory}.`,'warn');
     this.notify?.(`TORPEDO AWAY — Tube ${id} (${t.pos}), ${spec.name}.`,'ok');
-    audio.playTorpedoLaunch();
+    PresentationBridge.audio(this.state).playTorpedoLaunch();
     if(t.pos==='FWD') this.alertEscorts('TORPEDO_LAUNCH',{...sub.position},spec.acousticPenalty<0.03?0.55:0.85);
     else this.alertEscorts('TORPEDO_LAUNCH',{...sub.position},0.7);
   }
@@ -225,7 +225,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
         t.status='NETTED';this.aarTorpedoFinish?.(t,'NETTED');
         W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'NET',kind:'dud'});
         this.notify(`${t.id} caught in the harbour torpedo net — warhead spent against the boom.`,'warn');
-        audio.playDud();
+        PresentationBridge.audio(this.state).playDud();
         const H=this.state.world.harbor;if(H){H.alert=2;H.suspicion=100;}
         continue;
       }
@@ -275,7 +275,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
               W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'GLANCED OFF',kind:'dud',targetId:c.id,impactSide:lateral>=0?1:-1,incidenceDeg:incidence,warheadKg:spec.warheadKg||292});
               this.log(`${t.id} struck ${c.name} at ${incidence.toFixed(0)}° and GLANCED OFF the hull — no detonation. Fire nearer the beam.`,'bad');
               this.alertEscorts('TORPEDO_DUD',{...t.position},0.5);
-              audio.playDud();
+              PresentationBridge.audio(this.state).playDud();
               break;
             }
           }
@@ -296,7 +296,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
               : `${t.specName} exploder failure.`;
             this.log(`${t.id} — DUD against ${c.name}'s ${where}! No detonation. (${why})`,'bad');
             this.alertEscorts('TORPEDO_DUD',{...t.position},0.5);
-            audio.playDud();
+            PresentationBridge.audio(this.state).playDud();
           } else {
             t.status='HIT';this.aarTorpedoFinish?.(t,'HIT',c.id);
             const beforeShip=this.captureImpactShipState?.(c);if(beforeShip)beforeShip.heading=shipHeading;
@@ -307,7 +307,7 @@ class SimEngineTorpedoes extends SimEngineHarbor {
               location:dmg.location});
             W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:true,targetId:c.id,targetLengthFeet:Number(c.lengthYards)||300,impactSide:c.hitSide,incidenceDeg:incidence,warheadKg:spec.warheadKg||292});
             particles.spawnExplosion(t.position.xNm,t.position.yNm,2.35,true);
-            const automaticImpactView=['PERISCOPE','BRIDGE'].includes(this.state.tactical.activeStation);if(!automaticImpactView)audio.playTorpedoHit?.();
+            const automaticImpactView=['PERISCOPE','BRIDGE'].includes(this.state.tactical.activeStation);if(!automaticImpactView)PresentationBridge.audio(this.state).playTorpedoHit?.();
             if(c.harborTarget)this.noteHarborAttack?.(c);
             this.alertEscorts('SHIP_HIT',{...t.position},1);
 

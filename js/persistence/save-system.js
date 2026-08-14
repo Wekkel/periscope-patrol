@@ -46,12 +46,13 @@ const SaveSystem={
 
   _cloneStateForStorage(state){
     const s=JSON.parse(JSON.stringify(state));const obs=s?.tactical?.impactObservation;
-    if(obs){s.tactical.impactObservation=null;if((s.time?.timeScale??0)===0)s.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}
+    if(obs){s.tactical.impactObservation=null;if((s.time?.timeScale??0)===0)s.time.timeScale=Number(s.time?.preModalScale)>0?Number(s.time.preModalScale):1;}
+    if(s.time){s.time.modalPauses=0;s.time.preModalScale=Number(s.time.timeScale)||1;}
     return s;
   },
 
   _normalizeLoadedState(state){
-    if(!state)return state;const obs=state.tactical?.impactObservation;if(obs){state.tactical.impactObservation=null;if((state.time?.timeScale??0)===0)state.time.timeScale=Number(obs.restoreScale)>0?Number(obs.restoreScale):1;}
+    if(!state)return state;const obs=state.tactical?.impactObservation;if(obs){state.tactical.impactObservation=null;if((state.time?.timeScale??0)===0)state.time.timeScale=Number(state.time?.preModalScale)>0?Number(state.time.preModalScale):1;}if(state.time){state.time.modalPauses=0;state.time.preModalScale=Number(state.time.timeScale)||1;}
     // Phase-1 game identity is additive for historical Pacific saves, but an
     // explicit unknown/mismatched future identity must fail rather than load as
     // Silversides in the Pacific.

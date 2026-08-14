@@ -114,7 +114,7 @@ class CanvasViewCore{
   }
 
   drawOwnBoatImpact(ctx,w,h,state){
-    const q=state.world?.ownHitVisual;if(!q?.wallAt)return;const wall=typeof performance!=='undefined'?performance.now():Date.now(),age=(wall-q.wallAt)/1000;if(age<0||age>.9)return;
+    const q=state.world?.ownHitVisual;if(!q?.t)return;const age=(state.time.elapsedSeconds||0)-q.t;if(age<0||age>.9)return;
     const u=clamp(age/.9,0,1),a=(1-u)*clamp(.25+(Number(q.amount)||0)/38,.28,.78),K=this.k;ctx.save();
     // On MAP show exactly what happened to ownship; elsewhere use a restrained
     // edge concussion that remains visible with the device muted.

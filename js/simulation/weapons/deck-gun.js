@@ -2,12 +2,10 @@
 // Keep this as one authoritative gameplay limit so LAY, FIRE, HUD and shell
 // lifetime cannot disagree and silently lose rounds at extreme range.
 const DECK_GUN_MAX_RANGE_NM=14600/2025;
-globalThis.DECK_GUN_MAX_RANGE_NM=DECK_GUN_MAX_RANGE_NM;
 function deckGunSpecForState(state){
   const authored=typeof getSubmarineProfile==='function'?getSubmarineProfile(state?.playerSub?.profileId)?.weapons?.deckGun:null;
   return Object.assign({label:'3-inch/50 deck gun',shortLabel:'3-IN/50',muzzleVelocityMS:820,maxRangeNm:DECK_GUN_MAX_RANGE_NM,reloadSec:1.35,audioPower:1},authored||{});
 }
-globalThis.deckGunSpecForState=deckGunSpecForState;
 
 class SimEngineDeckGun extends SimEngineAircraft {
   deckGunTarget(){
@@ -119,7 +117,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     if(now-(G._aarLastAttackAt??-999)>45){G._aarLastAttackAt=now;this.aarRecordEvent?.('DECK_GUN_ATTACK','Deck-gun engagement opened.',{},sub.position); }
     sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.16,0,1.5);
     this.alertEscorts('DECK_GUN',{...sub.position},0.88);
-    audio.playDeckGun?.(gun.audioPower);
+    PresentationBridge.audio(this.state).playDeckGun?.(gun.audioPower);
     this.shake(0.45);
   }
 
@@ -163,7 +161,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     this.aarGunFinish?.(shell,'HIT',impactPos,c,dmg.material);
     G.impactFlash={position:{...impactPos},zM:impactZ,startedAt:now,until:now+0.72,power:.72};
     this.state.weapons.explosions.push({position:{...impactPos},zM:impactZ,ageSec:0,maxAgeSec:5,label:'GUN HIT'});
-    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);audio.playDeckGunImpact?.(clamp(distNm(this.state.playerSub.position,impactPos)/deckGunSpecForState(this.state).maxRangeNm,0,1));
+    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);PresentationBridge.audio(this.state).playDeckGunImpact?.(clamp(distNm(this.state.playerSub.position,impactPos)/deckGunSpecForState(this.state).maxRangeNm,0,1));
     this.alertEscorts('SHIP_HIT',{...c.position},1);
     updateShipDamage(this,c,0);
     const condition=shipDamageCondition(c);
@@ -206,7 +204,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
         const f=clamp(prev.zM/(prev.zM-sh.zM||1),0,1),pos={xNm:prev.xNm+(sh.xNm-prev.xNm)*f,yNm:prev.yNm+(sh.yNm-prev.yNm)*f};
         G.splashes.push({position:pos,age:0});G.lastFall={text:this.deckGunFallText(pos,sh.bearing),until:this.state.time.elapsedSeconds+3.5};
         this.aarGunFinish?.(sh,'SPLASH',pos,null,null);
-        audio.playShellSplash?.(clamp(distNm(sub.position,pos)/deckGunSpecForState(this.state).maxRangeNm,0,1));
+        PresentationBridge.audio(this.state).playShellSplash?.(clamp(distNm(sub.position,pos)/deckGunSpecForState(this.state).maxRangeNm,0,1));
         continue;
       }
       alive.push(sh);

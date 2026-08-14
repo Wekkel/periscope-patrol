@@ -42,15 +42,8 @@ const DayNightCycle = {
     return { daylight: dl, timeStr: this.getTimeString(state.time.elapsedSeconds) };
   },
 
-  renderBar(daylight, timeStr) {
-    const fill = document.getElementById('dayNightFill');
-    const label = document.getElementById('dayNightLabel');
-    if (!fill || !label) return;
-    const pct = daylight * 100;
-    const col = daylight > 0.7 ? '#f0c35a' : daylight > 0.3 ? '#f0a84a' : '#4a6a8a';
-    fill.style.width = `${pct}%`;
-    fill.style.background = col;
-    const icon = daylight > 0.6 ? '☀' : daylight > 0.25 ? '🌅' : '🌙';
-    label.textContent = `${icon} ${timeStr}`;
+  renderBar(daylight, timeStr, state) {
+    if(state){PresentationBridge.ui(state,'dayNight',daylight,timeStr);return;}
+    // UI rendering is owned by the presentation bridge; no simulation-side DOM fallback.
   }
 };

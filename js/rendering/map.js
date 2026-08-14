@@ -159,7 +159,7 @@ class CanvasView extends CanvasViewSound {
 
   drawEnemySonarPing(ctx,state,w2s){
     const cue=state.world.sound?.lastEnemyPingVisual;if(!cue?.position)return;
-    const now=typeof performance!=='undefined'?performance.now():Date.now(),age=(now-(cue.wallAt||now))/1000;if(age<0||age>.95)return;
+    const now=state.time?.elapsedSeconds||0,age=now-(cue.t||now);if(age<0||age>.95)return;
     const p=w2s(cue.position.xNm,cue.position.yNm),K=this.k,u=clamp(age/.95,0,1),r=(7+34*u)*K,a=(1-u)*.82;
     ctx.save();ctx.strokeStyle=`rgba(111,224,180,${a})`;ctx.lineWidth=Math.max(1.2,2*K*(1-u*.35));ctx.setLineDash([3*K,4*K]);ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
     if(u<.62){ctx.fillStyle=`rgba(205,245,228,${a*.88})`;ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText('PING',p.x,p.y-r-5*K);ctx.textAlign='left';}ctx.restore();
@@ -407,6 +407,7 @@ class CanvasView extends CanvasViewSound {
   }
 
   _buildBathyOverview(B){
+    /* legitieme DOM-toegang: offscreen buffer, geen layout- of statuslezing */
     const owner=this.canvas?.ownerDocument;if(!owner||typeof owner.createElement!=='function') return null;
     if(this._bathyOverview?.ref===B) return this._bathyOverview;
     const scale=6,w=Math.max(1,(B.nx-1)*scale),h=Math.max(1,(B.ny-1)*scale);

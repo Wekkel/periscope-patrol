@@ -65,6 +65,7 @@ const SHELL = [
   './js/persistence/save-system.js',
   './js/ui/scenario-selector.js',
   './js/ui/toast.js',
+  './js/ui/presentation-bridge.js',
   './js/rendering/gyro-indicator.js',
   './js/simulation/day-night.js',
   './js/rendering/particles.js',

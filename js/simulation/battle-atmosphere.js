@@ -66,7 +66,7 @@ function battlePredictPosition(p,heading,speedKnots,sec){
         H.lastSearchlightContactAt=now;
         const T=this.state.time;if((T.timeScale||1)>1||T.transitUntil){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.stopReason='searchlight contact';T.stopReasonAt=now;}
         this.notify('SEARCHLIGHT CONTACT — the beam has you. Dive, turn hard or run out of it before the batteries correct.','bad');
-        audio.event?.('SEARCHLIGHT_CONTACT');this.aarRecordEvent?.('SEARCHLIGHT_CONTACT','Caught in a harbour searchlight.',{},sub.position,H.center);
+        PresentationBridge.audio(this.state).event?.('SEARCHLIGHT_CONTACT');this.aarRecordEvent?.('SEARCHLIGHT_CONTACT','Caught in a harbour searchlight.',{},sub.position,H.center);
       }
     },
 
@@ -84,7 +84,7 @@ function battlePredictPosition(p,heading,speedKnots,sec){
         fireAt:now,impactAt:now+flight,damage:5+Math.random()*12,litAtFire:lit,resolved:false};
       A.shells.push(ev);if(A.shells.length>20)A.shells.shift();
       A.muzzleFlashes.push({id:`MF-${id}`,position:{...site},at:now,until:now+.34,power:1.0,kind:'COASTAL'});if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
-      const br=bearingBetween(sub.position,site);audio.playDistantGunfire?.(br,sub.heading,clamp(1-rng/7,.25,1));
+      const br=bearingBetween(sub.position,site);PresentationBridge.audio(this.state).playDistantGunfire?.(br,sub.heading,clamp(1-rng/7,.25,1));
       this.aarRecordEvent?.('COASTAL_GUNFIRE','Coastal battery opened fire.',{batteryShot:id,illuminated:lit},site,impact);
       return ev;
     },
@@ -96,8 +96,8 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       A.tracers.push({id,start:{...shooter.position},end:{...target.position},at:now,until:now+dur,kind:'SURFACE_GUN',hit:!!hit});
       if(A.tracers.length>BATTLE_MAX_TRACERS)A.tracers.shift();if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
       if(!hit){A.splashes.push({id:`SP-${id}`,position:{...target.position},at:now+dur*.86,until:now+dur*.86+3.0,size:.65,kind:'SHELL'});if(A.splashes.length>BATTLE_MAX_SPLASHES)A.splashes.shift();}
-      const sub=this.state.playerSub,rng=distNm(sub.position,shooter.position);audio.playDistantGunfire?.(bearingBetween(sub.position,shooter.position),sub.heading,clamp(1-rng/8,.12,.72));
-      if(!hit&&distNm(sub.position,target.position)<.10)audio.playShellPass?.(bearingBetween(sub.position,shooter.position),sub.heading);
+      const sub=this.state.playerSub,rng=distNm(sub.position,shooter.position);PresentationBridge.audio(this.state).playDistantGunfire?.(bearingBetween(sub.position,shooter.position),sub.heading,clamp(1-rng/8,.12,.72));
+      if(!hit&&distNm(sub.position,target.position)<.10)PresentationBridge.audio(this.state).playShellPass?.(bearingBetween(sub.position,shooter.position),sub.heading);
     },
 
     resolveBattleShell(ev){
@@ -106,12 +106,12 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       if(hit){
         this.applyShock(ev.damage);s.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
         this.notify(`COASTAL BATTERY HIT — ${ev.damage.toFixed(0)}% damage. The battery has the range; get below or spoil the solution.`,'bad');
-        audio.playShellImpact?.(bearingBetween(sub.position,ev.origin),sub.heading,.9);this.shake?.(1.2);
+        PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,ev.origin),sub.heading,.9);this.shake?.(1.2);
         if(s.world.harbor)s.world.harbor.batteryCorrection=.46;
       }else{
         A.splashes.push({id:`SP-${ev.id}`,position:{...ev.impactPosition},at:now,until:now+4,size:1.0,kind:'COASTAL'});if(A.splashes.length>BATTLE_MAX_SPLASHES)A.splashes.shift();
-        const close=miss<.12;if(close)audio.playShellPass?.(bearingBetween(sub.position,ev.origin),sub.heading);
-        audio.playShellSplash?.(clamp(miss/.3,0,1));
+        const close=miss<.12;if(close)PresentationBridge.audio(this.state).playShellPass?.(bearingBetween(sub.position,ev.origin),sub.heading);
+        PresentationBridge.audio(this.state).playShellSplash?.(clamp(miss/.3,0,1));
         const H=s.world.harbor;if(H){const lit=now<(H.searchlightContactUntil||-1);H.batteryCorrection=lit?clamp((H.batteryCorrection||1)*.76,.34,1):clamp((H.batteryCorrection||1)*.96,.7,1.15);}
       }
     },

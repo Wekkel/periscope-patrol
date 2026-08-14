@@ -32,14 +32,12 @@ class ScenarioSelector{
     if(meta)meta.textContent=`${career.totalShips||0} ships · ${(career.totalTonnage||0).toLocaleString()} tons · ${career.patrolHistory?.length||0} recorded patrols`;
     document.getElementById('scenarioOverlay')?.classList.add('open');
     this.renderSaveSlots();this.renderCareer();
-    const s=this.game.getSnapshot();
-    if(s.time.timeScale!==0){s.time._pre=s.time.timeScale;s.time.timeScale=0;}
+    this.game.dispatch({type:'PAUSE_FOR_MODAL'});
   }
 
   close(){
     document.getElementById('scenarioOverlay')?.classList.remove('open');
-    const s=this.game.getSnapshot();
-    if(s.time._pre!=null){s.time.timeScale=s.time._pre;s.time._pre=null;}
+    this.game.dispatch({type:'RESUME_FROM_MODAL'});
   }
 
   bind(){

@@ -170,7 +170,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     else if(near.length)detail='Multiple screws. Slow cadence.';
     else detail=(best.speedKnots||0)>9?'Steady screws. Moderate cadence.':'Slow screws. Heavy cadence.';
     const text=`SOUND — screws bearing ${fmtDeg(obs.bearing)} · ${detail}`;
-    S.lastOperatorAt=now;S.lastOperatorReport={t:now,until:now+9,wallUntil:(typeof performance!=='undefined'?performance.now():Date.now())+3600,text,bearing:obs.bearing,quality:q};
+    S.lastOperatorAt=now;S.lastOperatorReport={t:now,until:now+9,text,bearing:obs.bearing,quality:q};
     this.log(text); // intentionally not notify(): operator chatter must not interrupt play
   }
 
@@ -206,8 +206,8 @@ class SimEngineSoundRadar extends SimEngineSensors{
     const echoName=sensorUi.activeEcho.shortLabel||sensorUi.activeEcho.label||'Active echo';
     if(now-S.activeEchoLastAt<SOUND_ROOM.activeEchoCooldownSec){this.notify(`${echoName} recharging — ${Math.ceil(SOUND_ROOM.activeEchoCooldownSec-(now-S.activeEchoLastAt))} seconds.`,'warn');return null;}
     S.activeEchoLastAt=now;S.qcLastAt=now;
-    S.qcVisual={bearing:normDeg(s.tactical.soundBearing||0),at:now,wallAt:typeof performance!=='undefined'?performance.now():Date.now()};
-    audio.playOwnSonarPing?.();
+    S.qcVisual={bearing:normDeg(s.tactical.soundBearing||0),at:now};
+    PresentationBridge.audio(this.state).playOwnSonarPing?.();
     // The transmission itself is a datum for enemy hydrophones, whether or not
     // the player's echo comes back.
     this.alertEscorts('ACTIVE_ECHO',{...s.playerSub.position},.88);
@@ -246,8 +246,8 @@ class SimEngineSoundRadar extends SimEngineSensors{
     this.ensureSoundRadarState();const s=this.state,S=s.world.sound;
     S._tick+=dt;if(S._tick>=.25){S._tick=0;this._soundOperatorReport();
       if(s.tactical.activeStation==='SOUND'&&s.tactical.soundDisplay==='PASSIVE'){
-        const sig=this.currentSoundSignal();S.monitor={strength:sig.strength,offsetDeg:sig.offsetDeg,cadenceHz:sig.cadenceHz,id:sig.contact?.id||null};audio.setHydrophoneMonitor?.(sig.strength,sig.cadenceHz,sig.offsetDeg);
-      }else{S.monitor={strength:0,offsetDeg:180,cadenceHz:0,id:null};audio.stopHydrophoneMonitor?.();}
+        const sig=this.currentSoundSignal();S.monitor={strength:sig.strength,offsetDeg:sig.offsetDeg,cadenceHz:sig.cadenceHz,id:sig.contact?.id||null};PresentationBridge.audioState(this.state,'hydrophone','setHydrophoneMonitor',sig.strength,sig.cadenceHz,sig.offsetDeg);
+      }else{S.monitor={strength:0,offsetDeg:180,cadenceHz:0,id:null};PresentationBridge.audioState(this.state,'hydrophone','stopHydrophoneMonitor');}
     }
     this._updateSurfaceSearchRadar(dt);
   }

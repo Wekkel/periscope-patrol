@@ -144,7 +144,7 @@ class SimEngineCollision extends SimEngineASW {
     this.alertEscorts('COLLISION',{...sub.position},0.92);
     const ram=isSurfaceCombatant(c)&&this.state.world.enemy.alertState==='ATTACKING';
     const msg=`${ram?'RAMMING COLLISION':'COLLISION'} — ${c.name}: ${impact.relativeSpeedKnots.toFixed(1)} kn relative, ${impact.impactAngleDeg.toFixed(0)}° impact, ${impact.damage.toFixed(0)}% hull damage.`;
-    this.notify(msg,'bad');audio.playHit?.();this.shake(clamp(impact.damage/5,1,8));
+    this.notify(msg,'bad');PresentationBridge.audio(this.state).playHit?.();this.shake(clamp(impact.damage/5,1,8));
     const ev={t:now,a:'OWN_SUB',b:c.id,kind:ram?'RAM':'COLLISION',...impact,position:{...sub.position}};
     this.state.world.lastCollision=ev;this.state.world.collisionEvents.push(ev);
     if(this.state.world.collisionEvents.length>40)this.state.world.collisionEvents.shift();

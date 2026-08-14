@@ -648,7 +648,7 @@ class SimEngine extends SimEngineCareer {
       map.visibilityFootprint={at:t,mode:surf?'LOOKOUT':scope?'SCOPE':'NONE',points:pts,origin:{...sub.position}};
     }
     if(map.plottedCourse.length&&distNm(sub.position,map.plottedCourse[0])<0.22){
-      map.plottedCourse.shift(); this.log('Waypoint reached.'); audio.event?.('WAYPOINT_REACHED');
+      map.plottedCourse.shift(); this.log('Waypoint reached.'); PresentationBridge.audio(this.state).event?.('WAYPOINT_REACHED');
     }
   }
 
@@ -771,7 +771,7 @@ class SimEngine extends SimEngineCareer {
     const mb=scopeMeasuredBearing(this.state,tr.bearing),mr=scopeMeasuredRangeNm(this.state,tr.rangeEstimateNm);
     tdc.targetId=sid;tdc.autoTrack=true;tdc.trackSource='SCOPE';tdc.bearing=mb;tdc.rangeNm=mr;
     tdc.targetCourse=tr.courseEstimate;tdc.targetSpeedKnots=tr.speedEstimateKnots;
-    this.updateTdc(true);audio.playTdcSolution?.();
+    this.updateTdc(true);PresentationBridge.audio(this.state).playTdcSolution?.();
     this.log(`TDC: ${sid} B${fmtDeg(mb)} R${mr.toFixed(1)}nm C${fmtDeg(tr.courseEstimate)} S${tr.speedEstimateKnots.toFixed(1)}kn${this.state.playerSub.damage.periscopeDamage>.12?' — optical measurement degraded':''}`);
   }
 

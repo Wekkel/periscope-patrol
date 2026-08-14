@@ -130,8 +130,8 @@ class SimEngineASW extends SimEngineASWBrain {
         const hit=Math.random()<pHit;this.noteSurfaceGunfire?.(esc,sub,hit);
         if(hit){
           const dmg=4+Math.random()*11;this.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
-          this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');audio.playShellImpact?.(bearingBetween(sub.position,esc.position),sub.heading,.9);
-        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);audio.playShellSplash?.(clamp(trueRng/gunRange,0,1));}
+          this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,esc.position),sub.heading,.9);
+        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);PresentationBridge.audio(this.state).playShellSplash?.(clamp(trueRng/gunRange,0,1));}
       }
     }else esc.gunTimer=0;
   }
@@ -178,7 +178,7 @@ class SimEngineASW extends SimEngineASWBrain {
         dc.waterEntryPlayed=true;const splashRange=distNm(dc.position,sub.position),hearRange=sub.depthFeet>10?1.45:2.2;
         // Real audibility gate: a distant attack on a stale datum must be silent,
         // not reduced to a minimum-volume rhythmic tick that betrays hidden action.
-        if(splashRange<hearRange)audio.event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/hearRange,0,1)});
+        if(splashRange<hearRange)PresentationBridge.audio(this.state).event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/hearRange,0,1)});
         // Only the first charge in a pattern speaks for the group. The report is
         // qualitative and range-limited; it does not reveal the destroyer's set depth.
         if((dc.patternIndex??0)===0&&splashRange<hearRange){
@@ -210,8 +210,8 @@ class SimEngineASW extends SimEngineASWBrain {
           if(dc.fuseSec>=25)this.log('SOUND — long sink time; the charges were set deep.','warn');
           else if(dc.fuseSec<=11)this.log('SOUND — short sink time; the charges were set shallow.','warn');
         }
-        if(dmg>1){this.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');if(acousticNm<audibleNm)audio.playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
-        else{if(air||(dc.patternIndex??0)===0)this.log(`${air?'Aerial depth charge':'Depth-charge pattern'} detonating nearby.`,'warn');if(acousticNm<audibleNm)audio.playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
+        if(dmg>1){this.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');if(acousticNm<audibleNm)PresentationBridge.audio(this.state).playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
+        else{if(air||(dc.patternIndex??0)===0)this.log(`${air?'Aerial depth charge':'Depth-charge pattern'} detonating nearby.`,'warn');if(acousticNm<audibleNm)PresentationBridge.audio(this.state).playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
       }
     }
     W.depthCharges=W.depthCharges.filter(dc=>dc.status==='SINKING'||dc.ageSec<dc.fuseSec+6);

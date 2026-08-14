@@ -5,7 +5,7 @@
 // replay timer, camera state or canvas render loop exists here.
 class AfterActionReport{
   constructor(game){
-    this.game=game;this.record=null;this.completedOpen=false;this._preScale=null;this.engagementIndex=0;this._swipe=null;this.showTruth=false;
+    this.game=game;this.record=null;this.completedOpen=false;this.engagementIndex=0;this._swipe=null;this.showTruth=false;
     this.overlay=document.getElementById('aarOverlay');
     document.getElementById('aarClose')?.addEventListener('click',()=>this.close(false));
     document.getElementById('aarContinue')?.addEventListener('click',()=>this.close(true));
@@ -21,7 +21,7 @@ class AfterActionReport{
 
   open(record,opts={}){
     if(!record)return;this.record=JSON.parse(JSON.stringify(record));this.completedOpen=!!opts.completed;this.engagementIndex=0;this.showTruth=false;
-    const s=this.game?.getSnapshot?.();if(s?.time){this._preScale=s.time.timeScale;s.time.timeScale=0;}
+    this.game?.dispatch?.({type:'PAUSE_FOR_MODAL'});
     this.renderHeader();this.renderStats();this.renderMission();this.renderRouteMap();this.renderEngagement();this.renderHonors();this.renderDetails();this.renderLog();
     const cont=document.getElementById('aarContinue');if(cont)cont.textContent=this.completedOpen?'CONTINUE TO WAR RECORD':'CLOSE REPORT';
     this.overlay?.classList.add('open');
@@ -29,8 +29,7 @@ class AfterActionReport{
 
   close(continueFlow=false){
     this.overlay?.classList.remove('open');
-    const s=this.game?.getSnapshot?.();if(!this.completedOpen&&s?.time&&s.time.timeScale===0&&this._preScale!=null)s.time.timeScale=this._preScale;
-    this._preScale=null;const completed=this.completedOpen;this.completedOpen=false;
+    this.game?.dispatch?.({type:'RESUME_FROM_MODAL'});const completed=this.completedOpen;this.completedOpen=false;
     if(continueFlow&&completed&&typeof sceneSelector!=='undefined'){sceneSelector.open();const tab=document.querySelector?.('.scen-tab[data-stab="career"]');tab?.click?.();}
   }
 

@@ -229,7 +229,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
         const dmg=applyDeckGunShipDamage(this,target,{lenNm,along,lateral:0,z:3+Math.random()*8,source:'NPC_SURFACE_GUN',attackerId:h.id,attackerSide:'ENEMY'});
         const hr=degToRad(target.heading||0),impact={xNm:target.position.xNm+Math.sin(hr)*along,yNm:target.position.yNm-Math.cos(hr)*along};
         s.weapons.explosions.push({position:impact,zM:4+Math.random()*7,ageSec:0,maxAgeSec:4,label:'SURFACE GUN HIT'});
-        particles.spawnExplosion?.(impact.xNm,impact.yNm,.26,false);audio.playHit?.();
+        particles.spawnExplosion?.(impact.xNm,impact.yNm,.26,false);PresentationBridge.audio(this.state).playHit?.();
         updateShipDamage(this,target,0);
         const tr=W.contactTracks?.[target.id];if((tr&&tr.confidence>.04)||distNm(sub.position,target.position)<10)
           this.log(`${h.name} hit ${target.name} — ${dmg.location.toLowerCase()}, ${shipDamageCondition(target).toLowerCase()}.`,'warn');

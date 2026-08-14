@@ -7,6 +7,8 @@
 const _terrainBoundsCache=new WeakMap();
 class SimEngineCore{
   constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;}
+  pauseForModal(){const t=this.state.time||{};if((t.modalPauses||0)===0)t.preModalScale=Number(t.timeScale)||1;t.modalPauses=(t.modalPauses||0)+1;t.timeScale=0;return t.modalPauses;}
+  resumeFromModal(){const t=this.state.time||{};t.modalPauses=Math.max(0,(t.modalPauses||0)-1);if(t.modalPauses===0)t.timeScale=Number(t.preModalScale)>0?Number(t.preModalScale):1;return t.modalPauses;}
 
   captureImpactShipState(c){
     if(!c)return null;const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
@@ -38,11 +40,9 @@ class SimEngineCore{
   }
   startImpactObservation(snapshot){
     if(!snapshot||this.state.tactical.impactObservation)return false;
-    const s=this.state,restoreScale=s.time.timeScale,token=snapshot.token||++this._impactSeq;
-    if(this._impactTimer)clearTimeout(this._impactTimer);if(this._impactAudioTimer)clearTimeout(this._impactAudioTimer);
-    s.tactical.impactObservation={...snapshot,token,startedWall:(typeof performance!=='undefined'?performance.now():Date.now()),restoreScale};s.time.timeScale=0;
-    this._impactAudioTimer=setTimeout(()=>{const cur=s.tactical.impactObservation;if(cur?.token===token){if(String(cur.weapon||'').toUpperCase()==='TORPEDO')audio.playTorpedoHit?.();else audio.playHit?.();}this._impactAudioTimer=null;},Math.max(0,snapshot.preImpactMs||0));
-    this._impactTimer=setTimeout(()=>{const cur=s.tactical.impactObservation;if(!cur||cur.token!==token)return;s.tactical.impactObservation=null;this._impactTimer=null;if(this._impactAudioTimer){clearTimeout(this._impactAudioTimer);this._impactAudioTimer=null;}if(s.time.timeScale===0)s.time.timeScale=restoreScale;},snapshot.durationMs||2350);
+    const s=this.state,token=snapshot.token||++this._impactSeq;
+    s.tactical.impactObservation={...snapshot,token};
+    PresentationBridge.emit(s,'impact-observed',{snapshot:s.tactical.impactObservation});
     return true;
   }
   offerImpactObservation(c,meta={}){
@@ -50,15 +50,14 @@ class SimEngineCore{
     const station=this.state.tactical.activeStation;
     if(station==='PERISCOPE'||station==='BRIDGE')return this.startImpactObservation(snap);
     const msg=`${String(meta.weapon||'TORPEDO').replace(/_/g,' ')} HIT — ${c.name||c.id}${meta.location?` ${String(meta.location).toLowerCase()}`:''}.`;
-    if(typeof Toast!=='undefined'&&Toast.impactAction){Toast.impactAction(msg,()=>this.startImpactObservation(snap));return true;}
-    if(typeof Toast!=='undefined'&&Toast.action){Toast.action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),18000,'ok');return true;}
+    PresentationBridge.toast(this.state).action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),18000,'ok');return true;
     return false;
   }
 
   offerLossAar(record){
     const c=this.state.campaign;if(!record||c._lossAarOffered)return false;c._lossAarOffered=true;const historyId=c.historyId;
-    try{SaveSystem.autoClear?.();}catch(_){ }
-    setTimeout(()=>{const live=this.state.campaign;if(live?.historyId!==historyId||live?.missionStatus!=='LOST'||typeof Toast==='undefined'||!globalThis.aarController?.open)return;Toast.action('BOAT LOST — After Action Report ready.','VIEW AAR',()=>globalThis.aarController.open(record,{completed:false}),10000,'warn','patrol-aar');},0);return true;
+    PresentationBridge.save(this.state,'autoClear');
+    PresentationBridge.toast(this.state).action('BOAT LOST — After Action Report ready.','VIEW AAR',()=>PresentationBridge.aar(this.state,'open',record,{completed:false}),10000,'warn','patrol-aar');return true;
   }
 
   /* Open-ended transit is intentionally CPU-bounded so a budget phone does
@@ -261,6 +260,11 @@ class SimEngineCore{
       return;
     }
     switch(cmd.type){
+      case'PAUSE_FOR_MODAL': this.pauseForModal(); break;
+      case'RESUME_FROM_MODAL': this.resumeFromModal(); break;
+      case'END_IMPACT_OBSERVATION': {const obs=this.state.tactical?.impactObservation;if(!obs||obs.token!==cmd.token)break;this.state.tactical.impactObservation=null;this.resumeFromModal();break;}
+      case'PLAY_AUDIO': PresentationBridge.audio(this.state)[cmd.method]?.(...(cmd.args||[])); break;
+      case'APPEND_LOG': this.log(cmd.message,cmd.level||'info'); break;
       case'SET_ORDERED_HEADING':
         sub.orderedHeading=normDeg(cmd.heading);
         if(cmd.auto!==true&&this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length){
@@ -280,19 +284,19 @@ class SimEngineCore{
       case'SET_ORDERED_DEPTH':
         if(+cmd.depthFeet>10) this.clearDeckForDive('Dive order');
         sub.orderedDepthFeet=clamp(cmd.depthFeet,0,300); this.derivMode(); break;
-      case'SURFACE':{const q=this.state.tactical.bridgeDiveSequence;if(q?.active){q.active=false;q.cancelled=true;sub.diveDelay=0;this.log('Dive cancelled — bridge watch remains topside.','warn');}sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); audio.playSurface(); break;}
+      case'SURFACE':{const q=this.state.tactical.bridgeDiveSequence;if(q?.active){q.active=false;q.cancelled=true;sub.diveDelay=0;this.log('Dive cancelled — bridge watch remains topside.','warn');}sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); PresentationBridge.audio(this.state).playSurface(); break;}
       case'DIVE':
         this.clearDeckForDive('Dive order');
-        sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); audio.playDive(); break;
+        sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); PresentationBridge.audio(this.state).playDive(); break;
       case'PERISCOPE_DEPTH':
         this.clearDeckForDive('Periscope-depth order');
-        sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); audio.playDive(); break;
+        sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); PresentationBridge.audio(this.state).playDive(); break;
       case'CRASH_DIVE':
         this.clearDeckForDive('Crash dive');
         sub.orderedDepthFeet=150; sub.mode='CRASH_DIVING'; sub.ballastState='FLOODING';
         // Fix H: auto-set RPM for faster dive if nearly stopped
         if(sub.propulsion.speedKnots<5) sub.propulsion.orderedRpm=350;
-        this.log('CRASH DIVE! Flooding ballast tanks.','warn'); audio.playCrashDive(); break;
+        this.log('CRASH DIVE! Flooding ballast tanks.','warn'); PresentationBridge.audio(this.state).playCrashDive(); break;
       case'TOGGLE_AIR_WARNING_RADAR':
       case'TOGGLE_SD_RADAR':{ // legacy command ID retained for old UI/save integrations
         this.ensureSoundRadarState?.();const a=this.state.world.airThreat,R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),airUi=sensorUi.airWarningRadar||{};
@@ -331,15 +335,15 @@ class SimEngineCore{
       case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); break;
       case'RADIO_TOGGLE_SILENCE':{
         const R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});R.txSilence=!R.txSilence;
-        this.log(R.txSilence?'Radio transmission silence ordered. Incoming traffic may still be copied.':'Radio transmission silence lifted.','warn');audio.playUiConfirm?.(.2);break;}
+        this.log(R.txSilence?'Radio transmission silence ordered. Incoming traffic may still be copied.':'Radio transmission silence lifted.','warn');PresentationBridge.audio(this.state).playUiConfirm?.(.2);break;}
       case'RADIO_AUTHORIZE_REPORT':{
         const m=this.state.campaign?.primaryMission,R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});
         if(m?.type!=='SHADOW_REPORT'||!m.reportReady){this.notify('RADIO ROOM — no contact report is ready for transmission.','warn');break;}
-        m.reportTransmitAuthorized=true;R.txSilence=false;this.captainLog?.('REPORT_TRANSMISSION_AUTHORIZED','Skipper authorized transmission of the contact report.',{},'report-authorized');this.notify('CONTACT REPORT AUTHORIZED — remain at antenna depth until transmission is complete.','ok');audio.playRadioMessage?.();break;}
+        m.reportTransmitAuthorized=true;R.txSilence=false;this.captainLog?.('REPORT_TRANSMISSION_AUTHORIZED','Skipper authorized transmission of the contact report.',{},'report-authorized');this.notify('CONTACT REPORT AUTHORIZED — remain at antenna depth until transmission is complete.','ok');PresentationBridge.audio(this.state).playRadioMessage?.();break;}
       case'RADIO_ACCEPT_PARTIAL': this.acceptPartialRadio?.(); break;
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
-        this.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); audio.playSurface(); break;
+        this.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); break;
       case'TOGGLE_DAMAGE_CONTROL':
         this.notify(`Damage control parties are automatic. Choose one repair priority instead — currently ${repairPriorityLabel(sub.damage.repairPriority)}.`,'ok'); break;
       case'SET_REPAIR_PRIORITY': this.setRepairPriority(cmd.priority); break;
@@ -385,13 +389,13 @@ class SimEngineCore{
         const prevStation=this.state.tactical.activeStation;
         if(prevStation==='PERISCOPE'&&cmd.station!=='PERISCOPE')this.refreshScopeVisualContacts?.();
         if(cmd.station==='DECK_GUN'){
-          if(this.tryAutoManDeckGun()){this.state.tactical.activeStation='DECK_GUN';if(prevStation!=='DECK_GUN')audio.playStationSwitch?.();}
+          if(this.tryAutoManDeckGun()){this.state.tactical.activeStation='DECK_GUN';if(prevStation!=='DECK_GUN')PresentationBridge.audio(this.state).playStationSwitch?.();}
           break;
         }
         if(cmd.station==='BRIDGE'){
           if(!bridgeCanUse(this.state)){this.notify(`Bridge unavailable at ${sub.depthFeet.toFixed(0)} ft — surface or come awash first.`,'warn');break;}
           if(this.state.tactical.activeStation==='DECK_GUN')this.secureDeckGunAuto();
-          this.state.tactical.activeStation='BRIDGE';this.state.tactical.bridgeBearing=sub.heading;this.state.tactical.bridgeBinoculars=false;this.state.tactical.bridgeZoom=0;if(prevStation!=='BRIDGE')audio.playStationSwitch?.();
+        this.state.tactical.activeStation='BRIDGE';this.state.tactical.bridgeBearing=sub.heading;this.state.tactical.bridgeBinoculars=false;this.state.tactical.bridgeZoom=0;if(prevStation!=='BRIDGE')PresentationBridge.audio(this.state).playStationSwitch?.();
           break;
         }
         if(this.state.tactical.activeStation==='DECK_GUN') this.secureDeckGunAuto();
@@ -406,7 +410,7 @@ class SimEngineCore{
           this.refreshScopeVisualContacts?.();
         }
         if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.ensureSoundRadarState?.();}
-        if(prevStation!==this.state.tactical.activeStation)audio.playStationSwitch?.();
+        if(prevStation!==this.state.tactical.activeStation)PresentationBridge.audio(this.state).playStationSwitch?.();
         break;}
       case'ROTATE_SOUND': this.state.tactical.soundBearing=normDeg((this.state.tactical.soundBearing||sub.heading)+(cmd.deltaDeg||0)); break;
       case'SOUND_MARK_BEARING': this.markSoundBearing?.(); break;
@@ -445,7 +449,7 @@ class SimEngineCore{
       case'TDC_SEND_SCOPE_OBSERVATION': this.sendScopeToTdc(); break;
       case'FLOOD_TUBE': this.floodTube(cmd.tubeId); break;
       case'FIRE_TORPEDO': this.fireTorpedo(cmd.tubeId); break;
-      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.floodTube(t.id,false); this.log('Forward tubes flooded and ready.');audio.playTubeFlood?.();setTimeout(()=>audio.playTubeReady?.(),680); break;
+      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.floodTube(t.id,false); this.log('Forward tubes flooded and ready.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
       case'FIRE_READY_SPREAD': this.fireSpread(); break;
       case'SET_TORPEDO_TYPE':{
         const spec=TORPEDO_SPECS[cmd.specKey];
@@ -475,12 +479,12 @@ class SimEngineCore{
         tdc.autoTrack=false;tdc.trackSource='MANUAL';tdc.bearing=tdc.manualBearing; tdc.rangeNm=tdc.manualRange;
         tdc.targetCourse=tdc.manualCourse; tdc.targetSpeedKnots=tdc.manualSpeed;
         if(!tdc.targetId) tdc.targetId='MANUAL';
-        this.updateTdc(true);audio.playTdcSolution?.();
+        this.updateTdc(true);PresentationBridge.audio(this.state).playTdcSolution?.();
         this.log(`TDC manual: B${fmtDeg(tdc.bearing)} R${tdc.rangeNm.toFixed(1)}nm C${fmtDeg(tdc.targetCourse)} S${tdc.targetSpeedKnots}kn → ${tdc.status} sol${Math.round(tdc.solutionQuality*100)}%`);
         break;}
       case'FLOOD_AFT_TUBES':
         for(const t of this.state.weapons.tubes.filter(t=>t.pos==='AFT')) this.floodTube(t.id,false);
-        this.log('Aft tubes flooded.');audio.playTubeFlood?.();setTimeout(()=>audio.playTubeReady?.(),680); break;
+        this.log('Aft tubes flooded.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
       case'FIRE_AFT_SPREAD': this.fireSpreadByPos('AFT'); break;
       case'MAP_ADD_WAYPOINT':{
         const target=this.clampToArea({xNm:cmd.xNm,yNm:cmd.yNm}),plot=this.state.map.plottedCourse;
@@ -1005,7 +1009,7 @@ class SimEngineCore{
     }
 
     if(!camp._portTouchActive){
-      camp._portTouchActive=true;audio.event?.('HARBOR_REACHED');
+      camp._portTouchActive=true;PresentationBridge.audio(this.state).event?.('HARBOR_REACHED');
       this.notify(returning
         ? `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Patrol complete.`
         : `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Taking on fuel, stores and repair parties.`,'ok');
@@ -1040,12 +1044,12 @@ class SimEngineCore{
       const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(camp._careerStartDate,camp.patrolDuration):camp.startDate);
       camp.nextPatrolDate=historicalNextPatrolDate(endDate,camp.patrolNumber,camp.scenarioSeed);
     }
-    if(patrolRecord&&globalThis.aarController?.open)setTimeout(()=>globalThis.aarController.open(patrolRecord,{completed:true}),0);
+    if(patrolRecord)PresentationBridge.aar(this.state,'open',patrolRecord,{completed:true});
     camp.score=0;                       // banked — startNewPatrol would count it twice
     this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
-    Toast.show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
+    PresentationBridge.toast(this.state).show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
     this.log(`Patrol score: ${patrolScore} | Career total: ${camp.totalScore}`,'warn');
-    audio.event?.('PATROL_COMPLETE');
+    PresentationBridge.audio(this.state).event?.('PATROL_COMPLETE');
     // Rearm and refuel. Static store capacity comes from the submarine profile;
     // mutable tube state remains in the patrol state.
     const fresh=materializeFreshSubmarine(sub.profileId,this.state.tdc.torpedoSpecKey);
@@ -1056,7 +1060,7 @@ class SimEngineCore{
     sub.damage.flooding=0;
     // Patrol number belongs to the completed patrol until a new patrol is
     // actually commissioned. startNewPatrol() advances it exactly once.
-    setTimeout(()=>this.log(`Rearmed and refueled. Ready for patrol #${(camp.patrolNumber||1)+1}.`)  ,3000);
+    PresentationBridge.schedule(this.state,3000,{type:'APPEND_LOG',message:`Rearmed and refueled. Ready for patrol #${(camp.patrolNumber||1)+1}.`});
   }
 
   startNewPatrol(areaKey,options={}){
@@ -1083,12 +1087,13 @@ class SimEngineCore{
 
     // Patch 10.5: a patrol is a lifecycle boundary. No tactical clock, transit,
     // stale alarm or AAR-pause state may leak across it.
-    Object.assign(s.time,{elapsedSeconds:0,timeScale:1,campaignDate:patrolStartDate,
-      transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null,_pre:null});
+    Object.assign(s.time,{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:patrolStartDate,
+      transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null});
     s.log=[{t:0,level:'info',message:training?`Training waters prepared. Area: ${key}.`:`Patrol commenced. Area: ${key}. Good hunting.`}];
     if(s.ui){s.ui.toasts=[];s.ui.toastSeq=0;}
-    try{Toast.clear?.();globalThis.aarController?.close?.(false);}catch(_){ }
-    if(typeof document!=='undefined')document.getElementById('resumeBar')?.classList.remove('on');
+    PresentationBridge.toast(this.state).clear();
+    PresentationBridge.aar(this.state,'close',false);
+    PresentationBridge.ui(s,'resumeHide');
     // Reset world
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];s.world.nextDcId=0;
     s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
