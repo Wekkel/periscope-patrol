@@ -1,7 +1,7 @@
 class SimEngineASW extends SimEngineASWBrain {
   updateEscortBeh(esc,e,sub,W,idx,total,dt){
     this.ensureASWState();
-    const role=esc.aswRole||'SCREEN';
+    const role=esc.aswRole||'SCREEN',tactics=aswTactics(this.state),training=aswTraining(esc,this.state),attackPace=clamp(tactics.attackSpeedFactor*(.82+training*.18),.75,1.18);
     const noFullPattern=(esc.dcRemaining!==undefined&&esc.dcRemaining<SONAR.patternSize);
     if(noFullPattern&&e.alertState!=='UNAWARE'&&role!=='DAMAGED_GUARD'&&role!=='CONVOY_GUARD'){
       esc.aswExpended=true;esc.aswRole='CONVOY_GUARD';
@@ -45,7 +45,7 @@ class SimEngineASW extends SimEngineASWBrain {
         &&esc.speculativeCueGeneration!==A.cueGeneration;
       const tgt=(canSpeculate?this.aswDatum(18):null)||this.searchTarget(esc)||this.screenTarget(esc);
       if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
-      esc.desiredSpeed=role==='PROSECUTOR'?(canSpeculate?17:11):role==='CONTAINMENT'?13:12;
+      esc.desiredSpeed=(role==='PROSECUTOR'?(canSpeculate?17:11):role==='CONTAINMENT'?13:12)*attackPace;
       if(canSpeculate&&tgt){
         const rr=distNm(esc.position,tgt),prev=esc.lastSpecRange??Infinity,recent=W.depthCharges.some(dc=>dc.ownerId===esc.id&&dc.ageSec<14);
         esc.lastSpecRange=rr;
@@ -54,7 +54,7 @@ class SimEngineASW extends SimEngineASWBrain {
           // layer it is common enough to make an escort on your tail frightening;
           // below the layer it becomes an occasional, usually inaccurate pattern.
           esc.speculativeCueGeneration=A.cueGeneration;
-          const below=sub.depthFeet>(W.environment.layerDepthFt||200)+15,pTry=below?.18:.46;
+          const below=sub.depthFeet>(W.environment.layerDepthFt||200)+15,pTry=(below?.18:.46)*tactics.speculativeAttackFactor*training;
           if(Math.random()<pTry)this.dropDC(esc,sub,{...esc.position},{speculative:true});
         }
       }else esc.lastSpecRange=undefined;
@@ -68,7 +68,7 @@ class SimEngineASW extends SimEngineASWBrain {
     if(role!=='PROSECUTOR'){
       const tgt=this.searchTarget(esc)||this.aswDatum(35)||this.screenTarget(esc);
       if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
-      esc.desiredSpeed=role==='CONTAINMENT'?16:13;
+      esc.desiredSpeed=(role==='CONTAINMENT'?16:13)*attackPace;
       this.surfaceAction(esc,e,sub,W,dt);
       return;
     }
@@ -84,7 +84,7 @@ class SimEngineASW extends SimEngineASWBrain {
     // A visual solution can lead a surfaced run, but even then the helm follows
     // the plotted solution rather than a hidden direct reference to ownship.
     if(e.visualOnSub&&(sol?.depthFt??999)<30){
-      const aim=this.aswDatum(18)||raw;esc.desiredHeading=bearingBetween(esc.position,aim);esc.desiredSpeed=24;esc.lastAimRange=undefined;
+      const aim=this.aswDatum(18)||raw;esc.desiredHeading=bearingBetween(esc.position,aim);esc.desiredSpeed=24*attackPace;esc.lastAimRange=undefined;
       this.surfaceAction(esc,e,sub,W,dt);return;
     }
 
@@ -98,7 +98,7 @@ class SimEngineASW extends SimEngineASWBrain {
     const bearToAim=bearingBetween(esc.position,drop),rngToAim=distNm(esc.position,drop);
     esc.zigzagPhase=(esc.zigzagPhase||0)+(dt*.18);
     const zigAmp=rngToAim>2.2?7:rngToAim>1.2?3:0;
-    esc.desiredHeading=normDeg(bearToAim+Math.sin(esc.zigzagPhase)*zigAmp);esc.desiredSpeed=rngToAim<.9?18:22;
+    esc.desiredHeading=normDeg(bearToAim+Math.sin(esc.zigzagPhase)*zigAmp);esc.desiredSpeed=(rngToAim<.9?18:22)*attackPace;
     const prevR=esc.lastAimRange===undefined?Infinity:esc.lastAimRange;esc.lastAimRange=rngToAim;
     const passingOver=rngToAim>prevR-1e-7&&rngToAim<.20,recent=W.depthCharges.some(dc=>dc.ownerId===esc.id&&dc.ageSec<12);
     if((rngToAim<.05||passingOver)&&!recent&&e.alertState==='ATTACKING')this.dropDC(esc,sub,{xNm:esc.position.xNm,yNm:esc.position.yNm});
@@ -135,7 +135,8 @@ class SimEngineASW extends SimEngineASWBrain {
     const estDepth=clamp(sol?.depthFt??(70+(env.layerDepthFt||190)*.34),15,420);if(estDepth<25)return;
     const layer=env.layerDepthFt||200,belowLayer=estDepth>layer+15,base=(20+estDepth*.10+(belowLayer?58:0))*(speculative?1.45:1);
     let skill=clamp(1-(esc.attacksMade||0)*.11,.45,1);if(e.contactHeld)skill*=.55;
-    const hist=this.state.campaign?.historicalProfile||null,err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1);let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
+    const hist=this.state.campaign?.historicalProfile||null,tactics=aswTactics(this.state),training=aswTraining(esc,this.state);
+    const err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1)*tactics.depthErrorFactor/training;let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
     esc.attacksMade=(esc.attacksMade||0)+1;esc.dcRemaining=Math.max(0,(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize);
     const hdg=degToRad(esc.heading),patternId=`DCP-${W.nextDcPatternId=(W.nextDcPatternId||0)+1}`;
     for(let i=0;i<SONAR.patternSize;i++){
