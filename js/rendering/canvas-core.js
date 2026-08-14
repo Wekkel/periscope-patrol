@@ -50,7 +50,12 @@ class CanvasViewCore{
   }
   revealScopeLabel(id,ms=3200){this.scopeLabelId=id;this.scopeLabelUntil=performance.now()+ms;}
 
-  render(state,layout=LayoutService.get()){
+  render(state,layout){
+    if(!layout){
+      const dev=typeof PP_BUILD!=='undefined'&&PP_BUILD.isDev;
+      if(dev) throw new Error('CanvasViewCore.render requires a LayoutService snapshot');
+      layout=LayoutService.get();
+    }
     const ctx=this.ctx,w=this.w,h=this.h,station=state?.tactical?.activeStation||'TACTICAL';
     this._lastRenderError=null;
     try{
@@ -66,10 +71,10 @@ class CanvasViewCore{
       ctx.setTransform(this.dpr,0,0,this.dpr,sx*this.dpr,sy*this.dpr);
       ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.globalAlpha=1;ctx.setLineDash([]);
       if(station==='MAP') this.drawMap(ctx,w,h,state,layout);
-      else if(station==='PERISCOPE') this.drawPeriscope(ctx,w,h,state);
+      else if(station==='PERISCOPE') this.drawPeriscope(ctx,w,h,state,layout);
       else if(station==='BRIDGE') this.drawBridge(ctx,w,h,state);
       else if(station==='SOUND') this.drawSound(ctx,w,h,state,layout);
-      else if(station==='DECK_GUN') this.drawDeckGun(ctx,w,h,state);
+      else if(station==='DECK_GUN') this.drawDeckGun(ctx,w,h,state,layout);
       else this.drawTactical(ctx,w,h,state);
       ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
       this.drawHitFlash(ctx,w,h,state);

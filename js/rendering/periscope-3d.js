@@ -6,7 +6,7 @@ function dayPhaseRgb(dl,night,twilight,day){
 function rgbCss(a){return `rgb(${a[0]},${a[1]},${a[2]})`;}
 
 class CanvasViewPeriscope extends CanvasViewDeckGun {
-  drawPeriscope(ctx,w,h,state){
+  drawPeriscope(ctx,w,h,state,layout){
     const sub=state.playerSub, tact=state.tactical, env=state.world.environment;
     const opt=SCOPE_OPTICS[tact.periscopeZoom===1?0:1], prof=scopeOpticProfile(sub.damage.periscopeDamage);
     const tooDeep=sub.depthFeet>70;
@@ -952,7 +952,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     ctx.fillStyle=col;ctx.font=this.fnt(9,true);ctx.fillText(msg,pad,Math.round(52*k));
 
     const tdc=state.tdc;
-    const by=h-Math.round(46*k),touch=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    const by=h-Math.round(46*k),touch=layout.shell==='touch';
     const side=touch?Math.min(96*k,w*.19):0,boxX=touch?side:pad*.6,boxW=touch?w-side*2:w-pad*1.2,tx=boxX+8*k,tright=boxX+boxW-8*k;
     if(tdc.targetId){
       const sq=Math.round(tdc.solutionQuality*100),ri=torpedoRangeInfo(state,tdc.targetId);

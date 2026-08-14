@@ -323,7 +323,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     for(const a of state.world.aircraft||[]){if(a.shotDown||!a.seenBySub||!a.position)continue;this.drawAircraftPseudo3D(ctx,cam,state,a,dl,t,opts);}
   }
 
-  drawDeckGun(ctx,w,h,state){
+  drawDeckGun(ctx,w,h,state,layout){
     const sub=state.playerSub,G=state.weapons.deckGun,env=state.world.environment,t=state.time.elapsedSeconds;
     const bearing=normDeg(sub.heading+(G?.trainDeg||0));
     const fov=this.portrait?62:56,cx=w/2,cy=this.portrait?h*0.46:h*0.49,r=Math.max(w,h)*0.72;
@@ -399,7 +399,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     // On touch portrait the station selector owns the top-right and can cover a
     // fixed top-left panel once the viewport gets narrow. Use measured DOM safe
     // geometry from TouchCtrl and push the gun card below the selector.
-    const touchSafe=(typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch')?this.touchOverlaySafe:null;
+    const touchSafe=layout.shell==='touch'?this.touchOverlaySafe:null;
     const hudY=Math.max(8*k,(touchSafe?.top||0)+3*k),hudW=Math.min(270*k,w-16*k);
     ctx.fillStyle='rgba(3,13,16,.78)';this.rr(ctx,8*k,hudY,hudW,72*k,6*k);ctx.fill();
     const gun=typeof deckGunSpecForState==='function'?deckGunSpecForState(state):{shortLabel:'3-IN/50',maxRangeNm:globalThis.DECK_GUN_MAX_RANGE_NM||7.2};

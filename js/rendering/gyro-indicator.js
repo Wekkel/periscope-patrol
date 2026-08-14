@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════ GYRO INDICATOR
 class GyroIndicator {
-  constructor() {
-    this.canvas = document.getElementById('gyroIndicator');
+  constructor(canvas) {
+    this.canvas = canvas;
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
     this.canvas.width = 110; this.canvas.height = 110;
@@ -36,4 +36,3 @@ class GyroIndicator {
     ctx.textAlign = 'left';
   }
 }
-

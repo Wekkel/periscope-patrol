@@ -6,7 +6,7 @@ for(const [k,v] of Object.entries(values))if(v>budgets[k])fail.push(`${k} ${v} >
 const ships=await readFile(path.join(root,'js/rendering/world-geometry.js'),'utf8');
 for(const key of ['US_FLETCHER_DESTROYER','US_DESTROYER_ESCORT','GERMAN_TORPEDO_BOAT','GERMAN_MINESWEEPER','ITALIAN_SOLDATI_DESTROYER','ITALIAN_GABBIANO_CORVETTE','SOVIET_GNEVNY_DESTROYER','SOVIET_PATROL_ESCORT'])if(!ships.includes(`SHIP_MODELS.${key}=`))fail.push(`national silhouette missing: ${key}`);
 const strictPatterns=[/\bToast\./,/\baudio\./,/\bSaveSystem\./,/\bglobalThis\./,/\bdocument\./,/\bsetTimeout\b/,/\bperformance\.now\b/];
-const layerViolations=[];
-for(const p of all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');for(const re of strictPatterns)if(re.test(src))layerViolations.push(`${rel(p)}: ${re}`);}
-if(layerViolations.length){const message=`strict simulation-layer warnings: ${layerViolations.length}`;if(process.env.PP_STRICT_LAYERS==='1')fail.push(...layerViolations.map(v=>`simulation layer violation: ${v}`));else console.warn(message);}
+const layerViolations=[];let layerCalls=0;const layerFiles=new Set();
+for(const p of all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');let fileCalls=0;for(const re of strictPatterns){const hits=src.match(new RegExp(re.source,'g'))||[];fileCalls+=hits.length;if(hits.length)layerViolations.push(`${rel(p)}: ${re}`);}if(fileCalls){layerCalls+=fileCalls;layerFiles.add(p);}}
+if(layerViolations.length){const message=`strict simulation-layer warnings: ${layerCalls} calls in ${layerFiles.size} files`;if(process.env.PP_STRICT_LAYERS==='1')fail.push(...layerViolations.map(v=>`simulation layer violation: ${v}`));else console.warn(message);}
 console.log(JSON.stringify({ok:!fail.length,root,files:all.length,bytes:values,budgets,fail},null,2));if(fail.length)process.exit(1);

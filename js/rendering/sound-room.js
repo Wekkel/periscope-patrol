@@ -37,7 +37,7 @@ class CanvasViewSound extends CanvasViewBridge {
        the canvas. Reserve its measured top edge so the signal-strength bar
        moves upward when necessary instead of disappearing underneath Train,
        Mark, Radar or Echo. */
-    const canvasRect=this.canvas?.getBoundingClientRect?.(),controls=document.getElementById('soundControls'),controlRect=controls?.getBoundingClientRect?.();
+    const canvasRect=this.canvas?.getBoundingClientRect?.(),controls=this.canvas?.ownerDocument?.getElementById?.('soundControls'),controlRect=controls?.getBoundingClientRect?.();
     const controlTop=canvasRect&&controlRect&&controlRect.width>0?controlRect.top-canvasRect.top:Infinity;
     const meterCeiling=Number.isFinite(controlTop)?controlTop-14*k:Infinity;
     const my=Math.min(h-54*k,hy+28*k,meterCeiling-10*k);

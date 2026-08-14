@@ -1,5 +1,5 @@
 class CanvasView extends CanvasViewSound {
-  drawMap(ctx,w,h,state){
+  drawMap(ctx,w,h,state,layout){
     const sub=state.playerSub, map=state.map, k=this.k;
     this._mapViewport={w,h};
     const intelContextSeq=map.intelContextSeq||0;
@@ -11,7 +11,7 @@ class CanvasView extends CanvasViewSound {
     if(fit&&this._intelFitSeq!==fit.seq){
       this._intelFitSeq=fit.seq;
       const dx=Math.abs(fit.estimate.xNm-fit.own.xNm),dy=Math.abs(fit.estimate.yNm-fit.own.yNm);
-      const touch=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch',left=touch?74*k:38*k,right=touch?96*k:38*k,top=touch?74*k:42*k,bottom=touch?72*k:42*k;
+      const touch=layout.shell==='touch',left=touch?74*k:38*k,right=touch?96*k:38*k,top=touch?74*k:42*k,bottom=touch?72*k:42*k;
       this.zoom=clamp(Math.min((w-left-right)/Math.max(4,dx),(h-top-bottom)/Math.max(4,dy)),this.minZoom,this.maxZoom);
       const mx=(fit.estimate.xNm+fit.own.xNm)/2,my=(fit.estimate.yNm+fit.own.yNm)/2,targetX=(left+w-right)/2,targetY=(top+h-bottom)/2;
       this.mapCenter.xNm=mx-(targetX-w/2)/this.zoom;this.mapCenter.yNm=my-(targetY-h/2)/this.zoom;this.follow=false;
@@ -126,7 +126,7 @@ class CanvasView extends CanvasViewSound {
     const nice=[0.5,1,2,5,10,20,50,100];
     let nm=nice[0];
     for(const n of nice){if(n*pxPerNm<=targetPx) nm=n;}
-    const touchLayout=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    const touchLayout=layout.shell==='touch';
     /* MAP owns the bottom-right scale lane, but desktop also keeps the 110 px
        gyro repeater there. Reserve its footprint; on touch the gyro moves to
        the top and the smaller inset instead clears the right action controls. */
@@ -179,7 +179,7 @@ class CanvasView extends CanvasViewSound {
     // second canvas label underneath it made the two controls compete for the
     // same pixels on phones. Debug/offscreen renderers have no document and
     // therefore keep the desktop cue by default.
-    const touchMap=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    const touchMap=layout.shell==='touch';
     if(!touchMap){
       const wx=String(env.weather||'CLEAR').replace(/_/g,' '),vis=Number(env.visibilityNm);
       const label=`WX OVERLAY ON · ${wx}${Number.isFinite(vis)?` · VIS ${vis.toFixed(1)} NM`:''}`;
@@ -407,10 +407,10 @@ class CanvasView extends CanvasViewSound {
   }
 
   _buildBathyOverview(B){
-    if(typeof document==='undefined'||typeof document.createElement!=='function') return null;
+    const owner=this.canvas?.ownerDocument;if(!owner||typeof owner.createElement!=='function') return null;
     if(this._bathyOverview?.ref===B) return this._bathyOverview;
     const scale=6,w=Math.max(1,(B.nx-1)*scale),h=Math.max(1,(B.ny-1)*scale);
-    const canvas=document.createElement('canvas');
+    const canvas=owner.createElement('canvas');
     if(!canvas||typeof canvas.getContext!=='function') return null;
     canvas.width=w;canvas.height=h;
     const c=canvas.getContext('2d',{alpha:true});

@@ -1,6 +1,7 @@
 class HelmGauges{
   constructor(game,touch){
-    this.game=game; this.touch=touch; this.views=[]; this.focus=null; this.raf=null;
+    this.game=game; this.touch=touch; this.views=[]; this.focus=null; this.raf=null; this.currentLayout=LayoutService.get();
+    LayoutService.subscribe(layout=>{this.currentLayout=layout;this.scheduleSize();});
     const host=document.getElementById('helmGauges');
     if(!host) return;
     this.host=host;
@@ -234,7 +235,7 @@ class HelmGauges{
     this._sizeRaf=requestAnimationFrame(doubleFrame?()=>requestAnimationFrame(run):run);
   }
 
-  size(layout=LayoutService.get()){
+  size(layout=this.currentLayout){
     if(!this.host) return;
     const W=this.host.clientWidth;
     if(!W) return;                                   // pane is hidden: leave it alone
