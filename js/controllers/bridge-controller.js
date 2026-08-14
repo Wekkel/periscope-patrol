@@ -26,6 +26,13 @@ class BridgeController{
     ri?.addEventListener('input',()=>{if(rv)rv.textContent=ri.value;this.game.dispatch({type:'SET_ENGINE_RPM',rpm:+ri.value});});
     di?.addEventListener('input',()=>{if(dv)dv.textContent=`${di.value} ft`;this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:+di.value});});
     const btn=(id,fn)=>document.getElementById(id)?.addEventListener('click',fn);
+    const setRpm=value=>{const max=this.game.getSnapshot().playerSub.propulsion.characteristics?.normalizedMaxRpm??450,rpm=clamp(Math.round(Number(value)||0),0,max);if(ri)ri.value=String(rpm);const exact=document.getElementById('rpmNumberInput');if(exact)exact.value=String(rpm);if(rv)rv.textContent=String(rpm);this.game.dispatch({type:'SET_ENGINE_RPM',rpm});};
+    const setDepth=value=>{const max=Number(di?.max)||300,depth=clamp(Math.round(Number(value)||0),0,max);if(di)di.value=String(depth);const exact=document.getElementById('depthNumberInput');if(exact)exact.value=String(depth);if(dv)dv.textContent=`${depth} ft`;this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:depth});};
+    document.querySelectorAll?.('[data-deskrpm]')?.forEach(b=>b.addEventListener('click',()=>setRpm(b.dataset.deskrpm)));
+    document.querySelectorAll?.('[data-deskrstep]')?.forEach(b=>b.addEventListener('click',()=>setRpm(this.game.getSnapshot().playerSub.propulsion.orderedRpm+Number(b.dataset.deskrstep))));
+    document.querySelectorAll?.('[data-deskdstep]')?.forEach(b=>b.addEventListener('click',()=>setDepth(this.game.getSnapshot().playerSub.orderedDepthFeet+Number(b.dataset.deskdstep))));
+    document.getElementById('rpmNumberInput')?.addEventListener('change',e=>setRpm(e.target.value));
+    document.getElementById('depthNumberInput')?.addEventListener('change',e=>setDepth(e.target.value));
     btn('surfaceButton',    ()=>{if(di){di.value=0;dv.textContent='0 ft';}this.game.dispatch({type:'SURFACE'});});
     btn('periscopeButton',  ()=>{if(di){di.value=55;dv.textContent='55 ft';}this.game.dispatch({type:'PERISCOPE_DEPTH'});});
     btn('diveButton',       ()=>{if(di){di.value=100;dv.textContent='100 ft';}this.game.dispatch({type:'DIVE'});});
@@ -48,6 +55,9 @@ class BridgeController{
     btn('scopeLeftButton',  ()=>this.game.dispatch({type:'ROTATE_PERISCOPE',deltaDeg:-5}));
     btn('scopeRightButton', ()=>this.game.dispatch({type:'ROTATE_PERISCOPE',deltaDeg:5}));
     btn('scopeZoomButton',  ()=>this.game.dispatch({type:'TOGGLE_PERISCOPE_ZOOM'}));
+    btn('scopeOverlayLeft', ()=>this.game.dispatch({type:'ROTATE_PERISCOPE',deltaDeg:-5}));
+    btn('scopeOverlayRight',()=>this.game.dispatch({type:'ROTATE_PERISCOPE',deltaDeg:5}));
+    btn('scopeOverlayZoom', ()=>this.game.dispatch({type:'TOGGLE_PERISCOPE_ZOOM'}));
     btn('selectScopeTargetButton',()=>this.game.dispatch({type:'PERISCOPE_SELECT_CENTER_CONTACT'}));
     btn('sendScopeToTdcButton',   ()=>this.game.dispatch({type:'TDC_SEND_SCOPE_OBSERVATION'}));
     btn('floodTubeButton',  ()=>this.game.dispatch({type:'FLOOD_ALL_TUBES'}));
@@ -66,7 +76,6 @@ class BridgeController{
     btn('followPlotButton', ()=>this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('mapWeatherButton',()=>this.game.dispatch({type:'TOGGLE_MAP_WEATHER'}));
     btn('portButton',       ()=>this.game.dispatch({type:'HEAD_TO_PORT'}));
-    btn('newScenarioButton',()=>this.game.dispatch({type:'NEW_PATROL'}));
     btn('stationTactical',  ()=>setSta('TACTICAL'));
     btn('stationBridge',    ()=>setSta('BRIDGE'));
     btn('stationSound',     ()=>setSta('SOUND'));

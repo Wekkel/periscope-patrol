@@ -449,7 +449,10 @@ class TouchCtrl{
       if(mode==='pinch'&&pts.size>=2){
         const d=dist();
         if(lastDist>0&&s.tactical.activeStation==='MAP'){
-          const m=mid();cv.zoomAt(d/lastDist,m.x,m.y);
+          const m=mid(),raw=Math.log(Math.max(.5,Math.min(2,d/lastDist)));
+          // A trackpad or touchscreen reports many tiny distance changes. Apply
+          // a dead zone and a bounded response so one tremor cannot jump levels.
+          if(Math.abs(raw)>.004)cv.zoomAt(Math.exp(clamp(raw,-.08,.08)*.48),m.x,m.y);
         }else if(lastDist>0&&s.tactical.activeStation==='PERISCOPE'){
           // spread the fingers for high power, pinch in for the search field
           const want=d/lastDist>1.25?2.5:d/lastDist<0.8?1:null;
@@ -532,15 +535,19 @@ class TouchCtrl{
     c.addEventListener('wheel',e=>{
       const s=this.game.getSnapshot();
       if(s.tactical.activeStation==='MAP'){
-        e.preventDefault();cv.zoomAt(e.deltaY<0?1.12:1/1.12,e.clientX,e.clientY);return;
+        e.preventDefault();
+        if(e.ctrlKey){const amount=clamp(-e.deltaY*.0018,-.10,.10);if(Math.abs(amount)>.002)cv.zoomAt(Math.exp(amount),e.clientX,e.clientY);}
+        else cv.panBy(-e.deltaX,-e.deltaY);
+        return;
       }
       if(s.tactical.activeStation==='BRIDGE'){
         e.preventDefault();const z=bridgeZoomAmount(s),step=e.deltaY<0?.10:-.10;
         D({type:'SET_BRIDGE_ZOOM',zoom:clamp(z+step,0,1)});return;
       }
       if(s.tactical.activeStation==='PERISCOPE'){
+        if(Math.abs(e.deltaX)>1){D({type:'ROTATE_PERISCOPE',deltaDeg:clamp(e.deltaX*.055,-4,4)});e.preventDefault();return;}
         const z=Number(s.tactical.periscopeZoom)||1,want=e.deltaY<0?2.5:1;
-        if((want>1&&z<2)||(want===1&&z>1.1))D({type:'TOGGLE_PERISCOPE_ZOOM'});
+        if(Math.abs(e.deltaY)>12&&((want>1&&z<2)||(want===1&&z>1.1)))D({type:'TOGGLE_PERISCOPE_ZOOM'});
         e.preventDefault();return;
       }
       if(s.tactical.activeStation==='SOUND'){
@@ -669,7 +676,7 @@ class TouchCtrl{
     }
 
     // top bar
-    set('mClock',Math.floor(state.time.elapsedSeconds).toString().padStart(5,'0'));
+    {const env=state.world.environment||{},dl=Number(env.daylight)||0,icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=Number(env.visibilityNm)||0;set('mClock',`${icon} ${DayNightCycle.getTimeString(state.time.elapsedSeconds)}`);set('mConditions',`${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis>=8?'GOOD':vis>=4?'FAIR':'POOR'} VIS`);}
     set('mMode',sub.mode.replace(/_/g,' '));
     const tsel=g('tBtnTime');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){
@@ -727,6 +734,7 @@ class TouchCtrl{
     const thr=enemy==='UNAWARE'?'CLEAR':(en.contactHeld?'HELD':enemy==='ATTACKING'?'LOST':'SEARCH');
     qv('qThr',thr,en.contactHeld?'d':enemy!=='UNAWARE'?'w':'');
     qv('qHull',`${sub.damage.hullIntegrity.toFixed(0)}%`,sub.damage.hullIntegrity<35?'d':sub.damage.hullIntegrity<70?'w':'');
+    qv('qFuel',`${sub.propulsion.fuel.toFixed(0)}%`,sub.propulsion.fuel<12?'d':sub.propulsion.fuel<25?'w':'');
     {const b=p.battery??0,charging=p.engineMode==='DIESEL'&&(p.chargeRate||0)>.002&&b<99.5;
       const bs=b>=99.5?'FULL':charging?'CHG':p.engineMode==='ELECTRIC'?'DRAIN':'HOLD';
       qv('qBatt',`${b.toFixed(0)}%`,b<12?'d':b<25?'w':'');set('qBattState',bs);
@@ -798,6 +806,7 @@ class TouchCtrl{
     const stsCount=crit+unread;
     const sb=g('stsBadge');if(sb&&C.sb!==stsCount){C.sb=stsCount;sb.textContent=stsCount||'';
       sb.classList.toggle('on',stsCount>0);}
+    {const d=sub.damage,burden=(100-d.hullIntegrity)+100*(['flooding','ballastDamage','motorDamage','electricalDamage','rudderDamage','periscopeDamage','tdcDamage','gyroDamage','pumpDamage'].reduce((n,k)=>n+(Number(d[k])||0),0));if(this._touchDamageBurden!=null&&burden>this._touchDamageBurden+.35){const tab=document.querySelector?.('#tTabs [data-pane="paneStats"]');tab?.classList.remove('damage-pulse');void tab?.offsetWidth;tab?.classList.add('damage-pulse');}this._touchDamageBurden=burden;}
 
     // sync sliders with the sim (unless the finger is on them)
     if(this.dragging!=='mHdg'){const el=g('mHdg');const v=Math.round(sub.orderedHeading);
@@ -873,7 +882,8 @@ class TouchCtrl{
         const result=o.result&&o.result!=='not_attempted'?` · ${o.result.toUpperCase()}`:'';
         return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
       }).join('<br>');
-      html('mMission',`<strong style="color:var(--alert)">${c2.missionStatus}</strong><br>`+
+      const missionProgress=typeof missionProgressText==='function'?missionProgressText(state):'';
+      html('mMission',`<strong style="color:var(--alert)">${c2.missionStatus}</strong><br>${missionProgress?`<span style="color:var(--alert);font-size:10px;">${missionProgress}</span><br>`:''}`+
         c2.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
         (opt2?`<br>${opt2}`:'')+
         `<br><span style="color:var(--dim);font-size:10px;">Tonnage ${c2.tonnageSunk.toLocaleString()}t · patrol #${c2.patrolNumber} · career ${c2.totalScore}</span>`);
@@ -882,6 +892,7 @@ class TouchCtrl{
         return `<div class="dmg-row"><span class="dmg-lbl">${l}</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${(v*100).toFixed(0)}%;background:${col}"></div></div><span class="dmg-val">${(v*100).toFixed(0)}%</span></div>`;};
       const hc=d.hullIntegrity<30?'#ef6a58':d.hullIntegrity<60?'#f5c65c':'#6fe08f';
       html('mDamage',
+        `<div class="note" style="margin:0 0 7px;">Hull shows integrity remaining; subsystem rows show damage accumulated.</div>`+
         `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
         bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
         bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+

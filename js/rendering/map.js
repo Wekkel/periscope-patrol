@@ -8,6 +8,7 @@ class CanvasView extends CanvasViewSound {
     const recenterSeq=map.recenterSeq||0;
     if(this._mapRecenterSeq!==recenterSeq){
       this._mapRecenterSeq=recenterSeq;
+      const requested=Number(PATROL_AREAS?.[state.campaign?.patrolArea]?.chartStartZoom);if(Number.isFinite(requested))this.zoom=clamp(requested,this.minZoom,this.maxZoom);
       this.recenter(sub);
     }
     if(this.follow){this.mapCenter.xNm=sub.position.xNm;this.mapCenter.yNm=sub.position.yNm;}
@@ -60,9 +61,10 @@ class CanvasView extends CanvasViewSound {
     this.drawMapDCs(ctx,state.world.depthCharges,w2s);
     this.drawMapTorps(ctx,state.weapons.activeTorpedoes,w2s);
     this.drawMapExplosions(ctx,state.weapons.explosions,w2s);
+    this._mapFixedLabelRects=[];
+    this.drawUltra(ctx,state,w2s);
     this.drawMapContacts(ctx,state.world.contactTracks,w2s,state.time.elapsedSeconds,sub.position,state.tactical.selectedTrackId,state);
     this.drawEnemySonarPing(ctx,state,w2s);
-    this.drawUltra(ctx,state,w2s);
     this.drawMapAircraft(ctx,state.world.aircraft||[],w2s,sub);
     particles.draw(ctx,w2s);
     this.drawMapOwnship(ctx,sub,w2s);
@@ -168,12 +170,16 @@ class CanvasView extends CanvasViewSound {
       if(p.x+rp<-32||p.x-rp>w+32||p.y+rp<-32||p.y-rp>h+32)continue;
 
       const core=Math.max(7,rp*.44),outer=Math.max(10,rp);
+      // Stable, cell-specific lobes replace the former perfect oval. Weather
+      // remains deterministic and cheap: no per-frame random calls or raster.
+      const seed=String(c.id||c.seed||`${center.xNm}:${center.yNm}`).split('').reduce((n,ch)=>(Math.imul(n,33)^ch.charCodeAt(0))>>>0,2166136261);
+      const blob=(radius,scale=.72)=>{ctx.beginPath();for(let i=0;i<16;i++){const a=i/16*Math.PI*2,noise=1+.18*Math.sin(a*3+(seed%97))+.10*Math.sin(a*7+(seed%41)*.13),x=p.x+Math.cos(a)*radius*noise,y=p.y+Math.sin(a)*radius*scale*(1+.14*Math.cos(a*5+(seed%53)));i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.closePath();};
       // Outer cloud mass: faint and dashed. Inner core: precipitation/squall.
       ctx.fillStyle='rgba(116,139,150,.045)';ctx.strokeStyle='rgba(158,188,198,.28)';
       ctx.lineWidth=Math.max(.8,1.05*K);ctx.setLineDash([5*K,6*K]);
-      ctx.beginPath();ctx.ellipse(p.x,p.y,outer,outer*.72,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      blob(outer);ctx.fill();ctx.stroke();
       ctx.setLineDash([]);ctx.fillStyle='rgba(112,135,148,.075)';ctx.strokeStyle='rgba(177,204,211,.34)';
-      ctx.beginPath();ctx.ellipse(p.x,p.y,core,core*.68,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+      blob(core,.68);ctx.fill();ctx.stroke();
 
       const hdg=Number(c.heading)||0,a=degToRad(hdg),L=clamp(outer*.38,12*K,46*K);
       const ex=p.x+Math.sin(a)*L,ey=p.y-Math.cos(a)*L;
@@ -249,6 +255,7 @@ class CanvasView extends CanvasViewSound {
     ctx.fillStyle='rgba(150,205,255,.95)';ctx.font=this.fnt(9,true);ctx.fillText('ULTRA — ESTIMATED CONVOY',b.x+11*K,b.y-3*K);
     ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(150,205,255,.7)';ctx.fillText(`course ${fmtDeg(heading)} · ${U.speedKn.toFixed(0)}kn · ±${unc.toFixed(1)}nm`,b.x+11*K,b.y+8*K);
     const sp=state.playerSub.position;ctx.fillStyle='rgba(190,225,255,.9)';ctx.font=this.fnt(8,true);ctx.fillText(`${distNm(sp,dr).toFixed(1)} nm · steer ${fmtDeg(bearingBetween(sp,dr))}`,b.x+11*K,b.y+18*K);
+    this._mapFixedLabelRects?.push({x:b.x+7*K,y:b.y-15*K,w:196*K,h:38*K,reserved:true});
     this.shipIcon(ctx,b.x,b.y,heading,clamp(.22*this.zoom,14*K,40*K),'MERCHANT','rgba(120,190,255,.30)','rgba(160,210,255,.8)',.95);
   }
 
@@ -916,7 +923,7 @@ class CanvasView extends CanvasViewSound {
     // Labels are allowed to move; fixed HUD text is not. Reserving the small
     // navigation panel prevents the solver from finding a mathematically empty
     // but visually unreadable slot underneath it.
-    this._mapLabelRects=[{x:0,y:0,w:Math.min(this._mapViewport?.w||220,214*K),h:70*K,reserved:true}];
+    this._mapLabelRects=[{x:0,y:0,w:Math.min(this._mapViewport?.w||220,214*K),h:70*K,reserved:true},...(this._mapFixedLabelRects||[])];
     const visible=Object.values(tracks).filter(q=>!q.sunk),dense=visible.length>=4;
     this._mapLabelDense=visible.length>=6;
     const contactById=state?new Map((state.world.contacts||[]).filter(c=>!c.sunk).map(c=>[c.id,c])):null;

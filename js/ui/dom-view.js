@@ -29,7 +29,7 @@ class DomView{
         BRIDGE:'Drag to scan · wheel binocular zoom · ← → train',
         SOUND:'Drag or wheel to train · ← → fine train · mark a bearing',
         PERISCOPE:'Drag to train · wheel optical zoom · click a contact',
-        MAP:'Drag / arrows to pan · wheel zoom · click waypoint or track',
+        MAP:'Drag / arrows / two fingers to pan · pinch or Ctrl+wheel zoom · click waypoint or track',
         DECK_GUN:'Drag to aim · wheel or ↑ ↓ elevation · ← → fine train'
       };
       this.inputHint.textContent=hints[state.tactical.activeStation]||'';
@@ -42,6 +42,8 @@ class DomView{
     const torpSel=document.getElementById('torpTypeSelect');if(torpSel){for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
     if(this.hArea)  this.hArea.textContent=state.campaign.patrolArea;
     if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
+    {const env=state.world.environment||{},dl=Number(env.daylight)||0,icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=Number(env.visibilityNm)||0,quality=vis>=8?'GOOD VIS':vis>=4?'FAIR VIS':'POOR VIS',el=document.getElementById('hTimeConditions');if(el)el.textContent=`${icon} ${DayNightCycle.getTimeString(state.time.elapsedSeconds)} · ${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis.toFixed(1)} NM ${quality}`;}
+    const rpmExact=document.getElementById('rpmNumberInput'),depthExact=document.getElementById('depthNumberInput');if(rpmExact&&rpmExact!==document.activeElement)rpmExact.value=String(Math.round(p.orderedRpm));if(depthExact&&depthExact!==document.activeElement)depthExact.value=String(Math.round(sub.orderedDepthFeet));
     document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationBridge:'BRIDGE',stationSound:'SOUND',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
     const bc=document.getElementById('bridgeControls');if(bc)bc.classList.toggle('on',state.tactical.activeStation==='BRIDGE');
     document.getElementById('mapWeatherButton')?.classList.toggle('on',!!state.map.weatherOverlay);
@@ -56,11 +58,13 @@ class DomView{
     const dn=document.getElementById('deskDcNote');if(dn){const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);dn.textContent=`Priority ${repairPriorityLabel(rp)} · ${sub.damage.damageControlActive?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · drive bank offline':''}`;}
     this.renderAlerts(state);
     this.renderOrders(sub,state);
+    {const d=sub.damage,burden=(100-d.hullIntegrity)+100*(['flooding','ballastDamage','motorDamage','electricalDamage','rudderDamage','periscopeDamage','tdcDamage','gyroDamage','pumpDamage'].reduce((n,k)=>n+(Number(d[k])||0),0));if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.getElementById('deskDamage');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}
     this.renderDamage(sub);
     this.renderGauges(sub,state);
     if(this.batteryBar) this.batteryBar.style.width=`${p.battery}%`;
     if(this.fuelBar)    this.fuelBar.style.width=`${p.fuel}%`;
     if(this.hullBar)    this.hullBar.style.width=`${sub.damage.hullIntegrity}%`;
+    for(const [id,v] of [['batteryPct',p.battery],['fuelPct',p.fuel],['hullPct',sub.damage.hullIntegrity]]){const el=document.getElementById(id);if(el)el.textContent=`${Number(v).toFixed(0)}%`;}
     if(this.logEl){
       const cap=(state.campaign.importantEvents||[]).slice().reverse();
       const capHtml=cap.length?`<div style="color:var(--alert);letter-spacing:1px;margin-bottom:4px;">CAPTAIN'S LOG</div>`+
@@ -140,6 +144,7 @@ class DomView{
       return `<div class="dmg-row"><span class="dmg-lbl">${l}</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${(v*100).toFixed(0)}%;background:${col}"></div></div><span class="dmg-val">${(v*100).toFixed(0)}%</span></div>`;};
     const hc=d.hullIntegrity<30?'#e36b5d':d.hullIntegrity<60?'#f0c35a':'#7be08f';
     this.damageReport.innerHTML=
+      `<div class="note" style="margin:0 0 7px;">Hull shows integrity remaining; subsystem rows show damage accumulated.</div>`+
       `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
       bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
       bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
