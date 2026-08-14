@@ -1,0 +1,149 @@
+=== quality ===
+{
+  "ok": true,
+  "root": "/workspace/scratch/c537ef948dd1/work/atlantic/periscope-patrol-atlantic-dev",
+  "files": 85,
+  "bytes": {
+    "repository": 2285874,
+    "javascript": 1508734,
+    "styles": 106258,
+    "audio": 0,
+    "singleScript": 111363
+  },
+  "budgets": {
+    "repository": 2650000,
+    "javascript": 1850000,
+    "styles": 220000,
+    "audio": 650000,
+    "singleScript": 145000
+  },
+  "fail": []
+}
+=== behaviour ===
+behaviour tests passed: TDC 6, routes 4, hull SAT 5, render recovery 1
+=== boot ===
+{
+  "root": "/workspace/scratch/c537ef948dd1/work/atlantic/periscope-patrol-atlantic-dev",
+  "firstException": null,
+  "errors": [],
+  "gameLoopStarted": true,
+  "drawCalls": 6262,
+  "audioCalls": 234,
+  "audioMethods": [
+    "ResizeObserver.observe",
+    "AudioContext.constructor",
+    "AudioContext.createGain",
+    "GainNode.connect",
+    "AudioContext.createDynamicsCompressor",
+    "DynamicsCompressorNode.connect",
+    "AudioContext.createBuffer",
+    "AudioContext.createOscillator",
+    "AudioContext.createBiquadFilter",
+    "AudioContext.createPeriodicWave",
+    "OscillatorNode.setPeriodicWave",
+    "OscillatorNode.connect",
+    "BiquadFilterNode.connect",
+    "OscillatorNode.start",
+    "AudioContext.createBufferSource",
+    "BufferSource.connect",
+    "BufferSource.start",
+    "AudioParam.setValueAtTime",
+    "AudioParam.linearRampToValueAtTime",
+    "AudioParam.exponentialRampToValueAtTime",
+    "OscillatorNode.stop"
+  ],
+  "drawMethods": [
+    "setTransform",
+    "setLineDash",
+    "createRadialGradient",
+    "fillRect",
+    "beginPath",
+    "moveTo",
+    "lineTo",
+    "stroke",
+    "fillText",
+    "arc",
+    "fill",
+    "save",
+    "clip",
+    "restore",
+    "closePath",
+    "arcTo",
+    "createLinearGradient",
+    "strokeRect",
+    "translate",
+    "rotate",
+    "ellipse",
+    "quadraticCurveTo",
+    "rect"
+  ],
+  "canvases": [
+    {
+      "id": "gyroIndicator",
+      "width": 110,
+      "height": 110,
+      "clientWidth": 1280,
+      "clientHeight": 800
+    },
+    {
+      "id": "mainCanvas",
+      "width": 1280,
+      "height": 800,
+      "clientWidth": 1280,
+      "clientHeight": 800
+    },
+    {
+      "id": "",
+      "width": 300,
+      "height": 150,
+      "clientWidth": 1280,
+      "clientHeight": 800
+    },
+    {
+      "id": "",
+      "width": 300,
+      "height": 150,
+      "clientWidth": 1280,
+      "clientHeight": 800
+    },
+    {
+      "id": "",
+      "width": 300,
+      "height": 150,
+      "clientWidth": 1280,
+      "clientHeight": 800
+    }
+  ],
+  "stations": [
+    {
+      "station": "TACTICAL",
+      "rendered": true,
+      "ok": true
+    },
+    {
+      "station": "BRIDGE",
+      "rendered": true,
+      "ok": true
+    },
+    {
+      "station": "SOUND",
+      "rendered": true,
+      "ok": true
+    },
+    {
+      "station": "PERISCOPE",
+      "rendered": true,
+      "ok": true
+    },
+    {
+      "station": "MAP",
+      "rendered": true,
+      "ok": true
+    },
+    {
+      "station": "DECK_GUN",
+      "rendered": true,
+      "ok": true
+    }
+  ]
+}

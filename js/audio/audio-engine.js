@@ -1,12 +1,18 @@
 // ═══════════════════════════════════════════════════ AUDIO ENGINE
 class AudioEngine{
   constructor(){this.ctx=null;this.enabled=true;this.masterGain=null;this.musicGain=null;this.outputLimiter=null;this.initialized=false;
+    this._gestureResumeRequested=false;
     this.sfxVolume=.62;this.musicVolume=.42;this.noiseBuffer=null;this.sonarVariant=3;
     this.busNodes={};this.mixTargets={system:1,command:1,sensor:1,world:1,machinery:1,weapons:1,mission:1};this.duckUntil=0;this.duckFactor=1;
     this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;this.lastRadio=0;
     this.titleStartPlayed=false;this.titleCueGain=null;
     this.battleNoiseSource=null;this.seaGain=null;this.windGain=null;this.rainGain=null;this.harborGain=null;this.harborOsc=null;this.harborOscGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;this.escortMachinery=null;
     this.soundIdentity={key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1};
+    /* Hybrid sample house. URL stays null until a produced, licensed sample is
+       supplied; every slot then falls through to the existing WebAudio recipe.
+       Decoded buffers and simultaneous voices are explicitly bounded for G88. */
+    this.hybridManifest={SONAR_PING:{url:null,bus:'sensor'},GENERAL_ALARM:{url:null,bus:'command'},DECK_GUN_SHOT:{url:null,bus:'weapons'},DECK_GUN_IMPACT:{url:null,bus:'weapons'},TORPEDO_LAUNCH:{url:null,bus:'weapons'},TUBE_FILL:{url:null,bus:'system'},TORPEDO_HIT:{url:null,bus:'weapons'}};
+    this.hybridBuffers=new Map();this.hybridLoading=new Map();this.hybridVoices=[];this.hybridDecodedBytes=0;this.hybridBudgetBytes=8*1024*1024;this.hybridMaxVoices=6;
     // Aircraft fly-by is a deliberately tiny procedural engine. Only the nearest
     // visible aircraft in BRIDGE/GUN gets voices; this avoids turning ambient
     // sound into another sensor and keeps oscillator count bounded on G88-class
@@ -41,10 +47,39 @@ class AudioEngine{
 
   ensure(){
     if(!this.initialized)this.init();
-    if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume().catch(()=>{});
+  }
+
+  resumeFromGesture(){
+    this.ensure();
+    if(this.ctx&&this.ctx.state==='suspended'&&!this._gestureResumeRequested){
+      this._gestureResumeRequested=true;
+      this.ctx.resume().catch(()=>{this._gestureResumeRequested=false;});
+    }
   }
 
   _bus(name='system'){return this.busNodes?.[name]||this.masterGain;}
+
+  configureHybridSamples(patch={}){for(const [id,value] of Object.entries(patch)){if(this.hybridManifest[id])this.hybridManifest[id]={...this.hybridManifest[id],...value};}return this.hybridStatus();}
+
+  async _loadHybrid(id){
+    const spec=this.hybridManifest[id];if(!this.ctx||!spec?.url||this.hybridBuffers.has(id))return this.hybridBuffers.get(id)||null;
+    if(this.hybridLoading.has(id))return this.hybridLoading.get(id);
+    const task=fetch(spec.url).then(r=>{if(!r.ok)throw new Error(`${r.status} ${spec.url}`);return r.arrayBuffer();}).then(b=>this.ctx.decodeAudioData(b)).then(buffer=>{
+      const bytes=buffer.length*buffer.numberOfChannels*4;if(bytes>this.hybridBudgetBytes||this.hybridDecodedBytes+bytes>this.hybridBudgetBytes)throw new Error('hybrid audio buffer budget exceeded');
+      this.hybridBuffers.set(id,buffer);this.hybridDecodedBytes+=bytes;return buffer;
+    }).catch(e=>{console.warn(`Hybrid audio ${id} unavailable; procedural fallback retained.`,e);return null;}).finally(()=>this.hybridLoading.delete(id));
+    this.hybridLoading.set(id,task);return task;
+  }
+
+  _tryHybrid(id,{volume=1,rate=1}={}){
+    const spec=this.hybridManifest[id],buffer=this.hybridBuffers.get(id);if(!spec?.url)return false;
+    if(!buffer){this._loadHybrid(id);return false;}
+    while(this.hybridVoices.length>=this.hybridMaxVoices){const old=this.hybridVoices.shift();try{old.stop();}catch(_){}}
+    const source=this.ctx.createBufferSource(),gain=this.ctx.createGain();source.buffer=buffer;source.playbackRate.value=clamp(rate,.5,2);gain.gain.value=clamp(volume,0,1.5);source.connect(gain);gain.connect(this._bus(spec.bus));
+    source.onended=()=>{this.hybridVoices=this.hybridVoices.filter(x=>x!==source);};this.hybridVoices.push(source);source.start();return true;
+  }
+
+  hybridStatus(){return{slots:Object.fromEntries(Object.entries(this.hybridManifest).map(([id,s])=>[id,{configured:!!s.url,ready:this.hybridBuffers.has(id),bus:s.bus}])),decodedBytes:this.hybridDecodedBytes,budgetBytes:this.hybridBudgetBytes,voices:this.hybridVoices.length,maxVoices:this.hybridMaxVoices};}
 
   applyMixProfile(profile={}){
     if(!this.ctx)return;const now=this.ctx.currentTime,wall=performance.now(),duck=wall<this.duckUntil?this.duckFactor:1;
@@ -155,6 +190,7 @@ class AudioEngine{
   }
 
   playTorpedoLaunch(){
+    if(this._tryHybrid('TORPEDO_LAUNCH'))return;
     this.ensure();if(Date.now()-this.lastLaunch<400)return;this.lastLaunch=Date.now();this.duck(72,380);
     this._white(.15,.4,null,0,'weapons');
     setTimeout(()=>this._noise(.6,80,'sine',.35,null,0,'weapons'),80);
@@ -202,6 +238,7 @@ class AudioEngine{
   }
 
   playTorpedoHit(){
+    if(this._tryHybrid('TORPEDO_HIT'))return;
     this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
     // A Mk14-sized warhead striking a steel hull is deliberately NOT a short,
     // dry bang. The first pressure face is broad and dark; a turbulent water/
@@ -220,6 +257,7 @@ class AudioEngine{
   playDud(){this.ensure();this._noise(.22,105,'sine',.18,null,0,'weapons');setTimeout(()=>this._metalClack(.22,88,310,'weapons'),70);}
 
   playDeckGun(power=1){
+    if(this._tryHybrid('DECK_GUN_SHOT',{volume:power}))return;
     this.ensure();const v=clamp(power,.2,1);this.duck(86,320);this._noise(.055,72,'sawtooth',.55*v,null,0,'weapons');
     setTimeout(()=>this._white(.18,.42*v,null,0,'weapons'),18);setTimeout(()=>this._noise(.42,36,'sine',.30*v,null,0,'weapons'),45);
   }
@@ -254,7 +292,7 @@ class AudioEngine{
   }
 
   playSonarPing(bearingDeg=null,ownHeading=0,variant=this.sonarVariant,levelScale=1){
-    this.ensure();if(Date.now()-this.lastPing<700)return;this.lastPing=Date.now();this._playSelfDecaySonar(bearingDeg,ownHeading,variant,false,levelScale);
+    this.ensure();if(Date.now()-this.lastPing<700)return;this.lastPing=Date.now();if(!this._tryHybrid('SONAR_PING',{volume:levelScale}))this._playSelfDecaySonar(bearingDeg,ownHeading,variant,false,levelScale);
     const ping=document.getElementById('sonarPing');if(ping){ping.classList.remove('ping');void ping.offsetWidth;ping.classList.add('ping');}
   }
 
@@ -269,6 +307,7 @@ class AudioEngine{
   }
 
   playTubeFlood(){
+    if(this._tryHybrid('TUBE_FILL'))return;
     this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime,dur=.95,src=this._noiseSource(dur),out=ctx.createGain(),low=ctx.createBiquadFilter(),mid=ctx.createBiquadFilter(),lg=ctx.createGain(),mg=ctx.createGain();
     low.type='lowpass';low.frequency.value=430;mid.type='bandpass';mid.frequency.value=480;mid.Q.value=.65;lg.gain.value=.72;mg.gain.value=.23;src.connect(low);low.connect(lg);lg.connect(out);src.connect(mid);mid.connect(mg);mg.connect(out);out.connect(this._bus('system'));
     // Water starts through a small opening and reaches full flow in ~55 ms —
@@ -299,7 +338,7 @@ class AudioEngine{
     setTimeout(()=>this._metalClack(.12,96*pitch,980*pitch,'system'),315);
   }
   playBattleStations(){
-    this.ensure();if(Date.now()-this.lastBattleStations<1800)return;this.lastBattleStations=Date.now();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
+    this.ensure();if(Date.now()-this.lastBattleStations<1800)return;this.lastBattleStations=Date.now();if(this._tryHybrid('GENERAL_ALARM'))return;if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
     // Short electro-mechanical klaxon: an inharmonic motor/body pair, uneven
     // rise and a little housing rattle. No clean two-note computer beep.
     this._filteredNoise(.78,.045,{type:'bandpass',freq:310,q:2.1,attack:.018},null,0,'command');
@@ -353,7 +392,7 @@ class AudioEngine{
     throw new Error(`Unknown audio review sound: ${name}`);
   }
 
-  audioStats(){return{initialized:this.initialized,context:this.ctx?.state||'none',enabled:this.enabled,sonarVariant:this.sonarVariant,sfxVolume:this.sfxVolume,musicVolume:this.musicVolume,sampleRate:this.ctx?.sampleRate||null,sharedNoiseBufferSeconds:this.noiseBuffer?this.noiseBuffer.length/this.noiseBuffer.sampleRate:0,busMix:{...this.mixTargets},duckUntilMs:Math.max(0,(this.duckUntil||0)-performance.now()),lastEnemyPingAgeMs:this.lastEnemyPingAt?performance.now()-this.lastEnemyPingAt:null,nearbyEscort:this.escortMachinery?{id:this.escortMachinery.id,rangeNm:this.escortMachinery.rangeNm}:null};}
+  audioStats(){return{initialized:this.initialized,context:this.ctx?.state||'none',enabled:this.enabled,sonarVariant:this.sonarVariant,sfxVolume:this.sfxVolume,musicVolume:this.musicVolume,sampleRate:this.ctx?.sampleRate||null,sharedNoiseBufferSeconds:this.noiseBuffer?this.noiseBuffer.length/this.noiseBuffer.sampleRate:0,busMix:{...this.mixTargets},hybrid:this.hybridStatus(),duckUntilMs:Math.max(0,(this.duckUntil||0)-performance.now()),lastEnemyPingAgeMs:this.lastEnemyPingAt?performance.now()-this.lastEnemyPingAt:null,nearbyEscort:this.escortMachinery?{id:this.escortMachinery.id,rangeNm:this.escortMachinery.rangeNm}:null};}
 
   playDistantGunfire(bearingDeg=null,ownHeading=0,strength=.5){
     this.ensure();const v=clamp(strength,.08,.8);this._noise(.055,64,'sawtooth',.26*v,bearingDeg,ownHeading,'weapons');
@@ -367,6 +406,7 @@ class AudioEngine{
   playShellSplash(distanceFactor=.5){this.ensure();const v=clamp(.28*(1-distanceFactor*.65),.05,.28);this._white(.32,v,null,0,'weapons');setTimeout(()=>this._noise(.5,52,'sine',v*.55,null,0,'weapons'),20);}
   playShellImpact(bearingDeg=null,ownHeading=0,power=1){this.ensure();const v=clamp(power,.2,1);this.duck(88,420);this._noise(.08,52,'sawtooth',.55*v,bearingDeg,ownHeading,'weapons');setTimeout(()=>this._white(.8,.38*v,bearingDeg,ownHeading,'weapons'),20);}
   playDeckGunImpact(distanceFactor=.5){
+    if(this._tryHybrid('DECK_GUN_IMPACT',{volume:1-distanceFactor*.55}))return;
     this.ensure();if(!this.ctx||!this.enabled)return;
     // Fall-of-shot is deliberately range-scaled. A distant hit is a small dark
     // crack/thump, not the same close explosion merely played at full volume.
@@ -384,6 +424,7 @@ class AudioEngine{
     seaF.type='lowpass';seaF.frequency.value=700;windF.type='bandpass';windF.frequency.value=940;windF.Q.value=.32;rainF.type='highpass';rainF.frequency.value=1100;harborF.type='bandpass';harborF.frequency.value=310;harborF.Q.value=1.1;seaG.gain.value=0;windG.gain.value=0;rainG.gain.value=0;harborG.gain.value=0;
     for(const [f,g] of [[seaF,seaG],[windF,windG],[rainF,rainG],[harborF,harborG]]){src.connect(f);f.connect(g);g.connect(this._bus('world'));}src.start();
     this.battleNoiseSource=src;this.seaGain=seaG;this.windGain=windG;this.rainGain=rainG;this.harborGain=harborG;
+    const ctx=this.ctx;
     const harborOsc=ctx.createOscillator(),hog=ctx.createGain();harborOsc.type='triangle';harborOsc.frequency.value=24;hog.gain.value=0;harborOsc.connect(hog);hog.connect(this._bus('world'));harborOsc.start();this.harborOsc=harborOsc;this.harborOscGain=hog;
     // One reusable diesel voice. A triangle through a dark low-pass reads as a
     // heavy low-speed engine rather than an electronic saw wave, while remaining

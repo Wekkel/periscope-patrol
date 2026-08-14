@@ -18,7 +18,7 @@ class ScenarioSelector{
   }
 
   open(){
-    audio.ensure();
+    audio.resumeFromGesture?.();
     const current=this.game.getSnapshot(),campaign=getCampaignProfile(current?.campaign?.campaignProfileId),party=resolveCampaignForRuntimeProfile(campaign?.id);
     if(party&&party.id!==this.selWarPartyId){this.selCampaignId=party.campaignId;this.selWarPartyId=party.id;this.selArea=current.campaign.patrolArea||campaign.defaultArea;this.selMission='AUTO';this.renderCards();}
     // Opening the anchor/menu is the alternative acknowledgement path for the
