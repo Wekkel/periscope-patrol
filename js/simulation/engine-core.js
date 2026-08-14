@@ -39,10 +39,11 @@ class SimEngineCore{
     };
   }
   startImpactObservation(snapshot){
-    if(!snapshot||this.state.tactical.impactObservation)return false;
+    if(!snapshot)return false;
     const s=this.state,token=snapshot.token||++this._impactSeq;
+    const replacing=!!s.tactical.impactObservation;
     s.tactical.impactObservation={...snapshot,token};
-    PresentationBridge.emit(s,'impact-observed',{snapshot:s.tactical.impactObservation});
+    PresentationBridge.emit(s,'impact-observed',{snapshot:s.tactical.impactObservation,replacing});
     return true;
   }
   offerImpactObservation(c,meta={}){
