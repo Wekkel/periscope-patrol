@@ -8,8 +8,7 @@ class TouchCtrl{
     this.touch=false; this.pane='view'; this.canvasMoved=false; this.wired=false;
     this.cache={}; this.dragging=null; this.lastSync=0;
     this.applyLayout(true);
-    window.addEventListener('resize',()=>this.applyLayout(),{passive:true});
-    window.addEventListener('orientationchange',()=>setTimeout(()=>this.applyLayout(),160),{passive:true});
+    LayoutService.subscribe(layout=>this.applyLayout(false,layout));
     if(window.visualViewport){
       window.visualViewport.addEventListener('resize',()=>this.syncViewport(),{passive:true});
       window.visualViewport.addEventListener('scroll',()=>this.syncViewport(),{passive:true});
@@ -17,29 +16,12 @@ class TouchCtrl{
     setInterval(()=>this.syncViewport(),1500);   // Android toolbars slide in and out silently
   }
 
-  /* ── layout selection ── */
-  isTouchLayout(){
-    const forced=(new URLSearchParams(location.search).get('ui'))||localStorage.getItem(PP_BUILD.storageKey('ss_ui'));
-    if(forced==='touch') return true;
-    if(forced==='desk')  return false;
-    const mm=q=>window.matchMedia?window.matchMedia(q).matches:false;
-    const coarse=mm('(pointer:coarse)')||('ontouchstart' in window)||(navigator.maxTouchPoints||0)>0;
-    const fine=mm('(pointer:fine)');
-    /* A laptop can expose touch points as well as a mouse/trackpad. Treating
-       every such hybrid as a phone was why wide browser windows sometimes got
-       the mobile shell. A fine pointer plus usable width is a desktop cockpit;
-       genuinely coarse devices keep the touch shell regardless of orientation. */
-    if(fine&&window.innerWidth>=900) return false;
-    if(coarse&&!fine) return true;
-    return window.innerWidth<1024;
-  }
-
   syncViewport(){
     const vv=window.visualViewport;
     const h=Math.round((vv&&vv.height)||window.innerHeight||0);
     if(h>200&&h!==this._vh){
       this._vh=h;
-      document.documentElement.style.setProperty('--appH',h+'px');
+      LayoutService.setViewportHeight(h);
       requestAnimationFrame(()=>{this.cv.resize(true);this.checkLayout();});
     }
   }
@@ -87,10 +69,9 @@ class TouchCtrl{
     return safe;
   }
 
-  applyLayout(first){
+  applyLayout(first,layout=LayoutService.get()){
     this.syncViewport();
-    const want=this.isTouchLayout();
-    document.documentElement.dataset.lay=want?'touch':'desk';
+    const want=layout.shell==='touch';
     if(want&&(!this.touch||first)){this.touch=true;this.enterTouch();}
     else if(!want&&(this.touch||first)){this.touch=false;this.enterDesk();}
     requestAnimationFrame(()=>{this.cv.resize(true);this.cache={};this.checkLayout();});

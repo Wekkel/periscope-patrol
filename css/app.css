@@ -1,3 +1,4 @@
+    :root{--bp-phone:600px;--bp-tablet:1024px;}
     /* ══════════════════════════════════════════════════════════
        PERISCOPE PATROL
        ────────────────────────────────────────────────────────────────
@@ -369,6 +370,7 @@
     /* On touch the clock/time-skip control lives in the 42px top bar. Toasts
        start below it instead of covering the selector the player may need next. */
     html[data-lay="touch"] #toastContainer{top:calc(var(--sat) + 52px);}
+    html[data-dev="tablet"] #toastContainer{max-width:min(720px,calc(100vw - 32px));}
     .toast{background:rgba(9,26,31,.97);border:1px solid var(--line);border-radius:6px;padding:9px 16px;
       font-size:12.5px;line-height:1.38;letter-spacing:.35px;text-align:center;overflow-wrap:anywhere;backdrop-filter:blur(4px);
       box-shadow:0 4px 18px rgba(0,0,0,.6);
@@ -582,6 +584,7 @@
       #tutBody{max-height:19vh;}
     }
     html[data-lay="desk"] #coach{left:auto;right:16px;bottom:16px;width:390px;}
+    html[data-dev="tablet"] #coach{width:min(640px,calc(100vw - 32px));right:16px;left:auto;}
 
     /* ── COACH: collapsed "peek" strip ──────────────────────────────────
        On a phone held upright the card was eating the controls it was

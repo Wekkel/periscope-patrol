@@ -234,13 +234,13 @@ class HelmGauges{
     this._sizeRaf=requestAnimationFrame(doubleFrame?()=>requestAnimationFrame(run):run);
   }
 
-  size(){
+  size(layout=LayoutService.get()){
     if(!this.host) return;
     const W=this.host.clientWidth;
     if(!W) return;                                   // pane is hidden: leave it alone
     const GAP=6;
-    const touch=document.documentElement.dataset.lay==='touch';
-    const portrait=window.matchMedia?window.matchMedia('(orientation: portrait)').matches:(innerHeight>=innerWidth);
+    const touch=layout.shell==='touch';
+    const portrait=layout.orientation==='portrait';
     const vis=this.views.filter(v=>!this.focus||v.key===this.focus);
     const n=Math.max(1,vis.length);
     const cols=this.focus?1:(touch?(portrait?Math.min(2,n):Math.min(3,n)):Math.min(3,n));

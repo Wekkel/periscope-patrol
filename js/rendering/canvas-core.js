@@ -50,7 +50,7 @@ class CanvasViewCore{
   }
   revealScopeLabel(id,ms=3200){this.scopeLabelId=id;this.scopeLabelUntil=performance.now()+ms;}
 
-  render(state){
+  render(state,layout=LayoutService.get()){
     const ctx=this.ctx,w=this.w,h=this.h,station=state?.tactical?.activeStation||'TACTICAL';
     this._lastRenderError=null;
     try{
@@ -65,10 +65,10 @@ class CanvasViewCore{
       }
       ctx.setTransform(this.dpr,0,0,this.dpr,sx*this.dpr,sy*this.dpr);
       ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.globalAlpha=1;ctx.setLineDash([]);
-      if(station==='MAP') this.drawMap(ctx,w,h,state);
+      if(station==='MAP') this.drawMap(ctx,w,h,state,layout);
       else if(station==='PERISCOPE') this.drawPeriscope(ctx,w,h,state);
       else if(station==='BRIDGE') this.drawBridge(ctx,w,h,state);
-      else if(station==='SOUND') this.drawSound(ctx,w,h,state);
+      else if(station==='SOUND') this.drawSound(ctx,w,h,state,layout);
       else if(station==='DECK_GUN') this.drawDeckGun(ctx,w,h,state);
       else this.drawTactical(ctx,w,h,state);
       ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
@@ -117,10 +117,10 @@ class CanvasViewCore{
     const g=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*.18,w/2,h/2,Math.hypot(w,h)*.62);g.addColorStop(0,'rgba(110,20,12,0)');g.addColorStop(.68,`rgba(170,42,25,${a*.12})`);g.addColorStop(1,`rgba(239,106,88,${a*.42})`);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);ctx.restore();
   }
 
-  drawSoundCallout(ctx,w,h,state){
+  drawSoundCallout(ctx,w,h,state,layout=LayoutService.get()){
     const r=state.world.sound?.lastOperatorReport,wall=typeof performance!=='undefined'?performance.now():Date.now();
     if(!r||(state.time.elapsedSeconds>(r.until||0)&&wall>(r.wallUntil||0))||state.tactical.activeStation==='SOUND')return;
-    const k=this.k,touch=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    const k=this.k,touch=layout?.shell==='touch';
     const side=touch?Math.min(96*k,w*.23):10*k,x=side,bw=Math.max(132*k,Math.min(w-side*2,430*k));
     ctx.font=this.fnt(8.4,true);const words=String(r.text||'').split(/\s+/),lines=[''];
     for(const word of words){const test=(lines.at(-1)+' '+word).trim();if(lines.length<2&&lines.at(-1)&&ctx.measureText(test).width>bw-16*k)lines.push(word);else lines[lines.length-1]=test;}

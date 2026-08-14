@@ -140,14 +140,14 @@ class GameLoop{
     // not high-frequency repainting. 15 fps is ample for their mostly static
     // chart/death presentation and leaves far more room for screen recording.
     if((!transitRunning&&!terminal)||now-this.lastTransitRender>=66){
-      this.cv.render(snap);this.lastTransitRender=now;
+      this.cv.render(snap,LayoutService.get());this.lastTransitRender=now;
     }
 
     // throttled DOM / HUD work
     this.domAcc+=dt;
     if(this.domAcc>=this.domInterval){
       this.domAcc=0;
-      const touch=document.documentElement.dataset.lay==='touch';
+      const layout=LayoutService.get(),touch=layout.shell==='touch';
       if(touch) this.tc.updateTouch(snap);
       else this.dv.render(snap);
 
@@ -200,4 +200,3 @@ class GameLoop{
     else if(this.frameMs<14) this.cv.quality=Math.min(1,this.cv.quality+0.01);
   }
 }
-

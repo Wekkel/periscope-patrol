@@ -51,14 +51,14 @@ document.getElementById('hotkeyClose')?.addEventListener('click',()=>hotkeyOverl
 const layoutToggle=document.getElementById('layoutToggle');
 const refreshLayoutLabel=()=>{
   if(!layoutToggle) return;
-  const cur=document.documentElement.dataset.lay;
+  const cur=LayoutService.get().shell;
   layoutToggle.textContent=cur==='touch'
     ? '⇄ Now: TOUCH layout — switch to desktop'
     : '⇄ Now: DESKTOP layout — switch to touch';
 };
 refreshLayoutLabel();
 layoutToggle?.addEventListener('click',()=>{
-  const cur=document.documentElement.dataset.lay;
+  const cur=LayoutService.get().shell;
   localStorage.setItem(PP_BUILD.storageKey('ss_ui'),cur==='touch'?'desk':'touch');
   hotkeyOverlay?.classList.remove('open');
   touchCtrl.applyLayout(true);
@@ -131,7 +131,7 @@ document.addEventListener('pointerdown',()=>{audio.ensure();audio.playTitleCue?.
 // device with no keyboard.
 window.addEventListener('pointerdown',e=>{
   if(e.pointerType&&e.pointerType!=='touch') return;
-  if(document.documentElement.dataset.lay!=='desk') return;
+  if(LayoutService.get().shell!=='desk') return;
   if(localStorage.getItem(PP_BUILD.storageKey('ss_ui'))==='desk') return;      // explicit user choice — respect it
   /* Hybrid Windows laptops can legitimately receive a touch pointer while a
      fine mouse/trackpad remains the primary control. Do not tear down their
@@ -148,7 +148,7 @@ function refreshDiag(){
   if(!el) return;
   const d=touchCtrl.checkLayout();
   const vv=window.visualViewport;
-  el.innerHTML=`layout <b>${document.documentElement.dataset.lay}</b> · `+
+  el.innerHTML=`layout <b>${LayoutService.get().shell}</b> · `+
     `window ${window.innerWidth}×${window.innerHeight}`+
     (vv?` · visible ${Math.round(vv.width)}×${Math.round(vv.height)}`:'')+
     ` · dpr ${(window.devicePixelRatio||1).toFixed(2)}`+
@@ -193,12 +193,12 @@ const deskCmdForStation={
 };
 for(const [id,pane] of Object.entries(deskCmdForStation)){
   document.getElementById(id)?.addEventListener('click',()=>{
-    if(document.documentElement.dataset.lay==='desk') setDeskCommandPane(pane);
+    if(LayoutService.get().shell==='desk') setDeskCommandPane(pane);
   });
 }
 
 // one-off touch hint
-if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){
+if(LayoutService.get().shell==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){
   setTimeout(()=>{
     Toast.ok('Tip: drag the compass to steer, drag the depth column to dive');
     localStorage.setItem(PP_BUILD.storageKey('ss_hint'),'1');

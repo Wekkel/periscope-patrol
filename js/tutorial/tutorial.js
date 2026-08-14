@@ -515,9 +515,9 @@ class Tutorial{
     buzz(10);
   }
 
-  resolveHl(id){
+  resolveHl(id,layout=LayoutService.get()){
     if(!id)return null;
-    const ids=String(id).split('|'),desk=document.documentElement.dataset.lay==='desk';
+    const ids=String(id).split('|'),desk=layout.shell==='desk';
     const chosen=ids.length>1?(desk?ids[1]:ids[0]):ids[0];
     return document.getElementById(chosen)||ids.map(x=>document.getElementById(x)).find(Boolean)||null;
   }
@@ -525,7 +525,7 @@ class Tutorial{
     this._hlSpec=id||null;
     this.clearHl();
     if(!id) return;
-    const el=this.resolveHl(id);
+    const el=this.resolveHl(id,LayoutService.get());
     if(el){el.classList.add('tut-hl');this.hlEl=el;}
   }
   clearHl(){if(this.hlEl){this.hlEl.classList.remove('tut-hl');this.hlEl=null;}}

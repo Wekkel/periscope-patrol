@@ -35,6 +35,7 @@ const SHELL = [
   './periscope-patrol-apple-touch-icon-v3.png',
   './css/app.css',
   './js/core/utilities.js',
+  './js/core/layout-service.js',
   './js/data/torpedo-data.js',
   './js/data/campaign-data.js',
   './js/navigation/route-geometry.js',
