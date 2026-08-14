@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '1.0.2'; 
+const VERSION = '1.0.3'; 
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
@@ -29,10 +29,10 @@ const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './periscope-patrol-icon-192-v2.png',
-  './periscope-patrol-icon-512-v2.png',
-  './periscope-patrol-icon-maskable-512-v2.png',
-  './periscope-patrol-apple-touch-icon-v2.png',
+  './periscope-patrol-icon-192-v3.png',
+  './periscope-patrol-icon-512-v3.png',
+  './periscope-patrol-icon-maskable-512-v3.png',
+  './periscope-patrol-apple-touch-icon-v3.png',
   './css/app.css',
   './js/core/utilities.js',
   './js/data/torpedo-data.js',
