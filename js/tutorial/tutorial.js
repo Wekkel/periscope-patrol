@@ -23,6 +23,10 @@ const TUT_STEPS=[
    enter:T=>T.prepareHelmLesson(),
    check:s=>Math.abs(shortDelta(s.playerSub.orderedHeading,40))<12},
 
+  {id:'quickOrders',title:'The quick order menu',
+   body:'On a phone or tablet, the compact status strip just above the bottom tabs is also a control. Tap <b>DEPTH ⇅</b> or <b>SPEED ⇅</b> to open the quick order menu: choose a depth preset or nudge the ordered depth, and choose Stop / Slow / Standard / Flank or adjust the engine in small steps. The menu closes when you tap outside it.<br><br>For <b>course</b>, use the Helm course dial, the compass presets or the small ±1° / ±5° / ±10° buttons. For a route, plot a waypoint on MAP and use <b>Steer To Waypoint</b>. The quick menu changes depth and engine orders; it does not replace the course controls.',
+   goal:'Read the quick order menu, then tap NEXT', sta:'TACTICAL', pane:'paneHelm', objective:TUT_OBJECTIVE.ACK},
+
   {id:'speed',title:'Engines and noise',
    body:'On the roof you run on <b>diesels</b> (up to ~18 kn). For playability the induction is treated as usable while the boat is only awash: diesels remain on to about 12 ft and come back by about 8 ft. Deeper than that you answer on the <b>electric</b> motors — about 8.5 kn flat out, and the battery drains fast. This boat still has <b>no snorkel</b>: periscope depth is battery-only.<br><br>Charging is slow and the screws have first call on the engines: she charges fastest <b>loafing at low revs</b> and barely at all at flank. From flat, reckon on three or four hours on the roof — dangerous hours. Run on the surface at night, dive by day.<br><br>Speed is noise. Flank speed can be heard from far away; that is the trade-off in every attack.',
    goal:'Order Standard speed (250 rpm)', pane:'paneHelm', hl:'mRpm|rpmInput', objective:TUT_OBJECTIVE.FRESH,
