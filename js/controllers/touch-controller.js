@@ -168,8 +168,9 @@ class TouchCtrl{
            This also keeps the bridge usable if a migrated save trips a
            simulation subsystem later in the frame. */
         const snap=this.game.getSnapshot();
-        this.cv.render(snap,LayoutService.get());
         this.updateTouch(snap,true,LayoutService.get());
+        try{this.cv.render(snap,LayoutService.get());}
+        catch(err){const key=String(err?.message||err||'unknown render error');if(this._directRenderErrorKey!==key){this._directRenderErrorKey=key;console.error('[TouchController] immediate station render failed',err);}}
         buzz(8);
       },{passive:true});
     });

@@ -20,7 +20,8 @@ class BridgeController{
       this.game.dispatch({type:'SET_ACTIVE_STATION',station:s});
       const snap=this.game.getSnapshot(),actual=snap.tactical.activeStation;
       allStations.forEach(b=>b.classList.toggle('active',b===stationByName[actual]));
-      this.cv.render(snap,LayoutService.get()); // navigation should feel immediate
+      try{this.cv.render(snap,LayoutService.get());}
+      catch(err){const key=String(err?.message||err||'unknown render error');if(this._directRenderErrorKey!==key){this._directRenderErrorKey=key;console.error('[BridgeController] immediate station render failed',err);}}
     };
     const setHeading=value=>{const heading=Math.round(normDeg(Number(value)||0));if(hi)hi.value=String(heading);const exact=document.getElementById('headingNumberInput');if(exact&&exact!==document.activeElement)exact.value=String(heading);if(hv)hv.textContent=fmtDeg(heading);this.game.dispatch({type:'SET_ORDERED_HEADING',heading});};
     hi?.addEventListener('input',()=>setHeading(hi.value));
