@@ -116,13 +116,6 @@ self.addEventListener('install', event => {
     // Runtime/app-shell files are mandatory. If one of these cannot be
     // cached, installation of this service worker must fail rather than
     // activating an incomplete offline version.
-    const OPTIONAL_SHELL = new Set([
-      './icon-192.png',
-      './icon-512.png',
-      './icon-maskable-512.png',
-      './apple-touch-icon.png'
-    ]);
-
     const required = SHELL.filter(url => !OPTIONAL_SHELL.has(url));
     const optional = SHELL.filter(url => OPTIONAL_SHELL.has(url));
 
