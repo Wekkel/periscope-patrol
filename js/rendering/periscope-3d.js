@@ -37,7 +37,9 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   drawImpactObservation(ctx,w,h,state){
     const obs=state.tactical?.impactObservation;if(!obs?.position)return;
     const wallNow=typeof performance!=='undefined'?performance.now():Date.now();
-    const age=Math.max(0,(wallNow-(obs.startedWall||wallNow))/1000);
+    const presentation=state.runtime?.presentation;
+    const startedWall=presentation?.impactToken===obs.token?presentation.impactStartedWall:null;
+    const age=Math.max(0,(wallNow-(Number(startedWall)||wallNow))/1000);this.lastImpactAge=age;
     const duration=Math.max(.5,(obs.durationMs||5000)/1000),k=this.k;
     const preImpactSec=Math.max(0,(obs.preImpactMs||0)/1000),impactAge=age-preImpactSec,beforeImpact=impactAge<0;
     const range=Math.max(.05,Number(obs.rangeNm)||distNm(obs.viewerPos||state.playerSub.position,obs.position));

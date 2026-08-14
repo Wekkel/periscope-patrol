@@ -55,11 +55,12 @@ gestureStates.push({event:'mousedown',state:vm.runInContext("typeof audio!=='und
 window.document.dispatchEvent(new window.Event('touchstart',{bubbles:true}));
 await Promise.resolve();
 gestureStates.push({event:'touchstart',state:vm.runInContext("typeof audio!=='undefined' ? (audio.ctx?.state||'none') : 'missing'",context)});
+const impactAge=vm.runInContext("(()=>{const s=game.state;s.tactical.impactObservation={token:9001,position:{xNm:0,yNm:0},impactPosition:{xNm:0,yNm:0},viewerPos:{xNm:0,yNm:0},durationMs:9000,preImpactMs:0,weapon:'TORPEDO',torpedoWakeVisible:false};s.runtime.presentation={impactToken:9001,impactStartedWall:performance.now()-1000};canvasView.render(s,LayoutService.get());return canvasView.lastImpactAge||0;})()",context);
 for(let i=0;i<5&&rafQueue.length;i++){const fn=rafQueue.shift();try{fn(i*16.67);}catch(error){errors.push({kind:'raf',message:error.message,stack:error.stack});}}
 const stationResults=[];
 for(const station of [...new Set([...window.document.querySelectorAll('[data-sta]')].map(b=>b.dataset.sta).filter(Boolean))]){const button=[...window.document.querySelectorAll('[data-sta]')].find(b=>b.dataset.sta===station),beforeErrors=errors.length;try{button.dispatchEvent(new window.Event('click',{bubbles:true}));}catch(error){errors.push({kind:'station-dispatch',station,message:error.message,stack:error.stack});}stationResults.push({station,rendered:errors.length===beforeErrors,ok:errors.length===beforeErrors});}
 const gameLoopStarted=errors.every(e=>e.file!=='js/bootstrap/start.js')&&rafId>0;
 const canvases=[...window.document.querySelectorAll('canvas')].map(c=>({id:c.id,width:c.width,height:c.height,clientWidth:c.clientWidth,clientHeight:c.clientHeight}));
 dom.window.close();
-console.log(JSON.stringify({root,firstException:errors[0]||null,errors,gameLoopStarted,drawCalls:draw.count,audioCalls:audio.count,gestureStates,audioMethods:[...audio.methods],drawMethods:[...draw.methods],canvases,stations:stationResults},null,2));
-if(errors.length||!draw.count||!audio.count||gestureStates.some(g=>g.state!=='running')||canvases.some(c=>c.width<=0||c.height<=0)||stationResults.some(s=>!s.rendered))process.exitCode=1;
+console.log(JSON.stringify({root,firstException:errors[0]||null,errors,gameLoopStarted,drawCalls:draw.count,audioCalls:audio.count,gestureStates,impactAge,audioMethods:[...audio.methods],drawMethods:[...draw.methods],canvases,stations:stationResults},null,2));
+if(errors.length||!draw.count||!audio.count||impactAge<=0||gestureStates.some(g=>g.state!=='running')||canvases.some(c=>c.width<=0||c.height<=0)||stationResults.some(s=>!s.rendered))process.exitCode=1;

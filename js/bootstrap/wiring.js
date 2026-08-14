@@ -15,6 +15,7 @@ globalThis.processPresentationEffects=()=>{
   for(const e of PresentationBridge.take(game.state)){
     if(e.type==='impact-observed'){
       const snap=e.payload.snapshot,token=snap?.token;
+      game.state.runtime.presentation={...(game.state.runtime.presentation||{}),impactStartedWall:performance.now(),impactToken:token};
       game.dispatch({type:'PAUSE_FOR_MODAL'});
       setTimeout(()=>{const cur=game.state.tactical?.impactObservation;if(cur?.token===token){const method=String(cur.weapon||'').toUpperCase()==='TORPEDO'?'playTorpedoHit':'playHit';game.dispatch({type:'PLAY_AUDIO',method});}},Math.max(0,snap?.preImpactMs||0));
       setTimeout(()=>game.dispatch({type:'END_IMPACT_OBSERVATION',token}),Math.max(0,snap?.durationMs||2350));
