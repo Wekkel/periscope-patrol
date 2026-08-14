@@ -56,16 +56,30 @@ const MULTI_SUBMARINE_PROFILES=_mtFreeze({
   'rn-t-class-eastern':_sub('rn-t-class-eastern','Royal Navy T-class Eastern Fleet boat','T class','britain','indian-ocean','rn-submarine','mk-viii-rn')
 });
 
-const _vehicle=(id,factionId,gameplayType,modelKey,recognition,doctrine)=>_mtFreeze({id,factionId,gameplayType,modelKey,recognition,doctrine,availableFrom:19400101});
+const _vehicle=(id,factionId,gameplayType,modelKey,recognition,doctrine,traits={})=>_mtFreeze({id,factionId,gameplayType,modelKey,recognition,doctrine,availableFrom:19400101,...traits});
 const MULTI_VESSEL_PROFILES={};
+const _escortModels=_mtFreeze({
+  usa:{destroyer:'US_FLETCHER_DESTROYER',escort:'US_DESTROYER_ESCORT'},japan:{destroyer:'DESTROYER',escort:'KAIBOKAN'},
+  germany:{destroyer:'GERMAN_TORPEDO_BOAT',escort:'GERMAN_MINESWEEPER'},britain:{destroyer:'TOWN_DESTROYER_1941',escort:'FLOWER_CORVETTE_1941'},
+  italy:{destroyer:'ITALIAN_SOLDATI_DESTROYER',escort:'ITALIAN_GABBIANO_CORVETTE'},soviet:{destroyer:'SOVIET_GNEVNY_DESTROYER',escort:'SOVIET_PATROL_ESCORT'}
+});
+const _escortTraining=_mtFreeze({usa:1.00,japan:.84,germany:.88,britain:.96,italy:.78,soviet:.74});
 for(const [f,name] of Object.entries({usa:'US',japan:'Japanese',germany:'German',britain:'British',italy:'Italian',soviet:'Soviet'})){
   MULTI_VESSEL_PROFILES[`${f}-merchant`]=_vehicle(`${f}-merchant`,f,'MERCHANT',f==='britain'?'ATLANTIC_FREIGHTER':'MERCHANT',`${name} cargo vessel`,`Campaign-authored ${name} merchant routing and emergency turn.`);
   MULTI_VESSEL_PROFILES[`${f}-tanker`]=_vehicle(`${f}-tanker`,f,'TANKER','TANKER',`${name} tanker`,`Protected high-value logistics traffic.`);
-  MULTI_VESSEL_PROFILES[`${f}-destroyer`]=_vehicle(`${f}-destroyer`,f,'DESTROYER','DESTROYER',`${name} destroyer`,`Area/date ASW screen and datum attack.`);
-  MULTI_VESSEL_PROFILES[`${f}-escort`]=_vehicle(`${f}-escort`,f,'ESCORT',f==='britain'?'FLOWER_CORVETTE_1941':'KAIBOKAN',`${name} escort`,`Close screen, search and depth-charge response.`);
+  MULTI_VESSEL_PROFILES[`${f}-destroyer`]=_vehicle(`${f}-destroyer`,f,'DESTROYER',_escortModels[f].destroyer,`${name} destroyer`,`Area/date ASW screen and datum attack.`,{aswTraining:_escortTraining[f]});
+  MULTI_VESSEL_PROFILES[`${f}-escort`]=_vehicle(`${f}-escort`,f,'ESCORT',_escortModels[f].escort,`${name} escort`,`Close screen, search and depth-charge response.`,{aswTraining:Math.max(.55,_escortTraining[f]-.06)});
   MULTI_VESSEL_PROFILES[`${f}-raft`]=_vehicle(`${f}-raft`,f,'RAFT','RAFT',`${name} survival raft`,'Stationary rescue target.');
 }
 _mtFreeze(MULTI_VESSEL_PROFILES);
+const MULTI_ASW_TACTICS=_mtFreeze({
+  usa:{id:'usa',searchPattern:'CIRCULAR',prosecutionFactor:1.04,searchGrowthFactor:1.02,speculativeAttackFactor:1.00,attackSpeedFactor:1.02,depthErrorFactor:.96,training:.98,yearBands:[{from:1944,prosecutionFactor:1.14,searchGrowthFactor:1.12,depthErrorFactor:.86,training:1.08}]},
+  japan:{id:'japan',searchPattern:'SECTOR',prosecutionFactor:.90,searchGrowthFactor:.88,speculativeAttackFactor:.82,attackSpeedFactor:.94,depthErrorFactor:1.16,training:.82,yearBands:[{from:1944,prosecutionFactor:1.02,searchGrowthFactor:1.02,speculativeAttackFactor:.96,training:.94}]},
+  germany:{id:'germany',searchPattern:'EXPANDING_SQUARE',prosecutionFactor:.92,searchGrowthFactor:.91,speculativeAttackFactor:.88,attackSpeedFactor:1.00,depthErrorFactor:1.10,training:.86,yearBands:[{from:1943,prosecutionFactor:1.02,searchGrowthFactor:1.02,depthErrorFactor:.98,training:.95}]},
+  britain:{id:'britain',searchPattern:'EXPANDING_SQUARE',prosecutionFactor:.96,searchGrowthFactor:.95,speculativeAttackFactor:.92,attackSpeedFactor:.96,depthErrorFactor:1.08,training:.86,yearBands:[{from:1943,prosecutionFactor:1.12,searchGrowthFactor:1.12,speculativeAttackFactor:1.08,attackSpeedFactor:1.03,depthErrorFactor:.91,training:1.02},{from:1944,prosecutionFactor:1.18,searchGrowthFactor:1.18,speculativeAttackFactor:1.14,attackSpeedFactor:1.05,depthErrorFactor:.84,training:1.10}]},
+  italy:{id:'italy',searchPattern:'SECTOR',prosecutionFactor:.82,searchGrowthFactor:.80,speculativeAttackFactor:.72,attackSpeedFactor:.92,depthErrorFactor:1.24,training:.74,yearBands:[{from:1943,prosecutionFactor:.90,searchGrowthFactor:.88,depthErrorFactor:1.13,training:.82}]},
+  soviet:{id:'soviet',searchPattern:'CIRCULAR',prosecutionFactor:.86,searchGrowthFactor:.84,speculativeAttackFactor:.76,attackSpeedFactor:.94,depthErrorFactor:1.20,training:.72,yearBands:[{from:1944,prosecutionFactor:.96,searchGrowthFactor:.94,depthErrorFactor:1.08,training:.84}]}
+});
 const MULTI_AIRCRAFT_PROFILES=_mtFreeze(Object.fromEntries(Object.entries({usa:'US Navy patrol aircraft',japan:'IJN maritime patrol aircraft',germany:'Luftwaffe maritime patrol aircraft',britain:'RAF Coastal Command aircraft',italy:'Regia Aeronautica maritime aircraft',soviet:'Soviet naval patrol aircraft'}).map(([f,name])=>[`${f}-maritime-air`,{id:`${f}-maritime-air`,factionId:f,name,kind:'BOMBER',availableFrom:19400101,engines:2,spanM:24,lengthM:18,speedKnots:[150,220],ordnance:'DEPTH_CHARGE',recognition:`${name}; identification remains sensor-dependent`,doctrine:'Area/date patrol, report, attack and re-attack.'}])));
 
 const MISSION_MECHANICS=['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','SHADOW_REPORT','RECONNAISSANCE','MINELAYING','SPECIAL_TRANSPORT','HARBOR_STRIKE','LIFEGUARD','ESCORT_HUNT','WEATHER_AMBUSH'];
@@ -114,6 +128,7 @@ function _runtimeProfile(party){
   const base=party.runtimeCampaignProfileId==='us-pacific'?CAMPAIGN_PROFILES['us-pacific']:party.runtimeCampaignProfileId==='german-atlantic-1941'?CAMPAIGN_PROFILES['german-atlantic-1941']:(party.conflictSide==='AXIS'?CAMPAIGN_PROFILES['german-atlantic-1941']:CAMPAIGN_PROFILES['us-pacific']);
   const opponent=(CAMPAIGN_DEFINITIONS[party.campaignId].hostilePairs[0]||'').split(':').find(x=>x!==party.factionId)||'unknown',sub=MULTI_SUBMARINE_PROFILES[party.submarineProfileId]||SUBMARINE_PROFILES[party.submarineProfileId],torp=sub.weapons.defaultTorpedoSpecKey;
   const x=_mtClone(base);Object.assign(x,{id:party.runtimeCampaignProfileId,displayName:`${CAMPAIGN_DEFINITIONS[party.campaignId].displayName} — ${party.shortName}`,theaterId:CAMPAIGN_DEFINITIONS[party.campaignId].theaterId,playerFactionId:party.factionId,opposingFactionIds:[opponent],submarineProfileId:party.submarineProfileId,commandName:party.commandName,defaultArea:party.patrolAreaIds[0],patrolAreaIds:[...party.patrolAreaIds],defaultStartDate:party.dateWindow[0],campaignId:party.campaignId,warPartyId:party.id,devSelectable:true,developmentStage:'COMPLETE_VERTICAL_SLICE'});
+  x.doctrineProfile.asw.tactics=_mtClone(MULTI_ASW_TACTICS[opponent]||MULTI_ASW_TACTICS.japan);
   x.missionProfile=_missionProfile(party.id,party,base.missionProfile||US_PACIFIC_MISSION_PROFILE,opponent);x.historicalModel=_historical(base.historicalModel,party,torp);x.verticalSliceAcceptance=_mtClone(VERTICAL_SLICE_ACCEPTED);
   x.specialOperationsProfile=null;
   x.radioIntelProfile=_mtClone(base.radioIntelProfile||US_PACIFIC_RADIO_INTEL_PROFILE);x.radioIntelProfile.id=`${party.id}-radio-v2`;

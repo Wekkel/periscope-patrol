@@ -270,6 +270,29 @@ SHIP_MODELS.PATROL_CRAFT={
   ],
   masts:[{x:0,y:6.7,z:3.8,h:8.2,yard:2.4}],smoke:{x:0,y:8.0,z:-3.8}
 };
+
+/* National escort silhouettes are generated once from a tiny vector grammar.
+   Funnel count/spacing, bridge position, mast plan and hull proportions make
+   country families readable without textures, atlases or per-frame objects. */
+function _nationalEscortModel(o){
+  const hull=[[-.50,.30],[-.44,.66],[-.30,.92],[-.04,1],[.21,.94],[.37,.70],[.47,.30],[.50,.03]],parts=[
+    {t:'b',x:0,y:o.fb,z:o.len*.34,w:o.beam*.58,h:2,d:7,c:'gun',big:1},
+    {t:'b',x:0,y:o.fb,z:o.bridgeZ,w:o.beam*.72,h:o.bridgeH,d:14,c:'house',big:1},
+    {t:'b',x:0,y:o.fb+o.bridgeH,z:o.bridgeZ+2,w:o.beam*.43,h:2.6,d:6,c:'top'},
+    {t:'b',x:0,y:o.fb,z:-o.len*.31,w:o.beam*.54,h:1.8,d:7,c:'gun',big:1}
+  ];
+  for(let i=0;i<o.funnels;i++){const spread=(i-(o.funnels-1)/2)*o.funnelGap;parts.push({t:'f',x:0,y:o.fb,z:o.funnelZ+spread,r:o.funnelR,h:o.funnelH,c:'funnel',rake:o.rake,big:1});}
+  if(o.aftHouse)parts.push({t:'b',x:0,y:o.fb,z:-o.len*.18,w:o.beam*.62,h:2.8,d:12,c:'house'});
+  return{len:o.len,beam:o.beam,fb:o.fb,hull,parts,masts:[{x:0,y:o.fb+o.bridgeH,z:o.bridgeZ-1,h:o.mastH,yard:o.yard},...(o.aftMast?[{x:0,y:o.fb+3,z:-o.len*.20,h:o.mastH*.55,yard:o.yard*.65}]:[])],smoke:{x:0,y:o.fb+o.funnelH,z:o.funnelZ}};
+}
+SHIP_MODELS.US_FLETCHER_DESTROYER=_nationalEscortModel({len:114,beam:12,fb:5.0,bridgeZ:24,bridgeH:8.2,funnels:2,funnelZ:-2,funnelGap:13,funnelR:1.65,funnelH:10,rake:.10,mastH:20,yard:6.5,aftHouse:true,aftMast:true});
+SHIP_MODELS.US_DESTROYER_ESCORT=_nationalEscortModel({len:93,beam:11.1,fb:4.6,bridgeZ:17,bridgeH:6.4,funnels:1,funnelZ:-7,funnelGap:0,funnelR:1.9,funnelH:9,rake:.05,mastH:17,yard:5.2,aftHouse:true,aftMast:false});
+SHIP_MODELS.GERMAN_TORPEDO_BOAT=_nationalEscortModel({len:110,beam:10.2,fb:4.5,bridgeZ:19,bridgeH:6.1,funnels:2,funnelZ:-1,funnelGap:11,funnelR:1.45,funnelH:9.2,rake:.16,mastH:18,yard:5.6,aftHouse:false,aftMast:true});
+SHIP_MODELS.GERMAN_MINESWEEPER=_nationalEscortModel({len:69,beam:9,fb:4.1,bridgeZ:9,bridgeH:5.5,funnels:1,funnelZ:-10,funnelGap:0,funnelR:1.7,funnelH:8,rake:.02,mastH:15,yard:4.2,aftHouse:true,aftMast:false});
+SHIP_MODELS.ITALIAN_SOLDATI_DESTROYER=_nationalEscortModel({len:106,beam:10.2,fb:4.4,bridgeZ:22,bridgeH:7.4,funnels:2,funnelZ:-1,funnelGap:7,funnelR:1.55,funnelH:10.5,rake:.18,mastH:21,yard:6.2,aftHouse:false,aftMast:true});
+SHIP_MODELS.ITALIAN_GABBIANO_CORVETTE=_nationalEscortModel({len:64,beam:8.7,fb:3.9,bridgeZ:8,bridgeH:5.8,funnels:1,funnelZ:-9,funnelGap:0,funnelR:1.45,funnelH:8.8,rake:.08,mastH:15,yard:4.4,aftHouse:true,aftMast:false});
+SHIP_MODELS.SOVIET_GNEVNY_DESTROYER=_nationalEscortModel({len:112,beam:10.5,fb:4.6,bridgeZ:21,bridgeH:6.8,funnels:2,funnelZ:-2,funnelGap:10,funnelR:1.5,funnelH:9.5,rake:.06,mastH:19,yard:6,aftHouse:true,aftMast:true});
+SHIP_MODELS.SOVIET_PATROL_ESCORT=_nationalEscortModel({len:58,beam:8.2,fb:3.6,bridgeZ:7,bridgeH:5.0,funnels:1,funnelZ:-8,funnelGap:0,funnelR:1.35,funnelH:7.4,rake:0,mastH:13,yard:4,aftHouse:false,aftMast:false});
 SHIP_MODELS.JUNK={
   len:22,beam:5.2,fb:1.3,
   hull:[[-.50,.28],[-.40,.70],[-.18,.96],[.22,.92],[.43,.48],[.50,.06]],

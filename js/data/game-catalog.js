@@ -845,6 +845,9 @@ const US_PACIFIC_SPECIAL_OPERATIONS_PROFILE=Object.freeze({
 const US_PACIFIC_DOCTRINE_PROFILE=Object.freeze({
   id:'us-pacific-doctrine-v1',
   asw:Object.freeze({
+    tactics:Object.freeze({id:'japan',searchPattern:'SECTOR',prosecutionFactor:.90,searchGrowthFactor:.88,
+      speculativeAttackFactor:.82,attackSpeedFactor:.94,depthErrorFactor:1.16,training:.82,
+      yearBands:Object.freeze([Object.freeze({from:1944,prosecutionFactor:1.02,searchGrowthFactor:1.02,speculativeAttackFactor:.96,training:.94})])}),
     areaRisk:Object.freeze({'Truk Approaches':1,'Luzon Strait':1,'Java Sea':-1}),
     escortCount:Object.freeze({
       merchantBands:Object.freeze([
@@ -898,6 +901,12 @@ const US_PACIFIC_DOCTRINE_PROFILE=Object.freeze({
 const GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE=Object.freeze({
   id:'german-atlantic-1941-doctrine-v1',
   asw:Object.freeze({
+    tactics:Object.freeze({id:'britain',searchPattern:'EXPANDING_SQUARE',prosecutionFactor:.96,searchGrowthFactor:.95,
+      speculativeAttackFactor:.92,attackSpeedFactor:.96,depthErrorFactor:1.08,training:.86,
+      yearBands:Object.freeze([
+        Object.freeze({from:1943,prosecutionFactor:1.12,searchGrowthFactor:1.12,speculativeAttackFactor:1.08,attackSpeedFactor:1.03,depthErrorFactor:.91,training:1.02}),
+        Object.freeze({from:1944,prosecutionFactor:1.18,searchGrowthFactor:1.18,speculativeAttackFactor:1.14,attackSpeedFactor:1.05,depthErrorFactor:.84,training:1.10})
+      ])}),
     areaRisk:Object.freeze({'North Atlantic Convoy Lanes':0,'Western Approaches':1,'Greenland–Iceland Gap':1}),
     escortCount:Object.freeze({
       merchantBands:Object.freeze([

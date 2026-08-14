@@ -39,6 +39,30 @@ function aswScreenRoles(count,areaKey,opts={},profileId=DEFAULT_GAME_IDENTITY.ca
   return base.slice(0,count);
 }
 
+/* Doctrine changes how an informed escort works a noisy datum; it never gives
+   the escort a better source of knowledge. The small cache avoids allocating
+   doctrine objects in the simulation loop. MAIN's authored opponent is Japan;
+   campaign profiles can replace this baseline without changing ASW mechanics. */
+const ASW_TACTICS_DEFAULT=Object.freeze({searchPattern:'EXPANDING_SQUARE',prosecutionFactor:1,searchGrowthFactor:1,
+  speculativeAttackFactor:1,attackSpeedFactor:1,depthErrorFactor:1,training:.9});
+const ASW_TACTICS_JAPAN=Object.freeze({id:'japan',searchPattern:'SECTOR',prosecutionFactor:.90,searchGrowthFactor:.88,
+  speculativeAttackFactor:.82,attackSpeedFactor:.94,depthErrorFactor:1.16,training:.82,
+  yearBands:Object.freeze([Object.freeze({from:1944,prosecutionFactor:1.02,searchGrowthFactor:1.02,speculativeAttackFactor:.96,training:.94})])});
+const ASW_TACTICS_CACHE=new Map();
+function aswTactics(state){
+  const campaign=state?.campaign||{},profileId=campaign.campaignProfileId||'us-pacific';
+  const authored=typeof getCampaignDoctrineProfile==='function'?getCampaignDoctrineProfile(profileId)?.asw?.tactics:null;
+  const base=authored||ASW_TACTICS_JAPAN,year=aswYear(campaign.startDate||state?.time?.campaignDate),key=`${profileId}|${base.id||'default'}|${year}`;
+  if(ASW_TACTICS_CACHE.has(key))return ASW_TACTICS_CACHE.get(key);
+  const out={...ASW_TACTICS_DEFAULT,...base};delete out.yearBands;
+  for(const band of base.yearBands||[])if((band.from===undefined||year>=band.from)&&(band.through===undefined||year<=band.through))Object.assign(out,band);
+  delete out.from;delete out.through;Object.freeze(out);ASW_TACTICS_CACHE.set(key,out);return out;
+}
+function aswTraining(esc,state){
+  const profile=typeof getVesselProfile==='function'?getVesselProfile(esc?.vesselProfileId):null;
+  return clamp(Number(esc?.aswTraining??profile?.aswTraining??aswTactics(state).training),.55,1.25);
+}
+
 class SimEngineASWBrain extends SimEngineWeather{
   ensureASWState(){
     const W=this.state.world,e=W.enemy||(W.enemy={}),now=this.state.time.elapsedSeconds||0;
@@ -78,9 +102,10 @@ class SimEngineASWBrain extends SimEngineWeather{
     // Gameplay budget, in simulation seconds. A destroyer can continue beyond
     // the soft limit while it holds a firm contact, but an intermittent weak
     // echo cannot keep the whole screen detached from its convoy indefinitely.
-    if(d==='HARD')return{softSec:24*60,hardSec:40*60};
-    if(d==='EASY')return{softSec:14*60,hardSec:26*60};
-    return{softSec:18*60,hardSec:32*60};
+    const f=aswTactics(this.state).prosecutionFactor;
+    if(d==='HARD')return{softSec:24*60*f,hardSec:40*60*f};
+    if(d==='EASY')return{softSec:14*60*f,hardSec:26*60*f};
+    return{softSec:18*60*f,hardSec:32*60*f};
   }
 
   armASWProsecution(reason='CONTACT',restart=false){
@@ -152,7 +177,7 @@ class SimEngineASWBrain extends SimEngineWeather{
   cueEstimate(pos,conf=0.5,reason='NOISE'){
     const base={SHIP_HIT:.07,TORPEDO_DUD:.16,TORPEDO_LAUNCH:.28,TORPEDO_SIGHTED:.22,EMERGENCY_BLOW:.18,
       DECK_GUN:.12,COLLISION:.05,AIR_ATTACK:.34,NOISE:.46,RADIO_BEARING:.72}[reason]??.32;
-    const maxErr=base*clamp(1.35-conf*.55,.65,1.25),a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*maxErr;
+    const maxErr=base*clamp(1.35-conf*.55,.65,1.25)*aswTactics(this.state).depthErrorFactor,a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*maxErr;
     return{xNm:pos.xNm+Math.cos(a)*r,yNm:pos.yNm+Math.sin(a)*r,errNm:maxErr};
   }
 
@@ -279,7 +304,8 @@ class SimEngineASWBrain extends SimEngineWeather{
     }
     if(e.alertState==='SEARCHING'){
       const lost=Math.max(0,now-(A.lastFixAt>-900?A.lastFixAt:A.searchStartedAt));
-      A.searchRadiusNm=clamp((A.searchRadiusNm||.55)+dt*(.0085+Math.min(lost,360)/360*.006),.45,5.5);
+      const f=aswTactics(this.state).searchGrowthFactor;
+      A.searchRadiusNm=clamp((A.searchRadiusNm||.55)+dt*(.0085+Math.min(lost,360)/360*.006)*f,.45,5.5);
       const d=this.aswDatum();if(d)e.searchCenter={xNm:d.xNm,yNm:d.yNm};
     }
   }
@@ -299,7 +325,16 @@ class SimEngineASWBrain extends SimEngineWeather{
       const cross=((t%55)/55*2-1)*r*(leg%2===0?1:-1),a=degToRad(course),sx=Math.cos(a),sy=Math.sin(a),fx=Math.sin(a),fy=-Math.cos(a);
       return{xNm:datum.xNm+fx*along+sx*cross,yNm:datum.yNm+fy*along+sy*cross};
     }
-    // Prosecutor uses an expanding square centred on the dead-reckoned datum.
+    const pattern=aswTactics(this.state).searchPattern;
+    if(pattern==='SECTOR'){
+      const spoke=Math.floor(t/34)%6,rr=Math.min(r,.42+((t%34)/34)*r),a=degToRad(normDeg(course+spoke*60));
+      return{xNm:datum.xNm+Math.sin(a)*rr,yNm:datum.yNm-Math.cos(a)*rr};
+    }
+    if(pattern==='CIRCULAR'){
+      const a=degToRad(normDeg(course+t*2.2+(esc.formationIndex||0)*80)),rr=Math.min(r,.55+Math.floor(t/110)*.38);
+      return{xNm:datum.xNm+Math.sin(a)*rr,yNm:datum.yNm-Math.cos(a)*rr};
+    }
+    // Default prosecutor pattern: expanding square on the dead-reckoned datum.
     const leg=Math.floor(t/38)%4,dirs=[0,90,180,270],rings=1+Math.floor(t/152),rr=Math.min(r,.45+rings*.42),a=degToRad(normDeg(course+dirs[leg]));
     return{xNm:datum.xNm+Math.sin(a)*rr,yNm:datum.yNm-Math.cos(a)*rr};
   }
