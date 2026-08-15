@@ -60,7 +60,7 @@ class SimEngineIntel extends SimEngineAAGun {
       // that the transmitter is up is not the same as copying the message. Once
       // its window opens, give it a near-term radio slot but never create mission
       // knowledge until applySignal() is reached after 40 seconds of copy.
-      const HI=this.ensureHarborIntel?.();
+      const HI=this.ctx.ensureHarborIntel?.();
       if(HI&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
          &&now>=HI.specialSignal.eligibleAt&&R.nextBroadcast>30) R.nextBroadcast=30;
       /* If the boat has held nothing for a long while, the trail is cold and
@@ -98,7 +98,7 @@ class SimEngineIntel extends SimEngineAAGun {
     const W=this.state.world, camp=this.state.campaign;
     const radioProfile=getCampaignRadioIntelProfile(camp.campaignProfileId);
     if(!radioProfile) throw new Error(`Campaign ${camp.campaignProfileId||'UNKNOWN'} has no radio-intelligence profile`);
-    const HI=this.ensureHarborIntel?.(),harborOp=getCampaignHarborOperationProfile(camp.campaignProfileId),special=harborOp?.radioSignal;
+    const HI=this.ctx.ensureHarborIntel?.(),harborOp=getCampaignHarborOperationProfile(camp.campaignProfileId),special=harborOp?.radioSignal;
     if(HI&&special&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
        &&this.state.time.elapsedSeconds>=HI.specialSignal.eligibleAt){
       HI.specialSignal.broadcast=true;HI.specialSignal.broadcastAt=this.state.time.elapsedSeconds;
@@ -265,7 +265,7 @@ class SimEngineIntel extends SimEngineAAGun {
     const W=this.state.world,radioProfile=getCampaignRadioIntelProfile(this.state.campaign.campaignProfileId),shippingCopy=radioProfile?.shipping;
     if(m.harborSpecial) this.log(`SPECIAL INTELLIGENCE — ${m.text}`,'warn');
     else this.log(`RADIO — ${m.subject}: ${m.text}`,'warn');
-    if(m.harborSpecial) this.grantHarborSpecialIntel?.();
+    if(m.harborSpecial) this.ctx.grantHarborSpecialIntel?.();
     if(m.intel){
       // A decoded shipping signal is a position report that is already some hours old.
       // It is plotted where the convoy WAS, and dead-reckoned forward from the

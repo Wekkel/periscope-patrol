@@ -11558,20 +11558,11 @@
           "relation": "higher"
         },
         {
-          "name": "setupHarbor",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 1203,
-          "offset": 11636,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
           "name": "ensureAfterActionReport",
           "kind": "optional-direct",
           "unresolved": false,
           "line": 1207,
-          "offset": 11902,
+          "offset": 11906,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/after-action-report.js",
@@ -11584,7 +11575,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 1208,
-          "offset": 11944,
+          "offset": 11948,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
@@ -11597,7 +11588,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 1209,
-          "offset": 12010,
+          "offset": 12014,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/traffic-director.js",
@@ -11610,7 +11601,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 1210,
-          "offset": 12050,
+          "offset": 12054,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -11623,7 +11614,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 1211,
-          "offset": 12113,
+          "offset": 12117,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -11636,7 +11627,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 1212,
-          "offset": 12196,
+          "offset": 12200,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -11697,7 +11688,7 @@
           "line": 1200
         },
         {
-          "path": "setupHarbor",
+          "path": "ctx.setupHarbor",
           "access": "read",
           "line": 1203
         },
@@ -14675,20 +14666,11 @@
           "relation": "higher"
         },
         {
-          "name": "ensureHarborIntel",
-          "kind": "optional-direct",
-          "unresolved": false,
-          "line": 63,
-          "offset": 1222,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
           "name": "composeSignal",
           "kind": "direct",
           "unresolved": false,
           "line": 76,
-          "offset": 2099,
+          "offset": 2103,
           "definedBy": {
             "class": "SimEngineIntel",
             "file": "js/simulation/radio-intel.js",
@@ -14701,7 +14683,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 76,
-          "offset": 2135,
+          "offset": 2139,
           "definedBy": {
             "class": "SimEngineIntel",
             "file": "js/simulation/radio-intel.js",
@@ -14714,7 +14696,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 77,
-          "offset": 2181,
+          "offset": 2185,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -14727,7 +14709,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 87,
-          "offset": 2578,
+          "offset": 2582,
           "definedBy": {
             "class": "SimEngineIntel",
             "file": "js/simulation/radio-intel.js",
@@ -14740,7 +14722,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 89,
-          "offset": 2892,
+          "offset": 2896,
           "definedBy": {
             "class": "SimEngineIntel",
             "file": "js/simulation/radio-intel.js",
@@ -14781,7 +14763,7 @@
           "line": 57
         },
         {
-          "path": "ensureHarborIntel",
+          "path": "ctx.ensureHarborIntel",
           "access": "read",
           "line": 63
         },
@@ -14825,20 +14807,11 @@
       "end": 166,
       "callDetails": [
         {
-          "name": "ensureHarborIntel",
-          "kind": "optional-direct",
-          "unresolved": false,
-          "line": 101,
-          "offset": 287,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
           "name": "trafficIntelCandidates",
           "kind": "optional-direct",
           "unresolved": false,
           "line": 108,
-          "offset": 888,
+          "offset": 892,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/traffic-director.js",
@@ -14851,7 +14824,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 132,
-          "offset": 2764,
+          "offset": 2768,
           "definedBy": {
             "class": "SimEngineCore",
             "file": "js/simulation/engine-core.js",
@@ -14872,7 +14845,7 @@
           "line": 98
         },
         {
-          "path": "ensureHarborIntel",
+          "path": "ctx.ensureHarborIntel",
           "access": "read",
           "line": 101
         },
@@ -15035,20 +15008,11 @@
           "relation": "higher"
         },
         {
-          "name": "grantHarborSpecialIntel",
-          "kind": "optional-direct",
-          "unresolved": false,
-          "line": 268,
-          "offset": 327,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
           "name": "clampToArea",
           "kind": "direct",
           "unresolved": false,
           "line": 274,
-          "offset": 721,
+          "offset": 725,
           "definedBy": {
             "class": "SimEngineCore",
             "file": "js/simulation/engine-core.js",
@@ -15061,7 +15025,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 279,
-          "offset": 1229,
+          "offset": 1233,
           "definedBy": {
             "class": "SimEngineIntel",
             "file": "js/simulation/radio-intel.js",
@@ -15092,7 +15056,7 @@
           "line": 267
         },
         {
-          "path": "grantHarborSpecialIntel",
+          "path": "ctx.grantHarborSpecialIntel",
           "access": "read",
           "line": 268
         },
@@ -16721,20 +16685,11 @@
       "end": 177,
       "callDetails": [
         {
-          "name": "noteHarborAttack",
-          "kind": "optional-direct",
-          "unresolved": false,
-          "line": 150,
-          "offset": 547,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
           "name": "aarGunFinish",
           "kind": "optional-direct",
           "unresolved": false,
           "line": 161,
-          "offset": 1460,
+          "offset": 1464,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/after-action-report.js",
@@ -16747,7 +16702,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 165,
-          "offset": 1963,
+          "offset": 1967,
           "definedBy": {
             "class": "SimEngineEnemyAI",
             "file": "js/simulation/ai/enemy-ai.js",
@@ -16760,7 +16715,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 168,
-          "offset": 2092,
+          "offset": 2096,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/after-action-report.js",
@@ -16773,7 +16728,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 176,
-          "offset": 2609,
+          "offset": 2613,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -16794,7 +16749,7 @@
           "line": 143
         },
         {
-          "path": "noteHarborAttack",
+          "path": "ctx.noteHarborAttack",
           "access": "read",
           "line": 150
         },
@@ -17756,29 +17711,11 @@
           "relation": "same"
         },
         {
-          "name": "harborTorpedoNetHit",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 223,
-          "offset": 851,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "revealHarborNet",
-          "kind": "optional-direct",
-          "unresolved": false,
-          "line": 224,
-          "offset": 898,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
           "name": "aarTorpedoFinish",
           "kind": "optional-direct",
           "unresolved": false,
           "line": 225,
-          "offset": 959,
+          "offset": 967,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/after-action-report.js",
@@ -17791,7 +17728,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 227,
-          "offset": 1103,
+          "offset": 1111,
           "definedBy": {
             "class": "SimEngineCore",
             "file": "js/simulation/engine-core.js",
@@ -17804,7 +17741,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 252,
-          "offset": 2921,
+          "offset": 2929,
           "definedBy": {
             "class": "SimEngineEnemyAI",
             "file": "js/simulation/ai/enemy-ai.js",
@@ -17817,7 +17754,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 253,
-          "offset": 2983,
+          "offset": 2991,
           "definedBy": {
             "class": "SimEngineTorpedoes",
             "file": "js/simulation/weapons/torpedoes.js",
@@ -17830,7 +17767,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 256,
-          "offset": 3177,
+          "offset": 3185,
           "definedBy": {
             "class": "SimEngineTorpedoes",
             "file": "js/simulation/weapons/torpedoes.js",
@@ -17839,20 +17776,11 @@
           "relation": "same"
         },
         {
-          "name": "noteHarborAttack",
-          "kind": "optional-direct",
-          "unresolved": false,
-          "line": 267,
-          "offset": 3979,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
           "name": "aarTorpedoFinish",
           "kind": "optional-direct",
           "unresolved": false,
           "line": 274,
-          "offset": 4311,
+          "offset": 4323,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/after-action-report.js",
@@ -17865,7 +17793,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 276,
-          "offset": 4577,
+          "offset": 4589,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -17878,7 +17806,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 277,
-          "offset": 4727,
+          "offset": 4739,
           "definedBy": {
             "class": "SimEngineEnemyAI",
             "file": "js/simulation/ai/enemy-ai.js",
@@ -17891,7 +17819,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 291,
-          "offset": 5462,
+          "offset": 5474,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/after-action-report.js",
@@ -17904,7 +17832,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 297,
-          "offset": 5999,
+          "offset": 6011,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -17917,7 +17845,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 298,
-          "offset": 6098,
+          "offset": 6110,
           "definedBy": {
             "class": "SimEngineEnemyAI",
             "file": "js/simulation/ai/enemy-ai.js",
@@ -17930,7 +17858,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 301,
-          "offset": 6258,
+          "offset": 6270,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/after-action-report.js",
@@ -17943,7 +17871,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 302,
-          "offset": 6326,
+          "offset": 6338,
           "definedBy": {
             "class": "SimEngineCore",
             "file": "js/simulation/engine-core.js",
@@ -17952,20 +17880,11 @@
           "relation": "lower"
         },
         {
-          "name": "noteHarborAttack",
-          "kind": "optional-direct",
-          "unresolved": false,
-          "line": 311,
-          "offset": 7324,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
           "name": "alertEscorts",
           "kind": "direct",
           "unresolved": false,
           "line": 312,
-          "offset": 7364,
+          "offset": 7380,
           "definedBy": {
             "class": "SimEngineEnemyAI",
             "file": "js/simulation/ai/enemy-ai.js",
@@ -17978,7 +17897,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 318,
-          "offset": 7675,
+          "offset": 7691,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/after-action-report.js",
@@ -17991,7 +17910,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 321,
-          "offset": 8018,
+          "offset": 8034,
           "definedBy": {
             "class": "SimEngineCore",
             "file": "js/simulation/engine-core.js",
@@ -18004,7 +17923,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 323,
-          "offset": 8346,
+          "offset": 8362,
           "definedBy": {
             "class": "SimEngineTorpedoes",
             "file": "js/simulation/weapons/torpedoes.js",
@@ -18017,7 +17936,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 327,
-          "offset": 8663,
+          "offset": 8679,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -18030,7 +17949,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 328,
-          "offset": 8805,
+          "offset": 8821,
           "definedBy": {
             "class": "SimEngineCore",
             "file": "js/simulation/engine-core.js",
@@ -18043,7 +17962,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 330,
-          "offset": 8953,
+          "offset": 8969,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -18056,7 +17975,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 344,
-          "offset": 9752,
+          "offset": 9768,
           "definedBy": {
             "class": "SimEngineTorpedoes",
             "file": "js/simulation/weapons/torpedoes.js",
@@ -18069,7 +17988,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 360,
-          "offset": 10502,
+          "offset": 10518,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -18100,12 +18019,12 @@
           "line": 221
         },
         {
-          "path": "harborTorpedoNetHit",
+          "path": "ctx.harborTorpedoNetHit",
           "access": "read",
           "line": 223
         },
         {
-          "path": "revealHarborNet",
+          "path": "ctx.revealHarborNet",
           "access": "read",
           "line": 224
         },
@@ -18150,7 +18069,7 @@
           "line": 256
         },
         {
-          "path": "noteHarborAttack",
+          "path": "ctx.noteHarborAttack",
           "access": "read",
           "line": 267
         },
@@ -18225,7 +18144,7 @@
           "line": 310
         },
         {
-          "path": "noteHarborAttack",
+          "path": "ctx.noteHarborAttack",
           "access": "read",
           "line": 311
         },

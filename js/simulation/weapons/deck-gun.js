@@ -147,7 +147,7 @@ class SimEngineDeckGun extends SimEngineAircraft {
     const legacyStep=(heavy ? .34 : isSurfaceCombatant(c) ? .58 : c.type==='TANKER' ? .78 : 1)*.20;
     c.gunDamage=clamp((c.gunDamage||0)+legacyStep,0,4);
     const dmg=applyDeckGunShipDamage(this,c,hit);
-    if(c.harborTarget)this.noteHarborAttack?.(c);
+    if(c.harborTarget)this.ctx.noteHarborAttack?.(c);
     G.hits++;
     W.hits.push({weapon:'DECK_GUN',contactId:c.id,t:this.state.time.elapsedSeconds,location:dmg.location});
     G.lastFall={text:`HIT — ${c.id} · ${dmg.material} / ${dmg.location} · ${shipDamageCondition(c)}`,until:this.state.time.elapsedSeconds+4};

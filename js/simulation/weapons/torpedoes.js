@@ -220,8 +220,8 @@ class SimEngineTorpedoes extends SimEngineCore {
       t.rangeRunNm+=d; t.ageSec+=dt;this.sampleTorpedoWake(t);
       if(t.rangeRunNm>=t.maxRangeNm){t.status='EXPIRED';this.aarTorpedoFinish?.(t,'EXPIRED');this.reportMiss(t,true);continue;}
       if(t.rangeRunNm<t.armedAfterNm) continue;
-      if(this.harborTorpedoNetHit(t.position)){
-        this.revealHarborNet?.('CONTACT');
+      if(this.ctx.harborTorpedoNetHit(t.position)){
+        this.ctx.revealHarborNet?.('CONTACT');
         t.status='NETTED';this.aarTorpedoFinish?.(t,'NETTED');
         W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'NET',kind:'dud'});
         this.notify(`${t.id} caught in the harbour torpedo net — warhead spent against the boom.`,'warn');
@@ -264,7 +264,7 @@ class SimEngineTorpedoes extends SimEngineCore {
           const incidence=Math.min(angOff,180-angOff);      // 90° = square hit on the beam
           const where=hitFrac>0.22?'bow':hitFrac<-0.22?'stern':'amidships';
           const spec=TORPEDO_SPECS[t.specKey]||{};
-          if(c.harborTarget) this.noteHarborAttack?.(c);
+          if(c.harborTarget) this.ctx.noteHarborAttack?.(c);
 
           // A very shallow track angle and the warhead simply glances off the
           // plating — the exploder never gets a square blow.
@@ -308,7 +308,7 @@ class SimEngineTorpedoes extends SimEngineCore {
             W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:14,label:`HIT — ${dmg.location}`,big:true,targetId:c.id,targetLengthFeet:Number(c.lengthYards)||300,impactSide:c.hitSide,incidenceDeg:incidence,warheadKg:spec.warheadKg||292});
             particles.spawnExplosion(t.position.xNm,t.position.yNm,2.35,true);
             const automaticImpactView=['PERISCOPE','BRIDGE'].includes(this.state.tactical.activeStation);if(!automaticImpactView)PresentationBridge.audio(this.state).playTorpedoHit?.();
-            if(c.harborTarget)this.noteHarborAttack?.(c);
+            if(c.harborTarget)this.ctx.noteHarborAttack?.(c);
             this.alertEscorts('SHIP_HIT',{...t.position},1);
 
             // Resolve a catastrophic structural opening immediately; otherwise

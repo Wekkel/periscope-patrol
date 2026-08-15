@@ -1200,7 +1200,7 @@ class SimEngineCore{
       this.log(`=== TRAINING PATROL — ${key} ===`,'warn');
       return;
     }
-    this.setupHarbor(key);
+    this.ctx.setupHarbor(key);
     // Patch 6: mission setup happens only after world truth (convoy/harbor) exists,
     // but before the briefing is rendered. Historical scenarios can pin a type;
     // ordinary patrols may use AUTO or the player's explicit selection.

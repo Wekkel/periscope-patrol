@@ -130,7 +130,9 @@ function _runtimeProfile(party){
   const x=_mtClone(base);Object.assign(x,{id:party.runtimeCampaignProfileId,displayName:`${CAMPAIGN_DEFINITIONS[party.campaignId].displayName} — ${party.shortName}`,theaterId:CAMPAIGN_DEFINITIONS[party.campaignId].theaterId,playerFactionId:party.factionId,opposingFactionIds:[opponent],submarineProfileId:party.submarineProfileId,commandName:party.commandName,defaultArea:party.patrolAreaIds[0],patrolAreaIds:[...party.patrolAreaIds],defaultStartDate:party.dateWindow[0],campaignId:party.campaignId,warPartyId:party.id,devSelectable:true,developmentStage:'COMPLETE_VERTICAL_SLICE'});
   x.doctrineProfile.asw.tactics=_mtClone(MULTI_ASW_TACTICS[opponent]||MULTI_ASW_TACTICS.japan);
   x.missionProfile=_missionProfile(party.id,party,base.missionProfile||US_PACIFIC_MISSION_PROFILE,opponent);x.historicalModel=_historical(base.historicalModel,party,torp);x.verticalSliceAcceptance=_mtClone(VERTICAL_SLICE_ACCEPTED);
-  x.specialOperationsProfile=null;
+  // Preserve campaign-authored harbor operations in the identity-specific
+  // runtime profile; otherwise Truk selections silently lose their harbor data.
+  x.specialOperationsProfile=base.specialOperationsProfile?_mtClone(base.specialOperationsProfile):null;
   x.radioIntelProfile=_mtClone(base.radioIntelProfile||US_PACIFIC_RADIO_INTEL_PROFILE);x.radioIntelProfile.id=`${party.id}-radio-v2`;
   const radioWords=z=>{if(!z||typeof z!=='object')return;for(const [k,v] of Object.entries(z)){if(typeof v==='string')z[k]=v.replaceAll('COMSUBPAC',party.commandName).replaceAll('B.d.U.',party.commandName).replaceAll('ULTRA',`${party.commandName} INTEL`);else radioWords(v);}};radioWords(x.radioIntelProfile);
   const normalize=z=>{if(!z||typeof z!=='object')return;for(const [k,v] of Object.entries(z)){if(k==='vesselProfileId'){const owner=z.side==='FRIENDLY'?party.factionId:opponent,g=String(z.gameplayType||z.type||'MERCHANT').toUpperCase();z[k]=`${owner}-${g==='TANKER'?'tanker':g==='DESTROYER'?'destroyer':['ESCORT','WARSHIP','PATROL_CRAFT'].includes(g)?'escort':'merchant'}`;z.factionId=owner;}else if(k==='aircraftProfileId')z[k]=`${opponent}-maritime-air`;else normalize(v);}};

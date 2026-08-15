@@ -23,7 +23,7 @@ function createLeafSystemContext(engine){
   ctx._ensureTacticalExtensions=(...args)=>engine.ensureTacticalExtensions(...args);
   ctx._ensureWorldExtensions=(...args)=>engine.ensureWorldExtensions(...args);
   ctx.sys.harbor=HarborSystem;ctx.sys.weather=WeatherSystem;ctx.sys.soundRadar=SoundRadarSystem;
-  for(const name of ['setupHarbor','ensureHarborIntel','harborOperationProfile','harborOptionalObjective','harborIdentityLabel','refreshHarborOptionalObjective','harborNetSegments','pointSegNm','revealHarborNet','updateHarborGateProgress','harborChannelFrame','ensureWorldExtensions','startHarborSearchlightSweep','scheduleCoastalBatteryShot','updateHarborKnowledge','updateHarbor'])bindLeafMethod(ctx,HarborSystem,name);
+  for(const name of ['setupHarbor','ensureHarborIntel','harborOperationProfile','harborOptionalObjective','harborIdentityLabel','refreshHarborOptionalObjective','harborNetSegments','pointSegNm','revealHarborNet','updateHarborGateProgress','harborChannelFrame','ensureWorldExtensions','startHarborSearchlightSweep','scheduleCoastalBatteryShot','updateHarborKnowledge','updateHarbor','grantHarborSpecialIntel','noteHarborAttack','harborTorpedoNetHit'])bindLeafMethod(ctx,HarborSystem,name);
   for(const name of ['ensureWeatherSystem','_spawnWeatherCell','_syncLocalWeather','updateWeather'])bindLeafMethod(ctx,WeatherSystem,name);
   for(const name of ['ensureSoundRadarState','currentSoundSignal','_soundOperatorReport','markSoundBearing','echoRange','_updateSurfaceSearchRadar','updateSoundRadar'])bindLeafMethod(ctx,SoundRadarSystem,name);
   return ctx;
