@@ -14,6 +14,8 @@ function createLeafSystemContext(engine){
   ctx.captainLog=(...args)=>engine.captainLog(...args);
   ctx.derivMode=(...args)=>engine.derivMode(...args);
   ctx.ensureSoundRadarState=(...args)=>engine.ensureSoundRadarState?.(...args);
+  ctx.friendlyPortNav=(...args)=>engine.friendlyPortNav?.(...args);
+  ctx.clearDeckForDive=(...args)=>engine.clearDeckForDive(...args);
   ctx.notify=(...args)=>engine.notify(...args);
   ctx.aar={
     torpedoLaunch:(...args)=>engine.aarTorpedoLaunch?.(...args),
@@ -49,7 +51,9 @@ function createLeafSystemContext(engine){
   ctx.sys.deckGun={update:(_ctx,dt)=>DeckGunSystem.updateDeckGun.call(ctx,dt),...api(DeckGunSystem,['deckGunTarget','deckGunBallisticSolution','deckGunElevationFor','layDeckGun','fireDeckGun','segmentShipGunHit','deckGunFallText','damageShipByDeckGun'])};
   ctx.sys.aaGun={update:(_ctx,dt)=>AAGunSystem.updateAAGun.call(ctx,dt),...api(AAGunSystem,['standDownAA','manageAutomaticAA','aaCasualty','airDepthChargeAttack','airAttack'])};
   ctx.sys.aircraft={update:(_ctx,dt)=>AircraftSystem.updateAircraft.call(ctx,dt),...api(AircraftSystem,['updateAirSurfaceTrace','airSurfaceTraceStrength','airAttackDatumPosition','wearAirState','wearAirEligibility','wearAirNotice','noteWearManualAircraft','startWearAirRoutine','abortWearAirRoutine','updateWearAirRoutine','beginAircraftAttack'])};
+  ctx.sys.aswBrain={update:(_ctx,dt)=>ASWBrainSystem.updateASWBrain.call(ctx,dt),...api(ASWBrainSystem,['ensureASWState','aswProsecutionLimits','armASWProsecution','aswProsecutionExpiry','resetASWProsecution','convoyFrame','damagedGuardShip','damagedGuardTarget','screenTarget','cueEstimate','noteASWCue','freshStrongASWCue','aswDatum','noteASWFix','loseASWContact','assignASWRoles','searchTarget'])};
   for(const name of ['updateAirSurfaceTrace','airSurfaceTraceStrength','airAttackDatumPosition','wearAirState','wearAirEligibility','wearAirNotice','noteWearManualAircraft','startWearAirRoutine','abortWearAirRoutine','updateWearAirRoutine','beginAircraftAttack','updateAircraft'])bindLeafMethod(ctx,AircraftSystem,name);
+  for(const name of ['ensureASWState','aswProsecutionLimits','armASWProsecution','aswProsecutionExpiry','resetASWProsecution','convoyFrame','damagedGuardShip','damagedGuardTarget','screenTarget','cueEstimate','noteASWCue','freshStrongASWCue','aswDatum','noteASWFix','loseASWContact','assignASWRoles','searchTarget','updateASWBrain'])bindLeafMethod(ctx,ASWBrainSystem,name);
   for(const name of ['setupHarbor','ensureHarborApproachWater','ensureHarborIntel','harborOperationProfile','harborOptionalObjective','harborIdentityLabel','refreshHarborOptionalObjective','harborNetSegments','pointSegNm','revealHarborNet','updateHarborGateProgress','harborChannelFrame','ensureWorldExtensions','startHarborSearchlightSweep','scheduleCoastalBatteryShot','recordHarborBatteryFire','updateHarborKnowledge','updateHarbor','grantHarborSpecialIntel','noteHarborAttack','harborTorpedoNetHit'])bindLeafMethod(ctx,HarborSystem,name);
   for(const name of ['ensureWeatherSystem','_spawnWeatherCell','_syncLocalWeather','updateWeather'])bindLeafMethod(ctx,WeatherSystem,name);
   for(const name of ['ensureSoundRadarState','currentSoundSignal','_soundOperatorReport','markSoundBearing','echoRange','_updateSurfaceSearchRadar','updateSoundRadar'])bindLeafMethod(ctx,SoundRadarSystem,name);

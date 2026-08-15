@@ -1,21 +1,21 @@
-class SimEngineASW extends SimEngineASWBrain {
+class SimEngineASW extends SimEngineSensors {
   updateEscortBeh(esc,e,sub,W,idx,total,dt){
-    this.ensureASWState();
+    this.sys.aswBrain.ensureASWState();
     const role=esc.aswRole||'SCREEN',tactics=aswTactics(this.state),training=aswTraining(esc,this.state),attackPace=clamp(tactics.attackSpeedFactor*(.82+training*.18),.75,1.18);
     const noFullPattern=(esc.dcRemaining!==undefined&&esc.dcRemaining<SONAR.patternSize);
     if(noFullPattern&&e.alertState!=='UNAWARE'&&role!=='DAMAGED_GUARD'&&role!=='CONVOY_GUARD'){
       esc.aswExpended=true;esc.aswRole='CONVOY_GUARD';
-      const tgt=this.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.convoyFrame()?.speedKn||9)+2.5,8,17);}return;
+      const tgt=this.sys.aswBrain.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.sys.aswBrain.convoyFrame()?.speedKn||9)+2.5,8,17);}return;
     }
     if(role==='DAMAGED_GUARD'){
       const casualty=W.contacts.find(c=>c.id===esc.guardShipId&&!c.sunk);
       if(casualty){
-        const tgt=this.damagedGuardTarget(esc,casualty),err=tgt?distNm(esc.position,tgt):0;
+        const tgt=this.sys.aswBrain.damagedGuardTarget(esc,casualty),err=tgt?distNm(esc.position,tgt):0;
         if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
         esc.desiredSpeed=clamp((casualty.speedKnots||0)+1.5+err*.7,4,13);
         return;
       }
-      this.assignASWRoles(null,true);
+      this.sys.aswBrain.assignASWRoles(null,true);
     }
     const informedIds=Array.isArray(e.alertedEscortIds)?e.alertedEscortIds:[];
     const locallyInformed=!informedIds.length||informedIds.includes(esc.id);
@@ -33,10 +33,10 @@ class SimEngineASW extends SimEngineASWBrain {
       // Enemy knowledge is local. An escort that has not observed the attack
       // and has not received a convoy signal/radio report keeps screening; it
       // must not inherit the shared ASW datum merely because another escort did.
-      const tgt=this.screenTarget(esc);
+      const tgt=this.sys.aswBrain.screenTarget(esc);
       if(tgt){
         const err=distNm(esc.position,tgt);esc.desiredHeading=bearingBetween(esc.position,tgt);
-        const frame=this.convoyFrame();esc.desiredSpeed=clamp((frame?.speedKn||9)+2.2+err*.55,7,17);
+        const frame=this.sys.aswBrain.convoyFrame();esc.desiredSpeed=clamp((frame?.speedKn||9)+2.2+err*.55,7,17);
       }
       return;
     }
@@ -45,15 +45,15 @@ class SimEngineASW extends SimEngineASWBrain {
     // else works from the common ASW datum/solution; no course order below uses
     // ownship's true coordinates.
     if(role==='CONVOY_GUARD'){
-      const tgt=this.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.convoyFrame()?.speedKn||9)+2,7,16);}return;
+      const tgt=this.sys.aswBrain.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.sys.aswBrain.convoyFrame()?.speedKn||9)+2,7,16);}return;
     }
 
     if(e.alertState==='SEARCHING'){
-      const A=this.ensureASWState(),now=this.state.time.elapsedSeconds,cueAge=now-(A.datumAt||-999);
+      const A=this.sys.aswBrain.ensureASWState(),now=this.state.time.elapsedSeconds,cueAge=now-(A.datumAt||-999);
       const hotCue=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN'].includes(A.lastCue);
       const canSpeculate=role==='PROSECUTOR'&&hotCue&&cueAge<420&&(esc.dcRemaining===undefined||esc.dcRemaining>=SONAR.patternSize)
         &&esc.speculativeCueGeneration!==A.cueGeneration;
-      const tgt=(canSpeculate?this.aswDatum(18):null)||this.searchTarget(esc)||this.screenTarget(esc);
+      const tgt=(canSpeculate?this.sys.aswBrain.aswDatum(18):null)||this.sys.aswBrain.searchTarget(esc)||this.sys.aswBrain.screenTarget(esc);
       if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
       esc.desiredSpeed=(role==='PROSECUTOR'?(canSpeculate?17:11):role==='CONTAINMENT'?13:12)*attackPace;
       if(canSpeculate&&tgt){
@@ -76,7 +76,7 @@ class SimEngineASW extends SimEngineASWBrain {
     // containment and sweep ships keep their assigned geometry and can take
     // over if they obtain the next firm echo.
     if(role!=='PROSECUTOR'){
-      const tgt=this.searchTarget(esc)||this.aswDatum(35)||this.screenTarget(esc);
+      const tgt=this.sys.aswBrain.searchTarget(esc)||this.sys.aswBrain.aswDatum(35)||this.sys.aswBrain.screenTarget(esc);
       if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
       esc.desiredSpeed=(role==='CONTAINMENT'?16:13)*attackPace;
       this.surfaceAction(esc,e,sub,W,dt);
@@ -84,21 +84,21 @@ class SimEngineASW extends SimEngineASWBrain {
     }
 
     if(esc.dcRemaining!==undefined&&esc.dcRemaining<SONAR.patternSize){
-      this.assignASWRoles(null,true);
-      const tgt=this.screenTarget(esc)||this.aswDatum();if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;
+      this.sys.aswBrain.assignASWRoles(null,true);
+      const tgt=this.sys.aswBrain.screenTarget(esc)||this.sys.aswBrain.aswDatum();if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;
     }
 
-    const sol=e.solution&&!e.solution.decoy?e.solution:null,raw=this.aswDatum();
-    if(!raw){const tgt=this.searchTarget(esc)||this.screenTarget(esc);if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;}
+    const sol=e.solution&&!e.solution.decoy?e.solution:null,raw=this.sys.aswBrain.aswDatum();
+    if(!raw){const tgt=this.sys.aswBrain.searchTarget(esc)||this.sys.aswBrain.screenTarget(esc);if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;}
 
     // A visual solution can lead a surfaced run, but even then the helm follows
     // the plotted solution rather than a hidden direct reference to ownship.
     if(e.visualOnSub&&(sol?.depthFt??999)<30){
-      const aim=this.aswDatum(18)||raw;esc.desiredHeading=bearingBetween(esc.position,aim);esc.desiredSpeed=24*attackPace;esc.lastAimRange=undefined;
+      const aim=this.sys.aswBrain.aswDatum(18)||raw;esc.desiredHeading=bearingBetween(esc.position,aim);esc.desiredSpeed=24*attackPace;esc.lastAimRange=undefined;
       this.surfaceAction(esc,e,sub,W,dt);return;
     }
 
-    const lr=degToRad(sol?.courseDeg??this.ensureASWState().estimatedCourseDeg??0),spd=sol?.speedKn??this.ensureASWState().estimatedSpeedKn??0;
+    const lr=degToRad(sol?.courseDeg??this.sys.aswBrain.ensureASWState().estimatedCourseDeg??0),spd=sol?.speedKn??this.sys.aswBrain.ensureASWState().estimatedSpeedKn??0;
     const sinkT=clamp((sol?.depthFt??130)/SONAR.sinkFps,4,55);let drop={...raw};
     for(let it=0;it<2;it++){
       const toGo=Math.min(300,distNm(esc.position,drop)/Math.max(esc.speedKnots,8)*3600),lead=spd*((toGo+sinkT)/3600);
@@ -165,8 +165,8 @@ class SimEngineASW extends SimEngineASWBrain {
     // later splash-to-burst interval.
     this.log(speculative?`DEPTH CHARGES — ${esc.name} is trying the last datum with a ${SONAR.patternSize}-charge pattern.`:`DEPTH CHARGES — ${esc.name} is beginning a ${SONAR.patternSize}-charge attack run.`,'bad');
     this.aarRecordEvent?.('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,count:SONAR.patternSize,depthFt:guess},esc.position,aim||sub.position);
-    this.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
-    if(esc.dcRemaining<SONAR.patternSize){esc.aswExpended=true;if(!esc.dcExhaustedNoted){esc.dcExhaustedNoted=true;this.log(`${esc.name} has expended her usable depth-charge patterns and is returning to the convoy screen.`);}this.assignASWRoles(null,true);}
+    this.sys.aswBrain.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
+    if(esc.dcRemaining<SONAR.patternSize){esc.aswExpended=true;if(!esc.dcExhaustedNoted){esc.dcExhaustedNoted=true;this.log(`${esc.name} has expended her usable depth-charge patterns and is returning to the convoy screen.`);}this.sys.aswBrain.assignASWRoles(null,true);}
   }
 
   updateDCs(dt){

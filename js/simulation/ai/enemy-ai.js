@@ -85,7 +85,7 @@ class SimEngineEnemyAI extends SimEngineCore {
   }
 
   alertEscorts(reason,pos,conf,meta={}){
-    const W=this.state.world,e=W.enemy;this.ensureASWState?.();
+    const W=this.state.world,e=W.enemy;this.sys.aswBrain.ensureASWState?.();
     // First let surface ships react to what THEY can plausibly perceive. This
     // must happen before the escort early-return: a lone freighter still takes
     // evasive action after being hit even when no ASW ship is nearby.
@@ -112,8 +112,8 @@ class SimEngineEnemyAI extends SimEngineCore {
     const wasUnaware=e.alertState==='UNAWARE',newState=conf>.75?'ATTACKING':'SEARCHING';if(!(e.alertState==='ATTACKING'&&newState==='SEARCHING'))e.alertState=newState;
     const timers={TORPEDO_LAUNCH:360,TORPEDO_SIGHTED:300,SHIP_HIT:600,EMERGENCY_BLOW:260,TORPEDO_DUD:210,COLLISION:320,DECK_GUN:340,AIR_ATTACK:240,NOISE:180,ACTIVE_ECHO:280,ACTIVE_QC:280,RADIO_BEARING:240};
     e.alertTimerSec=Math.max(e.alertTimerSec,timers[reason]||200);
-    const q=this.noteASWCue?this.noteASWCue(pos,conf,reason):{xNm:pos.xNm,yNm:pos.yNm};
-    this.armASWProsecution?.(reason,wasUnaware);
+    const q=this.sys.aswBrain.noteASWCue?this.sys.aswBrain.noteASWCue(pos,conf,reason):{xNm:pos.xNm,yNm:pos.yNm};
+    this.sys.aswBrain.armASWProsecution?.(reason,wasUnaware);
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.searchCenter={xNm:q.xNm,yNm:q.yNm};
     e.searchPattern=reason==='SHIP_HIT'?'COORDINATED':['TORPEDO_LAUNCH','TORPEDO_SIGHTED'].includes(reason)?'CONVERGE':'CREEPING';e.searchPhase=0;
     const via=relayed.length&&!direct.length?(relayed[0].lastAlarmVia||'signal'):'local observation';
@@ -124,8 +124,8 @@ class SimEngineEnemyAI extends SimEngineCore {
 
 
   updateEnemyAI(dt){
-    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,A=this.ensureASWState?.();
-    const budgetExpiry=this.aswProsecutionExpiry?.();
+    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,A=this.sys.aswBrain.ensureASWState?.();
+    const budgetExpiry=this.sys.aswBrain.aswProsecutionExpiry?.();
     if(budgetExpiry)e.alertTimerSec=0;
     if(e.alertTimerSec>0){
       // Quiet/deep running reduces SENSOR quality; it should not make a destroyer
@@ -135,14 +135,14 @@ class SimEngineEnemyAI extends SimEngineCore {
       e.alertTimerSec=Math.max(0,e.alertTimerSec-decay);
     }
     if(e.alertTimerSec<=0&&e.alertState!=='UNAWARE'){
-      e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;e.alertedEscortIds=[];this.assignASWRoles?.(null,true);
+      e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;e.alertedEscortIds=[];this.sys.aswBrain.assignASWRoles?.(null,true);
       this.log(budgetExpiry==='HARD_LIMIT'?'Escort commander breaks off the prolonged hunt; convoy screen reforming.':'Escort search abandoned; convoy screen reforming.');
-      this.resetASWProsecution?.();
+      this.sys.aswBrain.resetASWProsecution?.();
       if(this.state.campaign._depthChargeAttackSeen){this.captainLog?.('DEPTH_CHARGE_ATTACK_SURVIVED','Depth-charge attack survived.',{},`dc-survived:${Math.floor((this.state.time.elapsedSeconds||0)/60)}`);this.state.campaign._depthChargeAttackSeen=false;}
       const camp=this.state.campaign,evade=camp.objectives?.find?.(o=>o.id==='evade')||(!camp.missionType?camp.objectives?.[2]:null);
       if(evade)evade.done=true;
     }
-    e.searchPhase=(e.searchPhase||0)+dt;this.updateASWBrain?.(dt);this.updateSonar(dt);
+    e.searchPhase=(e.searchPhase||0)+dt;this.sys.aswBrain.updateASWBrain?.(dt);this.updateSonar(dt);
     const escorts=W.contacts.filter(c=>isASWCombatant(c));escorts.forEach((esc,i)=>this.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
     this.updateSurfaceTrafficCombat?.(dt);
     this.updateLookouts(dt);
@@ -160,9 +160,9 @@ class SimEngineEnemyAI extends SimEngineCore {
           estRng=clamp(rng*(1+(Math.random()-.5)*2*rangeFactor),.1,SONAR.maxRangeNm*1.25),br=degToRad(normDeg(trueBear+bearErr)),
           est={xNm:esc.position.xNm+Math.sin(br)*estRng,yNm:esc.position.yNm-Math.cos(br)*estRng};
         const passiveWasUnaware=e.alertState==='UNAWARE';this.markEscortAlerted(esc);e.alertState='SEARCHING';e.alertTimerSec=Math.max(e.alertTimerSec,det>.35?180:120);e.lastKnownConfidence=Math.max(e.lastKnownConfidence||0,det);
-        const A=this.ensureASWState?.();if(A){A.datum={...est,errNm:clamp(rng*rangeFactor,.16,.9),source:'PASSIVE'};A.datumAt=this.state.time.elapsedSeconds;A.searchStartedAt=this.state.time.elapsedSeconds;A.searchRadiusNm=clamp(.5+rng*rangeFactor,.6,1.8);}
-        this.armASWProsecution?.('PASSIVE',passiveWasUnaware);
-        e.lastKnownSubPosition={...est};e.searchCenter={...est};this.assignASWRoles?.(esc.id,true);
+        const A=this.sys.aswBrain.ensureASWState?.();if(A){A.datum={...est,errNm:clamp(rng*rangeFactor,.16,.9),source:'PASSIVE'};A.datumAt=this.state.time.elapsedSeconds;A.searchStartedAt=this.state.time.elapsedSeconds;A.searchRadiusNm=clamp(.5+rng*rangeFactor,.6,1.8);}
+        this.sys.aswBrain.armASWProsecution?.('PASSIVE',passiveWasUnaware);
+        e.lastKnownSubPosition={...est};e.searchCenter={...est};this.sys.aswBrain.assignASWRoles?.(esc.id,true);
         this.log(`${esc.name}: passive hydrophone bearing — escort screen searching.`);
       }
     }

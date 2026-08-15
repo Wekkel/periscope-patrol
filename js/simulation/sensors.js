@@ -115,9 +115,9 @@ class SimEngineSensors extends SimEngineIntel {
         depthFt:hull?clamp(sub.depthFeet+(Math.random()-.5)*8,0,40):sub.depthFeet+(Math.random()-.5)*50,errNm:err,ageSec:0,source:'VISUAL'};
       e.lastKnownSubPosition={xNm:e.solution.xNm,yNm:e.solution.yNm};e.searchCenter={xNm:e.solution.xNm,yNm:e.solution.yNm};
       e.alertTimerSec=Math.max(e.alertTimerSec,hull?240:150);e.alertState='ATTACKING';
-      if(hull){this.noteASWFix?.(esc,'VISUAL',.96);e.contactHeld=true;esc.sonarContact=false;}
+      if(hull){this.sys.aswBrain.noteASWFix?.(esc,'VISUAL',.96);e.contactHeld=true;esc.sonarContact=false;}
       else{
-        const A=this.ensureASWState?.();if(A){A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:err,source:'VISUAL'};A.datumAt=now;A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;this.assignASWRoles?.(esc.id,true);}
+        const A=this.sys.aswBrain.ensureASWState?.();if(A){A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:err,source:'VISUAL'};A.datumAt=now;A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;this.sys.aswBrain.assignASWRoles?.(esc.id,true);}
         this.log(`${esc.name} lookouts sighted a ${what} at ${(r*2025).toFixed(0)} yards.`);
       }
       PresentationBridge.audio(this.state).event?.('SUB_DETECTED');
@@ -133,7 +133,7 @@ class SimEngineSensors extends SimEngineIntel {
   updateSonar(dt){
     const W=this.state.world,e=W.enemy,sub=this.state.playerSub,env=W.environment,now=this.state.time.elapsedSeconds,hist=this.state.campaign?.historicalProfile||null;
     if(e.alertState==='UNAWARE')return;
-    const A=this.ensureASWState?.()||{},layer=env.layerDepthFt||200,belowLayer=sub.depthFeet>layer+15;e.belowLayer=belowLayer;
+    const A=this.sys.aswBrain.ensureASWState?.()||{},layer=env.layerDepthFt||200,belowLayer=sub.depthFeet>layer+15;e.belowLayer=belowLayer;
     if(e.solution){
       const s=e.solution,r=degToRad(s.courseDeg||0),d=knotsNmSec(s.speedKn||0)*dt;s.xNm+=Math.sin(r)*d;s.yNm-=Math.cos(r)*d;
       s.errNm=(s.errNm||.03)+dt*.0055;s.ageSec=(s.ageSec||0)+dt;
@@ -146,7 +146,7 @@ class SimEngineSensors extends SimEngineIntel {
     for(const esc of escorts){
       if(esc.sonarContact&&now>(esc.sonarContactUntil||-1))esc.sonarContact=false;
       esc.pingTimer=(Number.isFinite(esc.pingTimer)?esc.pingTimer:Math.random()*7)-dt;if(esc.pingTimer>0)continue;
-      const plotted=this.aswDatum?.()||e.solution||e.searchCenter,estRng=plotted?distNm(esc.position,plotted):SONAR.maxRangeNm;
+      const plotted=this.sys.aswBrain.aswDatum?.()||e.solution||e.searchCenter,estRng=plotted?distNm(esc.position,plotted):SONAR.maxRangeNm;
       const q=e.solution?clamp(1-(e.solution.errNm||.2)/.45,0,1):0;
       const ranging=!!(esc.sonarContact||e.contactHeld);
       const baseInterval=ranging?clamp(3.2+estRng*.45+(1-q)*2.0,3.0,7.5):clamp(9.5+Math.random()*4.5+(esc.aswRole==='CONVOY_GUARD'?2:0),8.5,16);
@@ -176,7 +176,7 @@ class SimEngineSensors extends SimEngineIntel {
       const kn=(W.knuckles||[]).find(k=>{const kr=distNm(esc.position,k.pos);return kr<rng&&kr<SONAR.maxRangeNm&&Math.abs(shortDelta(bearingBetween(esc.position,k.pos),bearingBetween(esc.position,sub.position)))<14;});
       if(kn&&Math.random()<.5&&p>0){
         e.solution={xNm:kn.pos.xNm,yNm:kn.pos.yNm,courseDeg:0,speedKn:0,depthFt:120+(Math.random()-.5)*100,errNm:.04,ageSec:0,decoy:true,sourceEscortId:esc.id};
-        esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.6;esc.sonarMisses=0;fixes++;this.noteASWFix?.(esc,'ACTIVE',.62);e.contactHeld=true;
+        esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.6;esc.sonarMisses=0;fixes++;this.sys.aswBrain.noteASWFix?.(esc,'ACTIVE',.62);e.contactHeld=true;
         this.log(`${esc.name} is echo-ranging on a knuckle.`);continue;
       }
       if(Math.random()<p){
@@ -191,14 +191,14 @@ class SimEngineSensors extends SimEngineIntel {
         e.solution={xNm:nx,yNm:ny,courseDeg:normDeg(crs),speedKn:clamp(spd,0,12),depthFt:clamp(sub.depthFeet+(Math.random()-.5)*2*(16+(belowLayer?58:0)),0,420),
           errNm:err,ageSec:0,sourceEscortId:esc.id};
         e.alertTimerSec=Math.max(e.alertTimerSec,190);e.alertState='ATTACKING';
-        const wasHeld=!!e.contactHeld;esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.7;esc.sonarMisses=0;this.noteASWFix?.(esc,'ACTIVE',clamp(p,0,1));e.contactHeld=true;fixes++;
+        const wasHeld=!!e.contactHeld;esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.7;esc.sonarMisses=0;this.sys.aswBrain.noteASWFix?.(esc,'ACTIVE',clamp(p,0,1));e.contactHeld=true;fixes++;
         if(wasHeld)A.lastFixAt=now;
       }else{esc.sonarContact=false;esc.sonarMisses=(esc.sonarMisses||0)+1;}
     }
     const held=escorts.some(x=>x.sonarContact&&now<=(x.sonarContactUntil||-1))||!!e.visualOnSub;
     if(held)e.contactHeld=true;
     else if(e.contactHeld&&now-(A.lastFixAt||-999)>14)e.contactHeld=false;
-    if(!e.contactHeld&&e.alertState==='ATTACKING'&&now-(A.lastFixAt||-999)>18){e.alertState='SEARCHING';e.searchPattern='COORDINATED';e.searchPhase=0;this.loseASWContact?.();}
+    if(!e.contactHeld&&e.alertState==='ATTACKING'&&now-(A.lastFixAt||-999)>18){e.alertState='SEARCHING';e.searchPattern='COORDINATED';e.searchPhase=0;this.sys.aswBrain.loseASWContact?.();}
 
     W.knuckles=(W.knuckles||[]).filter(k=>now-k.t<150);
     if(sub.propulsion.speedKnots>4.2&&Math.abs(shortDelta(sub.heading,sub.orderedHeading))>32&&now-(e.lastKnuckle||-99)>22){e.lastKnuckle=now;W.knuckles.push({pos:{...sub.position},t:now});}

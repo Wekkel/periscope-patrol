@@ -129,9 +129,10 @@ for (const absoluteFile of files) {
 
 function collectMethods(scope, origin) {
   const lines = sources.get(scope.file);
+  const controlWords=new Set(['if','for','while','switch','catch','with']);
   for (let index = scope.line; index < scope.end; index++) {
-    const match = lines[index].match(/^\s+(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*{/);
-    if (!match) continue;
+    const match = lines[index].match(/^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*{/);
+    if (!match||controlWords.has(match[1])) continue;
     const end = closingBrace(lines, index);
     const source = lines.slice(index, end + 1).join('\n');
     methods.push({

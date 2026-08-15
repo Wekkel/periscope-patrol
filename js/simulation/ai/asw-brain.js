@@ -63,8 +63,8 @@ function aswTraining(esc,state){
   return clamp(Number(esc?.aswTraining??profile?.aswTraining??aswTactics(state).training),.55,1.25);
 }
 
-class SimEngineASWBrain extends SimEngineSensors{
-  ensureASWState(){
+const ASWBrainSystem={
+ensureASWState(){
     const W=this.state.world,e=W.enemy||(W.enemy={}),now=this.state.time.elapsedSeconds||0;
     const A=e.asw||(e.asw={});
     if(!Number.isFinite(A.generation))A.generation=0;
@@ -95,9 +95,8 @@ class SimEngineASWBrain extends SimEngineSensors{
       if(x.sonarContact===undefined)x.sonarContact=false;
     }
     return A;
-  }
-
-  aswProsecutionLimits(){
+  },
+aswProsecutionLimits(){
     const d=String(this.state.campaign?.difficulty||'').toUpperCase();
     // Gameplay budget, in simulation seconds. A destroyer can continue beyond
     // the soft limit while it holds a firm contact, but an intermittent weak
@@ -106,9 +105,8 @@ class SimEngineASWBrain extends SimEngineSensors{
     if(d==='HARD')return{softSec:24*60*f,hardSec:40*60*f};
     if(d==='EASY')return{softSec:14*60*f,hardSec:26*60*f};
     return{softSec:18*60*f,hardSec:32*60*f};
-  }
-
-  armASWProsecution(reason='CONTACT',restart=false){
+  },
+armASWProsecution(reason='CONTACT',restart=false){
     const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0,L=this.aswProsecutionLimits();
     const strong=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN','COLLISION','EMERGENCY_BLOW','ACTIVE_ECHO','ACTIVE_QC'].includes(reason);
     const missing=A.prosecutionStartedAt<0||A.prosecutionSoftDeadlineAt<=now||A.prosecutionHardDeadlineAt<=now;
@@ -116,9 +114,8 @@ class SimEngineASWBrain extends SimEngineSensors{
       A.prosecutionStartedAt=now;A.prosecutionSoftDeadlineAt=now+L.softSec;A.prosecutionHardDeadlineAt=now+L.hardSec;A.prosecutionReason=reason;
     }
     return A;
-  }
-
-  aswProsecutionExpiry(){
+  },
+aswProsecutionExpiry(){
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0;
     if(e.alertState==='UNAWARE')return null;
     // Old saves have no episode timestamps. Start a fair fresh budget on the
@@ -128,13 +125,11 @@ class SimEngineASWBrain extends SimEngineSensors{
     if(now>=A.prosecutionHardDeadlineAt&&!e.visualOnSub)return'HARD_LIMIT';
     if(now>=A.prosecutionSoftDeadlineAt&&!firm)return'SOFT_LIMIT';
     return null;
-  }
-
-  resetASWProsecution(){
+  },
+resetASWProsecution(){
     const A=this.ensureASWState();A.prosecutionStartedAt=-1;A.prosecutionSoftDeadlineAt=-1;A.prosecutionHardDeadlineAt=-1;delete A.prosecutionReason;
-  }
-
-  convoyFrame(){
+  },
+convoyFrame(){
     const W=this.state.world,all=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
     if(!all.length)return null;
     const core=all.filter(c=>!shipIsStraggler(c)),ships=core.length?core:all;
@@ -143,23 +138,20 @@ class SimEngineASWBrain extends SimEngineSensors{
       yNm:ships.reduce((v,c)=>v+c.position.yNm,0)/ships.length,
       heading:lead.desiredHeading===undefined?lead.heading:lead.desiredHeading,
       speedKn:lead.baseSpeed||lead.speedKnots||8};
-  }
-
-  damagedGuardShip(){
+  },
+damagedGuardShip(){
     const candidates=this.state.world.contacts.filter(c=>c.convoyId==='MAIN'&&shipIsStraggler(c)&&(c.convoyGuardEligible!==false||shipDamageSeverity(c)>.10));
     if(!candidates.length)return null;
     return candidates.slice().sort((a,b)=>shipDamageSeverity(b)-shipDamageSeverity(a)||
       distNm(a.position,this.convoyFrame()||a.position)-distNm(b.position,this.convoyFrame()||b.position))[0];
-  }
-
-  damagedGuardTarget(esc,ship){
+  },
+damagedGuardTarget(esc,ship){
     if(!ship)return null;
     const r=degToRad(ship.heading||0),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
     const side=_shipHash01(`${esc.id}:guard-side`)<.5?-1:1;
     return{xNm:ship.position.xNm-fx*.45+sx*side*.60,yNm:ship.position.yNm-fy*.45+sy*side*.60};
-  }
-
-  screenTarget(esc){
+  },
+screenTarget(esc){
     const f=this.convoyFrame();if(!f)return null;
     const st=ASW_SCREEN_STATIONS[esc.screenRole]||ASW_SCREEN_STATIONS.REAR_GUARD;
     let fwd=st.fwd,side=st.side;
@@ -172,16 +164,14 @@ class SimEngineASWBrain extends SimEngineSensors{
     }
     const r=degToRad(f.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
     return{xNm:f.xNm+fx*fwd+sx*side,yNm:f.yNm+fy*fwd+sy*side};
-  }
-
-  cueEstimate(pos,conf=0.5,reason='NOISE'){
+  },
+cueEstimate(pos,conf=0.5,reason='NOISE'){
     const base={SHIP_HIT:.07,TORPEDO_DUD:.16,TORPEDO_LAUNCH:.28,TORPEDO_SIGHTED:.22,EMERGENCY_BLOW:.18,
       DECK_GUN:.12,COLLISION:.05,AIR_ATTACK:.34,NOISE:.46,RADIO_BEARING:.72}[reason]??.32;
     const maxErr=base*clamp(1.35-conf*.55,.65,1.25)*aswTactics(this.state).depthErrorFactor,a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*maxErr;
     return{xNm:pos.xNm+Math.cos(a)*r,yNm:pos.yNm+Math.sin(a)*r,errNm:maxErr};
-  }
-
-  noteASWCue(pos,conf,reason){
+  },
+noteASWCue(pos,conf,reason){
     const e=this.state.world.enemy,A=this.ensureASWState(),q=this.cueEstimate(pos,conf,reason),now=this.state.time.elapsedSeconds;
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.lastKnownConfidence=Math.max(e.lastKnownConfidence||0,conf||0);
     e.searchCenter={xNm:q.xNm,yNm:q.yNm};
@@ -189,18 +179,16 @@ class SimEngineASWBrain extends SimEngineSensors{
     A.searchRadiusNm=clamp(.45+q.errNm*1.6,.45,1.4);A.lastCue=reason;A.cueGeneration++;
     this.assignASWRoles(null,true);
     return q;
-  }
-
-  freshStrongASWCue(s=null){
+  },
+freshStrongASWCue(s=null){
     const A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0,source=A.datum?.source||A.lastCue;
     if(!['ACTIVE_QC','ACTIVE_ECHO'].includes(source)||now-(A.datumAt||-999)>48)return false;
     // A solution's age is the only knowledge-safe timestamp available on old
     // saves. The new acoustic cue wins only when it is actually newer; a fresh
     // visual/sonar fix remains superior.
     return !s||!Number.isFinite(s.ageSec)||(A.datumAt||-999)>now-s.ageSec+2;
-  }
-
-  aswDatum(leadSec=0){
+  },
+aswDatum(leadSec=0){
     const e=this.state.world.enemy,A=this.ensureASWState();
     const s=e.solution&&!e.solution.decoy?e.solution:null;
     const cueWins=this.freshStrongASWCue(s),base=!cueWins&&s?{xNm:s.xNm,yNm:s.yNm}:{...(A.datum||e.searchCenter||e.lastKnownSubPosition||{})};
@@ -211,9 +199,8 @@ class SimEngineASWBrain extends SimEngineSensors{
       base.xNm+=Math.sin(r)*d;base.yNm-=Math.cos(r)*d;
     }
     return base;
-  }
-
-  noteASWFix(esc,source='ACTIVE',quality=.7){
+  },
+noteASWFix(esc,source='ACTIVE',quality=.7){
     const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds,s=e.solution;
     if(!s)return;
     const wasHeld=!!e.contactHeld;
@@ -228,17 +215,15 @@ class SimEngineASWBrain extends SimEngineSensors{
       A.generation++;
     }
     return quality;
-  }
-
-  loseASWContact(){
+  },
+loseASWContact(){
     const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     A.searchStartedAt=now;A.searchRadiusNm=clamp(.45+(e.solution?.errNm||A.datum?.errNm||.08)*2,.45,1.2);
     const d=this.aswDatum();if(d){e.searchCenter={xNm:d.xNm,yNm:d.yNm};A.datum={...A.datum,...d};}
     this.assignASWRoles(null,true);
     this.log('ASW plot: firm contact lost; escorts are widening the search box.');
-  }
-
-  assignASWRoles(preferredId=null,force=false){
+  },
+assignASWRoles(preferredId=null,force=false){
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     if(!force&&now-A.lastRoleAssignAt<8)return;
     const escorts=W.contacts.filter(c=>isASWCombatant(c));if(!escorts.length)return;
@@ -286,9 +271,8 @@ class SimEngineASWBrain extends SimEngineSensors{
     A.roleGeneration++;A.lastRoleAssignAt=now;
     A.roles=Object.fromEntries(escorts.map(x=>[x.id,x.aswRole]));
     this.log(`ASW roles: ${escorts.map(x=>`${x.id} ${x.aswRole.replace('_',' ')}`).join(' · ')}`);
-  }
-
-  updateASWBrain(dt){
+  },
+updateASWBrain(dt){
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     const escorts=W.contacts.filter(c=>isASWCombatant(c));
     for(const x of escorts)if(x.sonarContact&&now>(x.sonarContactUntil||-1))x.sonarContact=false;
@@ -308,9 +292,8 @@ class SimEngineASWBrain extends SimEngineSensors{
       A.searchRadiusNm=clamp((A.searchRadiusNm||.55)+dt*(.0085+Math.min(lost,360)/360*.006)*f,.45,5.5);
       const d=this.aswDatum();if(d)e.searchCenter={xNm:d.xNm,yNm:d.yNm};
     }
-  }
-
-  searchTarget(esc){
+  },
+searchTarget(esc){
     const e=this.state.world.enemy,A=this.ensureASWState(),datum=this.aswDatum();if(!datum)return this.screenTarget(esc);
     const role=esc.aswRole||'SWEEP',r=clamp(A.searchRadiusNm||.7,.4,5.5),t=(e.searchPhase||0),course=e.solution?.courseDeg??A.estimatedCourseDeg??0;
     if(role==='CONVOY_GUARD'||role==='SCREEN')return this.screenTarget(esc)||datum;
@@ -338,4 +321,4 @@ class SimEngineASWBrain extends SimEngineSensors{
     const leg=Math.floor(t/38)%4,dirs=[0,90,180,270],rings=1+Math.floor(t/152),rr=Math.min(r,.45+rings*.42),a=degToRad(normDeg(course+dirs[leg]));
     return{xNm:datum.xNm+Math.sin(a)*rr,yNm:datum.yNm-Math.cos(a)*rr};
   }
-}
+};
