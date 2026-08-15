@@ -4,7 +4,8 @@ class GameLoop{
     this.game=game;this.cv=cv;this.dv=dv;this.tc=tc;
     this.fdt=1/10;this.acc=0;this.last=performance.now();
     this.domAcc=0;this.domInterval=1/5;      // DOM refresh at 5 Hz — huge saving on tablets
-    this.frameMs=16;this.ambT=0;this.lastLogLen=0;this.stopToastUntil=0;this.lastTransitRender=0;
+    this._renderErrorKey=null;
+    this.frameMs=16;this.ambT=0;this.lastLogLen=0;this.stopToastUntil=0;this.lastTransitRender=0;this.transit=new TransitService(game,this._safeUpdate.bind(this));this.quality=new QualityGovernor(cv);
     // requestAnimationFrame follows the panel refresh rate. On a 120 Hz phone
     // that used to double Canvas2D/compositor work even though simulation is
     // only 10 Hz. A carry budget produces ~60 work frames on 60/90/120 Hz
@@ -35,6 +36,10 @@ class GameLoop{
       if(s){s.ui=s.ui||{};s.ui.runtimeError={kind:'SIMULATION',message:msg,at:performance.now()};}
       return false;
     }
+  }
+  _safeRender(state,layout){
+    try{this.cv.render(state,layout);this._renderErrorKey=null;return true;}
+    catch(err){const msg=String(err?.message||err||'unknown render error');if(this._renderErrorKey!==msg){this._renderErrorKey=msg;console.error('[RENDER] station render failed; navigation remains available',err);try{Toast.warn(`DISPLAY RECOVERING — ${msg.slice(0,56)}`);}catch(_){}}return false;}
   }
 
   frame(now){
@@ -87,9 +92,12 @@ class GameLoop{
     }
     if(this.acc>this.fdt*8) this.acc=0;
 
-    // ── transit: burn through the empty hours, but keep a hand on the tiller ──
+    // ── transit service ──
     const T=this.game.getSnapshot().time;
     if(T.transitUntil&&T.transitUntil>T.elapsedSeconds){
+      this.transit.run();
+      /* legacy stop rendering below remains until HudDriver extraction */
+      /*
       const budget=performance.now()+11;              // never block a frame for long
       const eng=this.game.engine||this.game;
       while(performance.now()<budget&&T.transitUntil>T.elapsedSeconds){
@@ -127,6 +135,7 @@ class GameLoop{
       if(T.transitUntil&&T.transitUntil<=T.elapsedSeconds){
         T.transitUntil=0;eng.log('Transit complete.','warn');Toast.ok('Transit complete');
       }
+      */
     }
 
       const snap=this.game.getSnapshot();
@@ -142,7 +151,7 @@ class GameLoop{
     // chart/death presentation and leaves far more room for screen recording.
     if((!transitRunning&&!terminal)||now-this.lastTransitRender>=66){
       const layout=LayoutService.get();
-      this.cv.render(snap,layout);this.lastTransitRender=now;
+      this._safeRender(snap,layout);this.lastTransitRender=now;
     }
 
     // throttled DOM / HUD work
@@ -197,8 +206,6 @@ class GameLoop{
 
     // adaptive effect quality — keeps mid-range tablets smooth
     const ms=performance.now()-t0;
-    this.frameMs=this.frameMs*0.92+ms*0.08;
-    if(this.frameMs>24) this.cv.quality=Math.max(0.25,this.cv.quality-0.03);
-    else if(this.frameMs<14) this.cv.quality=Math.min(1,this.cv.quality+0.01);
+    this.frameMs=this.quality.sample(ms);
   }
 }
