@@ -66,7 +66,7 @@ class CanvasView extends CanvasViewSound {
     this.drawMapTerrain(ctx,state.world.terrain,w2s);
     this._mapFixedLabelRects=[];
     this.drawNavigationCorridors(ctx,state.world.navigationCorridors||[],w2s);
-    this.drawMapWeather(ctx,state,w2s,w,h);
+    this.drawMapWeather(ctx,state,w2s,w,h,layout);
     this.drawMapPortScenes(ctx,state.world.portScenes||[],w2s);
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
@@ -165,7 +165,7 @@ class CanvasView extends CanvasViewSound {
     if(u<.62){ctx.fillStyle=`rgba(205,245,228,${a*.88})`;ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText('PING',p.x,p.y-r-5*K);ctx.textAlign='left';}ctx.restore();
   }
 
-  drawMapWeather(ctx,state,w2s,w,h){
+  drawMapWeather(ctx,state,w2s,w,h,layout){
     if(!state?.map?.weatherOverlay)return;
     /* Read-only weather plotting.  This deliberately does not call back into
        the weather simulation: MAP must remain a pure consumer of state so a

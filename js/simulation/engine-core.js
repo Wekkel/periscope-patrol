@@ -103,6 +103,7 @@ class SimEngineCore{
     for(let i=0;i<steps;i++){
       this.updateSub(sdt);
       this.state.time.elapsedSeconds+=sdt;
+      const start=new Date(this.state.campaign.startDate||'1943-08-17');start.setSeconds(start.getSeconds()+this.state.time.elapsedSeconds);this.state.time.campaignDateTime=start.toISOString().slice(0,19).replace('T',' ');
       this.state.campaign.patrolDuration+=sdt;
       // A cinematic impact freezes time from the hit onward. At high time
       // compression `steps` was calculated before the hit, so without this
@@ -1090,7 +1091,7 @@ class SimEngineCore{
 
     // Patch 10.5: a patrol is a lifecycle boundary. No tactical clock, transit,
     // stale alarm or AAR-pause state may leak across it.
-    Object.assign(s.time,{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:patrolStartDate,
+    Object.assign(s.time,{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:patrolStartDate,campaignDateTime:`${patrolStartDate} 00:00:00`,
       transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null});
     s.log=[{t:0,level:'info',message:training?`Training waters prepared. Area: ${key}.`:`Patrol commenced. Area: ${key}. Good hunting.`}];
     if(s.ui){s.ui.toasts=[];s.ui.toastSeq=0;}

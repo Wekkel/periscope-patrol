@@ -74,6 +74,7 @@ const SHELL = [
   './js/core/game.js',
   './js/controllers/touch-controller.js',
   './js/ui/dom-view.js',
+  './js/ui/hud-driver.js',
   './js/controllers/bridge-controller.js',
   './js/tutorial/tutorial.js',
   './js/core/game-loop.js',

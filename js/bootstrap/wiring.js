@@ -10,6 +10,7 @@ globalThis.aarController=aarController;
 const touchCtrl=new TouchCtrl(game,canvasView);
 const tutorial=new Tutorial(game,canvasView,touchCtrl);
 globalThis.processPresentationEffects=()=>{
+  const live=game.getSnapshot();if(live.playerSub?.mode!=='SUNK')audio.updateAircraftFlyby?.(live);globalThis.audioDirector?.update?.(live);
   const desired=game.state.runtime?.audioState||{};
   for(const e of Object.values(desired)) audio[e.method]?.(...e.args);
   for(const e of PresentationBridge.take(game.state)){
