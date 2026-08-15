@@ -5,6 +5,10 @@
 // before point-in-polygon. WeakMap keeps this runtime-only: no save bloat and
 // old terrain arrays are collectible when a patrol area is replaced.
 const _terrainBoundsCache=new WeakMap();
+function clearDevelopmentOverrides(state){
+  const W=state?.world;if(!W)return;
+  for(const key of Object.keys(W))if(key.startsWith('_dev'))delete W[key];
+}
 class SimEngineCore{
   constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;this.ctx=typeof createLeafSystemContext==='function'?createLeafSystemContext(this):null;this.sys=this.ctx?.sys||{};}
   ensureWorldExtensions(...args){return this.ctx?.ensureWorldExtensions?.(...args)||null;}
@@ -139,16 +143,14 @@ class SimEngineCore{
   }
 
 
-  /* A refusal that only reaches the log on another tab reads, to the player,
-     as a button that does nothing. Anything the boat says NO to — or any
-     order it accepts that has no visible consequence for a few seconds —
-     goes through here, and the UI raises it as a toast wherever he is. */
-  notify(msg,kind='warn'){
+  /* Central player-message route. See docs/notify-inventory.md for the
+     reviewed responsibility/importance classification. */
+  notify(msg,kind='warn',importance='NUTTIG'){
     this.log(msg,kind);
-    const u=this.state.ui=this.state.ui||{};
-    u.toasts=u.toasts||[];
-    u.toasts.push({msg,kind,seq:(u.toastSeq=(u.toastSeq||0)+1)});
-    if(u.toasts.length>40) u.toasts.shift();
+    if(importance==='RUIS')return;
+    const toast=PresentationBridge.toast(this.state);
+    const fn=kind==='bad'?'bad':kind==='ok'?'ok':'warn';
+    toast[fn](msg,{importance});
   }
 
   clearDeckForDive(label='Dive'){
@@ -1101,7 +1103,7 @@ class SimEngineCore{
     Object.assign(s.time,{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:patrolStartDate,campaignDateTime:`${patrolStartDate} 00:00:00`,
       transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null});
     s.log=[{t:0,level:'info',message:training?`Training waters prepared. Area: ${key}.`:`Patrol commenced. Area: ${key}. Good hunting.`}];
-    if(s.ui){s.ui.toasts=[];s.ui.toastSeq=0;}
+    if(s.ui){delete s.ui.toasts;delete s.ui.toastSeq;}
     PresentationBridge.toast(this.state).clear();
     PresentationBridge.aar(this.state,'close',false);
     PresentationBridge.ui(s,'resumeHide');
@@ -1109,7 +1111,7 @@ class SimEngineCore{
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];s.world.nextDcId=0;
     // Development forcing is patrol-local. Never carry a forced seabed or keel
     // margin from the test console into a newly commissioned patrol.
-    delete s.world._devForcedSeabedFeet;delete s.world._devForcedKeelClearanceFeet;
+    clearDevelopmentOverrides(s);
     s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
     s.world.aircraft=[];s.world.knuckles=[];s.world.atmosphere=null;s.world.missionObjects=[];
     s.world.aaManned=false;s.world.aaAmmo=weaponProfile.aaGun.ammo;s.world.aaKills=0;s.world.aaHurt=0;

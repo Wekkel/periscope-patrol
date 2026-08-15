@@ -32,7 +32,14 @@ globalThis.processPresentationEffects=()=>{
     if(e.type==='audio-delay'){setTimeout(()=>game.dispatch({type:'PLAY_AUDIO',method:e.payload.method,args:e.payload.args}),Math.max(0,e.payload.delayMs||0));continue;}
     if(e.type==='command-delay'){setTimeout(()=>game.dispatch(e.payload.command),Math.max(0,e.payload.delayMs||0));continue;}
     if(e.type==='audio'){audio[e.payload.method]?.(...e.payload.args);continue;}
-    if(e.type==='toast'){Toast[e.payload.method]?.(...e.payload.args);continue;}
+    if(e.type==='toast'){
+      const args=e.payload.args||[],opts=args.at(-1),importance=opts&&typeof opts==='object'?opts.importance:'NUTTIG';
+      if(importance==='RUIS')continue;
+      const rt=game.state.runtime||(game.state.runtime={}),now=performance.now(),bucket=rt.toastBudget||(rt.toastBudget={window:now,count:0});
+      if(now-bucket.window>2500){bucket.window=now;bucket.count=0;}
+      if(importance==='NUTTIG'&&bucket.count>=3)continue;
+      bucket.count++;Toast[e.payload.method]?.(...(opts&&typeof opts==='object'?args.slice(0,-1):args));continue;
+    }
     if(e.type==='save'){SaveSystem[e.payload.method]?.(...e.payload.args);continue;}
     if(e.type==='aar')aarController[e.payload.method]?.(...e.payload.args);
     if(e.type==='ui'&&e.payload.method==='dayNight'){const [daylight,timeStr]=e.payload.args,fill=document.getElementById('dayNightFill'),label=document.getElementById('dayNightLabel');if(fill&&label){fill.style.width=`${daylight*100}%`;fill.style.background=daylight>.7?'#f0c35a':daylight>.3?'#f0a84a':'#4a6a8a';label.textContent=`${daylight>.6?'☀':daylight>.25?'🌅':'🌙'} ${timeStr}`;}}

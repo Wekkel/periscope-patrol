@@ -282,19 +282,7 @@ class SimEngineIntel extends SimEngineEnemyAI {
         PresentationBridge.toast(this.state).action('Shipping intelligence intercept plotted — steer to cut her off','VIEW MAP',focus,9500,'ok','intel-fit');
       }
       const T=this.state.time||{},compressed=!!T.transitUntil||(T.timeScale||1)>1;
-      if(compressed){
-        // Do not let a long skip manufacture a vertical stack of identical
-        // green intelligence toasts. Keep one queued item and update its count; the
-        // patrol log still retains every individual radio message above.
-        const u=this.state.ui=this.state.ui||{},q=u.toasts=u.toasts||[];
-        const tag=shippingCopy?.toastTag||'SHIPPING_INTEL_INTERCEPT';
-        let item=null,itemIndex=-1;for(let i=q.length-1;i>=0;i--){if(q[i]?.tag===tag){item=q[i];itemIndex=i;break;}}
-        if(item){
-          item.count=(item.count||1)+1;item.msg=`${item.count}× ${shippingCopy?.toastPluralNoun||'shipping intelligence intercepts plotted — latest plot shown on MAP'}`;
-          item.seq=(u.toastSeq=(u.toastSeq||0)+1);q.splice(itemIndex,1);q.push(item); // latest repeated signal stays at the tail
-        } else q.push({msg:shippingCopy?.toastSingle||'Shipping intelligence intercept plotted — steer to cut her off',kind:'ok',tag,count:1,seq:(u.toastSeq=(u.toastSeq||0)+1)});
-        if(q.length>40)q.splice(0,q.length-40);
-      }
+      if(compressed)PresentationBridge.toast(this.state).ok(shippingCopy?.toastSingle||'Shipping intelligence intercept plotted — steer to cut her off',{importance:'NUTTIG',coalesceKey:shippingCopy?.toastTag||'SHIPPING_INTEL_INTERCEPT'});
     }
     if(m.airThreat){W.airThreat=W.airThreat||{};W.airThreat.level=m.airThreat;}
     if(m.score) this.state.campaign.score+=m.score;
