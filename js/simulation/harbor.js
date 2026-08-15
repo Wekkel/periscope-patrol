@@ -435,7 +435,7 @@ const HarborSystem={
     A.shells.push(ev);if(A.shells.length>20)A.shells.shift();
     A.muzzleFlashes.push({id:`MF-${id}`,position:{...site},at:now,until:now+.34,power:1.0,kind:'COASTAL'});if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
     const br=bearingBetween(sub.position,site);PresentationBridge.audio(this.state).playDistantGunfire?.(br,sub.heading,clamp(1-rng/7,.25,1));
-    this.aarRecordEvent?.('COASTAL_GUNFIRE','Coastal battery opened fire.',{batteryShot:id,illuminated:lit},site,impact);
+    this.aar.recordEvent('COASTAL_GUNFIRE','Coastal battery opened fire.',{batteryShot:id,illuminated:lit},site,impact);
     return ev;
   },
 

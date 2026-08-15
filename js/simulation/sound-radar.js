@@ -210,7 +210,7 @@ const SoundRadarSystem={
     PresentationBridge.audio(this.state).playOwnSonarPing?.();
     // The transmission itself is a datum for enemy hydrophones, whether or not
     // the player's echo comes back.
-    this.alertEscorts('ACTIVE_ECHO',{...s.playerSub.position},.88);
+    this.sys.escorts.alert('ACTIVE_ECHO',{...s.playerSub.position},.88);
     const sig=this.currentSoundSignal(),c=sig.contact;
     if(!c||sig.offsetDeg>24||distNm(s.playerSub.position,c.position)>SOUND_ROOM.activeEchoMaxRangeNm){this.notify(`${echoName} — NO USEFUL ECHO. Every hydrophone in the area heard that transmission.`,'bad');return null;}
     const seed=s.campaign.scenarioSeed||1,tag=`QC:${c.id}:${Math.floor(now/3)}`,trueR=distNm(s.playerSub.position,c.position),rangeNm=trueR*(1+(_soundHashUnit(seed,tag,51)*2-1)*.018);

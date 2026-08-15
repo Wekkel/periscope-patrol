@@ -21,6 +21,8 @@ for(const p of all.filter(p=>rel(p).startsWith('js/core/')&&p.endsWith('.js'))){
 if(coreCalls){const message=`strict core-layer warnings: ${coreCalls} calls in ${coreFiles.size} files`;if(process.env.PP_STRICT_LAYERS==='1')fail.push(...coreViolations.map(v=>`core layer violation: ${v}`));else console.warn(message);}
 const renderSource=await readFile(path.join(root,'js/core/game-loop.js'),'utf8');
 if(/\.cv\.render\(snap\s*,?\s*\)/.test(renderSource))fail.push('GameLoop render path omits layout parameter');
+const wiringSource=await readFile(path.join(root,'js/bootstrap/wiring.js'),'utf8');
+if(wiringSource.includes('PP_DEV_TEST_CONSOLE')&&!/if\(!PP_BUILD\.isDev\)return/.test(wiringSource))fail.push('dev test console is not guarded by PP_BUILD.isDev');
 const layoutPatterns=[/dataset/i,/matchMedia/i,/innerWidth/i,/innerHeight/i,/clientWidth/i,/clientHeight/i,/getBoundingClientRect/i,/offsetWidth/i,/offsetHeight/i,/window\.screen/i,/visualViewport/i];
 const layoutHits=[];let layoutCalls=0;const layoutFiles=new Set();
 for(const p of all.filter(p=>{const r=rel(p);return (r.startsWith('js/rendering/')||r.startsWith('js/simulation/'))&&p.endsWith('.js');})){const src=await readFile(p,'utf8');let n=0;for(const re of layoutPatterns)n+=(src.match(new RegExp(re.source,'gi'))||[]).length;if(n){layoutCalls+=n;layoutFiles.add(p);layoutHits.push(`${rel(p)}: ${n}`);}}

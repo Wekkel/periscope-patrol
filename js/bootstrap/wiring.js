@@ -51,6 +51,29 @@ if(window.ResizeObserver){
   window.addEventListener('resize',()=>canvasView.resize(),{passive:true});
 }
 
+/* PP_DEV_TEST_CONSOLE — deliberately rough, dev-only scenario controls. */
+function installDevTestConsole(){
+  if(!PP_BUILD.isDev)return;
+  const panel=document.createElement('div');panel.id='ppDevTestConsole';panel.hidden=true;
+  panel.style.cssText='position:fixed;z-index:9999;right:8px;bottom:8px;width:min(320px,calc(100vw - 16px));max-height:70vh;overflow:auto;background:#071518;color:#d8e7d2;border:1px solid #c4a24a;padding:8px;font:12px monospace;box-shadow:0 4px 18px #000b';
+  const title=document.createElement('div');title.textContent='DEV TEST CONSOLE';title.style.cssText='color:#e8c75a;margin-bottom:6px;font-weight:bold';panel.append(title);
+  const out=document.createElement('pre');out.style.cssText='white-space:pre-wrap;max-height:90px;overflow:auto;margin:6px 0;color:#8fe0a4';panel.append(out);
+  const report=(text,level='ok')=>{out.textContent=`${text}\n`+out.textContent;Toast[level]?.(text);};
+  const targetTemplate=()=>game.state.world.contacts.find(c=>c.side!=='FRIENDLY'&&!c.sunk)||game.state.world.contacts[0];
+  const addTargets=()=>{const n=Math.max(1,Math.min(12,Number(prompt('Targets','3'))||3)),base=targetTemplate(),sub=game.state.playerSub;if(!base){report('No target template available.','warn');return;}for(let i=0;i<n;i++){const c=JSON.parse(JSON.stringify(base));c.id=`DEV-TARGET-${Date.now()}-${i}`;c.name=`DEV TARGET ${i+1}`;c.side='ENEMY';c.sunk=false;c.stationary=true;c.speedKnots=0;c.desiredSpeed=0;c.position={xNm:sub.position.xNm+(i+1)*.12,yNm:sub.position.yNm-.28};c.damage={...(c.damage||{}),hullIntegrity:100};game.state.world.contacts.push(c);}report(`Spawned ${n} stationary targets.`);};
+  const forceAir=()=>{const sub=game.state.playerSub,a={id:`DEV-AIR-${Date.now()}`,side:'ENEMY',name:'DEV ATTACKER',kind:'BOMBER',ordnance:'BOMB',position:{xNm:sub.position.xNm,yNm:sub.position.yNm-.08},heading:0,speedKnots:150,state:'ATTACKING',bombs:1,runTimer:0,spotted:true,seenBySub:true,bornAt:game.state.time.elapsedSeconds};game.state.world.aircraft.push(a);const fn=game.engine.sys?.aircraft?.update||game.engine.updateAircraft;if(fn)fn.call(game.engine,.1);report('Forced aircraft attack.');};
+  const depthCharge=()=>{const sub=game.state.playerSub,a={id:`DEV-DC-${Date.now()}`,name:'DEV AIRCRAFT',position:{...sub.position},rattled:0,attackDatum:{...sub.position,at:game.state.time.elapsedSeconds}};game.engine.sys?.aaGun?.airDepthChargeAttack(a,sub,sub.position);report('Dropped forced depth charge.');};
+  const alert=()=>{const h=game.state.world.harbor;if(!h){report('No harbor in current patrol.','warn');return;}h.alert=Math.max(0,Math.min(3,Number(prompt('Harbor alert 0–3','3'))||0));h.suspicion=Math.max(h.suspicion||0,h.alert*35);report(`Harbor alert set to ${h.alert}.`);};
+  const deck=(manned)=>{game.state.weapons.deckGun.manned=!!manned;report(manned?'Deck gun manned.':'Deck cleared.');};
+  const tubes=()=>{for(const t of game.state.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;}report('All tubes refilled dry.');};
+  const seabed=(kind)=>{const value=Math.max(0,Number(prompt(kind==='seabed'?'Seabed feet':'Keel clearance feet',kind==='seabed'?'24':'14'))||0),W=game.state.world,sub=game.state.playerSub;if(kind==='seabed'){W._devForcedSeabedFeet=value;delete W._devForcedKeelClearanceFeet;sub.seabedFeet=value;sub.keelClearanceFeet=value-sub.depthFeet;}else{W._devForcedKeelClearanceFeet=value;delete W._devForcedSeabedFeet;sub.keelClearanceFeet=value;sub.seabedFeet=sub.depthFeet+value;}report(`Forced ${kind}: ${value} ft.`);};
+  const commands=[['SPAWN TARGETS',addTargets],['FORCE AIR ATTACK',forceAir],['DROP DEPTH CHARGE',depthCharge],['SET HARBOR ALERT',alert],['DECK MAN',()=>deck(true)],['DECK CLEAR',()=>deck(false)],['FILL TUBES',tubes],['FORCE SEABED',()=>seabed('seabed')],['FORCE KEEL MARGIN',()=>seabed('keel')]];
+  for(const [label,fn] of commands){const b=document.createElement('button');b.textContent=label;b.style.cssText='margin:2px;padding:4px;background:#10282a;color:#d8e7d2;border:1px solid #54766e;font:11px monospace';b.addEventListener('click',()=>{try{fn();}catch(e){report(`DEV ERROR: ${e.message}`,'bad');}});panel.append(b);}
+  const close=document.createElement('button');close.textContent='×';close.style.cssText='position:absolute;right:4px;top:3px;background:none;color:#e8c75a;border:0;font-size:18px';close.onclick=()=>{panel.hidden=true;};panel.append(close);document.body.append(panel);
+  globalThis.toggleDevTestConsole=()=>{panel.hidden=!panel.hidden;if(!panel.hidden)report('Ready.');};
+}
+installDevTestConsole();
+
 // mission select / save buttons (both shells)
 ['newScenarioButton','mMissionSel'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>sceneSelector.open()));
 ['saveGameButton','mSaveGame'].forEach(id=>{
@@ -136,6 +159,7 @@ window.addEventListener('keydown',e=>{
   if(k==='l'){tutorial.active?tutorial.next():tutorial.start();return;}
   if(k==='t'){const on=audio.toggle();Toast.ok(on?'Audio ON':'Audio OFF');return;}
   if(k==='?'||k==='/'){hotkeyOverlay?.classList.toggle('open');refreshDiag();return;}
+  if(e.ctrlKey&&e.shiftKey&&k==='d'&&PP_BUILD.isDev){e.preventDefault();globalThis.toggleDevTestConsole?.();return;}
   if(k==='tab'){e.preventDefault();game.dispatch({type:'CYCLE_TIME_SCALE'});return;}
   if(k==='f'){game.dispatch({type:'FLOOD_ALL_TUBES'});Toast.ok('Fwd tubes flooded');}
   if(k==='g'){game.dispatch({type:'FIRE_TORPEDO',tubeId:1});}

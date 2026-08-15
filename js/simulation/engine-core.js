@@ -649,7 +649,8 @@ class SimEngineCore{
   }
 
   updateSeabed(sub,dt){
-    const sea=this.seabedFeet(sub.position);
+    const forcedSea=Number(this.state.world?._devForcedSeabedFeet),forcedClear=Number(this.state.world?._devForcedKeelClearanceFeet);
+    const sea=Number.isFinite(forcedSea)?forcedSea:Number.isFinite(forcedClear)?sub.depthFeet+forcedClear:this.seabedFeet(sub.position);
     sub.seabedFeet=sea;
     sub.bottomType=Bathy.bottomType(sub.position.xNm,sub.position.yNm);
     const prevClr=sub.keelClearanceFeet??(sea-sub.depthFeet);
