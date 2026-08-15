@@ -1,10 +1,5 @@
-class SimEngineAircraft extends SimEngineEnemyAI {
-  /* Aircraft must not become an omniscient anti-submarine sensor after the
-     bridge clears.  We keep one short-lived WORLD-space surface trace: wake,
-     foam and the last swirl left while the boat is diving.  Once the boat is
-     deep, a pilot can attack that datum but not the invisible current position.
-     This is also what makes an underwater turn away from the datum meaningful. */
-  updateAirSurfaceTrace(){
+const AircraftSystem={
+updateAirSurfaceTrace(){
     const W=this.state.world,sub=this.state.playerSub,env=W.environment,now=this.state.time.elapsedSeconds;
     W.airThreat=W.airThreat||{};const air=W.airThreat;
     const diving=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
@@ -16,33 +11,25 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     const tr=air.surfaceTrace;if(!tr)return null;
     if(this.airSurfaceTraceStrength(tr)<=.015){delete air.surfaceTrace;return null;}
     return tr;
-  }
-
-  airSurfaceTraceStrength(tr){
+  },
+airSurfaceTraceStrength(tr){
     if(!tr?.position)return 0;
     const now=this.state.time.elapsedSeconds,age=Math.max(0,now-(tr.at||0)),wx=weatherAtPosition(this.state,tr.position);
     // Calm clear water preserves a useful wake longest; rain and a rough sea
     // erase it quickly.  This is visual persistence, not a magic submerged track.
     const life=clamp(118*(1-clamp(wx.seaState||0,0,1)*.42)*(1-clamp(wx.precipitation||0,0,1)*.52)*clamp(.78+(wx.visibilityNm||8)/28,.72,1.18),42,145);
     return clamp((tr.strength||.6)*Math.pow(clamp(1-age/life,0,1),1.35),0,1.2);
-  }
-
-  airAttackDatumPosition(a){
+  },
+airAttackDatumPosition(a){
     const D=a?.attackDatum;if(!D||!Number.isFinite(D.xNm)||!Number.isFinite(D.yNm))return null;
     const age=clamp((this.state.time.elapsedSeconds-(D.at||0)),0,85),d=knotsNmSec(clamp(D.speedKnots||0,0,18))*age,r=degToRad(D.courseDeg||0);
     return{xNm:D.xNm+Math.sin(r)*d,yNm:D.yNm-Math.cos(r)*d};
-  }
-
-  wearAirState(){
+  },
+wearAirState(){
     const W=this.state.world;W.airThreat=W.airThreat||{};
     return W.airThreat.wear||(W.airThreat.wear={learned:false,manualAircraftId:null,active:null});
-  }
-
-  /* WEAR = the long, otherwise routine homeward leg. This is intentionally a
-     hard-and-fast gate over state the simulation already owns, not a new event
-     director. If anything tactically interesting exists, the captain keeps the
-     conn. */
-  wearAirEligibility(requireCompressed=true){
+  },
+wearAirEligibility(requireCompressed=true){
     const s=this.state,W=s.world,sub=s.playerSub,c=s.campaign,T=s.time;
     const wp=s.map.plottedCourse?.[0],nav=this.friendlyPortNav?.();
     if(c.missionStatus!=='RETURN TO BASE'||!c._headingHome||!wp||wp.navKind!=='FRIENDLY_APPROACH')return{ok:false,why:'not on the homeward approach'};
@@ -61,25 +48,22 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     const hotTrack=Object.values(W.contactTracks||{}).find(tr=>tr&&!tr.sunk&&tr.confidence>=.08&&(tr.staleSeconds||0)<600);
     if(hotTrack)return{ok:false,why:'a sound or surface contact is being worked'};
     return{ok:true,why:''};
-  }
-
-  wearAirNotice(msg,kind='warn'){
+  },
+wearAirNotice(msg,kind='warn'){
     this.log(msg,kind);
     // Routine transit normally holds queued toasts. This hand-off message is
     // one of the rare things the player should see immediately even at 32x.
     if(typeof Toast!=='undefined'){
       const fn=kind==='bad'?'bad':kind==='ok'?'ok':'warn';Toast[fn]?.(msg);
     }
-  }
-
-  noteWearManualAircraft(a,wasCompressed=true){
+  },
+noteWearManualAircraft(a,wasCompressed=true){
     const wear=this.wearAirState();
     if(wear.learned||wear.manualAircraftId||!wasCompressed)return;
     if(!this.wearAirEligibility(false).ok)return;
     wear.manualAircraftId=a.id;wear.manualClear=false;
-  }
-
-  startWearAirRoutine(a){
+  },
+startWearAirRoutine(a){
     const wear=this.wearAirState(),elig=this.wearAirEligibility(true),sub=this.state.playerSub;
     if(!wear.learned||wear.active||!elig.ok||a.state!=='SEARCHING')return false;
     const safeDepth=120;
@@ -92,9 +76,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     this.derivMode?.();
     this.wearAirNotice(`AIR CONTACT — ROUTINE EVASION. CREW HAS THE BOAT — diving to ${safeDepth} ft.`,'warn');
     return true;
-  }
-
-  abortWearAirRoutine(reason){
+  },
+abortWearAirRoutine(reason){
     const wear=this.wearAirState(),active=wear.active;if(!active)return;
     const a=(this.state.world.aircraft||[]).find(x=>x.id===active.aircraftId);if(a)a._wearManaged=false;
     wear.active=null;
@@ -102,9 +85,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     // Deliberately do NOT restore depth/RPM/heading orders. The crew hands the
     // conn over; it does not cancel a safety manoeuvre halfway through it.
     this.wearAirNotice(`CAPTAIN REQUIRED — ${reason.toUpperCase()}. Routine air evasion disengaged; current orders remain in force.`,'bad');
-  }
-
-  updateWearAirRoutine(){
+  },
+updateWearAirRoutine(){
     const s=this.state,W=s.world,sub=s.playerSub,wear=this.wearAirState(),now=s.time.elapsedSeconds;
 
     // The first qualifying aeroplane stays a normal player problem. Once the
@@ -154,9 +136,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
         this.log('ROUTINE AIR EVASION COMPLETE — homeward course and power restored.','ok');
       }
     }
-  }
-
-  beginAircraftAttack(a,observed,source='VISUAL',motion=null){
+  },
+beginAircraftAttack(a,observed,source='VISUAL',motion=null){
     const s=this.state,now=s.time.elapsedSeconds,src=source==='WAKE'?'WAKE':'VISUAL';
     const unc=src==='WAKE'?clamp(.035+(1-(motion?.strength||.5))*.11,.035,.15):.012;
     const aa=Math.random()*Math.PI*2,rr=Math.sqrt(Math.random())*unc;
@@ -171,9 +152,8 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     if(wasCompressed){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
     this.log(src==='WAKE'?`${a.name} has picked up the diving wake and is turning onto the last datum!`:`${a.name} has sighted the boat and is turning in!`,'bad');
     PresentationBridge.audio(this.state).event?.('AIRCRAFT_SPOTTED');
-  }
-
-  updateAircraft(dt){
+  },
+updateAircraft(dt){
     const W=this.state.world, sub=this.state.playerSub, env=W.environment;
     const now=this.state.time.elapsedSeconds,campaignProfileId=this.state.campaign?.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId;
     const airDoctrine=getCampaignDoctrineProfile(campaignProfileId)?.air;
@@ -532,8 +512,4 @@ class SimEngineAircraft extends SimEngineEnemyAI {
     });
     this.updateWearAirRoutine();
   }
-
-  /* ══════════ 3\"/50 DECK GUN ════════════════════════════════════════
-     A surface weapon, not a button that spends hit points. The sight is laid
-     in bearing and elevation; each round then flies a real ballistic arc. */
-}
+};

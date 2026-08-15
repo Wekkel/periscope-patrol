@@ -1,4 +1,4 @@
-class SimEngineIntel extends SimEngineAircraft {
+class SimEngineIntel extends SimEngineEnemyAI {
   threadShippingSignal(m){
     const R=this.state.world.radio, intel=m?.intel;
     if(!intel){R.inbox.unshift(m);R.unread++;return;}
