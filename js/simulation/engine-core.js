@@ -172,7 +172,8 @@ class SimEngineCore{
     if(W.aaManned){W.aaManned=false;delay=Math.max(delay,14);crews.push('AA crew');}
     if(delay>0){
       sub.diveDelay=Math.max(sub.diveDelay||0,delay);
-      this.notify(`${label}: ${crews.join(' and ')} clearing the deck automatically — dive held about ${Math.ceil(delay)} seconds until the hatch is shut.`,'bad');
+      const msg=`${label}: ${crews.join(' and ')} clearing the deck automatically — dive held about ${Math.ceil(delay)} seconds until the hatch is shut.`;
+      this.notify(msg,'bad');PresentationBridge.toast(this.state).warn(msg);
     }
     return delay;
   }
@@ -1106,6 +1107,9 @@ class SimEngineCore{
     PresentationBridge.ui(s,'resumeHide');
     // Reset world
     s.world.contacts=[]; s.world.contactTracks={}; s.world.depthCharges=[];s.world.nextDcId=0;
+    // Development forcing is patrol-local. Never carry a forced seabed or keel
+    // margin from the test console into a newly commissioned patrol.
+    delete s.world._devForcedSeabedFeet;delete s.world._devForcedKeelClearanceFeet;
     s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
     s.world.aircraft=[];s.world.knuckles=[];s.world.atmosphere=null;s.world.missionObjects=[];
     s.world.aaManned=false;s.world.aaAmmo=weaponProfile.aaGun.ammo;s.world.aaKills=0;s.world.aaHurt=0;

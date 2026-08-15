@@ -121,8 +121,8 @@ const AAGunSystem={
     const submerged=sub.depthFeet>12,hNm=distNm(pos,sub.position),dmg=submerged?0:52*Math.exp(-hNm/.020);
     this.state.weapons.explosions.push({position:{...pos},ageSec:0,maxAgeSec:8,label:dmg>4?`AIR BOMB -${Math.round(dmg)}`:'AIR BOMB'});
     if(W.aaManned&&!submerged&&hNm<.035&&Math.random()<.34)this.sys.aaGun.aaCasualty('Bomb burst close aboard.');
-    if(dmg>1.5){this.sys.damage.applyShock(dmg);PresentationBridge.audio(this.state).playAirBomb?.(clamp(1-dmg/52,0,1));particles.spawnExplosion(pos.xNm,pos.yNm,.9,false);this.log(`AIR BOMB — ${dmg.toFixed(0)}% damage. Get her down!`,'bad');}
-    else{PresentationBridge.audio(this.state).playAirBomb?.(.85);particles.spawnExplosion(pos.xNm,pos.yNm,.55,false);this.log(submerged?`${a.name} bombs the last surface datum — the boat is already under.`:`${a.name} dropped ordinary bombs — near miss.`,'warn');}
+    if(dmg>1.5){this.sys.damage.applyShock(dmg);PresentationBridge.audio(this.state).event?.('AIR_BOMB',{distanceFactor:clamp(1-dmg/52,0,1)});particles.spawnExplosion(pos.xNm,pos.yNm,.9,false);this.log(`AIR BOMB — ${dmg.toFixed(0)}% damage. Get her down!`,'bad');}
+    else{PresentationBridge.audio(this.state).event?.('AIR_BOMB',{distanceFactor:.85});particles.spawnExplosion(pos.xNm,pos.yNm,.55,false);this.log(submerged?`${a.name} bombs the last surface datum — the boat is already under.`:`${a.name} dropped ordinary bombs — near miss.`,'warn');}
     this.sys.escorts.alert('AIR_ATTACK',{...pos},0.6);
   },
 

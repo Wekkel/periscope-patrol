@@ -399,6 +399,7 @@ class AudioEngine{
       case'PATROL_COMPLETE':case'MISSION_COMPLETE':return this.playTitleCue('COMPLETE');
       case'AIRCRAFT_SPOTTED':case'AIRCRAFT_ATTACK':case'SUB_DETECTED':case'SEARCHLIGHT_CONTACT':return this.playBattleStations();
       case'DEPTH_CHARGE_SPLASH':return this.playDepthChargeSplash(opts.distanceFactor??.5);
+      case'AIR_BOMB':return this.playAirBomb(opts.distanceFactor??.3);
       default:return this.playUiConfirm(.18);
     }
   }
