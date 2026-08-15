@@ -609,6 +609,12 @@ class SimEngineCore{
     return feet;
   }
 
+  setDepthAndClearance(sub,depthFeet,seabedFeet=sub.seabedFeet){
+    sub.depthFeet=Math.max(0,Number(depthFeet)||0);
+    if(Number.isFinite(Number(seabedFeet)))sub.keelClearanceFeet=Number(seabedFeet)-sub.depthFeet;
+    return sub.keelClearanceFeet;
+  }
+
   /* ══ SHOAL WATCH ══════════════════════════════════════════════════════
      Running the clock forward is the player saying "nothing is happening";
      it is not the player saying "drive her aground". A skipper with the
@@ -657,7 +663,7 @@ class SimEngineCore{
     sub.seabedFeet=sea;
     sub.bottomType=Bathy.bottomType(sub.position.xNm,sub.position.yNm);
     const prevClr=sub.keelClearanceFeet??(sea-sub.depthFeet);
-    sub.keelClearanceFeet=sea-sub.depthFeet;
+    this.setDepthAndClearance(sub,sub.depthFeet,sea);
     sub._keelClosingFps=dt>0?(prevClr-sub.keelClearanceFeet)/dt:0;
     const safe=Math.max(0,sea-25);
 
@@ -694,7 +700,7 @@ class SimEngineCore{
       const hard=(sub.bottomType==='CORAL'||sub.bottomType==='ROCK')?2.0:1.0;
       if(spd>1.2||hard>1.5){
         const dmg=clamp((0.8+spd*1.5)*hard,1,45);
-        sub.depthFeet=Math.max(0,sea-3);
+        this.setDepthAndClearance(sub,sea-3,sea);
         sub.verticalSpeedFps=0;
         sub.propulsion.speedKnots*=0.25;
         this.applyShock(dmg);
@@ -727,14 +733,14 @@ class SimEngineCore{
     // leave a dangerous depth order behind or teleport the boat through water.
     if(sea>210||!Bathy.restable(kind)){sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.orderedDepthFeet=Math.min(sub.orderedDepthFeet,Math.max(0,Math.round(sea-25)));return;}
     sub.bottomed=true;sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.bottomedAt=this.state.time.elapsedSeconds;sub.suction=0;
-    sub.depthFeet=Math.min(sea-2,Math.max(sub.depthFeet,sea-3));sub.verticalSpeedFps=0;sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.orderedDepthFeet=Math.round(sea-2);
+    this.setDepthAndClearance(sub,Math.min(sea-2,Math.max(sub.depthFeet,sea-3)),sea);sub.verticalSpeedFps=0;sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.orderedDepthFeet=Math.round(sea-2);
     this.notify(`ON THE BOTTOM — ${sea.toFixed(0)} ft, ${kind.toLowerCase()}. All stop, everything shut down. She is part of the sea floor now.`,'ok');
   }
 
   updateBottomed(sub,dt,sea){
     // she stays put
     sub.propulsion.speedKnots=0; sub.propulsion.actualRpm=0;
-    sub.verticalSpeedFps=0; sub.depthFeet=sea-2;
+    sub.verticalSpeedFps=0; this.setDepthAndClearance(sub,sea-2,sea);
     /* Suction. Mud takes hold of a hull that sits in it; sand barely does.
        Past about a third she needs a hard blow to break free, and that is
        a noise every set within miles will hear. */
@@ -1172,7 +1178,7 @@ class SimEngineCore{
     if(training){const safe=this.findNavigablePointNear(sub.position,80);if(!safe)throw new Error(`No navigable training start in ${key}`);sub.position=safe;}
     else if(!this.isNavigableMapPoint(sub.position,30))throw new Error(`Patrol start is not navigable water: ${key}`);
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
-    sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
+    this.setDepthAndClearance(sub,0,3000);sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
     sub.propulsion.characteristics=fresh.propulsionProfile;
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;

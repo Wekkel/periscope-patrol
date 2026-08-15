@@ -199,6 +199,7 @@ class SimEngine extends SimEngineCareer {
     // at the surface only the UPWARD component is cancelled — Math.min() here
     // killed every downward rate, which made the boat unable to dive at all
     if(sub.depthFeet<=0){sub.depthFeet=0;sub.verticalSpeedFps=Math.max(0,sub.verticalSpeedFps);}
+    this.setDepthAndClearance(sub,sub.depthFeet,sub.seabedFeet);
     /* Can she still be brought up at all? The planes bite on the water flowing
        past them, so a stopped boat has nothing to lift with; damaged ballast
        tanks cut what the air can do; and the sea coming in through a split
