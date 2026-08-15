@@ -3,8 +3,8 @@ import path from 'node:path';
 
 const root=path.resolve(process.argv[2]||'.');
 const graph=JSON.parse(await readFile(path.join(root,'tests','call-graph-current.json'),'utf8'));
-const systemClasses=new Set(['HarborSystem','WeatherSystem','SoundRadarSystem','TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem','ASWSystem','EnemyAISystem']);
-const newlyComposed=new Set(['TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem','ASWSystem','EnemyAISystem']);
+const systemClasses=new Set(['HarborSystem','WeatherSystem','SoundRadarSystem','IntelSystem','SensorsSystem','TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem','ASWSystem','EnemyAISystem']);
+const newlyComposed=new Set(['IntelSystem','SensorsSystem','TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem','ASWSystem','EnemyAISystem']);
 const systemMethods=new Map();
 for(const m of graph.methods){
   if(systemClasses.has(m.class)) systemMethods.set(m.name,m);
@@ -17,11 +17,11 @@ const misses=[];
 // scopes the legacy graph parser does not associate with a class definition.
 const missingDirectAllowlist=new Set(['refreshScopeVisualContacts','safeUpdate']);
 const contextSource=await readFile(path.join(root,'js','simulation','system-context.js'),'utf8');
-const boundBySystem=new Map([...contextSource.matchAll(/for\(const name of \[([^\]]+)\]\)bindLeafMethod\(ctx,(HarborSystem|WeatherSystem|SoundRadarSystem|AircraftSystem|ASWBrainSystem|ASWSystem|EnemyAISystem),name\)/g)].map(m=>[m[2],new Set([...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]))]));
-const domainSystem=new Map([['harbor','HarborSystem'],['weather','WeatherSystem'],['soundRadar','SoundRadarSystem'],['torpedoes','TorpedoSystem'],['deckGun','DeckGunSystem'],['aaGun','AAGunSystem'],['aircraft','AircraftSystem'],['asw','ASWSystem'],['enemyAI','EnemyAISystem']]);
+const boundBySystem=new Map([...contextSource.matchAll(/for\(const name of \[([^\]]+)\]\)bindLeafMethod\(ctx,(HarborSystem|WeatherSystem|SoundRadarSystem|IntelSystem|SensorsSystem|AircraftSystem|ASWBrainSystem|ASWSystem|EnemyAISystem),name\)/g)].map(m=>[m[2],new Set([...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]))]));
+const domainSystem=new Map([['harbor','HarborSystem'],['weather','WeatherSystem'],['soundRadar','SoundRadarSystem'],['intel','IntelSystem'],['sensors','SensorsSystem'],['torpedoes','TorpedoSystem'],['deckGun','DeckGunSystem'],['aaGun','AAGunSystem'],['aircraft','AircraftSystem'],['asw','ASWSystem'],['enemyAI','EnemyAISystem']]);
 domainSystem.set('aswBrain','ASWBrainSystem');
 const adapterTargets=new Map([
-  ['navigation',new Set(['updateTdc','derivMode'])],['impact',new Set(['captureShipState','offerObservation'])],
+  ['navigation',new Set(['updateTdc','derivMode','ensureWaterRoute','clampToArea'])],['traffic',new Set(['trafficIntelCandidates'])],['impact',new Set(['captureShipState','offerObservation'])],
   ['enemyAI',new Set(['maybeMerchantSpotTorpedo'])],['escorts',new Set(['alert'])],
   ['damage',new Set(['applyShock'])],['deckOperations',new Set(['clearForDive'])],
   ['mission',new Set(['checkObjectives'])],['battleAtmosphere',new Set(['noteSurfaceGunfire','noteTacticalSignal'])],['sensors',new Set(['updateSonar','updateLookouts'])]

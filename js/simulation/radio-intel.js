@@ -1,4 +1,4 @@
-class SimEngineIntel extends SimEngineCore {
+const IntelSystem={
   threadShippingSignal(m){
     const R=this.state.world.radio, intel=m?.intel;
     if(!intel){R.inbox.unshift(m);R.unread++;return;}
@@ -11,7 +11,7 @@ class SimEngineIntel extends SimEngineCore {
     if(oldIndex>=0)R.inbox.splice(oldIndex,1);
     if(old&&!materialChange)m.text+=` ROUTINE UPDATE ${m.updateCount} — same tracked target; latest estimate shown.`;
     R.inbox.unshift(m);if(materialChange)R.unread++;
-  }
+  },
 
   ensureRadioOperations(){
     const R=this.state.world.radio=this.state.world.radio||{pending:null,inbox:[],unread:0,nextBroadcast:240,copying:0};
@@ -20,7 +20,7 @@ class SimEngineIntel extends SimEngineCore {
     R.enigma=R.enigma||{keyDate,keyState:'IN FORCE',workload:0,processedGroups:0,lastCategory:null};
     if(R.enigma.keyDate!==keyDate){R.enigma.keyDate=keyDate;R.enigma.keyState='CHANGEOVER';R.enigma.workload=Math.max(1,R.enigma.workload||0);}
     return R;
-  }
+  },
 
   radioCopyRequirement(signal){
     const s=this.state,R=this.ensureRadioOperations(),profile=getCampaignRadioIntelProfile(s.campaign.campaignProfileId)||{},env=s.world.environment||{},d=s.playerSub.damage||{};
@@ -29,7 +29,7 @@ class SimEngineIntel extends SimEngineCore {
     const damage=1+clamp((Number(d.electricalDamage)||0)/100,0,1)*.85+clamp((100-(Number(d.hullIntegrity)||100))/100,0,1)*.18;
     const workload=1+clamp(Number(R.enigma?.workload)||0,0,6)*(Number(profile.enigmaWorkloadFactor)||.08);
     return Math.round(clamp((Number(profile.baseCopySec)||40)*priority*weather*damage*workload,25,105));
-  }
+  },
 
   acceptPartialRadio(){
     const R=this.ensureRadioOperations(),need=Math.max(1,R.copyRequired||40);
@@ -39,8 +39,8 @@ class SimEngineIntel extends SimEngineCore {
     if(m.intel)m.intel={...m.intel,uncBaseNm:(m.intel.uncBaseNm||.8)*1.9,ageSec:(m.intel.ageSec||0)+1200};
     R.pending=null;R.copying=0;R.copyRequired=40;m.time=this.state.time.elapsedSeconds;m.seq=(R.seq=(R.seq||0)+1);this.threadShippingSignal(m);if(R.inbox.length>12)R.inbox.pop();
     R.enigma.workload=clamp((R.enigma.workload||0)+.7,0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';
-    this.applySignal(m);PresentationBridge.audio(this.state).event?.('RADIO_MESSAGE');this.captainLog?.('RADIO_PARTIAL_COPY','Radio operator accepted an incomplete encoded message.',{subject:m.subject},'radio-partial');return true;
-  }
+    this.applySignal(m);PresentationBridge.audio(this.state).event?.('RADIO_MESSAGE');this.captainLog('RADIO_PARTIAL_COPY','Radio operator accepted an incomplete encoded message.',{subject:m.subject},'radio-partial');return true;
+  },
 
   updateRadio(dt){
     const W=this.state.world, sub=this.state.playerSub;
@@ -60,7 +60,7 @@ class SimEngineIntel extends SimEngineCore {
       // that the transmitter is up is not the same as copying the message. Once
       // its window opens, give it a near-term radio slot but never create mission
       // knowledge until applySignal() is reached after 40 seconds of copy.
-      const HI=this.ctx.ensureHarborIntel?.();
+      const HI=this.sys.harbor.ensureHarborIntel();
       if(HI&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
          &&now>=HI.specialSignal.eligibleAt&&R.nextBroadcast>30) R.nextBroadcast=30;
       /* If the boat has held nothing for a long while, the trail is cold and
@@ -92,20 +92,20 @@ class SimEngineIntel extends SimEngineCore {
     }else if(R.copying>0){
       R.copying=Math.max(0,R.copying-dt*2);
     }
-  }
+  },
 
   composeSignal(){
     const W=this.state.world, camp=this.state.campaign;
     const radioProfile=getCampaignRadioIntelProfile(camp.campaignProfileId);
     if(!radioProfile) throw new Error(`Campaign ${camp.campaignProfileId||'UNKNOWN'} has no radio-intelligence profile`);
-    const HI=this.ctx.ensureHarborIntel?.(),harborOp=getCampaignHarborOperationProfile(camp.campaignProfileId),special=harborOp?.radioSignal;
+    const HI=this.sys.harbor.ensureHarborIntel(),harborOp=getCampaignHarborOperationProfile(camp.campaignProfileId),special=harborOp?.radioSignal;
     if(HI&&special&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
        &&this.state.time.elapsedSeconds>=HI.specialSignal.eligibleAt){
       HI.specialSignal.broadcast=true;HI.specialSignal.broadcastAt=this.state.time.elapsedSeconds;
       return{type:special.type,subject:special.subject,harborSpecial:true,text:special.text};
     }
     const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT'&&!c.harborTarget&&(!c.side||c.side==='ENEMY'));
-    const shipping=(this.trafficIntelCandidates?.()||[]).filter(x=>x.side==='ENEMY');
+    const shipping=this.sys.traffic.trafficIntelCandidates().filter(x=>x.side==='ENEMY');
     const primary=shipping.find(x=>x.missionCritical)||null;
     const locateObj=(camp.objectives||[]).find(o=>o.id==='locate'||/^Locate enemy convoy$/i.test(o.text||''));
     const missionConvoyRequired=camp.primaryMission?.type==='CONVOY_INTERDICTION'&&!!primary&&!locateObj?.done;
@@ -129,7 +129,7 @@ class SimEngineIntel extends SimEngineCore {
       const err=forced?(0.4+Math.random()*0.8):(0.8+Math.random()*2.2);
       const ageSec=forced?(600+Math.random()*1800):(1800+Math.random()*7200);
       const speed=q.speedKnots||8,back=knotsNmSec(speed)*ageSec;
-      const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);
+      const route=(W.convoyRoutes||[])[0],path=route&&this.sys.navigation.ensureWaterRoute(route);
       let pos,courseDeg=q.heading||0,routeS=q.routeS??null,routeDir=q.routeDir??null;
       if(path&&path.length>1&&routeS!=null&&routeDir!=null){
         if(q.missionCritical){
@@ -163,7 +163,7 @@ class SimEngineIntel extends SimEngineCore {
     }
     const copy=radioProfile.weather;if(!copy)throw new Error(`Campaign ${camp.campaignProfileId||'UNKNOWN'} has no fallback radio signal`);
     return{type:copy.type,subject:copy.subject,text:copy.text,weather:true};
-  }
+  },
 
   /* ── WHAT DO I ACTUALLY KNOW? ──────────────────────────────────────
      A signal log answers the wrong question. What a skipper wants off the
@@ -224,7 +224,7 @@ class SimEngineIntel extends SimEngineCore {
     }
     out.sort((a,b)=>a.rngNm-b.rngNm);
     return out;
-  }
+  },
 
   /* ══ CAN I CUT HER OFF, AND ON WHAT COURSE? ═══════════════════════════
      Steering at the bearing to a moving convoy is a PURSUIT curve: you end
@@ -259,19 +259,19 @@ class SimEngineIntel extends SimEngineCore {
     if(t===null||!isFinite(t)) return null;
     const point={xNm:tgtPos.xNm+vx*t,yNm:tgtPos.yNm+vy*t};
     return {courseDeg:bearingBetween(sub.position,point),timeSec:t*3600,point};
-  }
+  },
 
   applySignal(m){
     const W=this.state.world,radioProfile=getCampaignRadioIntelProfile(this.state.campaign.campaignProfileId),shippingCopy=radioProfile?.shipping;
     if(m.harborSpecial) this.log(`SPECIAL INTELLIGENCE — ${m.text}`,'warn');
     else this.log(`RADIO — ${m.subject}: ${m.text}`,'warn');
-    if(m.harborSpecial) this.ctx.grantHarborSpecialIntel?.();
+    if(m.harborSpecial) this.sys.harbor.grantHarborSpecialIntel();
     if(m.intel){
       // A decoded shipping signal is a position report that is already some hours old.
       // It is plotted where the convoy WAS, and dead-reckoned forward from the
       // reported course and speed — that estimate is what you steer to
       // intercept. It is a fixed plot in the sea, not a marker on your boat.
-      W.ultra={reportPos:this.clampToArea(m.intel.pos),courseDeg:m.intel.courseDeg,speedKn:m.intel.speedKn,targetLabel:m.intel.targetLabel||'Enemy shipping',targetId:m.intel.targetId||null,missionCritical:!!m.intel.missionCritical,
+      W.ultra={reportPos:this.sys.navigation.clampToArea(m.intel.pos),courseDeg:m.intel.courseDeg,speedKn:m.intel.speedKn,targetLabel:m.intel.targetLabel||'Enemy shipping',targetId:m.intel.targetId||null,missionCritical:!!m.intel.missionCritical,
         routeS:m.intel.routeS??null,routeDir:m.intel.routeDir??null,uncBaseNm:m.intel.uncBaseNm??0.8,
         reportedAt:this.state.time.elapsedSeconds-(m.intel.ageSec||0),
         receivedAt:this.state.time.elapsedSeconds,label:m.subject};
@@ -300,4 +300,4 @@ class SimEngineIntel extends SimEngineCore {
      difference is why the boat almost always sights the escort first, and why
      the night surface attack worked at all. A periscope is smaller again —
      an inch of tube and a feather of wake if you are moving.              */
-}
+};

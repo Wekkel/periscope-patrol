@@ -14,6 +14,7 @@ function createLeafSystemContext(engine){
   ctx.captainLog=(...args)=>engine.captainLog(...args);
   ctx.derivMode=(...args)=>engine.derivMode(...args);
   ctx.ensureSoundRadarState=(...args)=>engine.ensureSoundRadarState?.(...args);
+  ctx.ensureRadioOperations=(...args)=>IntelSystem.ensureRadioOperations.call(ctx,...args);
   ctx.friendlyPortNav=(...args)=>engine.friendlyPortNav?.(...args);
   ctx.clearDeckForDive=(...args)=>engine.clearDeckForDive(...args);
   ctx.notify=(...args)=>engine.notify(...args);
@@ -35,21 +36,25 @@ function createLeafSystemContext(engine){
   const api=(system,names)=>Object.fromEntries(names.map(name=>[name,(...args)=>system[name].call(ctx,...args)]));
   ctx.sys.harbor={
     update:(_ctx,dt)=>HarborSystem.update(ctx,dt),
-    ...api(HarborSystem,['harborTorpedoNetHit','revealHarborNet','noteHarborAttack','updateHarborKnowledge'])
+    ...api(HarborSystem,['harborTorpedoNetHit','revealHarborNet','noteHarborAttack','updateHarborKnowledge','ensureHarborIntel','grantHarborSpecialIntel'])
   };
+  ctx.sys.traffic={trafficIntelCandidates:(...args)=>engine.trafficIntelCandidates(...args)};
+  ctx.sys.intel={update:(_ctx,dt)=>IntelSystem.updateRadio.call(ctx,dt),...api(IntelSystem,['threadShippingSignal','ensureRadioOperations','radioCopyRequirement','acceptPartialRadio','updateRadio','composeSignal','intelSummary','interceptSolution','applySignal'])};
   ctx.sys.weather=WeatherSystem;
   ctx.sys.soundRadar={update:(_ctx,dt)=>SoundRadarSystem.update(ctx,dt),...api(SoundRadarSystem,['markSoundBearing','echoRange'])};
   // Temporary adapters point at classes that are converted in later STEP 7 parts.
   ctx.sys.navigation={updateTdc:(...args)=>engine.updateTdc(...args)};
   ctx.sys.navigation.derivMode=(...args)=>engine.derivMode(...args);
+  ctx.sys.navigation.ensureWaterRoute=(...args)=>engine.ensureWaterRoute(...args);
+  ctx.sys.navigation.clampToArea=(...args)=>engine.clampToArea(...args);
   ctx.sys.impact={captureShipState:(...args)=>engine.captureImpactShipState?.(...args),offerObservation:(...args)=>engine.offerImpactObservation?.(...args)};
   ctx.sys.enemyAI={
     update:(_ctx,dt)=>EnemyAISystem.updateEnemyAI.call(ctx,dt),
     ...api(EnemyAISystem,['markEscortAlerted','startMerchantEvasion','surfaceAttackObservers','surfaceAlarmRelayType','escortDirectlyNotices','maybeMerchantSpotTorpedo','alertEscorts','updateEnemyAI','updateSurfaceTrafficCombat'])
   };
   ctx.sys.sensors={
-    updateSonar:(...args)=>engine.updateSonar(...args),
-    updateLookouts:(...args)=>engine.updateLookouts(...args)
+    updateSonar:(...args)=>SensorsSystem.updateSonar.call(ctx,...args),
+    updateLookouts:(...args)=>SensorsSystem.updateLookouts.call(ctx,...args)
   };
   ctx.sys.escorts={alert:(...args)=>EnemyAISystem.alertEscorts.call(ctx,...args)};
   ctx.sys.damage={applyShock:(...args)=>engine.applyShock(...args)};
@@ -69,5 +74,7 @@ function createLeafSystemContext(engine){
   for(const name of ['setupHarbor','ensureHarborApproachWater','ensureHarborIntel','harborOperationProfile','harborOptionalObjective','harborIdentityLabel','refreshHarborOptionalObjective','harborNetSegments','pointSegNm','revealHarborNet','updateHarborGateProgress','harborChannelFrame','ensureWorldExtensions','startHarborSearchlightSweep','scheduleCoastalBatteryShot','recordHarborBatteryFire','updateHarborKnowledge','updateHarbor','grantHarborSpecialIntel','noteHarborAttack','harborTorpedoNetHit'])bindLeafMethod(ctx,HarborSystem,name);
   for(const name of ['ensureWeatherSystem','_spawnWeatherCell','_syncLocalWeather','updateWeather'])bindLeafMethod(ctx,WeatherSystem,name);
   for(const name of ['ensureSoundRadarState','currentSoundSignal','_soundOperatorReport','markSoundBearing','echoRange','_updateSurfaceSearchRadar','updateSoundRadar'])bindLeafMethod(ctx,SoundRadarSystem,name);
+  for(const name of ['threadShippingSignal','ensureRadioOperations','radioCopyRequirement','acceptPartialRadio','updateRadio','composeSignal','intelSummary','interceptSolution','applySignal'])bindLeafMethod(ctx,IntelSystem,name);
+  for(const name of ['updateLookouts','updateSonar'])bindLeafMethod(ctx,SensorsSystem,name);
   return ctx;
 }

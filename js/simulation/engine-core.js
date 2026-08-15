@@ -345,13 +345,13 @@ class SimEngineCore{
       case'FIRE_DECK_GUN': this.sys.deckGun.fireDeckGun(); break;
       case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); break;
       case'RADIO_TOGGLE_SILENCE':{
-        const R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});R.txSilence=!R.txSilence;
+        const R=this.sys.intel.ensureRadioOperations()||(this.state.world.radio=this.state.world.radio||{});R.txSilence=!R.txSilence;
         this.log(R.txSilence?'Radio transmission silence ordered. Incoming traffic may still be copied.':'Radio transmission silence lifted.','warn');PresentationBridge.audio(this.state).playUiConfirm?.(.2);break;}
       case'RADIO_AUTHORIZE_REPORT':{
-        const m=this.state.campaign?.primaryMission,R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});
+        const m=this.state.campaign?.primaryMission,R=this.sys.intel.ensureRadioOperations()||(this.state.world.radio=this.state.world.radio||{});
         if(m?.type!=='SHADOW_REPORT'||!m.reportReady){this.notify('RADIO ROOM — no contact report is ready for transmission.','warn');break;}
         m.reportTransmitAuthorized=true;R.txSilence=false;this.captainLog?.('REPORT_TRANSMISSION_AUTHORIZED','Skipper authorized transmission of the contact report.',{},'report-authorized');this.notify('CONTACT REPORT AUTHORIZED — remain at antenna depth until transmission is complete.','ok');PresentationBridge.audio(this.state).playRadioMessage?.();break;}
-      case'RADIO_ACCEPT_PARTIAL': this.acceptPartialRadio?.(); break;
+      case'RADIO_ACCEPT_PARTIAL': this.sys.intel.acceptPartialRadio(); break;
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
         this.sys.enemyAI.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); break;
@@ -530,7 +530,7 @@ class SimEngineCore{
         this.state.map.plottedCourse=[];this.state.map.autoFollowPlot=false;
         this.log('Map plot cleared — manual helm.');break;
       case'PLOT_INTERCEPT_ADVISORY':{
-        const a=this.intelSummary?.().find(x=>x.kind==='ULTRA'),plan=a?.icptNow||a?.icptFlank;
+        const a=this.sys.intel.intelSummary().find(x=>x.kind==='ULTRA'),plan=a?.icptNow||a?.icptFlank;
         if(!a||!plan){this.notify('No usable shipping intercept is held. Copy radio traffic or develop a contact.','warn');break;}
         const waterPath=this.planNavigableCourse(this.state.playerSub.position,this.clampToArea(plan.point));
         if(!waterPath){this.notify('Intercept estimate falls outside safely navigable water. Helm unchanged.','warn');break;}
