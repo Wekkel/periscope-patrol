@@ -195,10 +195,14 @@ if (!update || !updateSub) throw new Error('Could not locate SimEngineCore.updat
 const updateSystemNames = new Map([
   ['this.sys.weather.update', 'updateWeather'],
   ['this.sys.harbor.update', 'updateHarbor'],
+  ['this.sys.harbor.updateHarborKnowledge', 'updateHarborKnowledge'],
   ['this.sys.soundRadar.update', 'updateSoundRadar'],
   ['this.sys.torpedoes.update', 'updateTorpedoes'],
   ['this.sys.deckGun.update', 'updateDeckGun'],
-  ['this.sys.aaGun.update', 'updateAAGun']
+  ['this.sys.aaGun.update', 'updateAAGun'],
+  ['this.sys.enemyAI.update', 'updateEnemyAI'],
+  ['this.sys.aircraft.update', 'updateAircraft'],
+  ['this.sys.intel.update', 'updateRadio']
 ]);
 function orderedCalls(method) {
   const mappedNames = new Set(method.callDetails
@@ -209,7 +213,15 @@ function orderedCalls(method) {
     if (call.kind === 'context-path') return [];
     if (call.kind === 'system-path') {
       const name = updateSystemNames.get(`${call.object}.${call.name}`);
-      return name ? [{ ...call, name, semanticTarget: `${call.object}.${call.name}` }] : [];
+      const semanticTarget = `${call.object}.${call.name}`;
+      // Never silently discard a composed-system call. An unmapped path must
+      // remain visible and make the order gate fail until it is classified.
+      return [{
+        ...call,
+        name: name || `UNRESOLVED_SYSTEM:${semanticTarget}`,
+        unresolved: !name,
+        semanticTarget
+      }];
     }
     // During staged conversion the old optional fallback may coexist with the
     // system call. It represents the same update slot, not a second call.

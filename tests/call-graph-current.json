@@ -4,7 +4,7 @@
   "assertions": {
     "allReportedPathsExist": true,
     "updateOrderCount": 14,
-    "updateSubOrderCount": 30
+    "updateSubOrderCount": 34
   },
   "classes": [
     {
@@ -443,6 +443,21 @@
       "semanticTarget": "this.sys.soundRadar.update"
     },
     {
+      "name": "updateHarborKnowledge",
+      "kind": "system-path",
+      "unresolved": false,
+      "line": 160,
+      "offset": 931,
+      "object": "this.sys.harbor",
+      "definedBy": {
+        "class": "SimEngineCore",
+        "file": "js/simulation/engine-core.js",
+        "line": 17
+      },
+      "relation": "lower",
+      "semanticTarget": "this.sys.harbor.updateHarborKnowledge"
+    },
+    {
       "name": "updateTdc",
       "kind": "direct",
       "unresolved": false,
@@ -486,6 +501,36 @@
       "semanticTarget": "this.sys.deckGun.update"
     },
     {
+      "name": "updateEnemyAI",
+      "kind": "system-path",
+      "unresolved": false,
+      "line": 161,
+      "offset": 1074,
+      "object": "this.sys.enemyAI",
+      "definedBy": {
+        "class": "SimEngineCore",
+        "file": "js/simulation/engine-core.js",
+        "line": 91
+      },
+      "relation": "lower",
+      "semanticTarget": "this.sys.enemyAI.update"
+    },
+    {
+      "name": "updateAircraft",
+      "kind": "system-path",
+      "unresolved": false,
+      "line": 161,
+      "offset": 1112,
+      "object": "this.sys.aircraft",
+      "definedBy": {
+        "class": "SimEngineCore",
+        "file": "js/simulation/engine-core.js",
+        "line": 91
+      },
+      "relation": "lower",
+      "semanticTarget": "this.sys.aircraft.update"
+    },
+    {
       "name": "updateAAGun",
       "kind": "system-path",
       "unresolved": false,
@@ -499,6 +544,21 @@
       },
       "relation": "lower",
       "semanticTarget": "this.sys.aaGun.update"
+    },
+    {
+      "name": "updateRadio",
+      "kind": "system-path",
+      "unresolved": false,
+      "line": 161,
+      "offset": 1187,
+      "object": "this.sys.intel",
+      "definedBy": {
+        "class": "SimEngineCore",
+        "file": "js/simulation/engine-core.js",
+        "line": 91
+      },
+      "relation": "lower",
+      "semanticTarget": "this.sys.intel.update"
     },
     {
       "name": "updateMapState",
