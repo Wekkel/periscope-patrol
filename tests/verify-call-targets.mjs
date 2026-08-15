@@ -3,8 +3,8 @@ import path from 'node:path';
 
 const root=path.resolve(process.argv[2]||'.');
 const graph=JSON.parse(await readFile(path.join(root,'tests','call-graph-current.json'),'utf8'));
-const systemClasses=new Set(['HarborSystem','WeatherSystem','SoundRadarSystem','TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem']);
-const newlyComposed=new Set(['TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem']);
+const systemClasses=new Set(['HarborSystem','WeatherSystem','SoundRadarSystem','TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem','ASWSystem']);
+const newlyComposed=new Set(['TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem','ASWSystem']);
 const systemMethods=new Map();
 for(const m of graph.methods){
   if(systemClasses.has(m.class)) systemMethods.set(m.name,m);
@@ -17,14 +17,14 @@ const misses=[];
 // scopes the legacy graph parser does not associate with a class definition.
 const missingDirectAllowlist=new Set(['refreshScopeVisualContacts','safeUpdate']);
 const contextSource=await readFile(path.join(root,'js','simulation','system-context.js'),'utf8');
-const boundBySystem=new Map([...contextSource.matchAll(/for\(const name of \[([^\]]+)\]\)bindLeafMethod\(ctx,(HarborSystem|WeatherSystem|SoundRadarSystem|AircraftSystem|ASWBrainSystem),name\)/g)].map(m=>[m[2],new Set([...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]))]));
-const domainSystem=new Map([['harbor','HarborSystem'],['soundRadar','SoundRadarSystem'],['torpedoes','TorpedoSystem'],['deckGun','DeckGunSystem'],['aaGun','AAGunSystem']]);
+const boundBySystem=new Map([...contextSource.matchAll(/for\(const name of \[([^\]]+)\]\)bindLeafMethod\(ctx,(HarborSystem|WeatherSystem|SoundRadarSystem|AircraftSystem|ASWBrainSystem|ASWSystem),name\)/g)].map(m=>[m[2],new Set([...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]))]));
+const domainSystem=new Map([['harbor','HarborSystem'],['weather','WeatherSystem'],['soundRadar','SoundRadarSystem'],['torpedoes','TorpedoSystem'],['deckGun','DeckGunSystem'],['aaGun','AAGunSystem'],['aircraft','AircraftSystem'],['asw','ASWSystem']]);
 domainSystem.set('aswBrain','ASWBrainSystem');
 const adapterTargets=new Map([
   ['navigation',new Set(['updateTdc','derivMode'])],['impact',new Set(['captureShipState','offerObservation'])],
   ['enemyAI',new Set(['maybeMerchantSpotTorpedo'])],['escorts',new Set(['alert'])],
   ['damage',new Set(['applyShock'])],['deckOperations',new Set(['clearForDive'])],
-  ['mission',new Set(['checkObjectives'])]
+  ['mission',new Set(['checkObjectives'])],['battleAtmosphere',new Set(['noteSurfaceGunfire'])]
 ]);
 for(const m of graph.methods){
   if(systemClasses.has(m.class)){
@@ -53,6 +53,15 @@ for(const m of graph.methods){
       misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:'none',reason:'direct call has no definition in the source graph'});
     if(['direct','optional-direct'].includes(c.kind)&&c.relation==='unresolved'&&systemMethods.has(c.name))
       misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:systemMethods.get(c.name).file});
+    if(c.kind==='system-path'){
+      const domain=String(c.object||'').replace(/^this\.sys\./,'');
+      const targetClass=domainSystem.get(domain);
+      if(c.name==='update') continue;
+      if(targetClass&&systemMethods.get(c.name)?.class!==targetClass)
+        misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:systemMethods.get(c.name)?.file||'unknown',reason:`sys.${domain} does not expose this system method`});
+      if(!targetClass&&!adapterTargets.get(domain)?.has(c.name))
+        misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:'unknown',reason:`undeclared sys.${domain} dependency`});
+    }
   }
 }
 if(misses.length){

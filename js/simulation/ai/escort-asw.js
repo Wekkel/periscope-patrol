@@ -1,4 +1,4 @@
-class SimEngineASW extends SimEngineSensors {
+const ASWSystem={
   updateEscortBeh(esc,e,sub,W,idx,total,dt){
     this.sys.aswBrain.ensureASWState();
     const role=esc.aswRole||'SCREEN',tactics=aswTactics(this.state),training=aswTraining(esc,this.state),attackPace=clamp(tactics.attackSpeedFactor*(.82+training*.18),.75,1.18);
@@ -113,7 +113,7 @@ class SimEngineASW extends SimEngineSensors {
     const passingOver=rngToAim>prevR-1e-7&&rngToAim<.20,recent=W.depthCharges.some(dc=>dc.ownerId===esc.id&&dc.ageSec<12);
     if((rngToAim<.05||passingOver)&&!recent&&e.alertState==='ATTACKING')this.dropDC(esc,sub,{xNm:esc.position.xNm,yNm:esc.position.yNm});
     this.surfaceAction(esc,e,sub,W,dt);
-  }
+  },
 
   /* Gunfire is allowed only from an actual visual hold. The fire-control range
      comes from the noisy enemy solution; true range is used only by the hidden
@@ -127,14 +127,14 @@ class SimEngineASW extends SimEngineSensors {
       if(estRng<gunRange&&esc.gunTimer>8){
         esc.gunTimer=0;
         const pHit=clamp(1-trueRng/gunRange,0,1)**1.6*(day>.3?.62:lit?.5:.34)*(1-clamp(env.seaState,0,1)*.3);
-        const hit=Math.random()<pHit;this.noteSurfaceGunfire?.(esc,sub,hit);
+        const hit=Math.random()<pHit;this.sys.battleAtmosphere.noteSurfaceGunfire(esc,sub,hit);
         if(hit){
-          const dmg=4+Math.random()*11;this.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
+          const dmg=4+Math.random()*11;this.sys.damage.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
           this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,esc.position),sub.heading,.9);
         }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);PresentationBridge.audio(this.state).playShellSplash?.(clamp(trueRng/gunRange,0,1));}
       }
     }else esc.gunTimer=0;
-  }
+  },
 
   /* A depth-charge setting is made from the enemy solution. Actual ownship
      depth is consulted only later by updateDCs(), when the physical explosion
@@ -164,10 +164,10 @@ class SimEngineASW extends SimEngineSensors {
     // setting internal; SOUND can infer only broad shallow/deep intent from the
     // later splash-to-burst interval.
     this.log(speculative?`DEPTH CHARGES — ${esc.name} is trying the last datum with a ${SONAR.patternSize}-charge pattern.`:`DEPTH CHARGES — ${esc.name} is beginning a ${SONAR.patternSize}-charge attack run.`,'bad');
-    this.aarRecordEvent?.('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,count:SONAR.patternSize,depthFt:guess},esc.position,aim||sub.position);
+    this.aar.recordEvent('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,count:SONAR.patternSize,depthFt:guess},esc.position,aim||sub.position);
     this.sys.aswBrain.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
     if(esc.dcRemaining<SONAR.patternSize){esc.aswExpended=true;if(!esc.dcExhaustedNoted){esc.dcExhaustedNoted=true;this.log(`${esc.name} has expended her usable depth-charge patterns and is returning to the convoy screen.`);}this.sys.aswBrain.assignASWRoles(null,true);}
-  }
+  },
 
   updateDCs(dt){
     const W=this.state.world; const sub=this.state.playerSub;
@@ -210,7 +210,7 @@ class SimEngineASW extends SimEngineSensors {
           if(dc.fuseSec>=25)this.log('SOUND — long sink time; the charges were set deep.','warn');
           else if(dc.fuseSec<=11)this.log('SOUND — short sink time; the charges were set shallow.','warn');
         }
-        if(dmg>1){this.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');if(acousticNm<audibleNm)PresentationBridge.audio(this.state).playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
+        if(dmg>1){this.sys.damage.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');if(acousticNm<audibleNm)PresentationBridge.audio(this.state).playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
         else{if(air||(dc.patternIndex??0)===0)this.log(`${air?'Aerial depth charge':'Depth-charge pattern'} detonating nearby.`,'warn');if(acousticNm<audibleNm)PresentationBridge.audio(this.state).playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
       }
     }

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════ VESSEL COLLISION MODEL
-class SimEngineCollision extends SimEngineASW {
+class SimEngineCollision extends SimEngineSensors {
   ensureCollisionState(){
     const W=this.state.world;
     W.collisionEvents=W.collisionEvents||[];

@@ -143,7 +143,7 @@ class SimEngineEnemyAI extends SimEngineCore {
       if(evade)evade.done=true;
     }
     e.searchPhase=(e.searchPhase||0)+dt;this.sys.aswBrain.updateASWBrain?.(dt);this.updateSonar(dt);
-    const escorts=W.contacts.filter(c=>isASWCombatant(c));escorts.forEach((esc,i)=>this.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
+    const escorts=W.contacts.filter(c=>isASWCombatant(c));escorts.forEach((esc,i)=>this.sys.asw.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
     this.updateSurfaceTrafficCombat?.(dt);
     this.updateLookouts(dt);
 
@@ -166,7 +166,7 @@ class SimEngineEnemyAI extends SimEngineCore {
         this.log(`${esc.name}: passive hydrophone bearing — escort screen searching.`);
       }
     }
-    this.updateDCs(dt);
+    this.sys.asw.updateDCs(dt);
   }
 
   /* Local surface traffic combat. This is deliberately not a second naval
