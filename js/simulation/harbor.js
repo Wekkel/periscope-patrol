@@ -1,4 +1,4 @@
-class SimEngineHarbor extends SimEngineCore {
+const HarborSystem={
   /* ══ ENEMY HARBOUR / SPECIAL OPERATION ══════════════════════════════
      The campaign authors the location, geometry, targets and presentation. This
      engine owns only the reusable defended-harbour mechanics: persistent mines,
@@ -14,11 +14,11 @@ class SimEngineHarbor extends SimEngineCore {
     if(!W.harborInitialized) this.setupHarbor(C.patrolArea);
     if(W.harbor) this.ensureHarborIntel();
     else if(W.harborIntel===undefined) W.harborIntel=null;
-  }
+  },
 
   harborOperationProfile(){
     return getCampaignHarborOperationProfile(this.state.campaign?.campaignProfileId);
-  }
+  },
 
   setupHarbor(areaKey){
     const W=this.state.world, area=PATROL_AREAS[areaKey], op=this.harborOperationProfile();
@@ -66,7 +66,7 @@ class SimEngineHarbor extends SimEngineCore {
     }
 
     this.ensureHarborIntel(true);
-  }
+  },
 
   /* ══ HARBOR KNOWLEDGE — truth stays in world.harbor / contacts ════════
      Phase 2 makes the chart a record of what the boat actually knows. The
@@ -117,18 +117,18 @@ class SimEngineHarbor extends SimEngineCore {
     I.heavyUnit=Object.assign({reported:false,identified:false,identity:null,identifiedAt:null},I.heavyUnit||{});
     I.raid=Object.assign({attempted:false,enteredAt:null,leftAt:null,result:'not_attempted',gateCrossed:false,gateCrossedAt:null,reconComplete:false,lastChannelAlongNm:null},I.raid||{});
     return I;
-  }
+  },
 
   harborOptionalObjective(){
     const C=this.state.campaign,H=this.state.world.harbor;
     C.optionalObjectives=Array.isArray(C.optionalObjectives)?C.optionalObjectives:[];
     return H?.optionalObjectiveId?C.optionalObjectives.find(o=>o.id===H.optionalObjectiveId)||null:null;
-  }
+  },
 
   harborIdentityLabel(identity){
     const raw=String(identity||'HEAVY UNIT').trim().toLowerCase();
     return raw?raw[0].toUpperCase()+raw.slice(1):'Heavy unit';
-  }
+  },
 
   refreshHarborOptionalObjective(){
     const I=this.ensureHarborIntel();if(!I||!I.specialSignal.copied) return null;
@@ -146,7 +146,7 @@ class SimEngineHarbor extends SimEngineCore {
     O.done=!!I.raid.reconComplete;
     O.failed=false; // Optional means exactly that: ignoring it is never a patrol failure.
     return O;
-  }
+  },
 
   grantHarborSpecialIntel(){
     const I=this.ensureHarborIntel();if(!I||I.specialSignal.copied) return false;
@@ -159,14 +159,14 @@ class SimEngineHarbor extends SimEngineCore {
     this.notify(`OPTIONAL OBJECTIVE — Penetrate ${H.name} through the swept approach and identify the reported heavy unit. Visual sightings from outside the torpedo net do not complete the intelligence objective. No penalty if you decline.`,'warn');
     this.notify('CHART UPDATED — Reported mine belt and swept approach plotted. Keep near the centerline; the passage is charted deep enough for submerged approach. The intelligence objective requires entry inside the torpedo net. Gate not yet located.','warn');
     return true;
-  }
+  },
 
   revealHarborNet(source='VISUAL'){
     const I=this.ensureHarborIntel();if(!I||I.net.known) return false;
     I.net.known=true;I.net.discoveredAt=this.state.time.elapsedSeconds;I.net.source=source;
     const H=this.state.world.harbor;this.notify(`MAP UPDATED — torpedo net identified at the ${H.shortName} entrance${source==='CONTACT'?' by close contact':''}. The observed gate is now marked separately from the swept mine approach.`,'warn');
     return true;
-  }
+  },
 
   recordHarborBatteryFire(H){
     const I=this.ensureHarborIntel();if(!I||!H) return;
@@ -177,7 +177,7 @@ class SimEngineHarbor extends SimEngineCore {
     const rr=.65+Math.random()*.65;
     I.batteries.push({xNm:H.center.xNm+Math.sin(r)*rr,yNm:H.center.yNm-Math.cos(r)*rr,seenAt:now,confidence:'POSSIBLE'});
     if(I.batteries.length>3) I.batteries.shift();
-  }
+  },
 
   noteHarborAttack(contact){
     if(!contact?.harborTarget) return;
@@ -188,7 +188,7 @@ class SimEngineHarbor extends SimEngineCore {
       else if(shipDamageSeverity(contact)>.05||(contact.gunDamage||0)>0) I.raid.result='damaged';
     }
     this.refreshHarborOptionalObjective();
-  }
+  },
 
   updateHarborKnowledge(dt){
     const W=this.state.world,H=W.harbor,sub=this.state.playerSub;if(!H) return;
@@ -235,13 +235,13 @@ class SimEngineHarbor extends SimEngineCore {
     if(rng<H.innerRadiusNm&&!I.raid.attempted){I.raid.attempted=true;I.raid.enteredAt=now;}
     if(I.raid.attempted&&I.raid.result==='not_attempted'&&rng>H.outerRadiusNm+.5){I.raid.result='abandoned';I.raid.leftAt=now;}
     this.refreshHarborOptionalObjective();
-  }
+  },
 
   harborChannelFrame(H,pos){
     if(!H||!pos)return{along:99,lateral:99};
     const r=degToRad(H.channelBearing),dx=pos.xNm-H.center.xNm,dy=pos.yNm-H.center.yNm;
     return{along:dx*Math.sin(r)-dy*Math.cos(r),lateral:dx*Math.cos(r)+dy*Math.sin(r)};
-  }
+  },
 
   updateHarborGateProgress(I,H,sub){
     if(!I||!H||!sub)return;
@@ -260,7 +260,7 @@ class SimEngineHarbor extends SimEngineCore {
       this.captainLog?.(events.reconCompleteId||'HARBOR_RECON_COMPLETE',`${this.harborIdentityLabel(I.heavyUnit.identity)} identified after penetrating the ${H.shortName} torpedo-net gate.`,{identity:I.heavyUnit.identity},events.reconCompleteKey||'harbor-recon-complete');
       this.notify(`INTELLIGENCE OBJECTIVE COMPLETE — ${this.harborIdentityLabel(I.heavyUnit.identity).toUpperCase()} positively identified inside ${H.name}.`,'ok');
     }
-  }
+  },
 
   harborNetSegments(H){
     if(!H) return [];
@@ -271,18 +271,18 @@ class SimEngineHarbor extends SimEngineCore {
     const at=b=>{const r=degToRad(b);return{xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};};
     for(let a=0;a<360;a+=step){const b=a+step,mid=normDeg(a+step*.5);if(Math.abs(shortDelta(H.channelBearing,mid))<=gapHalfDeg)continue;segs.push({a:at(a),b:at(b)});}
     return segs;
-  }
+  },
 
   pointSegNm(p,a,b){
     const vx=b.xNm-a.xNm,vy=b.yNm-a.yNm,wx=p.xNm-a.xNm,wy=p.yNm-a.yNm;
     const vv=vx*vx+vy*vy||1e-9,t=clamp((wx*vx+wy*vy)/vv,0,1);
     return Math.hypot(p.xNm-(a.xNm+vx*t),p.yNm-(a.yNm+vy*t));
-  }
+  },
 
   harborTorpedoNetHit(pos){
     const H=this.state.world.harbor;if(!H) return false;
     return this.harborNetSegments(H).some(seg=>this.pointSegNm(pos,seg.a,seg.b)<0.024);
-  }
+  },
 
   updateHarbor(dt){
     this.ensureWorldExtensions();
@@ -351,7 +351,7 @@ class SimEngineHarbor extends SimEngineCore {
         const pHit=rangeF*rangeF*0.42*light*(1-harborWx.seaState*0.28);
         if(Math.random()<pHit){
           const dmg=5+Math.random()*12;
-          this.applyShock(dmg);
+          this.damage.applyShock(dmg);
           this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
           this.notify(`COASTAL BATTERY HIT — ${dmg.toFixed(0)}% damage. Get below the searchlights!`,'bad');
           PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,H.center),sub.heading,.9);
@@ -370,7 +370,7 @@ class SimEngineHarbor extends SimEngineCore {
         m.triggered=true;H.alert=2;H.suspicion=100;
         const I=this.ensureHarborIntel();if(I&&I.minefield.level==='NONE')I.minefield.level='OBSERVED';
         const dmg=38+Math.random()*28;
-        this.applyShock(dmg);
+        this.damage.applyShock(dmg);
         this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:12,label:'MINE'});
         this.captainLog?.('MINE_STRUCK','Mine struck.',{damage:Math.round(dmg)},`mine:${m.xNm.toFixed(4)}:${m.yNm.toFixed(4)}`);
         this.notify(`MINE! Underwater explosion — ${dmg.toFixed(0)}% damage. You are in mined water; get clear of the field.`,'bad');
@@ -394,7 +394,35 @@ class SimEngineHarbor extends SimEngineCore {
         break;
       }
     }
-  }
+  },
 
   // ── WEAPONS ──
-}
+  startHarborSearchlightSweep(H){
+    if(!H)return null;const now=this.state.time.elapsedSeconds,W=this.state.world,sub=this.state.playerSub;
+    const datum=W.enemy?.searchCenter||sub.position,center=bearingBetween(H.center,datum),span=H.alert>=2?32:44;
+    H.searchlightSweep={startedAt:now,duration:H.alert>=2?13:16,centerBearing:center,spanDeg:span,phase:Math.random()<.5?0:1};
+    H.searchlightActiveUntil=now+H.searchlightSweep.duration;H.searchlightBearing=normDeg(center-span);
+    H.searchlightContactUntil=Math.min(H.searchlightContactUntil||-1,now);
+    return H.searchlightSweep;
+  },
+
+  scheduleCoastalBatteryShot(H,harborWx){
+    const A=this.ensureBattleAtmosphereState(),s=this.state,sub=s.playerSub,now=s.time.elapsedSeconds;if(!H)return null;
+    const sites=H.batterySites||[H.center],site=sites[(H._batterySiteCursor=(H._batterySiteCursor||0)+1)%sites.length],rng=distNm(site,sub.position);
+    const flight=clamp(1.5+rng*1.25,2.0,8.5),lit=now<(H.searchlightContactUntil||-1),day=clamp(s.world.environment.daylight||0,0,1);
+    const predicted=battlePredictPosition(sub.position,sub.heading,sub.propulsion.speedKnots,flight);
+    let correction=clamp(H.batteryCorrection||1,.32,1.25);
+    if(!lit)correction=Math.max(correction,.85);
+    const baseErr=(lit?.012:.065)+(1-harborWx.searchlightFactor)*.08+harborWx.seaState*.025+(1-day)*.012;
+    const err=baseErr*correction,ang=Math.random()*Math.PI*2,rad=err*(.25+Math.sqrt(Math.random())*.95);
+    const impact={xNm:predicted.xNm+Math.cos(ang)*rad,yNm:predicted.yNm+Math.sin(ang)*rad};
+    const id=`CB-${A.nextId++}`,ev={id,kind:'COASTAL',sourceId:'SHORE BATTERY',origin:{...site},targetAtFire:{...sub.position},impactPosition:impact,
+      fireAt:now,impactAt:now+flight,damage:5+Math.random()*12,litAtFire:lit,resolved:false};
+    A.shells.push(ev);if(A.shells.length>20)A.shells.shift();
+    A.muzzleFlashes.push({id:`MF-${id}`,position:{...site},at:now,until:now+.34,power:1.0,kind:'COASTAL'});if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
+    const br=bearingBetween(sub.position,site);PresentationBridge.audio(this.state).playDistantGunfire?.(br,sub.heading,clamp(1-rng/7,.25,1));
+    this.aarRecordEvent?.('COASTAL_GUNFIRE','Coastal battery opened fire.',{batteryShot:id,illuminated:lit},site,impact);
+    return ev;
+  },
+
+};

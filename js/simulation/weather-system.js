@@ -86,7 +86,7 @@ function weatherBetween(state,a,b){
 function weatherVisibilityBetween(state,a,b){return weatherBetween(state,a,b).visibilityNm;}
 function weatherIsWet(wx){return wx==='SQUALL'||wx==='HEAVY RAIN'||wx==='RAIN'||wx==='STORM';}
 
-class SimEngineWeather extends SimEngineSoundRadar{
+const WeatherSystem={
   ensureWeatherSystem(fresh=false){
     const W=this.state.world,env=_weatherBase(this.state),now=this.state.time.elapsedSeconds||0;
     let S=W.weatherSystem;
@@ -103,7 +103,7 @@ class SimEngineWeather extends SimEngineSoundRadar{
     S.cells=Array.isArray(S.cells)?S.cells:[];
     if(!Number.isFinite(S.nextCellAt))S.nextCellAt=now+5400;
     return S;
-  }
+  },
   _spawnWeatherCell(startNm=16){
     const S=this.state.world.weatherSystem,sub=this.state.playerSub,seed=this.state.campaign?.scenarioSeed||1,n=++S.seq;
     const bearing=360*_weatherHash(seed,`wx:${n}:bearing`),jitter=(_weatherHash(seed,`wx:${n}:jitter`)-.5)*6;
@@ -116,7 +116,7 @@ class SimEngineWeather extends SimEngineSoundRadar{
       radiusNm:(atlantic?7.5:5.0)+_weatherHash(seed,`wx:${n}:radius`)*(atlantic?4.8:3.2),
       bornAt:this.state.time.elapsedSeconds||0,lifeSec:(atlantic?18000:13500)+_weatherHash(seed,`wx:${n}:life`)*(atlantic?10800:7200)});
     if(S.cells.length>3)S.cells.shift();
-  }
+  },
   _syncLocalWeather(force=false){
     const env=_weatherBase(this.state),S=this.state.world.weatherSystem,sub=this.state.playerSub,q=weatherAtPosition(this.state,sub.position);
     env.weather=q.stage;env.weatherIntensity=q.intensity;env.cloudCover=q.cloudCover;env.precipitation=q.precipitation;
@@ -136,7 +136,7 @@ class SimEngineWeather extends SimEngineSoundRadar{
     }
     S.lastLocalIntensity=q.intensity;S.lastLocalStage=q.stage;S.local=q;
     return q;
-  }
+  },
   updateWeather(dt){
     const S=this.ensureWeatherSystem();S.tickAcc=(S.tickAcc||0)+dt;if(S.tickAcc<5)return;
     const step=S.tickAcc;S.tickAcc=0;const now=this.state.time.elapsedSeconds||0,sub=this.state.playerSub;
@@ -145,4 +145,4 @@ class SimEngineWeather extends SimEngineSoundRadar{
     if(now>=S.nextCellAt){const atlantic=_weatherNorthAtlantic(this.state);this._spawnWeatherCell(atlantic?14:18);S.nextCellAt=now+(atlantic?4800:7200)+_weatherHash(this.state.campaign?.scenarioSeed||1,`next:${S.seq}`)*(atlantic?3600:5400);}
     this._syncLocalWeather(false);
   }
-}
+};

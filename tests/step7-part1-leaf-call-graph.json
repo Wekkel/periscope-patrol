@@ -1,0 +1,2212 @@
+{
+  "generatedFrom": "tests/call-graph-current.json",
+  "classes": [
+    "HarborSystem",
+    "WeatherSystem",
+    "SoundRadarSystem"
+  ],
+  "methodCount": 33,
+  "methods": [
+    {
+      "name": "ensureWorldExtensions",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 6,
+      "end": 17,
+      "callDetails": [
+        {
+          "name": "setupHarbor",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 14,
+          "offset": 769,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 23
+          },
+          "relation": "system"
+        },
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 15,
+          "offset": 818,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 7
+        },
+        {
+          "path": "state.weapons",
+          "access": "read",
+          "line": 7
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 7
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 11
+        },
+        {
+          "path": "setupHarbor",
+          "access": "read",
+          "line": 14
+        },
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 15
+        }
+      ]
+    },
+    {
+      "name": "harborOperationProfile",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 19,
+      "end": 21,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 20
+        }
+      ]
+    },
+    {
+      "name": "setupHarbor",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 23,
+      "end": 69,
+      "callDetails": [
+        {
+          "name": "harborOperationProfile",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 24,
+          "offset": 85,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 19
+          },
+          "relation": "system"
+        },
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 68,
+          "offset": 2895,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 24
+        },
+        {
+          "path": "harborOperationProfile",
+          "access": "read",
+          "line": 24
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 59
+        },
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 68
+        }
+      ]
+    },
+    {
+      "name": "ensureHarborIntel",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 75,
+      "end": 120,
+      "callDetails": [
+        {
+          "name": "harborOperationProfile",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 76,
+          "offset": 99,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 19
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 76
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 76
+        },
+        {
+          "path": "harborOperationProfile",
+          "access": "read",
+          "line": 76
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 111
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 112
+        }
+      ]
+    },
+    {
+      "name": "harborOptionalObjective",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 122,
+      "end": 126,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 123
+        },
+        {
+          "path": "state.world.harbor",
+          "access": "read",
+          "line": 123
+        }
+      ]
+    },
+    {
+      "name": "harborIdentityLabel",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 128,
+      "end": 131,
+      "callDetails": [],
+      "fieldAccess": []
+    },
+    {
+      "name": "refreshHarborOptionalObjective",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 133,
+      "end": 149,
+      "callDetails": [
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 134,
+          "offset": 48,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        },
+        {
+          "name": "harborOptionalObjective",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 136,
+          "offset": 187,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 122
+          },
+          "relation": "system"
+        },
+        {
+          "name": "harborIdentityLabel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 141,
+          "offset": 436,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 128
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 134
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 135
+        },
+        {
+          "path": "state.world.harbor",
+          "access": "read",
+          "line": 135
+        },
+        {
+          "path": "harborOptionalObjective",
+          "access": "read",
+          "line": 136
+        },
+        {
+          "path": "harborIdentityLabel",
+          "access": "read",
+          "line": 141
+        }
+      ]
+    },
+    {
+      "name": "grantHarborSpecialIntel",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 151,
+      "end": 162,
+      "callDetails": [
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 152,
+          "offset": 41,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        },
+        {
+          "name": "refreshHarborOptionalObjective",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 157,
+          "offset": 375,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 133
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 159,
+          "offset": 455,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 160,
+          "offset": 705,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 152
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 153
+        },
+        {
+          "path": "refreshHarborOptionalObjective",
+          "access": "read",
+          "line": 157
+        },
+        {
+          "path": "state.world.harbor",
+          "access": "read",
+          "line": 158
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 159
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 160
+        }
+      ]
+    },
+    {
+      "name": "revealHarborNet",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 164,
+      "end": 169,
+      "callDetails": [
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 165,
+          "offset": 48,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 167,
+          "offset": 235,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 165
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 166
+        },
+        {
+          "path": "state.world.harbor",
+          "access": "read",
+          "line": 167
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 167
+        }
+      ]
+    },
+    {
+      "name": "recordHarborBatteryFire",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 171,
+      "end": 180,
+      "callDetails": [
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 172,
+          "offset": 42,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 172
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 173
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 175
+        }
+      ]
+    },
+    {
+      "name": "noteHarborAttack",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 182,
+      "end": 191,
+      "callDetails": [
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 184,
+          "offset": 80,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        },
+        {
+          "name": "refreshHarborOptionalObjective",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 190,
+          "offset": 437,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 133
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 184
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 185
+        },
+        {
+          "path": "state.world.harbor",
+          "access": "read",
+          "line": 186
+        },
+        {
+          "path": "refreshHarborOptionalObjective",
+          "access": "read",
+          "line": 190
+        }
+      ]
+    },
+    {
+      "name": "updateHarborKnowledge",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 193,
+      "end": 238,
+      "callDetails": [
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 195,
+          "offset": 121,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 207,
+          "offset": 791,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "harborNetSegments",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 210,
+          "offset": 1077,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 265
+          },
+          "relation": "system"
+        },
+        {
+          "name": "pointSegNm",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 211,
+          "offset": 1160,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 276
+          },
+          "relation": "system"
+        },
+        {
+          "name": "revealHarborNet",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 212,
+          "offset": 1252,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 164
+          },
+          "relation": "system"
+        },
+        {
+          "name": "refreshHarborOptionalObjective",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 220,
+          "offset": 1791,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 133
+          },
+          "relation": "system"
+        },
+        {
+          "name": "harborIdentityLabel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 221,
+          "offset": 1848,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 128
+          },
+          "relation": "system"
+        },
+        {
+          "name": "harborOperationProfile",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 221,
+          "offset": 1897,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 19
+          },
+          "relation": "system"
+        },
+        {
+          "name": "captainLog",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 222,
+          "offset": 1946,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 223,
+          "offset": 2138,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "updateHarborGateProgress",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 226,
+          "offset": 2254,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 246
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 229,
+          "offset": 2415,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "refreshHarborOptionalObjective",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 237,
+          "offset": 3027,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 133
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 194
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 194
+        },
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 195
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 195
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 207
+        },
+        {
+          "path": "harborNetSegments",
+          "access": "read",
+          "line": 210
+        },
+        {
+          "path": "pointSegNm",
+          "access": "read",
+          "line": 211
+        },
+        {
+          "path": "revealHarborNet",
+          "access": "read",
+          "line": 212
+        },
+        {
+          "path": "refreshHarborOptionalObjective",
+          "access": "read",
+          "line": 220
+        },
+        {
+          "path": "harborIdentityLabel",
+          "access": "read",
+          "line": 221
+        },
+        {
+          "path": "harborOperationProfile",
+          "access": "read",
+          "line": 221
+        },
+        {
+          "path": "captainLog",
+          "access": "read",
+          "line": 222
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 223
+        },
+        {
+          "path": "updateHarborGateProgress",
+          "access": "read",
+          "line": 226
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 229
+        },
+        {
+          "path": "refreshHarborOptionalObjective",
+          "access": "read",
+          "line": 237
+        }
+      ]
+    },
+    {
+      "name": "harborChannelFrame",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 240,
+      "end": 244,
+      "callDetails": [],
+      "fieldAccess": []
+    },
+    {
+      "name": "updateHarborGateProgress",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 246,
+      "end": 263,
+      "callDetails": [
+        {
+          "name": "harborChannelFrame",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 248,
+          "offset": 77,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 240
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 254,
+          "offset": 506,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "harborOperationProfile",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 259,
+          "offset": 944,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 19
+          },
+          "relation": "system"
+        },
+        {
+          "name": "captainLog",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 260,
+          "offset": 993,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "harborIdentityLabel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 260,
+          "offset": 1062,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 128
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 261,
+          "offset": 1266,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "harborIdentityLabel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 261,
+          "offset": 1315,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 128
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "harborChannelFrame",
+          "access": "read",
+          "line": 248
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 252
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 253
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 254
+        },
+        {
+          "path": "harborOperationProfile",
+          "access": "read",
+          "line": 259
+        },
+        {
+          "path": "captainLog",
+          "access": "read",
+          "line": 260
+        },
+        {
+          "path": "harborIdentityLabel",
+          "access": "read",
+          "line": 260
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 261
+        },
+        {
+          "path": "harborIdentityLabel",
+          "access": "read",
+          "line": 261
+        }
+      ]
+    },
+    {
+      "name": "harborNetSegments",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 265,
+      "end": 274,
+      "callDetails": [],
+      "fieldAccess": []
+    },
+    {
+      "name": "pointSegNm",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 276,
+      "end": 280,
+      "callDetails": [],
+      "fieldAccess": []
+    },
+    {
+      "name": "harborTorpedoNetHit",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 282,
+      "end": 285,
+      "callDetails": [
+        {
+          "name": "harborNetSegments",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 284,
+          "offset": 96,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 265
+          },
+          "relation": "system"
+        },
+        {
+          "name": "pointSegNm",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 284,
+          "offset": 132,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 276
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world.harbor",
+          "access": "read",
+          "line": 283
+        },
+        {
+          "path": "harborNetSegments",
+          "access": "read",
+          "line": 284
+        },
+        {
+          "path": "pointSegNm",
+          "access": "read",
+          "line": 284
+        }
+      ]
+    },
+    {
+      "name": "updateHarbor",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 287,
+      "end": 397,
+      "callDetails": [
+        {
+          "name": "ensureWorldExtensions",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 288,
+          "offset": 24,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 6
+          },
+          "relation": "system"
+        },
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 294,
+          "offset": 315,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 295,
+          "offset": 347,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 301,
+          "offset": 817,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 302,
+          "offset": 849,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 319,
+          "offset": 1822,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 323,
+          "offset": 2009,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "startHarborSearchlightSweep",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 334,
+          "offset": 2739,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 400
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 336,
+          "offset": 3028,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 337,
+          "offset": 3167,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "recordHarborBatteryFire",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 342,
+          "offset": 3401,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 171
+          },
+          "relation": "system"
+        },
+        {
+          "name": "scheduleCoastalBatteryShot",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 344,
+          "offset": 3496,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 409
+          },
+          "relation": "system"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 345,
+          "offset": 3557,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 356,
+          "offset": 4272,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 359,
+          "offset": 4516,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "ensureHarborIntel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 371,
+          "offset": 5058,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 75
+          },
+          "relation": "system"
+        },
+        {
+          "name": "captainLog",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 375,
+          "offset": 5339,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 376,
+          "offset": 5468,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "harborNetSegments",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 385,
+          "offset": 6032,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 265
+          },
+          "relation": "system"
+        },
+        {
+          "name": "pointSegNm",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 386,
+          "offset": 6071,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 276
+          },
+          "relation": "system"
+        },
+        {
+          "name": "revealHarborNet",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 387,
+          "offset": 6155,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 164
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 392,
+          "offset": 6483,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureWorldExtensions",
+          "access": "read",
+          "line": 288
+        },
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 289
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 289
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 291
+        },
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 294
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 295
+        },
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 301
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 302
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 319
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 323
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 331
+        },
+        {
+          "path": "startHarborSearchlightSweep",
+          "access": "read",
+          "line": 334
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 336
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 337
+        },
+        {
+          "path": "recordHarborBatteryFire",
+          "access": "read",
+          "line": 342
+        },
+        {
+          "path": "scheduleCoastalBatteryShot",
+          "access": "read",
+          "line": 343
+        },
+        {
+          "path": "scheduleCoastalBatteryShot",
+          "access": "read",
+          "line": 344
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 345
+        },
+        {
+          "path": "damage.applyShock",
+          "access": "read",
+          "line": 354
+        },
+        {
+          "path": "state.weapons.explosions.push",
+          "access": "read",
+          "line": 355
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 356
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 357
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 359
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 360
+        },
+        {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 371
+        },
+        {
+          "path": "damage.applyShock",
+          "access": "read",
+          "line": 373
+        },
+        {
+          "path": "state.weapons.explosions.push",
+          "access": "read",
+          "line": 374
+        },
+        {
+          "path": "captainLog",
+          "access": "read",
+          "line": 375
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 376
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 377
+        },
+        {
+          "path": "harborNetSegments",
+          "access": "read",
+          "line": 385
+        },
+        {
+          "path": "pointSegNm",
+          "access": "read",
+          "line": 386
+        },
+        {
+          "path": "revealHarborNet",
+          "access": "read",
+          "line": 387
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 392
+        }
+      ]
+    },
+    {
+      "name": "startHarborSearchlightSweep",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 400,
+      "end": 407,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 401
+        },
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 401
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 401
+        }
+      ]
+    },
+    {
+      "name": "scheduleCoastalBatteryShot",
+      "class": "HarborSystem",
+      "file": "js/simulation/harbor.js",
+      "line": 409,
+      "end": 426,
+      "callDetails": [
+        {
+          "name": "ensureBattleAtmosphereState",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 410,
+          "offset": 54,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "aarRecordEvent",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 424,
+          "offset": 1589,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureBattleAtmosphereState",
+          "access": "read",
+          "line": 410
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 410
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 423
+        },
+        {
+          "path": "aarRecordEvent",
+          "access": "read",
+          "line": 424
+        }
+      ]
+    },
+    {
+      "name": "ensureTacticalExtensions",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 125,
+      "end": 130,
+      "callDetails": [
+        {
+          "name": "_ensureTacticalExtensions",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 126,
+          "offset": 42,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "_ensureTacticalExtensions",
+          "access": "read",
+          "line": 126
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 127
+        }
+      ]
+    },
+    {
+      "name": "ensureWorldExtensions",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 132,
+      "end": 132,
+      "callDetails": [
+        {
+          "name": "_ensureWorldExtensions",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 132,
+          "offset": 26,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "ensureSoundRadarState",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 132,
+          "offset": 56,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 134
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "_ensureWorldExtensions",
+          "access": "read",
+          "line": 132
+        },
+        {
+          "path": "ensureSoundRadarState",
+          "access": "read",
+          "line": 132
+        }
+      ]
+    },
+    {
+      "name": "ensureSoundRadarState",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 134,
+      "end": 157,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 135
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 135
+        },
+        {
+          "path": "state.time",
+          "access": "read",
+          "line": 135
+        }
+      ]
+    },
+    {
+      "name": "currentSoundSignal",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 159,
+      "end": 159,
+      "callDetails": [
+        {
+          "name": "ensureSoundRadarState",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 159,
+          "offset": 23,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 134
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureSoundRadarState",
+          "access": "read",
+          "line": 159
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 159
+        },
+        {
+          "path": "state.tactical.soundBearing",
+          "access": "read",
+          "line": 159
+        }
+      ]
+    },
+    {
+      "name": "_soundOperatorReport",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 161,
+      "end": 175,
+      "callDetails": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 174,
+          "offset": 1098,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state",
+          "access": "read",
+          "line": 162
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 174
+        }
+      ]
+    },
+    {
+      "name": "markSoundBearing",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 177,
+      "end": 200,
+      "callDetails": [
+        {
+          "name": "ensureSoundRadarState",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 178,
+          "offset": 26,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 134
+          },
+          "relation": "system"
+        },
+        {
+          "name": "currentSoundSignal",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 179,
+          "offset": 129,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 159
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 180,
+          "offset": 234,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 198,
+          "offset": 2372,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureSoundRadarState",
+          "access": "read",
+          "line": 178
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 179
+        },
+        {
+          "path": "currentSoundSignal",
+          "access": "read",
+          "line": 179
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 180
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 198
+        }
+      ]
+    },
+    {
+      "name": "echoRange",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 202,
+      "end": 223,
+      "callDetails": [
+        {
+          "name": "ensureSoundRadarState",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 203,
+          "offset": 19,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 134
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 205,
+          "offset": 194,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 207,
+          "offset": 443,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 213,
+          "offset": 881,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "currentSoundSignal",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 214,
+          "offset": 959,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 159
+          },
+          "relation": "system"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 215,
+          "offset": 1102,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 222,
+          "offset": 2116,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureSoundRadarState",
+          "access": "read",
+          "line": 203
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 203
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 205
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 207
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 210
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 213
+        },
+        {
+          "path": "currentSoundSignal",
+          "access": "read",
+          "line": 214
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 215
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 222
+        }
+      ]
+    },
+    {
+      "name": "_updateSurfaceSearchRadar",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 225,
+      "end": 243,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state",
+          "access": "read",
+          "line": 226
+        }
+      ]
+    },
+    {
+      "name": "updateSoundRadar",
+      "class": "SoundRadarSystem",
+      "file": "js/simulation/sound-radar.js",
+      "line": 245,
+      "end": 253,
+      "callDetails": [
+        {
+          "name": "ensureSoundRadarState",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 246,
+          "offset": 28,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 134
+          },
+          "relation": "system"
+        },
+        {
+          "name": "_soundOperatorReport",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 247,
+          "offset": 136,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 161
+          },
+          "relation": "system"
+        },
+        {
+          "name": "currentSoundSignal",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 249,
+          "offset": 266,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 159
+          },
+          "relation": "system"
+        },
+        {
+          "name": "_updateSurfaceSearchRadar",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 252,
+          "offset": 679,
+          "definedBy": {
+            "class": "SoundRadarSystem",
+            "file": "js/simulation/sound-radar.js",
+            "line": 225
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureSoundRadarState",
+          "access": "read",
+          "line": 246
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 246
+        },
+        {
+          "path": "_soundOperatorReport",
+          "access": "read",
+          "line": 247
+        },
+        {
+          "path": "currentSoundSignal",
+          "access": "read",
+          "line": 249
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 249
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 250
+        },
+        {
+          "path": "_updateSurfaceSearchRadar",
+          "access": "read",
+          "line": 252
+        }
+      ]
+    },
+    {
+      "name": "ensureWeatherSystem",
+      "class": "WeatherSystem",
+      "file": "js/simulation/weather-system.js",
+      "line": 90,
+      "end": 106,
+      "callDetails": [
+        {
+          "name": "_spawnWeatherCell",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 100,
+          "offset": 722,
+          "definedBy": {
+            "class": "WeatherSystem",
+            "file": "js/simulation/weather-system.js",
+            "line": 107
+          },
+          "relation": "system"
+        },
+        {
+          "name": "_syncLocalWeather",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 101,
+          "offset": 830,
+          "definedBy": {
+            "class": "WeatherSystem",
+            "file": "js/simulation/weather-system.js",
+            "line": 120
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 91
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 91
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 91
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 94
+        },
+        {
+          "path": "_spawnWeatherCell",
+          "access": "read",
+          "line": 100
+        },
+        {
+          "path": "_syncLocalWeather",
+          "access": "read",
+          "line": 101
+        }
+      ]
+    },
+    {
+      "name": "_spawnWeatherCell",
+      "class": "WeatherSystem",
+      "file": "js/simulation/weather-system.js",
+      "line": 107,
+      "end": 119,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state.world.weatherSystem",
+          "access": "read",
+          "line": 108
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 108
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 108
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 113
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 117
+        }
+      ]
+    },
+    {
+      "name": "_syncLocalWeather",
+      "class": "WeatherSystem",
+      "file": "js/simulation/weather-system.js",
+      "line": 120,
+      "end": 139,
+      "callDetails": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 134,
+          "offset": 1124,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state",
+          "access": "read",
+          "line": 121
+        },
+        {
+          "path": "state.world.weatherSystem",
+          "access": "read",
+          "line": 121
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 121
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 123
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 126
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 134
+        }
+      ]
+    },
+    {
+      "name": "updateWeather",
+      "class": "WeatherSystem",
+      "file": "js/simulation/weather-system.js",
+      "line": 140,
+      "end": 147,
+      "callDetails": [
+        {
+          "name": "ensureWeatherSystem",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 141,
+          "offset": 33,
+          "definedBy": {
+            "class": "WeatherSystem",
+            "file": "js/simulation/weather-system.js",
+            "line": 90
+          },
+          "relation": "system"
+        },
+        {
+          "name": "_spawnWeatherCell",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 145,
+          "offset": 549,
+          "definedBy": {
+            "class": "WeatherSystem",
+            "file": "js/simulation/weather-system.js",
+            "line": 107
+          },
+          "relation": "system"
+        },
+        {
+          "name": "_syncLocalWeather",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 146,
+          "offset": 720,
+          "definedBy": {
+            "class": "WeatherSystem",
+            "file": "js/simulation/weather-system.js",
+            "line": 120
+          },
+          "relation": "system"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "ensureWeatherSystem",
+          "access": "read",
+          "line": 141
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 142
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 142
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 145
+        },
+        {
+          "path": "_spawnWeatherCell",
+          "access": "read",
+          "line": 145
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 145
+        },
+        {
+          "path": "_syncLocalWeather",
+          "access": "read",
+          "line": 146
+        }
+      ]
+    }
+  ]
+}

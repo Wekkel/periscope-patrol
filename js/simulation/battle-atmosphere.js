@@ -35,14 +35,6 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       return A;
     },
 
-    startHarborSearchlightSweep(H){
-      if(!H)return null;const now=this.state.time.elapsedSeconds,W=this.state.world,sub=this.state.playerSub;
-      const datum=W.enemy?.searchCenter||sub.position,center=bearingBetween(H.center,datum),span=H.alert>=2?32:44;
-      H.searchlightSweep={startedAt:now,duration:H.alert>=2?13:16,centerBearing:center,spanDeg:span,phase:Math.random()<.5?0:1};
-      H.searchlightActiveUntil=now+H.searchlightSweep.duration;H.searchlightBearing=normDeg(center-span);
-      H.searchlightContactUntil=Math.min(H.searchlightContactUntil||-1,now);
-      return H.searchlightSweep;
-    },
 
     updateHarborSearchlight(dt){
       const W=this.state.world,H=W.harbor,sub=this.state.playerSub;if(!H)return;
@@ -70,24 +62,6 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       }
     },
 
-    scheduleCoastalBatteryShot(H,harborWx){
-      const A=this.ensureBattleAtmosphereState(),s=this.state,sub=s.playerSub,now=s.time.elapsedSeconds;if(!H)return null;
-      const sites=H.batterySites||[H.center],site=sites[(H._batterySiteCursor=(H._batterySiteCursor||0)+1)%sites.length],rng=distNm(site,sub.position);
-      const flight=clamp(1.5+rng*1.25,2.0,8.5),lit=now<(H.searchlightContactUntil||-1),day=clamp(s.world.environment.daylight||0,0,1);
-      const predicted=battlePredictPosition(sub.position,sub.heading,sub.propulsion.speedKnots,flight);
-      let correction=clamp(H.batteryCorrection||1,.32,1.25);
-      if(!lit)correction=Math.max(correction,.85);
-      const baseErr=(lit?.012:.065)+(1-harborWx.searchlightFactor)*.08+harborWx.seaState*.025+(1-day)*.012;
-      const err=baseErr*correction,ang=Math.random()*Math.PI*2,rad=err*(.25+Math.sqrt(Math.random())*.95);
-      const impact={xNm:predicted.xNm+Math.cos(ang)*rad,yNm:predicted.yNm+Math.sin(ang)*rad};
-      const id=`CB-${A.nextId++}`,ev={id,kind:'COASTAL',sourceId:'SHORE BATTERY',origin:{...site},targetAtFire:{...sub.position},impactPosition:impact,
-        fireAt:now,impactAt:now+flight,damage:5+Math.random()*12,litAtFire:lit,resolved:false};
-      A.shells.push(ev);if(A.shells.length>20)A.shells.shift();
-      A.muzzleFlashes.push({id:`MF-${id}`,position:{...site},at:now,until:now+.34,power:1.0,kind:'COASTAL'});if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
-      const br=bearingBetween(sub.position,site);PresentationBridge.audio(this.state).playDistantGunfire?.(br,sub.heading,clamp(1-rng/7,.25,1));
-      this.aarRecordEvent?.('COASTAL_GUNFIRE','Coastal battery opened fire.',{batteryShot:id,illuminated:lit},site,impact);
-      return ev;
-    },
 
     noteSurfaceGunfire(shooter,target,hit=false){
       if(!shooter?.position||!target?.position)return;const A=this.ensureBattleAtmosphereState(),now=this.state.time.elapsedSeconds;

@@ -1,4 +1,4 @@
-class SimEngineTorpedoes extends SimEngineHarbor {
+class SimEngineTorpedoes extends SimEngineCore {
   floodTube(id,doLog=true){
     const t=this.state.weapons.tubes.find(t=>t.id===id);
     if(!t||t.status!=='LOADED_DRY'){if(doLog)this.log(`Tube ${id} cannot flood.`,'warn');return;}

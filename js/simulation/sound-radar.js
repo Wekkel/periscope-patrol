@@ -121,15 +121,15 @@ function radarObservation(state,contact){
   return{bearing:normDeg(b),rangeNm:r,position:{xNm:state.playerSub.position.xNm+Math.sin(br)*r,yNm:state.playerSub.position.yNm-Math.cos(br)*r}};
 }
 
-class SimEngineSoundRadar extends SimEngineSensors{
+const SoundRadarSystem={
   ensureTacticalExtensions(){
-    const T=super.ensureTacticalExtensions();
+    const T=this._ensureTacticalExtensions();
     if(!Number.isFinite(T.soundBearing))T.soundBearing=this.state.playerSub?.heading||0;
     if(!['PASSIVE','RADAR'].includes(T.soundDisplay))T.soundDisplay='PASSIVE';
     return T;
-  }
+  },
 
-  ensureWorldExtensions(){super.ensureWorldExtensions();this.ensureSoundRadarState();}
+  ensureWorldExtensions(){this._ensureWorldExtensions();this.ensureSoundRadarState();},
 
   ensureSoundRadarState(){
     const W=this.state.world,fit=radarFitForDate(this.state.campaign?.startDate||this.state.time?.campaignDate,this.state.campaign?.campaignProfileId);
@@ -154,9 +154,9 @@ class SimEngineSoundRadar extends SimEngineSensors{
     R.sjRangeNm=R.surfaceSearchRangeNm;R.sjErrorFactor=R.surfaceSearchErrorFactor;R.sjSweepSec=R.surfaceSearchSweepSec;R.sjTracks=R.surfaceSearchTracks;
     W.airThreat=W.airThreat||{};W.airThreat.airWarningOn=R.airWarningAvailable;W.airThreat.sdOn=W.airThreat.airWarningOn;
     return{S,R,fit};
-  }
+  },
 
-  currentSoundSignal(){this.ensureSoundRadarState();return soundSignalAt(this.state,this.state.tactical.soundBearing);}
+  currentSoundSignal(){this.ensureSoundRadarState();return soundSignalAt(this.state,this.state.tactical.soundBearing);},
 
   _soundOperatorReport(){
     const s=this.state,W=s.world,S=W.sound,now=s.time.elapsedSeconds;
@@ -172,7 +172,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     const text=`SOUND — screws bearing ${fmtDeg(obs.bearing)} · ${detail}`;
     S.lastOperatorAt=now;S.lastOperatorReport={t:now,until:now+9,text,bearing:obs.bearing,quality:q};
     this.log(text); // intentionally not notify(): operator chatter must not interrupt play
-  }
+  },
 
   markSoundBearing(){
     this.ensureSoundRadarState();
@@ -197,7 +197,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     }
     this.log(`SOUND mark ${arr.length} — ${fmtDeg(bearing)}${tri?` · plot cross ${tr.rangeEstimateNm.toFixed(1)} nm`:''}.`);
     return tr;
-  }
+  },
 
   echoRange(){
     this.ensureSoundRadarState();const s=this.state,W=s.world,S=W.sound,now=s.time.elapsedSeconds;
@@ -220,7 +220,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
     tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.72),0,1);tr.lastSensorSource=CONTACT_FIX_SOURCE.ACTIVE_ECHO;
     updateStableContactPlot(s,tr,pos,CONTACT_FIX_SOURCE.ACTIVE_ECHO,.95,.1);
     W.contactTracks[c.id]=tr;this.notify(`${echoName} — ECHO RANGE ${rangeNm.toFixed(2)} nm on ${fmtDeg(bearing)}. Transmission heard by the enemy.`,'bad');return tr;
-  }
+  },
 
   _updateSurfaceSearchRadar(dt){
     const s=this.state,W=s.world,R=W.radar,sub=s.playerSub,now=s.time.elapsedSeconds;
@@ -240,7 +240,7 @@ class SimEngineSoundRadar extends SimEngineSensors{
       W.contactTracks[c.id]=tr;
     }
     R.surfaceSearchTracks=seen;R.sjTracks=R.surfaceSearchTracks;
-  }
+  },
 
   updateSoundRadar(dt){
     this.ensureSoundRadarState();const s=this.state,S=s.world.sound;
@@ -251,4 +251,4 @@ class SimEngineSoundRadar extends SimEngineSensors{
     }
     this._updateSurfaceSearchRadar(dt);
   }
-}
+};

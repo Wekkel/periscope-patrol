@@ -63,7 +63,7 @@ function aswTraining(esc,state){
   return clamp(Number(esc?.aswTraining??profile?.aswTraining??aswTactics(state).training),.55,1.25);
 }
 
-class SimEngineASWBrain extends SimEngineWeather{
+class SimEngineASWBrain extends SimEngineSensors{
   ensureASWState(){
     const W=this.state.world,e=W.enemy||(W.enemy={}),now=this.state.time.elapsedSeconds||0;
     const A=e.asw||(e.asw={});

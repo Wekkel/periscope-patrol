@@ -6,7 +6,11 @@
 // old terrain arrays are collectible when a patrol area is replaced.
 const _terrainBoundsCache=new WeakMap();
 class SimEngineCore{
-  constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;}
+  constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;this.ctx=typeof createLeafSystemContext==='function'?createLeafSystemContext(this):null;this.sys=this.ctx?.sys||{};}
+  ensureWorldExtensions(...args){return this.ctx?.ensureWorldExtensions?.(...args)||null;}
+  ensureWeatherSystem(...args){return this.ctx?.ensureWeatherSystem?.(...args)||null;}
+  ensureSoundRadarState(...args){return this.ctx?.ensureSoundRadarState?.(...args)||null;}
+  updateHarborKnowledge(...args){return this.ctx?.updateHarborKnowledge?.(...args)||null;}
   pauseForModal(){const t=this.state.time||{};if((t.modalPauses||0)===0)t.preModalScale=Number(t.timeScale)||1;t.modalPauses=(t.modalPauses||0)+1;t.timeScale=0;return t.modalPauses;}
   resumeFromModal(){const t=this.state.time||{};t.modalPauses=Math.max(0,(t.modalPauses||0)-1);if(t.modalPauses===0)t.timeScale=Number(t.preModalScale)>0?Number(t.preModalScale):1;return t.modalPauses;}
 
