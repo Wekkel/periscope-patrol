@@ -31,6 +31,7 @@ const AAGunSystem={
     W.aaHurt=(W.aaHurt||0)+1;
     sub.damage.crewFatigue=clamp(sub.damage.crewFatigue+0.24,0,1);
     this.notify(`${what} Men down on the cigarette deck — gun abandoned, wounded passed below.`,'bad');
+    PresentationBridge.toast(this.state).bad(`${what} Men down on the cigarette deck — gun abandoned, wounded passed below.`);
     PresentationBridge.audio(this.state).event?.('AIRCRAFT_ATTACK');
   },
 
