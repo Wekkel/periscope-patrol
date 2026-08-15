@@ -7,7 +7,7 @@ import {JSDOM} from 'jsdom';
 const root=path.resolve(process.argv[2]||path.join(path.dirname(fileURLToPath(import.meta.url)),'..'));
 const html=await readFile(path.join(root,'index.html'),'utf8');
 const dom=new JSDOM(html,{url:'http://localhost/',runScripts:'outside-only',pretendToBeVisual:true});
-const {window}=dom,errors=[],draw={count:0,methods:new Set()},audio={count:0,methods:new Set()};
+const {window}=dom,errors=[],draw={count:0,methods:new Set()},audio={count:0,contexts:0,methods:new Set()};
 const originalError=window.console.error.bind(window.console);window.console.error=(...args)=>{const first=args[0];if(String(first).includes('[RENDER]'))errors.push({kind:'render',message:args.map(String).join(' '),stack:args.find(x=>x?.stack)?.stack||''});originalError(...args);};
 window.onerror=(message,source,line,col,error)=>{errors.push({kind:'window.onerror',message,source,line,col,stack:error?.stack||''});};
 window.addEventListener('unhandledrejection',e=>errors.push({kind:'unhandledrejection',message:String(e.reason),stack:e.reason?.stack||''}));
@@ -24,7 +24,7 @@ const audioCall=(name)=>{audio.count++;audio.methods.add(name);};
 const param=()=>({value:0,setValueAtTime(){audioCall('AudioParam.setValueAtTime');},linearRampToValueAtTime(){audioCall('AudioParam.linearRampToValueAtTime');},exponentialRampToValueAtTime(){audioCall('AudioParam.exponentialRampToValueAtTime');},setTargetAtTime(){audioCall('AudioParam.setTargetAtTime');},cancelScheduledValues(){audioCall('AudioParam.cancelScheduledValues');}});
 const node=(kind)=>({kind,connect(){audioCall(`${kind}.connect`);return this;},disconnect(){audioCall(`${kind}.disconnect`);},start(){audioCall(`${kind}.start`);},stop(){audioCall(`${kind}.stop`);},gain:param(),frequency:param(),detune:param(),Q:param(),pan:param(),playbackRate:param(),threshold:param(),knee:param(),ratio:param(),attack:param(),release:param(),type:'sine',setPeriodicWave(){audioCall(`${kind}.setPeriodicWave`);}});
 class StubAudioContext{
-  constructor(){audioCall('AudioContext.constructor');this.state='running';this.currentTime=0;this.sampleRate=48000;this.destination=node('Destination');}
+  constructor(){audio.contexts++;audioCall('AudioContext.constructor');this.state='running';this.currentTime=0;this.sampleRate=48000;this.destination=node('Destination');}
   createGain(){audioCall('AudioContext.createGain');return node('GainNode');}
   createOscillator(){audioCall('AudioContext.createOscillator');return node('OscillatorNode');}
   createBiquadFilter(){audioCall('AudioContext.createBiquadFilter');return node('BiquadFilterNode');}
@@ -65,5 +65,5 @@ for(const station of [...new Set([...window.document.querySelectorAll('[data-sta
 const gameLoopStarted=errors.every(e=>e.file!=='js/bootstrap/start.js')&&rafId>0;
 const canvases=[...window.document.querySelectorAll('canvas')].map(c=>({id:c.id,width:c.width,height:c.height,clientWidth:c.clientWidth,clientHeight:c.clientHeight}));
 dom.window.close();
-console.log(JSON.stringify({root,firstException:errors[0]||null,errors,gameLoopStarted,drawCalls:draw.count,audioCalls:audio.count,gestureStates,patrolSmoke,torpedoSmoke,impactAge,cinematicChecks,audioMethods:[...audio.methods],drawMethods:[...draw.methods],canvases,stations:stationResults},null,2));
-if(errors.length||!draw.count||!audio.count||!patrolSmoke.harbor||!torpedoSmoke.launched||!torpedoSmoke.hit||impactAge<=0||cinematicChecks.active!==9101||cinematicChecks.queued.length!==2||cinematicChecks.fourth!==false||cinematicChecks.pauses!==1||cinematicChecks.ages.some(x=>x.age<=0||x.hint)||!cinematicChecks.hintAfterCooldown||cinematicChecks.save.timeScale===0||cinematicChecks.save.modalPauses!==0||cinematicChecks.save.impact||Object.keys(cinematicChecks.save.presentation).length||gestureStates.some(g=>g.state!=='running')||canvases.some(c=>c.width<=0||c.height<=0)||stationResults.some(s=>!s.rendered))process.exitCode=1;
+console.log(JSON.stringify({root,firstException:errors[0]||null,errors,gameLoopStarted,drawCalls:draw.count,audioCalls:audio.count,audioContexts:audio.contexts,gestureStates,patrolSmoke,torpedoSmoke,impactAge,cinematicChecks,audioMethods:[...audio.methods],drawMethods:[...draw.methods],canvases,stations:stationResults},null,2));
+if(errors.length||!draw.count||!audio.count||audio.contexts!==1||!patrolSmoke.harbor||!torpedoSmoke.launched||!torpedoSmoke.hit||impactAge<=0||cinematicChecks.active!==9101||cinematicChecks.queued.length!==2||cinematicChecks.fourth!==false||cinematicChecks.pauses!==1||cinematicChecks.ages.some(x=>x.age<=0||x.hint)||!cinematicChecks.hintAfterCooldown||cinematicChecks.save.timeScale===0||cinematicChecks.save.modalPauses!==0||cinematicChecks.save.impact||Object.keys(cinematicChecks.save.presentation).length||gestureStates.some(g=>g.state!=='running')||canvases.some(c=>c.width<=0||c.height<=0)||stationResults.some(s=>!s.rendered))process.exitCode=1;

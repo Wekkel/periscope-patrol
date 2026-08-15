@@ -16,10 +16,15 @@ globalThis.processPresentationEffects=()=>{
   for(const e of PresentationBridge.take(game.state)){
     if(e.type==='impact-observed'){
       const snap=e.payload.snapshot,p=game.state.runtime.presentation||(game.state.runtime.presentation={}),q=p.impactQueue||(p.impactQueue=[]);
-      if(e.payload.queued){if(q.length<5)q.push(snap);continue;}
+      if(e.payload.queued){if(q.length<2)q.push(snap);continue;}
       const startImpact=s=>{const token=s.token;p.impactStartedWall=performance.now();p.impactToken=token;p.impactQueue=q;game.state.tactical.impactObservation=s;
         setTimeout(()=>{if(game.state.tactical?.impactObservation?.token===token){const method=String(s.weapon||'').toUpperCase()==='TORPEDO'?'playTorpedoHit':'playHit';game.dispatch({type:'PLAY_AUDIO',method});}},Math.max(0,s.preImpactMs||0));
-        p.impactTimer=setTimeout(()=>{if(p.impactToken!==token)return;const next=q.shift();if(next){startImpact(next);}else{p.impactStartedWall=null;p.impactToken=null;p.impactTimer=null;game.state.tactical.impactObservation=null;game.dispatch({type:'END_IMPACT_OBSERVATION',token});}},Math.max(0,s.durationMs||2350));};
+        p.impactTimer=setTimeout(()=>{if(p.impactToken!==token)return;const next=q.shift();if(next){startImpact(next);}else{
+          /* END must see the matching observation; clearing it first leaves
+             modalPauses stuck and produces a black paused frame. */
+          game.dispatch({type:'END_IMPACT_OBSERVATION',token});
+          p.impactStartedWall=null;p.impactToken=null;p.impactTimer=null;p.impactQueue=[];
+        }},Math.max(0,s.durationMs||2350));};
       if(!p.impactToken)game.dispatch({type:'PAUSE_FOR_MODAL'});
       startImpact(snap);
       continue;
@@ -34,7 +39,7 @@ globalThis.processPresentationEffects=()=>{
     if(e.type==='ui'&&e.payload.method==='resumeHide')document.getElementById('resumeBar')?.classList.remove('on');
   }
 };
-globalThis.skipImpactObservation=()=>{const p=game.state.runtime?.presentation;if(!p?.impactToken||performance.now()-Number(p.impactStartedWall||0)<900)return false;clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{p.impactToken=null;game.state.tactical.impactObservation=null;game.dispatch({type:'END_IMPACT_OBSERVATION',token:0});}return true;};
+globalThis.skipImpactObservation=()=>{const p=game.state.runtime?.presentation;if(!p?.impactToken||performance.now()-Number(p.impactStartedWall||0)<900)return false;clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{const token=p.impactToken;game.dispatch({type:'END_IMPACT_OBSERVATION',token});p.impactToken=null;p.impactQueue=[];p.impactStartedWall=null;game.state.tactical.impactObservation=null;}return true;};
 document.addEventListener('pointerdown',()=>globalThis.skipImpactObservation?.(),{capture:true});
 showBriefing(game.getSnapshot().campaign.patrolArea,game.getSnapshot());
 

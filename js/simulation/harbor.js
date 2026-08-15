@@ -111,7 +111,10 @@ const HarborSystem={
           observedOuterNm:H.mineOuterNm-.08+Math.random()*.16},
         channel:{level:'NONE',
           reportedBearing:normDeg(H.channelBearing+(Math.random()-.5)*16),reportedHalfWidthNm:H.channelHalfWidthNm+.70,
-          observedBearing:normDeg(H.channelBearing+(Math.random()-.5)*4),observedHalfWidthNm:H.channelHalfWidthNm+.18},
+          /* Observed geometry is now a confirmed visual fix. The reported
+             plot keeps uncertainty; the observed plot must match the physical
+             channel so every point shown as observed remains waypointable. */
+          observedBearing:normDeg(H.channelBearing),observedHalfWidthNm:H.channelHalfWidthNm},
         net:{known:false,discoveredAt:null,source:null},
         batteries:[],
         heavyUnit:{reported:false,identified:false,identity:null,identifiedAt:null},
