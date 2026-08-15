@@ -24,7 +24,7 @@ function createLeafSystemContext(engine){
   ctx._ensureWorldExtensions=(...args)=>engine.ensureWorldExtensions(...args);
   ctx.isNavigableMapPoint=(...args)=>engine.isNavigableMapPoint(...args);
   ctx.sys.harbor=HarborSystem;ctx.sys.weather=WeatherSystem;ctx.sys.soundRadar=SoundRadarSystem;
-  for(const name of ['setupHarbor','ensureHarborApproachWater','ensureHarborIntel','harborOperationProfile','harborOptionalObjective','harborIdentityLabel','refreshHarborOptionalObjective','harborNetSegments','pointSegNm','revealHarborNet','updateHarborGateProgress','harborChannelFrame','ensureWorldExtensions','startHarborSearchlightSweep','scheduleCoastalBatteryShot','updateHarborKnowledge','updateHarbor','grantHarborSpecialIntel','noteHarborAttack','harborTorpedoNetHit'])bindLeafMethod(ctx,HarborSystem,name);
+  for(const name of ['setupHarbor','ensureHarborApproachWater','ensureHarborIntel','harborOperationProfile','harborOptionalObjective','harborIdentityLabel','refreshHarborOptionalObjective','harborNetSegments','pointSegNm','revealHarborNet','updateHarborGateProgress','harborChannelFrame','ensureWorldExtensions','startHarborSearchlightSweep','scheduleCoastalBatteryShot','recordHarborBatteryFire','updateHarborKnowledge','updateHarbor','grantHarborSpecialIntel','noteHarborAttack','harborTorpedoNetHit'])bindLeafMethod(ctx,HarborSystem,name);
   for(const name of ['ensureWeatherSystem','_spawnWeatherCell','_syncLocalWeather','updateWeather'])bindLeafMethod(ctx,WeatherSystem,name);
   for(const name of ['ensureSoundRadarState','currentSoundSignal','_soundOperatorReport','markSoundBearing','echoRange','_updateSurfaceSearchRadar','updateSoundRadar'])bindLeafMethod(ctx,SoundRadarSystem,name);
   return ctx;

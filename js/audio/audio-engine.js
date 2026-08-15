@@ -54,7 +54,11 @@ class AudioEngine{
     this.gestureResumeAttempts++;this.lastGestureEvent=String(eventType||'unknown');
     if(this.ctx&&this.ctx.state==='suspended'&&!this._gestureResumeRequested){
       this._gestureResumeRequested=true;
-      return this.ctx.resume().then(()=>true).catch(()=>{this._gestureResumeRequested=false;return false;});
+      return this.ctx.resume().then(()=>{
+        const running=this.ctx?.state==='running';
+        if(!running)this._gestureResumeRequested=false;
+        return running;
+      }).catch(()=>{this._gestureResumeRequested=false;return false;});
     }
     return Promise.resolve(this.ctx?.state==='running');
   }
