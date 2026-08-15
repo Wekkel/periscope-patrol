@@ -20,6 +20,14 @@ const HarborSystem={
     return getCampaignHarborOperationProfile(this.state.campaign?.campaignProfileId);
   },
 
+  ensureHarborApproachWater(H){
+    if(!H||typeof this.isNavigableMapPoint!=='function')return{ok:true,lastSafeNm:H?.mineOuterNm||0};
+    const valid=(bearing,maxAlong)=>{const r=degToRad(bearing),edge=H.channelHalfWidthNm+.70,inner=.75,steps=Math.max(2,Math.ceil((maxAlong-inner)/.2));for(let i=0;i<=steps;i++){const a=inner+(maxAlong-inner)*i/steps;for(const side of [-edge,0,edge]){const p={xNm:H.center.xNm+Math.sin(r)*a+Math.cos(r)*side,yNm:H.center.yNm-Math.cos(r)*a+Math.sin(r)*side};if(!this.isNavigableMapPoint(p,30))return false;}}return true;};
+    const outer=H.mineOuterNm+.55;if(valid(H.channelBearing,outer))return{ok:true,lastSafeNm:outer};
+    for(let delta=8;delta<=88;delta+=8)for(const sign of [-1,1]){const b=normDeg(H.channelBearing+delta*sign);if(valid(b,outer)){H.channelBearing=b;return{ok:true,lastSafeNm:outer};}}
+    let last=.75;for(let a=.95;a<=outer;a+=.2){if(valid(H.channelBearing,a))last=a;else break;}return{ok:false,lastSafeNm:last};
+  },
+
   setupHarbor(areaKey){
     const W=this.state.world, area=PATROL_AREAS[areaKey], op=this.harborOperationProfile();
     W.harborInitialized=true; W.harbor=null;
@@ -37,6 +45,9 @@ const HarborSystem={
       suspicion:0,alert:0,entered:false,inside:false,lastGunAt:-999,lastSweepAt:-999,
       mines:[]
     };
+    const approach=this.ensureHarborApproachWater(H);
+    if(!approach.ok){H.approachStatus='LIMITED';H.approachLimitNm=approach.lastSafeNm;H.mineOuterNm=Math.min(H.mineOuterNm,Math.max(H.mineInnerNm+.4,approach.lastSafeNm-.55));}
+    else H.approachStatus='CLEAR';
     // Physical mines: positions are randomised ONCE, not rerolled as the player
     // approaches. The chart only shows the belt and swept channel, never the
     // individual mines.

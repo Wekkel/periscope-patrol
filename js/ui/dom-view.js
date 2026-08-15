@@ -186,7 +186,8 @@ class DomView{
       `<span>Enemy alert</span><strong>${state.world.enemy.alertState}</strong>`+
       `<span>DCs active</span><strong>${state.world.depthCharges.length}</strong>`+
       `<span>Noise sig</span><strong>${sub.stealth.acousticSignature.toFixed(2)}</strong>`+
-      `<span>Shallow</span><strong style="color:${sub.inShallowWater?'var(--alert)':'var(--muted)'}">${sub.inShallowWater?'YES':'NO'}</strong>`+
+      `<span>Shallow zone</span><strong style="color:${sub.inShallowWater?'var(--alert)':'var(--muted)'}">${sub.inShallowWater?'YES':'NO'}</strong>`+
+      `<span>Keel clearance</span><strong style="color:${(sub.keelClearanceFeet??3000)<(sub.depthFeet<12?18:70)?'var(--alert)':'var(--ok)'}">${Math.max(0,Number(sub.keelClearanceFeet??0)).toFixed(0)} ft</strong>`+
       `<span>Radar fit</span><strong>${state.world.radar?.fitLabel||'—'}</strong>`+
       `<span>Score</span><strong>${state.campaign.score.toLocaleString()}</strong>`+
       `<span>Area</span><strong>${PATROL_AREAS[state.campaign.patrolArea]?.displayName||state.campaign.patrolArea}</strong>`;

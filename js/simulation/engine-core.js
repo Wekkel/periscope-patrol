@@ -617,7 +617,7 @@ class SimEngineCore{
   shoalWatch(sub){
     const t=this.state.time;
     const compressed=!!t.transitUntil||(t.timeScale||1)>1;
-    if(!compressed||sub.mode==='SUNK'||sub.bottomed) return;
+    if(!compressed||sub.mode==='SUNK'||sub.bottomed){if(!compressed)this._shoalTelemetryLogged=false;return;}
     const clr=sub.keelClearanceFeet??3000;
     const surfaced=sub.depthFeet<12;                    // effectively on the roof / awash
     const closing=Math.max(0,sub._keelClosingFps||0);  // ft of clearance lost per ship-second
@@ -632,6 +632,7 @@ class SimEngineCore{
     const now=t.elapsedSeconds;
     if(now-(this._shoalAt||-99)<20) return;
     this._shoalAt=now;
+    if(!this._shoalTelemetryLogged){this._shoalTelemetryLogged=true;console.warn('[SHOAL TELEMETRY]',{position:{...sub.position},keelClearanceFeet:sub.keelClearanceFeet,seabedFeet:sub.seabedFeet,depthFeet:sub.depthFeet,inShallowWater:sub.inShallowWater});}
     t.transitUntil=0;t.transitOpen=false;t.timeScale=1;
 
     const hard=surfaced?10:18;

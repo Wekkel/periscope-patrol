@@ -277,7 +277,10 @@ class SimEngineIntel extends SimEngineAAGun {
         receivedAt:this.state.time.elapsedSeconds,label:m.subject};
       delete W.contactTracks['ULTRA'];
       const advisory=this.intelSummary().find(x=>x.kind==='ULTRA');
-      if(advisory) this.state.map.intelFitRequest={seq:((this.state.map.intelFitRequest?.seq)||0)+1,own:{...this.state.playerSub.position},estimate:{...advisory.pos},receivedAt:this.state.time.elapsedSeconds,historyId:this.state.campaign.historyId};
+      if(advisory){
+        const focus=()=>{this.state.map.intelFitRequest={seq:((this.state.map.intelFitRequest?.seq)||0)+1,own:{...this.state.playerSub.position},estimate:{...advisory.pos},receivedAt:this.state.time.elapsedSeconds,historyId:this.state.campaign.historyId};};
+        PresentationBridge.toast(this.state).action('Shipping intelligence intercept plotted — steer to cut her off','VIEW MAP',focus,9500,'ok','intel-fit');
+      }
       const T=this.state.time||{},compressed=!!T.transitUntil||(T.timeScale||1)>1;
       if(compressed){
         // Do not let a long skip manufacture a vertical stack of identical
@@ -291,7 +294,7 @@ class SimEngineIntel extends SimEngineAAGun {
           item.seq=(u.toastSeq=(u.toastSeq||0)+1);q.splice(itemIndex,1);q.push(item); // latest repeated signal stays at the tail
         } else q.push({msg:shippingCopy?.toastSingle||'Shipping intelligence intercept plotted — steer to cut her off',kind:'ok',tag,count:1,seq:(u.toastSeq=(u.toastSeq||0)+1)});
         if(q.length>40)q.splice(0,q.length-40);
-      }else PresentationBridge.toast(this.state).ok(shippingCopy?.toastSingle||'Shipping intelligence intercept plotted — steer to cut her off');
+      }
     }
     if(m.airThreat){W.airThreat=W.airThreat||{};W.airThreat.level=m.airThreat;}
     if(m.score) this.state.campaign.score+=m.score;

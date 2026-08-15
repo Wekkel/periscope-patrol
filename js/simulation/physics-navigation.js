@@ -104,7 +104,7 @@ class SimEngine extends SimEngineCareer {
     if(portNav&&portNav.rngNm<=1.5&&!w.portApproachNear) return 'friendly port approach';
     const surfaced=s.playerSub.depthFeet<12,clr=s.playerSub.keelClearanceFeet??3000;
     if(s.playerSub.inShallowWater&&!surfaced) return 'shoal water ahead';
-    if(clr<(surfaced?18:70)) return 'shoaling water under the keel';
+    if(clr<(surfaced?18:70)) return `shoaling water under the keel — ${Math.max(0,clr).toFixed(0)} ft clearance, minimum ${surfaced?18:70} ft required`;
     if(this.headingOutOfArea()&&!w.atEdge) return 'she is standing out of the patrol area';
     if(s.playerSub.propulsion.fuel<20&&!w.fuelLow) return 'the fuel is running low';
     if(((s.world.harbor&&s.world.harbor.alert)||0)>w.harborAlert) return 'enemy harbour defenses are stirring';
