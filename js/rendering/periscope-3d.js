@@ -128,13 +128,15 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       ctx.globalAlpha=1;ctx.restore();
     }
 
-    const bw=Math.min(w-18*k,430*k),bh=44*k,x=(w-bw)/2,y=10*k;
+    const bw=Math.min(w-18*k,430*k),bh=62*k,x=(w-bw)/2,y=10*k;
     ctx.fillStyle='rgba(3,13,16,.82)';this.rr(ctx,x,y,bw,bh,6*k);ctx.fill();
     ctx.fillStyle='rgba(245,198,92,.96)';ctx.font=this.fnt(9,true);ctx.textAlign='center';
     ctx.fillText(`IMPACT OBSERVATION · ${String(obs.weapon||'TORPEDO').replace(/_/g,' ')} ${beforeImpact?'RUN':'HIT'}`,w/2,y+16*k);
     const queuedCount=state.runtime?.presentation?.impactQueue?.length||0,skipReady=age>=.9;this.lastImpactSkipHintVisible=!!(queuedCount&&skipReady);
-    if(queuedCount&&skipReady){ctx.font=this.fnt(7,true);ctx.fillStyle='rgba(245,198,92,.86)';ctx.fillText(`HIT 1 OF ${queuedCount+1} · TAP TO SKIP`,w/2,y+27*k);}
-    ctx.fillStyle='rgba(220,238,229,.92)';ctx.font=this.fnt(8.5);ctx.fillText(`${obs.name||obs.contactId||'TARGET'} · ${range.toFixed(2)} nm${obs.location?` · ${String(obs.location).toUpperCase()}`:''}`,w/2,y+31*k);ctx.textAlign='left';
+    const rawName=obs.name||obs.contactId||'TARGET',displayName=(typeof PP_BUILD==='undefined'||PP_BUILD.isDev||!/^DEV\s/i.test(rawName))?rawName:(obs.contactId||'TARGET');
+    ctx.fillStyle='rgba(220,238,229,.92)';ctx.font=this.fnt(8.5);ctx.fillText(`${displayName} · ${range.toFixed(2)} nm${obs.location?` · ${String(obs.location).toUpperCase()}`:''}`,w/2,y+32*k);
+    if(queuedCount&&skipReady){ctx.font=this.fnt(7,true);ctx.fillStyle='rgba(245,198,92,.86)';ctx.fillText(`HIT 1 OF ${queuedCount+1} · TAP TO SKIP`,w/2,y+48*k);}
+    ctx.textAlign='left';
 
     // Make the tactical consequence legible in the cinematic itself. MAP can
     // still carry the detailed labels afterwards, but the player should not
