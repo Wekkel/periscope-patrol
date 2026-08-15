@@ -150,13 +150,14 @@ window.addEventListener('keydown',e=>{
 // play it once after unlock, then let MISSION_START fade it instead of replaying
 // it every time the player starts another patrol in the same app session.
 (()=>{
-  const events=['pointerdown','touchstart','mousedown','keydown','click'];
+  const events=['pointerdown','touchstart','mousedown','keydown','click'];let installed=false;
+  const install=()=>{if(installed)return;installed=true;events.forEach(type=>document.addEventListener(type,unlock,{capture:true,passive:true}));};
   const unlock=e=>{
     Promise.resolve(audio.resumeFromGesture?.(e.type)).then(running=>{
-      if(running){events.forEach(type=>document.removeEventListener(type,unlock,true));audio.playTitleCue?.('START');}
+      if(running){events.forEach(type=>document.removeEventListener(type,unlock,true));installed=false;audio.playTitleCue?.('START');}
     });
   };
-  events.forEach(type=>document.addEventListener(type,unlock,{capture:true,passive:true}));
+  audio.setGestureUnlockRearm?.(install);install();
 })();
 
 // Audio settings are profile-independent device preferences: a phone and a

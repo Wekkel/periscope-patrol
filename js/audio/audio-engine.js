@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════ AUDIO ENGINE
 class AudioEngine{
   constructor(){this.ctx=null;this.enabled=true;this.masterGain=null;this.musicGain=null;this.outputLimiter=null;this.initialized=false;
-    this._gestureResumeRequested=false;this.gestureResumeAttempts=0;this.lastGestureEvent=null;
+    this._gestureResumeRequested=false;this.gestureResumeAttempts=0;this.lastGestureEvent=null;this._gestureUnlockRearm=null;
     this.sfxVolume=.62;this.musicVolume=.42;this.noiseBuffer=null;this.sonarVariant=3;
     this.busNodes={};this.mixTargets={system:1,command:1,sensor:1,world:1,machinery:1,weapons:1,mission:1};this.duckUntil=0;this.duckFactor=1;
     this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;this.lastRadio=0;
@@ -39,8 +39,10 @@ class AudioEngine{
       document.addEventListener('visibilitychange',()=>{
         if(!this.ctx)return;
         if(document.hidden&&this.ctx.state==='running')this.ctx.suspend().catch(()=>{});
-        // Resume remains gesture-gated by browsers; ensure() on the next player
-        // input restores it. Do not queue old combat one-shots while backgrounded.
+        if(!document.hidden){
+          this._gestureResumeRequested=false;
+          this.resumeFromVisibility().catch(()=>{});
+        }
       },{passive:true});
     }catch(e){this.enabled=false;}
   }
@@ -61,6 +63,19 @@ class AudioEngine{
       }).catch(()=>{this._gestureResumeRequested=false;return false;});
     }
     return Promise.resolve(this.ctx?.state==='running');
+  }
+
+  setGestureUnlockRearm(fn){this._gestureUnlockRearm=typeof fn==='function'?fn:null;return this;}
+
+  resumeFromVisibility(){
+    this.ensure();
+    if(!this.ctx||this.ctx.state!=='suspended')return Promise.resolve(this.ctx?.state==='running');
+    this.gestureResumeAttempts++;this.lastGestureEvent='visibilitychange';
+    return Promise.resolve().then(()=>this.ctx.resume()).then(()=>{
+      const running=this.ctx?.state==='running';
+      if(!running)this._gestureUnlockRearm?.();
+      return running;
+    }).catch(()=>{this._gestureUnlockRearm?.();return false;});
   }
 
   _bus(name='system'){return this.busNodes?.[name]||this.masterGain;}
