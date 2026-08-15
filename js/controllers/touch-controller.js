@@ -452,7 +452,7 @@ class TouchCtrl{
           const m=mid(),raw=Math.log(Math.max(.5,Math.min(2,d/lastDist)));
           // A trackpad or touchscreen reports many tiny distance changes. Apply
           // a dead zone and a bounded response so one tremor cannot jump levels.
-          if(Math.abs(raw)>.004)cv.zoomAt(Math.exp(clamp(raw,-.08,.08)*.48),m.x,m.y);
+          if(Math.abs(raw)>.004)cv.zoomAt(Math.exp(clamp(raw,-.08,.08)*.70),m.x,m.y);
         }else if(lastDist>0&&s.tactical.activeStation==='PERISCOPE'){
           // spread the fingers for high power, pinch in for the search field
           const want=d/lastDist>1.25?2.5:d/lastDist<0.8?1:null;

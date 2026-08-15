@@ -501,7 +501,13 @@ class SimEngineCore{
         const target=this.clampToArea({xNm:cmd.xNm,yNm:cmd.yNm}),plot=this.state.map.plottedCourse;
         if(!this.isNavigableMapPoint(target)){this.notify('WAYPOINT REFUSED — land or unsafe shoal. Tap navigable water.','warn');break;}
         const from=plot.at(-1)||this.state.playerSub.position,path=this.planNavigableCourse(from,target);
-        if(!path){this.notify('WAYPOINT REFUSED — no safe water route can be plotted.','warn');break;}
+        if(!path){
+          const reason=this._lastWaypointRouteReason;
+          this.notify(reason==='endpoint-search-radius'
+            ?'WAYPOINT REFUSED — no route found from here; move closer and try again.'
+            :'WAYPOINT REFUSED — no safe water route can be plotted from here.','warn');
+          break;
+        }
         for(const p of path.slice(1))if(distNm(plot.at(-1)||from,p)>.03)plot.push({...p});
         this.state.map.autoFollowPlot=true;
         this.log(`Water route plotted — ${plot.length} waypoint${plot.length===1?'':'s'}.`);
@@ -1258,12 +1264,16 @@ class SimEngineCore{
   }
 
   planNavigableCourse(from,to){
-    if(!this.isNavigableMapPoint(from)||!this.isNavigableMapPoint(to))return null;
+    this._lastWaypointRouteReason=null;
+    if(!this.isNavigableMapPoint(from)||!this.isNavigableMapPoint(to)){
+      this._lastWaypointRouteReason='endpoint-invalid';
+      return null;
+    }
     const route={from:{...from},to:{...to}},path=this.ensureWaterRoute(route);
-    if(!path||path.length<2)return null;
+    if(!path||path.length<2){this._lastWaypointRouteReason=route.waterRouteReason||'no-path';return null;}
     for(let i=0;i<path.length-1;i++){
       const a=path[i],b=path[i+1],steps=Math.max(1,Math.ceil(distNm(a,b)/.20));
-      for(let n=0;n<=steps;n++){const t=n/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(!this.isNavigableMapPoint(p))return null;}
+      for(let n=0;n<=steps;n++){const t=n/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(!this.isNavigableMapPoint(p)){this._lastWaypointRouteReason='segment-invalid';return null;}}
     }
     return path;
   }
@@ -1282,14 +1292,14 @@ class SimEngineCore{
     const nearest=(p)=>{
       const ci=Math.round((p.xNm-x0)/cell),cj=Math.round((p.yNm-y0)/cell);
       if(valid(ci,cj))return[ci,cj];
-      for(let r=1;r<12;r++) for(let dj=-r;dj<=r;dj++) for(let di=-r;di<=r;di++){
+      for(let r=1;r<41;r++) for(let dj=-r;dj<=r;dj++) for(let di=-r;di<=r;di++){
         if(Math.max(Math.abs(di),Math.abs(dj))!==r)continue;
         if(valid(ci+di,cj+dj))return[ci+di,cj+dj];
       }
       return null;
     };
     const S=nearest(route.from),G=nearest(route.to);
-    if(!S||!G){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    if(!S||!G){route.waterRouteReason='endpoint-search-radius';route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
     const N=nx*ny,INF=1e30,g=new Float64Array(N),parent=new Int32Array(N),closed=new Uint8Array(N);
     g.fill(INF);parent.fill(-1);
     const idx=(i,j)=>j*nx+i, gi=idx(G[0],G[1]), si=idx(S[0],S[1]);g[si]=0;
@@ -1310,7 +1320,7 @@ class SimEngineCore{
         if(ng<g[v]){g[v]=ng;parent[v]=u;push(v,ng+h(vi,vj));}
       }
     }
-    if(parent[gi]<0&&gi!==si){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    if(parent[gi]<0&&gi!==si){route.waterRouteReason='no-path';route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
     const raw=[];let u=gi;raw.push(u);while(u!==si&&u>=0){u=parent[u];if(u>=0)raw.push(u);}raw.reverse();
     let pts=raw.map(k=>({xNm:x0+(k%nx)*cell,yNm:y0+((k/nx)|0)*cell}));
     const waterLine=(a,b)=>{const L=distNm(a,b),n=Math.max(1,Math.ceil(L/Math.max(.25,cell*.20)));for(let q=0;q<=n;q++){const t=q/n,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(Bathy.feet(p.xNm,p.yNm)<30||this.checkTerrainCollision({position:p}).collision)return false;}return true;};
