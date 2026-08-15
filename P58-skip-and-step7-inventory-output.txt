@@ -1,0 +1,74 @@
+=== key bindings ===
+js/ui/toast.js:106:      const key=e=>{if(e.key==='Escape')finish(false);};document.addEventListener('keydown',key);
+js/ui/after-action-report.js:19:    window.addEventListener?.('keydown',e=>{if(!this.overlay?.classList.contains('open'))return;if(e.key==='ArrowLeft')this.moveEngagement(-1);else if(e.key==='ArrowRight')this.moveEngagement(1);});
+js/bootstrap/wiring.js:122:  const k=e.key.toLowerCase();
+js/controllers/bridge-controller.js:125:      const k=e.key.toLowerCase();
+js/controllers/bridge-controller.js:126:      const stationKeys={1:stT,2:stP,3:stM,4:stG,5:stB,6:stS};
+js/controllers/bridge-controller.js:127:      if(stationKeys[k]){if(!e.repeat)stationKeys[k].click();e.preventDefault();return;}
+=== tests ===
+{
+  "ok": true,
+  "root": "/workspace/scratch/c537ef948dd1/work/atlantic/periscope-patrol-atlantic-dev",
+  "files": 99,
+  "bytes": {
+    "repository": 2333492,
+    "javascript": 1519641,
+    "styles": 106258,
+    "audio": 0,
+    "singleScript": 111854
+  },
+  "budgets": {
+    "repository": 4500000,
+    "javascript": 1850000,
+    "styles": 220000,
+    "audio": 2000000,
+    "singleScript": 145000
+  },
+  "fail": []
+}
+behaviour tests passed: TDC 6, routes 4, hull SAT 5, render recovery 1
+{
+  "root": "/workspace/scratch/c537ef948dd1/work/atlantic/periscope-patrol-atlantic-dev",
+  "firstException": null,
+  "errors": [],
+  "gameLoopStarted": true,
+  "drawCalls": 67426,
+  "audioCalls": 309,
+  "gestureStates": [
+    {
+      "event": "mousedown",
+      "state": "running"
+    },
+    {
+      "event": "touchstart",
+      "state": "running"
+    }
+  ],
+  "impactAge": 1.0022307300000002,
+  "cinematicChecks": {
+    "active": 9101,
+    "queued": [
+      9102,
+      9103
+    ],
+    "ages": [
+      {
+        "token": 9101,
+        "age": 0.500283641,
+        "hint": false
+      },
+      {
+        "token": 9102,
+        "age": 0.500204083,
+        "hint": false
+      },
+      {
+        "token": 9103,
+        "age": 0.5001413,
+        "hint": false
+      }
+    ],
+    "fourth": false,
+    "hintAfterCooldown": true,
+    "pauses": 1,
+    "save": {
