@@ -1,0 +1,2221 @@
+{
+  "schemaVersion": 1,
+  "source": "mechanically generated from tests/call-graph-current.json",
+  "classes": [
+    "SimEngineEnemyAI",
+    "SimEngineAircraft",
+    "SimEngineASWBrain",
+    "SimEngineASW"
+  ],
+  "methodCount": 43,
+  "higherCalls": [
+    {
+      "class": "SimEngineAircraft",
+      "name": "updateAirSurfaceTrace",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 7,
+      "calls": []
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "airSurfaceTraceStrength",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 21,
+      "calls": []
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "airAttackDatumPosition",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 30,
+      "calls": []
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "wearAirState",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 36,
+      "calls": []
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "wearAirEligibility",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 45,
+      "calls": []
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "wearAirNotice",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 66,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 67,
+          "offset": 38,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "noteWearManualAircraft",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 75,
+      "calls": []
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "startWearAirRoutine",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 82,
+      "calls": [
+        {
+          "name": "derivMode",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 92,
+          "offset": 668,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 804
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "abortWearAirRoutine",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 97,
+      "calls": []
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "updateWearAirRoutine",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 107,
+      "calls": [
+        {
+          "name": "derivMode",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 142,
+          "offset": 1948,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 804
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 154,
+          "offset": 2500,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "beginAircraftAttack",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 159,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 172,
+          "offset": 1216,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineAircraft",
+      "name": "updateAircraft",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 176,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 282,
+          "offset": 7745,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 291,
+          "offset": 8477,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 302,
+          "offset": 9156,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 325,
+          "offset": 10821,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 329,
+          "offset": 11155,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 361,
+          "offset": 13558,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 401,
+          "offset": 16256,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 451,
+          "offset": 19373,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 456,
+          "offset": 19730,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "airAttack",
+          "kind": "system-path",
+          "unresolved": false,
+          "line": 464,
+          "offset": 20212,
+          "object": "this.sys.aaGun",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 471,
+          "offset": 20867,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 472,
+          "offset": 21071,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 484,
+          "offset": 21662,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 488,
+          "offset": 21881,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "shake",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 489,
+          "offset": 21961,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 114
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aaCasualty",
+          "kind": "system-path",
+          "unresolved": false,
+          "line": 490,
+          "offset": 22076,
+          "object": "this.sys.aaGun",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 491,
+          "offset": 22157,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 493,
+          "offset": 22330,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 530,
+          "offset": 24310,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "ensureASWState",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 67,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "aswProsecutionLimits",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 100,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "armASWProsecution",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 111,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "aswProsecutionExpiry",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 121,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "resetASWProsecution",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 133,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "convoyFrame",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 137,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "damagedGuardShip",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 148,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "damagedGuardTarget",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 155,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "screenTarget",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 162,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "cueEstimate",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 177,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "noteASWCue",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 184,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "freshStrongASWCue",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 194,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "aswDatum",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 203,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "noteASWFix",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 216,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 225,
+          "offset": 660,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "loseASWContact",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 233,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 238,
+          "offset": 360,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "assignASWRoles",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 241,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 288,
+          "offset": 3178,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "updateASWBrain",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 291,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASWBrain",
+      "name": "searchTarget",
+      "file": "js/simulation/ai/asw-brain.js",
+      "line": 313,
+      "calls": []
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "markEscortAlerted",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 2,
+      "calls": []
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "startMerchantEvasion",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 7,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 22,
+          "offset": 1144,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "surfaceAttackObservers",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 27,
+      "calls": []
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "surfaceAlarmRelayType",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 47,
+      "calls": []
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "escortDirectlyNotices",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 60,
+      "calls": []
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "maybeMerchantSpotTorpedo",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 72,
+      "calls": []
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "alertEscorts",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 87,
+      "calls": [
+        {
+          "name": "ensureASWState",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 88,
+          "offset": 80,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 67
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "noteTacticalSignal",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 101,
+          "offset": 909,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/battle-atmosphere.js",
+            "line": 93
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 108,
+          "offset": 1207,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "noteASWCue",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 115,
+          "offset": 1883,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 184
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "armASWProsecution",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 116,
+          "offset": 1947,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 111
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aarEnemyResponse",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 120,
+          "offset": 2332,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 76
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 121,
+          "offset": 2423,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "updateEnemyAI",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 126,
+      "calls": [
+        {
+          "name": "ensureASWState",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 127,
+          "offset": 87,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 67
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aswProsecutionExpiry",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 128,
+          "offset": 135,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 121
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "assignASWRoles",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 138,
+          "offset": 840,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 241
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 139,
+          "offset": 880,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "resetASWProsecution",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 140,
+          "offset": 1052,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 133
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "captainLog",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 141,
+          "offset": 1135,
+          "definedBy": {
+            "class": "SimEngineCareer",
+            "file": "js/simulation/career-history.js",
+            "line": 121
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "find",
+          "kind": "optional-object",
+          "unresolved": true,
+          "line": 142,
+          "offset": 1382,
+          "object": "camp.objectives",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "updateASWBrain",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 145,
+          "offset": 1551,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 291
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "updateSonar",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 145,
+          "offset": 1577,
+          "definedBy": {
+            "class": "SimEngineSensors",
+            "file": "js/simulation/sensors.js",
+            "line": 133
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "updateEscortBeh",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 146,
+          "offset": 1682,
+          "definedBy": {
+            "class": "SimEngineASW",
+            "file": "js/simulation/ai/escort-asw.js",
+            "line": 2
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "updateLookouts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 148,
+          "offset": 1785,
+          "definedBy": {
+            "class": "SimEngineSensors",
+            "file": "js/simulation/sensors.js",
+            "line": 89
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "ensureASWState",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 163,
+          "offset": 3082,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 67
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "armASWProsecution",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 164,
+          "offset": 3332,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 111
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "assignASWRoles",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 165,
+          "offset": 3451,
+          "definedBy": {
+            "class": "SimEngineASWBrain",
+            "file": "js/simulation/ai/asw-brain.js",
+            "line": 241
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 166,
+          "offset": 3495,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "updateDCs",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 169,
+          "offset": 3593,
+          "definedBy": {
+            "class": "SimEngineASW",
+            "file": "js/simulation/ai/escort-asw.js",
+            "line": 172
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineEnemyAI",
+      "name": "updateSurfaceTrafficCombat",
+      "file": "js/simulation/ai/enemy-ai.js",
+      "line": 178,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 199,
+          "offset": 1517,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "noteSurfaceGunfire",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 226,
+          "offset": 3293,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/battle-atmosphere.js",
+            "line": 66
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 235,
+          "offset": 4142,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineASW",
+      "name": "updateEscortBeh",
+      "file": "js/simulation/ai/escort-asw.js",
+      "line": 2,
+      "calls": []
+    },
+    {
+      "class": "SimEngineASW",
+      "name": "surfaceAction",
+      "file": "js/simulation/ai/escort-asw.js",
+      "line": 121,
+      "calls": [
+        {
+          "name": "noteSurfaceGunfire",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 130,
+          "offset": 680,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/battle-atmosphere.js",
+            "line": 66
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "applyShock",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 132,
+          "offset": 776,
+          "definedBy": {
+            "class": "SimEngineDamage",
+            "file": "js/simulation/damage-control.js",
+            "line": 80
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 133,
+          "offset": 912,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 134,
+          "offset": 1139,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineASW",
+      "name": "dropDC",
+      "file": "js/simulation/ai/escort-asw.js",
+      "line": 142,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 166,
+          "offset": 2205,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aarRecordEvent",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 167,
+          "offset": 2422,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 29
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 169,
+          "offset": 2779,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    },
+    {
+      "class": "SimEngineASW",
+      "name": "updateDCs",
+      "file": "js/simulation/ai/escort-asw.js",
+      "line": 172,
+      "calls": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 186,
+          "offset": 999,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "shake",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 206,
+          "offset": 2250,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 114
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 210,
+          "offset": 2565,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 211,
+          "offset": 2669,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "applyShock",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 213,
+          "offset": 2772,
+          "definedBy": {
+            "class": "SimEngineDamage",
+            "file": "js/simulation/damage-control.js",
+            "line": 80
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 213,
+          "offset": 2793,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 214,
+          "offset": 3135,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ]
+    }
+  ],
+  "callers": {
+    "SimEngineAircraft.airSurfaceTraceStrength": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAirSurfaceTrace",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 17,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 349,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.wearAirState": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "noteWearManualAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 76,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "startWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 83,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "abortWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 98,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 108,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.wearAirEligibility": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "noteWearManualAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 78,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "startWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 83,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 117,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 125,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.wearAirNotice": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "startWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 93,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "abortWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 104,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 119,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.abortWearAirRoutine": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 127,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 128,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 129,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 130,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateWearAirRoutine",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 148,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.noteWearManualAircraft": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "beginAircraftAttack",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 170,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 398,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.updateAirSurfaceTrace": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 269,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.beginAircraftAttack": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 347,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 355,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.startWearAirRoutine": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 396,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.airAttackDatumPosition": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 448,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.updateWearAirRoutine": [
+      {
+        "class": "SimEngineAircraft",
+        "name": "updateAircraft",
+        "file": "js/simulation/ai/aircraft.js",
+        "line": 533,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.ensureASWState": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "armASWProsecution",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 112,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "aswProsecutionExpiry",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 122,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "resetASWProsecution",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 134,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "noteASWCue",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 185,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "freshStrongASWCue",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 195,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "aswDatum",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 204,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "noteASWFix",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 217,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "loseASWContact",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 234,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "assignASWRoles",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 242,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "updateASWBrain",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 292,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "searchTarget",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 314,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "alertEscorts",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 88,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 127,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 163,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 3,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 52,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 101,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 101,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "dropDC",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 168,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineSensors",
+        "name": "updateLookouts",
+        "file": "js/simulation/sensors.js",
+        "line": 120,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineSensors",
+        "name": "updateSonar",
+        "file": "js/simulation/sensors.js",
+        "line": 136,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASWBrain.aswProsecutionLimits": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "armASWProsecution",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 112,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.armASWProsecution": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "aswProsecutionExpiry",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 126,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "alertEscorts",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 116,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 164,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASWBrain.convoyFrame": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "damagedGuardShip",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 152,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "damagedGuardShip",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 152,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "screenTarget",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 163,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "assignASWRoles",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 278,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 8,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 39,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 48,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.cueEstimate": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "noteASWCue",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 185,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.assignASWRoles": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "noteASWCue",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 190,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "noteASWFix",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 223,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "loseASWContact",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 237,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "updateASWBrain",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 296,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "updateASWBrain",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 298,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 138,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 165,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 18,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 87,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "dropDC",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 169,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineSensors",
+        "name": "updateLookouts",
+        "file": "js/simulation/sensors.js",
+        "line": 120,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngine",
+        "name": "materializePrimaryConvoy",
+        "file": "js/simulation/traffic-director.js",
+        "line": 150,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASWBrain.freshStrongASWCue": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "aswDatum",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 206,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "updateASWBrain",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 301,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.aswDatum": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "loseASWContact",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 236,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "assignASWRoles",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 263,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "assignASWRoles",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 272,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "updateASWBrain",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 309,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "searchTarget",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 314,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 56,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 79,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 88,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 91,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 97,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineSensors",
+        "name": "updateSonar",
+        "file": "js/simulation/sensors.js",
+        "line": 149,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASWBrain.damagedGuardShip": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "assignASWRoles",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 247,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "updateASWBrain",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 295,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.screenTarget": [
+      {
+        "class": "SimEngineASWBrain",
+        "name": "searchTarget",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 314,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASWBrain",
+        "name": "searchTarget",
+        "file": "js/simulation/ai/asw-brain.js",
+        "line": 316,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 8,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 36,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 48,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 56,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 79,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 88,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 92,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineEnemyAI.startMerchantEvasion": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "surfaceAttackObservers",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 41,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "maybeMerchantSpotTorpedo",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 82,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineEnemyAI.alertEscorts": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "maybeMerchantSpotTorpedo",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 83,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineCollision",
+        "name": "resolveSubShipCollision",
+        "file": "js/simulation/collision/vessel-collision.js",
+        "line": 144,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineCore",
+        "name": "applyCmd",
+        "file": "js/simulation/engine-core.js",
+        "line": 354,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineCore",
+        "name": "updateSeabed",
+        "file": "js/simulation/engine-core.js",
+        "line": 698,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineCore",
+        "name": "unbottom",
+        "file": "js/simulation/engine-core.js",
+        "line": 756,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngine",
+        "name": "updateMissionFramework",
+        "file": "js/simulation/mission-framework.js",
+        "line": 401,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngine",
+        "name": "updateMissionFramework",
+        "file": "js/simulation/mission-framework.js",
+        "line": 413,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineEnemyAI.surfaceAttackObservers": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "alertEscorts",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 92,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineEnemyAI.escortDirectlyNotices": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "alertEscorts",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 94,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineEnemyAI.surfaceAlarmRelayType": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "alertEscorts",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 99,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineEnemyAI.markEscortAlerted": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "alertEscorts",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 111,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 162,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineSensors",
+        "name": "updateLookouts",
+        "file": "js/simulation/sensors.js",
+        "line": 112,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASWBrain.noteASWCue": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "alertEscorts",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 115,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.aswProsecutionExpiry": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 128,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASWBrain.resetASWProsecution": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 140,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASWBrain.updateASWBrain": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 145,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASW.updateEscortBeh": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 146,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineEnemyAI.updateSurfaceTrafficCombat": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 147,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASW.updateDCs": [
+      {
+        "class": "SimEngineEnemyAI",
+        "name": "updateEnemyAI",
+        "file": "js/simulation/ai/enemy-ai.js",
+        "line": 169,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.damagedGuardTarget": [
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 13,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.searchTarget": [
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 56,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 79,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 92,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASW.dropDC": [
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 68,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 114,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASW.surfaceAction": [
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 71,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 82,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 98,
+        "kind": "direct"
+      },
+      {
+        "class": "SimEngineASW",
+        "name": "updateEscortBeh",
+        "file": "js/simulation/ai/escort-asw.js",
+        "line": 115,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineEnemyAI.updateEnemyAI": [
+      {
+        "class": "SimEngine",
+        "name": "updateSub",
+        "file": "js/simulation/physics-navigation.js",
+        "line": 161,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineAircraft.updateAircraft": [
+      {
+        "class": "SimEngine",
+        "name": "updateSub",
+        "file": "js/simulation/physics-navigation.js",
+        "line": 161,
+        "kind": "direct"
+      }
+    ],
+    "SimEngineASWBrain.noteASWFix": [
+      {
+        "class": "SimEngineSensors",
+        "name": "updateLookouts",
+        "file": "js/simulation/sensors.js",
+        "line": 118,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineSensors",
+        "name": "updateSonar",
+        "file": "js/simulation/sensors.js",
+        "line": 179,
+        "kind": "optional-direct"
+      },
+      {
+        "class": "SimEngineSensors",
+        "name": "updateSonar",
+        "file": "js/simulation/sensors.js",
+        "line": 194,
+        "kind": "optional-direct"
+      }
+    ],
+    "SimEngineASWBrain.loseASWContact": [
+      {
+        "class": "SimEngineSensors",
+        "name": "updateSonar",
+        "file": "js/simulation/sensors.js",
+        "line": 201,
+        "kind": "optional-direct"
+      }
+    ]
+  }
+}
