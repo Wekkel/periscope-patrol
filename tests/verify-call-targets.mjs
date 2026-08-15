@@ -3,7 +3,8 @@ import path from 'node:path';
 
 const root=path.resolve(process.argv[2]||'.');
 const graph=JSON.parse(await readFile(path.join(root,'tests','call-graph-current.json'),'utf8'));
-const systemClasses=new Set(['HarborSystem','WeatherSystem','SoundRadarSystem']);
+const systemClasses=new Set(['HarborSystem','WeatherSystem','SoundRadarSystem','TorpedoSystem','DeckGunSystem','AAGunSystem']);
+const newlyComposed=new Set(['TorpedoSystem','DeckGunSystem','AAGunSystem']);
 const systemMethods=new Map();
 for(const m of graph.methods){
   if(systemClasses.has(m.class)) systemMethods.set(m.name,m);
@@ -11,16 +12,33 @@ for(const m of graph.methods){
 const misses=[];
 const contextSource=await readFile(path.join(root,'js','simulation','system-context.js'),'utf8');
 const boundBySystem=new Map([...contextSource.matchAll(/for\(const name of \[([^\]]+)\]\)bindLeafMethod\(ctx,(HarborSystem|WeatherSystem|SoundRadarSystem),name\)/g)].map(m=>[m[2],new Set([...m[1].matchAll(/'([^']+)'/g)].map(x=>x[1]))]));
+const domainSystem=new Map([['harbor','HarborSystem'],['soundRadar','SoundRadarSystem'],['torpedoes','TorpedoSystem'],['deckGun','DeckGunSystem'],['aaGun','AAGunSystem']]);
+const adapterTargets=new Map([
+  ['navigation',new Set(['updateTdc'])],['impact',new Set(['captureShipState','offerObservation'])],
+  ['enemyAI',new Set(['maybeMerchantSpotTorpedo'])],['escorts',new Set(['alert'])],
+  ['damage',new Set(['applyShock'])],['deckOperations',new Set(['clearForDive'])],
+  ['mission',new Set(['checkObjectives'])]
+]);
 for(const m of graph.methods){
   if(systemClasses.has(m.class)){
     for(const c of m.callDetails||[]){
-      if(c.kind==='direct'&&c.relation==='system'&&!boundBySystem.get(m.class)?.has(c.name))
+      if(['direct','optional-direct'].includes(c.kind)&&c.relation==='system'&&!boundBySystem.get(m.class)?.has(c.name))
         misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:systemMethods.get(c.name)?.file||'unknown',reason:'system method is not bound into its runtime context'});
+      if(newlyComposed.has(m.class)&&['direct','optional-direct'].includes(c.kind)&&systemMethods.get(c.name)?.class===m.class)
+        misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:systemMethods.get(c.name).file,reason:'composed system calls its own method without an explicit sys facade'});
+      if(c.kind==='system-path'){
+        const domain=String(c.object||'').replace(/^this\.sys\./,'');
+        const targetClass=domainSystem.get(domain);
+        if(targetClass&&systemMethods.get(c.name)?.class!==targetClass)
+          misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:systemMethods.get(c.name)?.file||'unknown',reason:`sys.${domain} does not expose this system method`});
+        if(!targetClass&&!adapterTargets.get(domain)?.has(c.name))
+          misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:'unknown',reason:`undeclared sys.${domain} dependency`});
+      }
     }
     continue;
   }
   for(const c of m.callDetails||[]){
-    if(c.kind==='direct'&&c.relation==='unresolved'&&systemMethods.has(c.name))
+    if(['direct','optional-direct'].includes(c.kind)&&c.relation==='unresolved'&&systemMethods.has(c.name))
       misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:systemMethods.get(c.name).file});
   }
 }

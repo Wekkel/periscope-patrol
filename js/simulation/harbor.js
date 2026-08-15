@@ -353,7 +353,7 @@ const HarborSystem={
     }
     if(H.alert>=2&&sub.depthFeet<12&&rng<H.batteryRangeNm&&now-H.lastGunAt>11){
       H.lastGunAt=now;
-      this.recordHarborBatteryFire(H);
+      this.sys.harbor.recordHarborBatteryFire(H);
       if(this.scheduleCoastalBatteryShot){
         const shot=this.scheduleCoastalBatteryShot(H,harborWx);
         if(shot)this.log(`Coastal battery firing — muzzle flash, shell time of flight about ${(shot.impactAt-now).toFixed(1)} seconds.`,'warn');
@@ -365,7 +365,7 @@ const HarborSystem={
         const pHit=rangeF*rangeF*0.42*light*(1-harborWx.seaState*0.28);
         if(Math.random()<pHit){
           const dmg=5+Math.random()*12;
-          this.damage.applyShock(dmg);
+          this.sys.damage.applyShock(dmg);
           this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
           this.notify(`COASTAL BATTERY HIT — ${dmg.toFixed(0)}% damage. Get below the searchlights!`,'bad');
           PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,H.center),sub.heading,.9);
@@ -384,7 +384,7 @@ const HarborSystem={
         m.triggered=true;H.alert=2;H.suspicion=100;
         const I=this.ensureHarborIntel();if(I&&I.minefield.level==='NONE')I.minefield.level='OBSERVED';
         const dmg=38+Math.random()*28;
-        this.damage.applyShock(dmg);
+        this.sys.damage.applyShock(dmg);
         this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:12,label:'MINE'});
         this.captainLog?.('MINE_STRUCK','Mine struck.',{damage:Math.round(dmg)},`mine:${m.xNm.toFixed(4)}:${m.yNm.toFixed(4)}`);
         this.notify(`MINE! Underwater explosion — ${dmg.toFixed(0)}% damage. You are in mined water; get clear of the field.`,'bad');

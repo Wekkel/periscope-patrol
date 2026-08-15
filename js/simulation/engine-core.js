@@ -338,8 +338,8 @@ class SimEngineCore{
         const G=this.state.weapons.deckGun;
         G.elevationDeg=clamp(cmd.elevationDeg??G.elevationDeg??0,0,22);
         break;}
-      case'LAY_DECK_GUN': this.layDeckGun(); break;
-      case'FIRE_DECK_GUN': this.fireDeckGun(); break;
+      case'LAY_DECK_GUN': this.sys.deckGun.layDeckGun(); break;
+      case'FIRE_DECK_GUN': this.sys.deckGun.fireDeckGun(); break;
       case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); break;
       case'RADIO_TOGGLE_SILENCE':{
         const R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});R.txSilence=!R.txSilence;
@@ -421,8 +421,8 @@ class SimEngineCore{
         if(prevStation!==this.state.tactical.activeStation)PresentationBridge.audio(this.state).playStationSwitch?.();
         break;}
       case'ROTATE_SOUND': this.state.tactical.soundBearing=normDeg((this.state.tactical.soundBearing||sub.heading)+(cmd.deltaDeg||0)); break;
-      case'SOUND_MARK_BEARING': this.markSoundBearing?.(); break;
-      case'SOUND_ECHO_RANGE': this.echoRange?.(); break;
+      case'SOUND_MARK_BEARING': this.sys.soundRadar.markSoundBearing(); break;
+      case'SOUND_ECHO_RANGE': this.sys.soundRadar.echoRange(); break;
       case'TOGGLE_SOUND_DISPLAY':{
         this.ensureSoundRadarState?.();const R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),radarUi=sensorUi.surfaceSearchRadar||{};
         if(this.state.tactical.soundDisplay==='PASSIVE'){
@@ -455,10 +455,10 @@ class SimEngineCore{
         else this.log('Track lost.','warn');
         break;}
       case'TDC_SEND_SCOPE_OBSERVATION': this.sendScopeToTdc(); break;
-      case'FLOOD_TUBE': this.floodTube(cmd.tubeId); break;
-      case'FIRE_TORPEDO': this.fireTorpedo(cmd.tubeId); break;
-      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.floodTube(t.id,false); this.log('Forward tubes flooded and ready.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
-      case'FIRE_READY_SPREAD': this.fireSpread(); break;
+      case'FLOOD_TUBE': this.sys.torpedoes.floodTube(cmd.tubeId); break;
+      case'FIRE_TORPEDO': this.sys.torpedoes.fireTorpedo(cmd.tubeId); break;
+      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.sys.torpedoes.floodTube(t.id,false); this.log('Forward tubes flooded and ready.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
+      case'FIRE_READY_SPREAD': this.sys.torpedoes.fireSpread(); break;
       case'SET_TORPEDO_TYPE':{
         const spec=TORPEDO_SPECS[cmd.specKey];
         if(!spec) break;
@@ -491,9 +491,9 @@ class SimEngineCore{
         this.log(`TDC manual: B${fmtDeg(tdc.bearing)} R${tdc.rangeNm.toFixed(1)}nm C${fmtDeg(tdc.targetCourse)} S${tdc.targetSpeedKnots}kn → ${tdc.status} sol${Math.round(tdc.solutionQuality*100)}%`);
         break;}
       case'FLOOD_AFT_TUBES':
-        for(const t of this.state.weapons.tubes.filter(t=>t.pos==='AFT')) this.floodTube(t.id,false);
+        for(const t of this.state.weapons.tubes.filter(t=>t.pos==='AFT')) this.sys.torpedoes.floodTube(t.id,false);
         this.log('Aft tubes flooded.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
-      case'FIRE_AFT_SPREAD': this.fireSpreadByPos('AFT'); break;
+      case'FIRE_AFT_SPREAD': this.sys.torpedoes.fireSpreadByPos('AFT'); break;
       case'MAP_ADD_WAYPOINT':{
         const target=this.clampToArea({xNm:cmd.xNm,yNm:cmd.yNm}),plot=this.state.map.plottedCourse;
         if(!this.isNavigableMapPoint(target)){this.notify('WAYPOINT REFUSED — land or unsafe shoal. Tap navigable water.','warn');break;}

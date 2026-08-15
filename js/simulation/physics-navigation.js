@@ -154,11 +154,11 @@ class SimEngine extends SimEngineCareer {
       // destroyed boat is not an invisible 9-knot powered object in that world.
       sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.propulsion.chargeRate=0;sub.verticalSpeedFps=0;sub.maneuveringThrust=0;sub.rudder=0;
     }
-    if(this.sys?.weather)this.sys.weather.update(this.ctx,dt);else this.updateWeather?.(dt);
+    this.sys.weather.update(this.ctx,dt);
     this.updateTrafficDirector?.(dt);
-    this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); if(this.sys?.harbor)this.sys.harbor.update(this.ctx,dt);else this.updateHarbor?.(dt);
-    this.updateDetection(dt); if(this.sys?.soundRadar)this.sys.soundRadar.update(this.ctx,dt);else this.updateSoundRadar?.(dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.updateTorpedoes(dt); this.updateDeckGun(dt);
-    this.updateEnemyAI(dt); this.updateAircraft(dt); this.updateAAGun(dt); this.updateRadio(dt); this.updateMapState(dt);
+    this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.sys.harbor.update(this.ctx,dt);
+    this.updateDetection(dt); this.sys.soundRadar.update(this.ctx,dt); this.updateHarborKnowledge(dt); this.updateTdc(); this.sys.torpedoes.update(this.ctx,dt); this.sys.deckGun.update(this.ctx,dt);
+    this.updateEnemyAI(dt); this.updateAircraft(dt); this.sys.aaGun.update(this.ctx,dt); this.updateRadio(dt); this.updateMapState(dt);
     this.updateBattleAtmosphere?.(dt);
     this.updateMissionFramework?.(dt);
     if(!sunk&&this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length)this.steerWaypoint(false);

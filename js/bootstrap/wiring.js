@@ -39,7 +39,7 @@ globalThis.processPresentationEffects=()=>{
     if(e.type==='ui'&&e.payload.method==='resumeHide')document.getElementById('resumeBar')?.classList.remove('on');
   }
 };
-globalThis.skipImpactObservation=()=>{const p=game.state.runtime?.presentation;if(!p?.impactToken||performance.now()-Number(p.impactStartedWall||0)<900)return false;clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{const token=p.impactToken;game.dispatch({type:'END_IMPACT_OBSERVATION',token});p.impactToken=null;p.impactQueue=[];p.impactStartedWall=null;game.state.tactical.impactObservation=null;}return true;};
+globalThis.skipImpactObservation=()=>{const p=game.state.runtime?.presentation;if(!p?.impactToken||performance.now()-Number(p.impactStartedWall||0)<900)return false;clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{const token=p.impactToken;game.dispatch({type:'END_IMPACT_OBSERVATION',token});p.impactToken=null;p.impactQueue=[];p.impactStartedWall=null;}return true;};
 document.addEventListener('pointerdown',()=>globalThis.skipImpactObservation?.(),{capture:true});
 showBriefing(game.getSnapshot().campaign.patrolArea,game.getSnapshot());
 

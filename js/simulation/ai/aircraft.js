@@ -461,7 +461,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
           want=normDeg(bearingBetween(a.position,attackPoint)+a.orbitSign*(attackRng<.6?115:70));
         }else want=bearingBetween(a.position,attackPoint);
         if(attackRng<.35&&a.bombs>0&&a.runTimer<=0){
-          a.runTimer=30;a.bombs--;this.airAttack(a,sub,attackPoint);
+          a.runTimer=30;a.bombs--;this.sys.aaGun.airAttack(a,sub,attackPoint);
           a.attackRunHeading=a.heading;a.overflightTimer=6;
           // Decide what happens AFTER the straight-through pass. A submerged
           // target is never magically reacquired; subsequent orbiting uses only
@@ -487,7 +487,7 @@ class SimEngineAircraft extends SimEngineEnemyAI {
           const rat=clamp(a.rattled||0,0,1);
           this.log(`${a.name} is strafing — bullets all over the deck!`,'bad');
           this.shake(2.4); PresentationBridge.audio(this.state).playStrafe?.();
-          if(Math.random()<0.42*(1-rat*0.5)) this.aaCasualty('Machine-gun fire raking the bridge.');
+          if(Math.random()<0.42*(1-rat*0.5)) this.sys.aaGun.aaCasualty('Machine-gun fire raking the bridge.');
           else this.log('The burst went into the water alongside. The gun is still firing.','warn');
           if(a.passes>=2+Math.floor(Math.random()*2)){
             a.state='DEPARTING';this.log(`${a.name} is out of ammunition and turning away.`,'warn');

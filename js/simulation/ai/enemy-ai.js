@@ -1,4 +1,4 @@
-class SimEngineEnemyAI extends SimEngineTorpedoes {
+class SimEngineEnemyAI extends SimEngineCore {
   markEscortAlerted(esc){
     if(!esc?.id)return false;const e=this.state.world.enemy;
     const ids=new Set(Array.isArray(e.alertedEscortIds)?e.alertedEscortIds:[]);ids.add(esc.id);e.alertedEscortIds=[...ids];return true;
