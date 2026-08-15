@@ -158,7 +158,7 @@ class SimEngine extends SimEngineCareer {
     this.updateTrafficDirector?.(dt);
     this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.sys.harbor.update(this.ctx,dt);
     this.updateDetection(dt); this.sys.soundRadar.update(this.ctx,dt); this.sys.harbor.updateHarborKnowledge(dt); this.updateTdc(); this.sys.torpedoes.update(this.ctx,dt); this.sys.deckGun.update(this.ctx,dt);
-    this.updateEnemyAI(dt); this.sys.aircraft.update(this.ctx,dt); this.sys.aaGun.update(this.ctx,dt); this.updateRadio(dt); this.updateMapState(dt);
+    this.sys.enemyAI.update(this.ctx,dt); this.sys.aircraft.update(this.ctx,dt); this.sys.aaGun.update(this.ctx,dt); this.updateRadio(dt); this.updateMapState(dt);
     this.updateBattleAtmosphere?.(dt);
     this.updateMissionFramework?.(dt);
     if(!sunk&&this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length)this.steerWaypoint(false);

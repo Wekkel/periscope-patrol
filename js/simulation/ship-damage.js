@@ -250,7 +250,7 @@ function beginShipSinking(engine,c,reason='FLOODING'){
     }
   }
   if(c.harborTarget){engine.noteHarborAttack?.(c);if(engine.state.world.harbor){engine.state.world.harbor.alert=2;engine.state.world.harbor.suspicion=100;}}
-  if(!c.side||c.side==='ENEMY')engine.alertEscorts?.('SHIP_HIT',{...c.position},1);engine.checkMissionObjectives?.();
+  if(!c.side||c.side==='ENEMY')engine.sys.enemyAI.alertEscorts('SHIP_HIT',{...c.position},1);engine.checkMissionObjectives?.();
   return true;
 }
 

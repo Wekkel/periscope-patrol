@@ -1,8 +1,8 @@
-class SimEngineEnemyAI extends SimEngineCore {
+const EnemyAISystem={
   markEscortAlerted(esc){
     if(!esc?.id)return false;const e=this.state.world.enemy;
     const ids=new Set(Array.isArray(e.alertedEscortIds)?e.alertedEscortIds:[]);ids.add(esc.id);e.alertedEscortIds=[...ids];return true;
-  }
+  },
 
   startMerchantEvasion(c,threatPos,reason='ATTACK',direct=false){
     if(!c||c.sunk||c.stationary||c.harborTarget||isSurfaceCombatant(c)||(c.side&&c.side!=='ENEMY'))return false;
@@ -22,7 +22,7 @@ class SimEngineEnemyAI extends SimEngineCore {
       this.log(`${c.name} ${direct?'under direct attack':'has seen the attack'} — emergency turn and speed.`);
     }
     return true;
-  }
+  },
 
   surfaceAttackObservers(reason,pos,meta={}){
     const s=this.state,W=s.world,now=s.time.elapsedSeconds||0,out=[];
@@ -42,7 +42,7 @@ class SimEngineEnemyAI extends SimEngineCore {
       c.surfaceAlarmSeenAt=now;
     }
     return out;
-  }
+  },
 
   surfaceAlarmRelayType(from,esc,reason){
     if(!from?.convoyId||!esc?.convoyId||from.convoyId!==esc.convoyId)return null;
@@ -55,7 +55,7 @@ class SimEngineEnemyAI extends SimEngineCore {
     // routine suspicion never gets this long-range shortcut.
     if(['SHIP_HIT','TORPEDO_DUD','TORPEDO_SIGHTED','DECK_GUN'].includes(reason))return 'RADIO';
     return null;
-  }
+  },
 
   escortDirectlyNotices(reason,esc,pos,conf){
     const rng=distNm(esc.position,pos);
@@ -67,7 +67,7 @@ class SimEngineEnemyAI extends SimEngineCore {
       :reason==='TORPEDO_SIGHTED'?Math.min(2.5,visual*.45+.25)
       :reason==='TORPEDO_LAUNCH'?Math.min(4.5,2.2+(conf||0)*2.5):18;
     return rng<=limit;
-  }
+  },
 
   maybeMerchantSpotTorpedo(t,c,gap){
     if(!t||!c||c.sunk||c.stationary||c.harborTarget||isSurfaceCombatant(c)||(c.side&&c.side!=='ENEMY')||t.isElectric)return false;
@@ -82,7 +82,7 @@ class SimEngineEnemyAI extends SimEngineCore {
     this.startMerchantEvasion(c,t.position,'TORPEDO_SIGHTED',true);
     this.alertEscorts('TORPEDO_SIGHTED',{...c.position},.72,{sourceShipId:c.id});
     return true;
-  }
+  },
 
   alertEscorts(reason,pos,conf,meta={}){
     const W=this.state.world,e=W.enemy;this.sys.aswBrain.ensureASWState?.();
@@ -98,7 +98,7 @@ class SimEngineEnemyAI extends SimEngineCore {
       for(const o of observers){
         const via=this.surfaceAlarmRelayType(o.ship,esc,reason);if(!via)continue;
         relayed.push(esc);esc.lastAlarmVia=via;esc.lastAlarmFrom=o.ship.id;esc.lastAlarmAt=this.state.time.elapsedSeconds||0;
-        if(via==='VISUAL')this.noteTacticalSignal?.(o.ship,esc,true);
+        if(via==='VISUAL')this.sys.battleAtmosphere.noteTacticalSignal(o.ship,esc,true);
         break;
       }
     }
@@ -117,10 +117,10 @@ class SimEngineEnemyAI extends SimEngineCore {
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.searchCenter={xNm:q.xNm,yNm:q.yNm};
     e.searchPattern=reason==='SHIP_HIT'?'COORDINATED':['TORPEDO_LAUNCH','TORPEDO_SIGHTED'].includes(reason)?'CONVERGE':'CREEPING';e.searchPhase=0;
     const via=relayed.length&&!direct.length?(relayed[0].lastAlarmVia||'signal'):'local observation';
-    this.aarEnemyResponse?.(reason,{...q,confidence:conf,source:reason},localEscorts,via);
+    this.aar.enemyResponse(reason,{...q,confidence:conf,source:reason},localEscorts,via);
     this.log(`Escort screen alerted by ${reason} via ${via}; datum uncertainty about ${Math.round((q.errNm||.1)*2025)} yd.`);
     return true;
-  }
+  },
 
 
   updateEnemyAI(dt){
@@ -142,10 +142,10 @@ class SimEngineEnemyAI extends SimEngineCore {
       const camp=this.state.campaign,evade=camp.objectives?.find?.(o=>o.id==='evade')||(!camp.missionType?camp.objectives?.[2]:null);
       if(evade)evade.done=true;
     }
-    e.searchPhase=(e.searchPhase||0)+dt;this.sys.aswBrain.updateASWBrain?.(dt);this.updateSonar(dt);
+    e.searchPhase=(e.searchPhase||0)+dt;this.sys.aswBrain.updateASWBrain?.(dt);this.sys.sensors.updateSonar(dt);
     const escorts=W.contacts.filter(c=>isASWCombatant(c));escorts.forEach((esc,i)=>this.sys.asw.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
     this.updateSurfaceTrafficCombat?.(dt);
-    this.updateLookouts(dt);
+    this.sys.sensors.updateLookouts(dt);
 
     // Passive listening may wake the screen, but it creates a deliberately
     // rough bearing/range datum. It never writes ownship's exact position into
@@ -167,7 +167,7 @@ class SimEngineEnemyAI extends SimEngineCore {
       }
     }
     this.sys.asw.updateDCs(dt);
-  }
+  },
 
   /* Local surface traffic combat. This is deliberately not a second naval
      warfare simulator: only already-materialised ships inside the player's
@@ -223,7 +223,7 @@ class SimEngineEnemyAI extends SimEngineCore {
       const size=clamp(shipVisualLengthM(target,280)/120,.55,1.35),sea=clamp(wx.seaState||0,0,1);
       const pHit=Math.pow(clamp(1-best/gunRange,0,1),1.15)*(.34+.34*day)*size*(1-sea*.34)*clamp(wx.visibilityNm/8,.35,1.15);
       const hit=Math.random()<clamp(pHit,.025,.62);
-      this.noteSurfaceGunfire?.(h,target,hit);
+      this.sys.battleAtmosphere.noteSurfaceGunfire(h,target,hit);
       if(hit){
         const lenNm=shipVisualLengthNm(target,280),along=(Math.random()-.5)*lenNm*.72;
         const dmg=applyDeckGunShipDamage(this,target,{lenNm,along,lateral:0,z:3+Math.random()*8,source:'NPC_SURFACE_GUN',attackerId:h.id,attackerSide:'ENEMY'});

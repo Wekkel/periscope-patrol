@@ -354,7 +354,7 @@ class SimEngineCore{
       case'RADIO_ACCEPT_PARTIAL': this.acceptPartialRadio?.(); break;
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
-        this.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); break;
+        this.sys.enemyAI.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); break;
       case'TOGGLE_DAMAGE_CONTROL':
         this.notify(`Damage control parties are automatic. Choose one repair priority instead — currently ${repairPriorityLabel(sub.damage.repairPriority)}.`,'ok'); break;
       case'SET_REPAIR_PRIORITY': this.setRepairPriority(cmd.priority); break;
@@ -699,7 +699,7 @@ class SimEngineCore{
         sub.propulsion.speedKnots*=0.25;
         this.applyShock(dmg);
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.7,0,1.5);
-        this.alertEscorts('NOISE',{...sub.position},0.8);
+        this.sys.enemyAI.alertEscorts('NOISE',{...sub.position},0.8);
         this.notify(`SHE IS ON THE BOTTOM — ${sub.bottomType.toLowerCase()} at ${sea.toFixed(0)} ft, ${spd.toFixed(1)} kn. Hull damage ${dmg.toFixed(0)}%. Every escort in the sea heard that.`,'bad');
       }else{
         this.bottomOut(sub,sea,false);
@@ -757,7 +757,7 @@ class SimEngineCore{
     if(s>0.34){
       this.notify('Blowing her off the bottom — she comes free with a rush of air. That was heard.','bad');
       sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55+s*0.5,0,1.5);
-      this.alertEscorts('NOISE',{...sub.position},0.55+s*0.4);
+      this.sys.enemyAI.alertEscorts('NOISE',{...sub.position},0.55+s*0.4);
     }else{
       this.notify('Off the bottom, quietly. Planes and screws answering again.','ok');
     }

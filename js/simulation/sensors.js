@@ -109,7 +109,7 @@ class SimEngineSensors extends SimEngineIntel {
     const now=this.state.time.elapsedSeconds;if(anySeen)e.visualHoldUntil=now+25;
     e.visualOnSub=now<(e.visualHoldUntil||0)&&sub.depthFeet<30;e.periscopeSighted=now<(e.visualHoldUntil||0)&&sub.depthFeet>=30;
     if(anySeen){
-      const {esc,r,what}=nearestSeen,hull=sub.depthFeet<30,err=hull?.02:.055;this.markEscortAlerted?.(esc);
+      const {esc,r,what}=nearestSeen,hull=sub.depthFeet<30,err=hull?.02:.055;this.sys.enemyAI.markEscortAlerted(esc);
       e.solution={xNm:sub.position.xNm+(Math.random()-.5)*2*err,yNm:sub.position.yNm+(Math.random()-.5)*2*err,
         courseDeg:normDeg(sub.heading+(hull?(Math.random()-.5)*5:(Math.random()-.5)*40)),speedKn:clamp(sub.propulsion.speedKnots*(.88+Math.random()*.24),0,12),
         depthFt:hull?clamp(sub.depthFeet+(Math.random()-.5)*8,0,40):sub.depthFeet+(Math.random()-.5)*50,errNm:err,ageSec:0,source:'VISUAL'};
