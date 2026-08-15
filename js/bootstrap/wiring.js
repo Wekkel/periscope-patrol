@@ -34,7 +34,8 @@ globalThis.processPresentationEffects=()=>{
     if(e.type==='ui'&&e.payload.method==='resumeHide')document.getElementById('resumeBar')?.classList.remove('on');
   }
 };
-document.addEventListener('pointerdown',()=>{const p=game.state.runtime?.presentation;if(p?.impactToken){clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{p.impactToken=null;game.state.tactical.impactObservation=null;game.dispatch({type:'END_IMPACT_OBSERVATION',token:0});}}},{capture:true});
+globalThis.skipImpactObservation=()=>{const p=game.state.runtime?.presentation;if(!p?.impactToken||performance.now()-Number(p.impactStartedWall||0)<900)return false;clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{p.impactToken=null;game.state.tactical.impactObservation=null;game.dispatch({type:'END_IMPACT_OBSERVATION',token:0});}return true;};
+document.addEventListener('pointerdown',()=>globalThis.skipImpactObservation?.(),{capture:true});
 showBriefing(game.getSnapshot().campaign.patrolArea,game.getSnapshot());
 
 // keep the canvas backing store in sync with its box
@@ -119,6 +120,7 @@ function closeTopUiLayer(){
 // global keyboard shortcuts
 window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
+  if(k===' '&&game.state.runtime?.presentation?.impactToken){e.preventDefault();globalThis.skipImpactObservation?.();return;}
   if(k==='escape'){
     if(closeTopUiLayer())e.preventDefault();
     return;
