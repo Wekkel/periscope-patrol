@@ -106,7 +106,8 @@ const SHELL = [
   './js/audio/audio-director.js',
   './js/data/game-catalog.js',
   './js/data/pacific-terrain-data.js',
-  './js/data/multi-theater-campaigns.js'
+  './js/data/multi-theater-campaigns.js',
+  './js/rendering/optics.js'
 ];
 
 const OPTIONAL_SHELL = new Set([
