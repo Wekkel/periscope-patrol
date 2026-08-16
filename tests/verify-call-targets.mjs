@@ -1,8 +1,17 @@
-import {readFile} from 'node:fs/promises';
+import {readFile,readdir} from 'node:fs/promises';
 import path from 'node:path';
 
 const root=path.resolve(process.argv[2]||'.');
 const graph=JSON.parse(await readFile(path.join(root,'tests','call-graph-current.json'),'utf8'));
+async function simulationFiles(dir='js/simulation'){
+  const out=[];
+  for(const entry of await readdir(path.join(root,dir),{withFileTypes:true})){
+    const relative=path.join(dir,entry.name).split(path.sep).join('/');
+    if(entry.isDirectory())out.push(...await simulationFiles(relative));
+    else if(entry.name.endsWith('.js'))out.push(relative);
+  }
+  return out;
+}
 const systemClasses=new Set(['HarborSystem','WeatherSystem','SoundRadarSystem','IntelSystem','SensorsSystem','TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem','ASWSystem','EnemyAISystem','CollisionSystem','DamageSystem','CareerSystem']);
 const newlyComposed=new Set(['IntelSystem','SensorsSystem','TorpedoSystem','DeckGunSystem','AAGunSystem','AircraftSystem','ASWBrainSystem','ASWSystem','EnemyAISystem','CollisionSystem','DamageSystem','CareerSystem']);
 const systemMethods=new Map();
@@ -13,6 +22,23 @@ const definitionsByName=new Map();
 for(const m of graph.methods){if(!definitionsByName.has(m.name))definitionsByName.set(m.name,[]);definitionsByName.get(m.name).push(m);}
 const sharedContextNames=new Set(['log','notify','shake','captainLog','isNavigableMapPoint','ensureBattleAtmosphereState','friendlyPortNav','clearDeckForDive','derivMode','ensureSoundRadarState','stopAutomaticTimeCompression']);
 const misses=[];
+
+// A free helper can receive either the SimEngine instance or a composed system
+// context. Direct `engine.ctx.*` access is therefore unsafe unless the helper's
+// contract explicitly guarantees a SimEngine. This catches the failure mode
+// that ordinary method-target resolution cannot see: the property name exists,
+// but the receiver's `ctx` is undefined on the active path.
+const contextPropertyAllowlist=new Map([
+  ['js/simulation/mission-framework.js',new Set(['captainLog'])]
+]);
+for(const file of await simulationFiles()){
+  const source=await readFile(path.join(root,file),'utf8');
+  for(const match of source.matchAll(/\b([A-Za-z_$][\w$]*)\.ctx\.([A-Za-z_$][\w$]*)\b/g)){
+    if(match[1]==='this')continue;
+    const allowed=contextPropertyAllowlist.get(file)?.has(match[2]);
+    if(!allowed)misses.push({file,line:source.slice(0,match.index).split(/\r?\n/).length,caller:`${match[1]}.ctx`,name:match[2],definedBy:'context-property',reason:'free helper reads a context property from a polymorphic receiver; use the explicit context service instead'});
+  }
+}
 // Parser limitation allowlist: these are control-flow labels or methods in
 // scopes the legacy graph parser does not associate with a class definition.
 const missingDirectAllowlist=new Set(['refreshScopeVisualContacts','safeUpdate']);

@@ -208,6 +208,10 @@ function _shipSinkStyle(c,D){
   if(frac<-.22)return 1;
   return _shipHash01(`${c.id}:${D.lastWeaponId||D.hitCount}:sink`)<.58?2:3;
 }
+function shipCaptainLog(engine,...args){
+  const captainLog=engine?.captainLog||engine?.ctx?.captainLog;
+  return captainLog?.(...args);
+}
 function beginShipSinking(engine,c,reason='FLOODING'){
   if(!c||c.sunk)return false;
   const D=ensureShipDamage(c),now=engine.state.time.elapsedSeconds||0,W=engine.state.weapons,camp=engine.state.campaign;
@@ -229,13 +233,13 @@ function beginShipSinking(engine,c,reason='FLOODING'){
         if(known){
           engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name} sunk by enemy surface gunfire.`,'warn', 'KRITIEK');
           engine.log(`${c.name} is sinking under enemy gunfire. No player penalty or enemy tonnage credited.`,'warn');
-          engine.ctx.captainLog?.('FRIENDLY_LOST_TO_ENEMY',`${c.name} lost to enemy surface gunfire.`,{contactId:c.id,type:c.displayType||c.type,attackerId:D.lastAttackerId},`friendly-enemy-loss:${c.id}`);
+        shipCaptainLog(engine,'FRIENDLY_LOST_TO_ENEMY',`${c.name} lost to enemy surface gunfire.`,{contactId:c.id,type:c.displayType||c.type,attackerId:D.lastAttackerId},`friendly-enemy-loss:${c.id}`);
         }
       }else{
         const pts=side==='FRIENDLY'?-2500:-1000;camp.score+=pts;D.killCredited=true;D.killPoints=pts;
         engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name}. ${pts.toLocaleString()} pts.`,'bad', 'KRITIEK');
         engine.log(`${c.name} is sinking — ${side.toLowerCase()} traffic hit. No enemy tonnage credited.`,'bad');
-        engine.ctx.captainLog?.(side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
+        shipCaptainLog(engine,side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
       }
     }else{
       const combatant=typeof isSurfaceCombatant==='function'&&isSurfaceCombatant(c);
@@ -246,11 +250,17 @@ function beginShipSinking(engine,c,reason='FLOODING'){
       D.killCredited=true;D.killPoints=pts;
       engine.notify(`${D.lastWeapon==='DECK_GUN'?'DECK GUN':'TORPEDO DAMAGE'} — ${c.name} is going down. +${pts} pts.`,'ok', 'KRITIEK');
       engine.log(`${c.name} is sinking — ${reason.toLowerCase()}. ${camp.tonnageSunk.toLocaleString()} tons sunk.`,'bad');
-      engine.ctx.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:D.lastWeapon||'DAMAGE'},`sunk:${c.id}`);
+      shipCaptainLog(engine,'SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:D.lastWeapon||'DAMAGE'},`sunk:${c.id}`);
     }
   }
-  if(c.harborTarget){engine.noteHarborAttack?.(c);if(engine.state.world.harbor){engine.state.world.harbor.alert=2;engine.state.world.harbor.suspicion=100;}}
-  if(!c.side||c.side==='ENEMY')engine.sys.enemyAI.alertEscorts('SHIP_HIT',{...c.position},1);engine.checkMissionObjectives?.();
+  if(c.harborTarget){
+    if(engine.sys?.harbor?.noteHarborAttack)engine.sys.harbor.noteHarborAttack(c);
+    else engine.noteHarborAttack?.(c);
+    if(engine.state.world.harbor){engine.state.world.harbor.alert=2;engine.state.world.harbor.suspicion=100;}
+  }
+  if(!c.side||c.side==='ENEMY')engine.sys?.enemyAI?.alertEscorts?.('SHIP_HIT',{...c.position},1);
+  if(engine.sys?.mission?.checkObjectives)engine.sys.mission.checkObjectives();
+  else engine.checkMissionObjectives?.();
   return true;
 }
 
