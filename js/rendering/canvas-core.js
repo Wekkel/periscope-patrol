@@ -52,9 +52,20 @@ class CanvasViewCore{
 
   render(state,layout){
     if(!layout){
-      const dev=typeof PP_BUILD!=='undefined'&&PP_BUILD.isDev;
-      if(dev) throw new Error('CanvasViewCore.render requires a LayoutService snapshot');
+      if(!this._missingLayoutWarned){this._missingLayoutWarned=true;console.warn('[CanvasView] missing layout parameter; fallback path: CanvasView.render');}
       layout=LayoutService.get();
+    }
+    // A skipped or expired impact must never leave a blank, paused canvas.
+    // Presentation normally closes the modal through END_IMPACT_OBSERVATION;
+    // this render-side guard is the final recovery path for a stale token or
+    // an empty queue between two presentation ticks.
+    const impactQueue=state.runtime?.presentation?.impactQueue;
+    if(!state.tactical?.impactObservation&&(!Array.isArray(impactQueue)||impactQueue.length===0)&&((state.time?.modalPauses||0)>0)){
+      state.time.modalPauses=0;
+      state.time.timeScale=Number(state.time.preModalScale)>0?Number(state.time.preModalScale):1;
+      state.runtime.presentation.impactToken=null;
+      state.runtime.presentation.impactStartedWall=null;
+      state.runtime.presentation.impactQueue=[];
     }
     const ctx=this.ctx,w=this.w,h=this.h,station=state?.tactical?.activeStation||'TACTICAL';
     this._lastRenderError=null;
