@@ -1,4 +1,7 @@
-class SimEngine extends SimEngineCore {
+class SimEngine {
+  constructor(state,bus){
+    CoreSystem.constructor.call(this,state,bus);
+  }
   snapshotWatch(){
     const s=this.state,tracks=s.world.contactTracks||{},contacts=s.world.contacts||[],now=s.time.elapsedSeconds;
     const ids=Object.keys(tracks),byId=new Map(contacts.map(c=>[c.id,c]));
@@ -824,4 +827,11 @@ class SimEngine extends SimEngineCore {
     this.state.log.unshift({t:this.state.time.elapsedSeconds,level,message:msg});
     this.state.log=this.state.log.slice(0,100);
   }
+}
+
+// Core is composed into the public facade after SimEngine's navigation
+// methods are defined. The facade keeps the stable public constructor while
+// the simulation services no longer form an inheritance chain.
+for(const [name,method] of Object.entries(CoreSystem)){
+  if(name!=='constructor')SimEngine.prototype[name]=method;
 }

@@ -189,9 +189,9 @@ function resolveCall(caller, call) {
 }
 
 for (const method of methods) method.callDetails = method.calls.map(call => resolveCall(method, call));
-const update = methods.find(method => method.class === 'SimEngineCore' && method.name === 'update');
+const update = methods.find(method => (method.class === 'CoreSystem' || method.class === 'SimEngineCore') && method.name === 'update');
 const updateSub = methods.find(method => method.class === 'SimEngine' && method.name === 'updateSub');
-if (!update || !updateSub) throw new Error('Could not locate SimEngineCore.update() and SimEngine.updateSub().');
+if (!update || !updateSub) throw new Error('Could not locate CoreSystem.update()/SimEngineCore.update() and SimEngine.updateSub().');
 const updateSystemNames = new Map([
   ['this.sys.weather.update', 'updateWeather'],
   ['this.sys.harbor.update', 'updateHarbor'],

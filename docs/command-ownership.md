@@ -1,0 +1,79 @@
+# Command ownership — Step 7 pre-refactor inventory
+
+Generated from the 71-command smoke inventory in `tests/boot-harness.mjs`. The central dispatcher remains in `CoreSystem.applyCmd`; the owner column records the domain handler responsible for each command path.
+
+| # | Command | Owner |
+|---:|---|---|
+| 1 | `PAUSE_FOR_MODAL` | CoreSystem |
+| 2 | `RESUME_FROM_MODAL` | CoreSystem |
+| 3 | `END_IMPACT_OBSERVATION` | CoreSystem |
+| 4 | `PLAY_AUDIO` | CoreSystem |
+| 5 | `APPEND_LOG` | CoreSystem |
+| 6 | `SET_ORDERED_HEADING` | CoreSystem |
+| 7 | `SET_ENGINE_RPM` | CoreSystem |
+| 8 | `SET_ORDERED_DEPTH` | CoreSystem |
+| 9 | `SURFACE` | CoreSystem |
+| 10 | `DIVE` | CoreSystem |
+| 11 | `PERISCOPE_DEPTH` | CoreSystem |
+| 12 | `CRASH_DIVE` | CoreSystem |
+| 13 | `TOGGLE_AIR_WARNING_RADAR` | CoreSystem |
+| 14 | `TOGGLE_SD_RADAR` | CoreSystem |
+| 15 | `BOTTOM_OUT` | CoreSystem |
+| 16 | `TOGGLE_AA_GUN` | AAGunSystem |
+| 17 | `TOGGLE_DECK_GUN` | DeckGunSystem |
+| 18 | `ADJUST_DECK_GUN` | DeckGunSystem |
+| 19 | `SET_DECK_GUN_ELEVATION` | DeckGunSystem |
+| 20 | `LAY_DECK_GUN` | DeckGunSystem |
+| 21 | `FIRE_DECK_GUN` | DeckGunSystem |
+| 22 | `TOGGLE_SILENT_RUNNING` | CoreSystem |
+| 23 | `RADIO_TOGGLE_SILENCE` | IntelSystem |
+| 24 | `RADIO_AUTHORIZE_REPORT` | IntelSystem |
+| 25 | `RADIO_ACCEPT_PARTIAL` | IntelSystem |
+| 26 | `EMERGENCY_BLOW` | CoreSystem |
+| 27 | `TOGGLE_DAMAGE_CONTROL` | DamageSystem |
+| 28 | `SET_REPAIR_PRIORITY` | DamageSystem |
+| 29 | `TOGGLE_PUMPS` | DamageSystem |
+| 30 | `START_TRANSIT` | CoreSystem |
+| 31 | `STOP_TRANSIT` | CoreSystem |
+| 32 | `SET_TIME_SCALE` | CoreSystem |
+| 33 | `CYCLE_TIME_SCALE` | CoreSystem |
+| 34 | `SET_ACTIVE_STATION` | CoreSystem |
+| 35 | `ROTATE_SOUND` | SoundRadarSystem |
+| 36 | `SOUND_MARK_BEARING` | SoundRadarSystem |
+| 37 | `SOUND_ECHO_RANGE` | SoundRadarSystem |
+| 38 | `TOGGLE_SOUND_DISPLAY` | SoundRadarSystem |
+| 39 | `ROTATE_BRIDGE` | CoreSystem |
+| 40 | `TOGGLE_BRIDGE_BINOCULARS` | CoreSystem |
+| 41 | `SET_BRIDGE_ZOOM` | CoreSystem |
+| 42 | `BRIDGE_MARK_CONTACT` | CoreSystem |
+| 43 | `BRIDGE_TARGET_CENTER` | CoreSystem |
+| 44 | `BRIDGE_TARGET_CONTACT` | CoreSystem |
+| 45 | `ROTATE_PERISCOPE` | CoreSystem |
+| 46 | `SET_PERISCOPE_ZOOM` | CoreSystem |
+| 47 | `TOGGLE_PERISCOPE_ZOOM` | CoreSystem |
+| 48 | `PERISCOPE_SELECT_CENTER_CONTACT` | CoreSystem |
+| 49 | `DESELECT_TRACK` | CoreSystem |
+| 50 | `SELECT_TRACK` | CoreSystem |
+| 51 | `TDC_SEND_SCOPE_OBSERVATION` | CoreSystem |
+| 52 | `FLOOD_TUBE` | TorpedoSystem |
+| 53 | `FIRE_TORPEDO` | TorpedoSystem |
+| 54 | `FLOOD_ALL_TUBES` | TorpedoSystem |
+| 55 | `FIRE_READY_SPREAD` | TorpedoSystem |
+| 56 | `SET_TORPEDO_TYPE` | CoreSystem |
+| 57 | `SET_DUD_MODE` | CoreSystem |
+| 58 | `SET_TORPEDO_DEPTH` | CoreSystem |
+| 59 | `SET_TDC_MANUAL` | CoreSystem |
+| 60 | `APPLY_TDC_MANUAL` | CoreSystem |
+| 61 | `FLOOD_AFT_TUBES` | TorpedoSystem |
+| 62 | `FIRE_AFT_SPREAD` | TorpedoSystem |
+| 63 | `MAP_ADD_WAYPOINT` | CoreSystem |
+| 64 | `MAP_REMOVE_WAYPOINT` | CoreSystem |
+| 65 | `TOGGLE_AUTOPILOT` | CoreSystem |
+| 66 | `MAP_CLEAR_PLOT` | CoreSystem |
+| 67 | `PLOT_INTERCEPT_ADVISORY` | CoreSystem |
+| 68 | `TOGGLE_MAP_WEATHER` | CoreSystem |
+| 69 | `MAP_STEER_TO_NEXT_WAYPOINT` | CoreSystem |
+| 70 | `HEAD_TO_PORT` | CoreSystem |
+| 71 | `NEW_PATROL` | CoreSystem |
+
+Total: **71** command types.
