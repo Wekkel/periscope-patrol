@@ -38,9 +38,10 @@ globalThis.processPresentationEffects=()=>{
       if(e.payload.method==='clear'||e.payload.method==='dismissRole'){Toast[e.payload.method]?.(...args);continue;}
       if(importance==='RUIS')continue;
       const rt=game.state.runtime||(game.state.runtime={}),now=performance.now(),bucket=rt.toastBudget||(rt.toastBudget={window:now,count:0,skipped:0});
-      if(now-bucket.window>2500){bucket.window=now;bucket.count=0;if(bucket.skipped){Toast.warn(`${bucket.skipped} meldingen overgeslagen tijdens drukte.`);bucket.skipped=0;}}
-      if(importance==='NUTTIG'&&bucket.count>=3){bucket.skipped=(bucket.skipped||0)+1;continue;}
-      if(bucket.skipped){Toast.warn(`${bucket.skipped} meldingen overgeslagen tijdens drukte.`);bucket.skipped=0;}
+      const inTransit=!!game.state.time?.transitUntil;
+      if(now-bucket.window>2500){bucket.window=now;bucket.count=0;if(bucket.skipped&&!inTransit){Toast.warn('Additional notifications were suppressed while the bridge was busy.');bucket.skipped=0;}else if(inTransit)bucket.skipped=0;}
+      if(importance==='NUTTIG'&&bucket.count>=3){if(inTransit)bucket.skipped=0;else bucket.skipped=(bucket.skipped||0)+1;continue;}
+      if(bucket.skipped&&!inTransit){Toast.warn('Additional notifications were suppressed while the bridge was busy.');bucket.skipped=0;}
       if(importance!=='KRITIEK')bucket.count++;
       Toast[e.payload.method]?.(...(opts&&typeof opts==='object'?args.slice(0,-1):args));continue;
     }

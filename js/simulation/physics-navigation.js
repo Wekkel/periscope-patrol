@@ -649,7 +649,7 @@ class SimEngine extends SimEngineCore {
       map.visibilityFootprint={at:t,mode:surf?'LOOKOUT':scope?'SCOPE':'NONE',points:pts,origin:{...sub.position}};
     }
     if(map.plottedCourse.length&&distNm(sub.position,map.plottedCourse[0])<0.22){
-      map.plottedCourse.shift(); this.log('Waypoint reached.'); PresentationBridge.audio(this.state).event?.('WAYPOINT_REACHED');
+      map.plottedCourse.shift(); this.log('Waypoint reached.'); this.notify('Waypoint reached.','ok','KRITIEK'); PresentationBridge.audio(this.state).event?.('WAYPOINT_REACHED');
     }
   }
 

@@ -377,7 +377,7 @@
       animation:toastIn .18s ease-out,toastOut .3s ease-in var(--toast-hold,2s) forwards;}
     .toast.ok{border-color:var(--ok);color:var(--ok);}
     .toast.warn{border-color:var(--alert);color:var(--alert);}
-    .toast.bad{border-color:var(--danger);color:var(--danger);}
+    .toast.bad{border-color:#ef8f86;color:#ef8f86;}
     .action-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;text-align:left;}
     .impact-action-toast{order:-20;border-width:2px;box-shadow:0 5px 22px rgba(0,0,0,.78),0 0 0 1px rgba(245,198,92,.14) inset;}
     .action-toast span{flex:1;min-width:0;}

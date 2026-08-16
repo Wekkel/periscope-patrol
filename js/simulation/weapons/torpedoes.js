@@ -26,7 +26,8 @@ const TorpedoSystem={
     const tdc=this.state.tdc; const sub=this.state.playerSub;
     const W=this.state.weapons;
     if(!t||t.status!=='READY'){this.notify(`Tube ${id} is not ready — flood a loaded tube or wait for reload.`,'warn', 'NUTTIG');return;}
-    if(!tdc.targetId||tdc.gyroAngle===null||tdc.solutionQuality<0.25){this.notify(`TDC solution ${Math.round((tdc.solutionQuality||0)*100)}% — obtain a bearing/range plot and build at least 25% before firing.`,'warn', 'NUTTIG');return;}
+    if(!tdc.targetId){this.notify('No torpedo target selected — select a contact before firing.','warn','NUTTIG');return;}
+    if(tdc.gyroAngle===null||tdc.solutionQuality<0.25){this.notify(`TDC solution ${Math.round((tdc.solutionQuality||0)*100)}% — obtain a bearing/range plot and build at least 25% before firing.`,'warn', 'NUTTIG');return;}
     if(sub.depthFeet>160){this.notify(`Too deep to fire at ${Math.round(sub.depthFeet)} ft — come above 160 ft.`,'warn', 'NUTTIG');return;}
 
     const spec=TORPEDO_SPECS[tdc.torpedoSpecKey];
@@ -325,7 +326,8 @@ const TorpedoSystem={
               const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));
               const sum=shipDamageSummary(c);
               this.log(`${t.id} HIT ${c.name} ${dmg.location.toLowerCase()} (track ${incidence.toFixed(0)}°) — ${condition}. ${sum}.`,'bad');
-              this.notify(`TORPEDO HIT — ${c.name}: ${condition}${speedCap>0?` · estimated max ${speedCap.toFixed(1)} kn`:''}.`,'bad', 'KRITIEK');
+              // The impact action toast is the player-facing hit report; it
+              // includes VIEW IMPACT and is emitted for every torpedo hit.
             }
             this.sys.mission.checkObjectives();
           }

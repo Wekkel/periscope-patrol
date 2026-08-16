@@ -46,6 +46,8 @@ class SimEngineCore{
   startImpactObservation(snapshot){
     if(!snapshot)return false;
     const s=this.state,token=snapshot.token||++this._impactSeq,active=!!s.tactical.impactObservation;
+    const queue=s.runtime?.presentation?.impactQueue||[];
+    if(s.tactical?.impactObservation?.token===token||queue.some(item=>item?.token===token))return true;
     // Keep at most three impact views total: one active plus two waiting.
     const queued=active&&((s.runtime?.presentation?.impactQueue||[]).length>=2);
     if(queued)return false;
@@ -56,10 +58,10 @@ class SimEngineCore{
   offerImpactObservation(c,meta={}){
     const snap=this.impactObservationSnapshot(c,meta);if(!snap)return false;
     const station=this.state.tactical.activeStation;
-    if(station==='PERISCOPE'||station==='BRIDGE')return this.startImpactObservation(snap);
     const msg=`${String(meta.weapon||'TORPEDO').replace(/_/g,' ')} HIT — ${c.name||c.id}${meta.location?` ${String(meta.location).toLowerCase()}`:''}.`;
-    PresentationBridge.toast(this.state).action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),18000,'ok');return true;
-    return false;
+    if(station==='PERISCOPE'||station==='BRIDGE')this.startImpactObservation(snap);
+    PresentationBridge.toast(this.state).action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),18000,'ok',`impact-action-${snap.token}`,{importance:'KRITIEK'});
+    return true;
   }
 
   offerLossAar(record){
