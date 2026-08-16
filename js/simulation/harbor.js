@@ -170,15 +170,15 @@ const HarborSystem={
     if(I.channel.level==='NONE') I.channel.level='REPORTED';
     this.refreshHarborOptionalObjective();
     const H=this.state.world.harbor;
-    this.notify(`OPTIONAL OBJECTIVE — Penetrate ${H.name} through the swept approach and identify the reported heavy unit. Visual sightings from outside the torpedo net do not complete the intelligence objective. No penalty if you decline.`,'warn');
-    this.notify('CHART UPDATED — Reported mine belt and swept approach plotted. Keep near the centerline; the passage is charted deep enough for submerged approach. The intelligence objective requires entry inside the torpedo net. Gate not yet located.','warn');
+    this.notify(`OPTIONAL OBJECTIVE — Penetrate ${H.name} through the swept approach and identify the reported heavy unit. Visual sightings from outside the torpedo net do not complete the intelligence objective. No penalty if you decline.`,'warn', 'KRITIEK');
+    this.notify('CHART UPDATED — Reported mine belt and swept approach plotted. Keep near the centerline; the passage is charted deep enough for submerged approach. The intelligence objective requires entry inside the torpedo net. Gate not yet located.','warn', 'KRITIEK');
     return true;
   },
 
   revealHarborNet(source='VISUAL'){
     const I=this.ensureHarborIntel();if(!I||I.net.known) return false;
     I.net.known=true;I.net.discoveredAt=this.state.time.elapsedSeconds;I.net.source=source;
-    const H=this.state.world.harbor;this.notify(`MAP UPDATED — torpedo net identified at the ${H.shortName} entrance${source==='CONTACT'?' by close contact':''}. The observed gate is now marked separately from the swept mine approach.`,'warn');
+    const H=this.state.world.harbor;this.notify(`MAP UPDATED — torpedo net identified at the ${H.shortName} entrance${source==='CONTACT'?' by close contact':''}. The observed gate is now marked separately from the swept mine approach.`,'warn', 'KRITIEK');
     return true;
   },
 
@@ -218,7 +218,7 @@ const HarborSystem={
     }
     if(visual&&rng<H.mineOuterNm+.45&&I.channel.level!=='OBSERVED'){
       I.channel.level='OBSERVED';
-      this.notify(`CHART REFINED — swept approach observed. Follow the MAP best-estimate centerline toward ${H.name}; corridor limits remain approximate${I.net.known?', and the net gate is marked separately':'. Net/gate still requires visual reconnaissance'}.`,'warn');
+      this.notify(`CHART REFINED — swept approach observed. Follow the MAP best-estimate centerline toward ${H.name}; corridor limits remain approximate${I.net.known?', and the net gate is marked separately':'. Net/gate still requires visual reconnaissance'}.`,'warn', 'NUTTIG');
     }
 
     const segs=this.harborNetSegments(H);
@@ -234,13 +234,13 @@ const HarborSystem={
       this.refreshHarborOptionalObjective();
       const label=this.harborIdentityLabel(tr.typeEstimate),events=this.harborOperationProfile()?.events||{};
       this.captainLog?.(events.visualIdentifiedId||'HEAVY_UNIT_IDENTIFIED',`${label} identified at ${H.name}.`,{identity:tr.typeEstimate},events.visualIdentifiedKey||'heavy-unit-identified');
-      this.notify(`${events.visualBanner||'VISUAL IDENTIFICATION'} — ${label.toUpperCase()} at anchor.`,'ok');
+      this.notify(`${events.visualBanner||'VISUAL IDENTIFICATION'} — ${label.toUpperCase()} at anchor.`,'ok', 'NUTTIG');
     }
 
     this.updateHarborGateProgress(I,H,sub);
     if(I.heavyUnit.identified&&!I.raid.gateCrossed&&!I.raid._outsideIdWarned){
       I.raid._outsideIdWarned=true;
-      this.notify('VISUAL IDENTIFICATION MADE — but the intelligence objective still requires penetration inside the torpedo net through the swept approach.','warn');
+      this.notify('VISUAL IDENTIFICATION MADE — but the intelligence objective still requires penetration inside the torpedo net through the swept approach.','warn', 'KRITIEK');
     }
 
     const heavy=W.contacts.find(c=>c.id===H.heavyTargetId&&c.harborTarget);
@@ -265,14 +265,14 @@ const HarborSystem={
        &&Math.abs(f.lateral)<=H.netGapHalfNm*.92){
       I.raid.gateCrossed=true;I.raid.gateCrossedAt=this.state.time.elapsedSeconds;
       if(!I.raid.attempted){I.raid.attempted=true;I.raid.enteredAt=this.state.time.elapsedSeconds;}
-      this.notify('TORPEDO-NET GATE PASSED — inside the defended anchorage. Intelligence objective now requires a firm visual identification of the reported heavy unit.','ok');
+      this.notify('TORPEDO-NET GATE PASSED — inside the defended anchorage. Intelligence objective now requires a firm visual identification of the reported heavy unit.','ok', 'KRITIEK');
     }
     I.raid.lastChannelAlongNm=f.along;
     if(I.raid.gateCrossed&&I.heavyUnit.identified&&!I.raid.reconComplete){
       I.raid.reconComplete=true;if(I.raid.result==='not_attempted'||I.raid.result==='abandoned')I.raid.result='recon_complete';
       const events=this.harborOperationProfile()?.events||{};
       this.captainLog?.(events.reconCompleteId||'HARBOR_RECON_COMPLETE',`${this.harborIdentityLabel(I.heavyUnit.identity)} identified after penetrating the ${H.shortName} torpedo-net gate.`,{identity:I.heavyUnit.identity},events.reconCompleteKey||'harbor-recon-complete');
-      this.notify(`INTELLIGENCE OBJECTIVE COMPLETE — ${this.harborIdentityLabel(I.heavyUnit.identity).toUpperCase()} positively identified inside ${H.name}.`,'ok');
+      this.notify(`INTELLIGENCE OBJECTIVE COMPLETE — ${this.harborIdentityLabel(I.heavyUnit.identity).toUpperCase()} positively identified inside ${H.name}.`,'ok', 'KRITIEK');
     }
   },
 
@@ -308,12 +308,12 @@ const HarborSystem={
       const I=this.ensureHarborIntel();
       this.notify(I&&(I.minefield.level!=='NONE'||I.channel.level!=='NONE')
         ?`ENEMY HARBOUR WATERS — ${H.name}. Work from the chart: keep near the swept-approach centerline, treat its limits as approximate, and do not assume the torpedo-net gate is known.`
-        :`ENEMY HARBOUR WATERS — ${H.name}. Defences are not charted. Proceed carefully and build the picture yourself.`,'warn');
+        :`ENEMY HARBOUR WATERS — ${H.name}. Defences are not charted. Proceed carefully and build the picture yourself.`,'warn', 'NUTTIG');
     }
     if(rng<H.innerRadiusNm&&!H.inside){
       H.inside=true;
       const I=this.ensureHarborIntel();
-      this.notify(`INSIDE ${H.name.toUpperCase()} — silhouettes at anchor. High-value targets are close${I?.net?.known?', and the observed net opening is still your way out':'; your exit remains only as good as your reconnaissance'}.`,'ok');
+      this.notify(`INSIDE ${H.name.toUpperCase()} — silhouettes at anchor. High-value targets are close${I?.net?.known?', and the observed net opening is still your way out':'; your exit remains only as good as your reconnaissance'}.`,'ok', 'NUTTIG');
     }else if(rng>H.innerRadiusNm*1.35) H.inside=false;
 
     // Harbour hydrophones / indicator loops: not magical truth, but sustained
@@ -330,11 +330,11 @@ const HarborSystem={
 
     if(H.suspicion>18&&H.alert<1){
       H.alert=1;
-      this.notify(`${H.name}: harbour hydrophones have a possible contact. Searchlights and batteries are standing by.`,'warn');
+      this.notify(`${H.name}: harbour hydrophones have a possible contact. Searchlights and batteries are standing by.`,'warn', 'KRITIEK');
     }
     if(H.suspicion>46&&H.alert<2){
       H.alert=2;
-      this.notify(`HARBOR ALARM — ${H.name} has your approximate position. Searchlights sweeping; coastal batteries ready.`,'bad');
+      this.notify(`HARBOR ALARM — ${H.name} has your approximate position. Searchlights sweeping; coastal batteries ready.`,'bad', 'KRITIEK');
       W.enemy.searchCenter={...sub.position};
     }
     if(H.alert===2&&H.suspicion<12) H.alert=1;
@@ -347,7 +347,7 @@ const HarborSystem={
       H.lastSweepAt=now;
       if(this.startHarborSearchlightSweep)this.startHarborSearchlightSweep(H);
       else{H.searchlightActiveUntil=now+8*harborWx.searchlightFactor;H.searchlightBearing=normDeg(bearingBetween(H.center,sub.position)+(Math.random()-.5)*12);H.searchlightWidthDeg=14;}
-      if(!H.searchlightSweepWarned){H.searchlightSweepWarned=true;this.notify('SEARCHLIGHTS SWEEPING THE HARBOUR ENTRANCE — stay below periscope depth or clear the defended approach.','warn');}
+      if(!H.searchlightSweepWarned){H.searchlightSweepWarned=true;this.notify('SEARCHLIGHTS SWEEPING THE HARBOUR ENTRANCE — stay below periscope depth or clear the defended approach.','warn', 'KRITIEK');}
       else this.log('Harbour searchlights continue sweeping the entrance.','warn');
       H.suspicion=clamp(H.suspicion+5,0,100);
     }
@@ -367,10 +367,10 @@ const HarborSystem={
           const dmg=5+Math.random()*12;
           this.sys.damage.applyShock(dmg);
           this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
-          this.notify(`COASTAL BATTERY HIT — ${dmg.toFixed(0)}% damage. Get below the searchlights!`,'bad');
+          this.notify(`COASTAL BATTERY HIT — ${dmg.toFixed(0)}% damage. Get below the searchlights!`,'bad', 'KRITIEK');
           PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,H.center),sub.heading,.9);
         }else{
-          this.notify('Coastal battery firing — shell splashes close aboard.','bad');
+          this.notify('Coastal battery firing — shell splashes close aboard.','bad', 'KRITIEK');
           PresentationBridge.audio(this.state).playShellSplash?.(.35);
         }
       }
@@ -387,7 +387,7 @@ const HarborSystem={
         this.sys.damage.applyShock(dmg);
         this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:12,label:'MINE'});
         this.captainLog?.('MINE_STRUCK','Mine struck.',{damage:Math.round(dmg)},`mine:${m.xNm.toFixed(4)}:${m.yNm.toFixed(4)}`);
-        this.notify(`MINE! Underwater explosion — ${dmg.toFixed(0)}% damage. You are in mined water; get clear of the field.`,'bad');
+        this.notify(`MINE! Underwater explosion — ${dmg.toFixed(0)}% damage. You are in mined water; get clear of the field.`,'bad', 'KRITIEK');
         PresentationBridge.audio(this.state).playMineStrike?.();particles.spawnExplosion(sub.position.xNm,sub.position.yNm,1.25,false);
         break;
       }
@@ -403,7 +403,7 @@ const HarborSystem={
         sub.position.xNm+=Math.sin(back)*0.055;sub.position.yNm-=Math.cos(back)*0.055;
         sub.propulsion.actualRpm*=0.08;sub.propulsion.speedKnots*=0.05;
         sub.damage.rudderDamage=clamp(sub.damage.rudderDamage+0.04,0,1);
-        this.notify('TORPEDO NET — screws fouled and way off the boat. Back clear and find the gate in the swept channel.','bad');
+        this.notify('TORPEDO NET — screws fouled and way off the boat. Back clear and find the gate in the swept channel.','bad', 'KRITIEK');
         H.suspicion=clamp(H.suspicion+18,0,100);
         break;
       }

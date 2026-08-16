@@ -9,6 +9,7 @@ const aarController=new AfterActionReport(game);
 globalThis.aarController=aarController;
 const touchCtrl=new TouchCtrl(game,canvasView);
 const tutorial=new Tutorial(game,canvasView,touchCtrl);
+const uiToast=(method,...args)=>PresentationBridge.toast(game.state)[method]?.(...args);
 globalThis.processPresentationEffects=()=>{
   const live=game.getSnapshot();if(live.playerSub?.mode!=='SUNK')audio.updateAircraftFlyby?.(live);globalThis.audioDirector?.update?.(live);
   const desired=game.state.runtime?.audioState||{};
@@ -34,11 +35,14 @@ globalThis.processPresentationEffects=()=>{
     if(e.type==='audio'){audio[e.payload.method]?.(...e.payload.args);continue;}
     if(e.type==='toast'){
       const args=e.payload.args||[],opts=args.at(-1),importance=opts&&typeof opts==='object'?opts.importance:'NUTTIG';
+      if(e.payload.method==='clear'||e.payload.method==='dismissRole'){Toast[e.payload.method]?.(...args);continue;}
       if(importance==='RUIS')continue;
-      const rt=game.state.runtime||(game.state.runtime={}),now=performance.now(),bucket=rt.toastBudget||(rt.toastBudget={window:now,count:0});
-      if(now-bucket.window>2500){bucket.window=now;bucket.count=0;}
-      if(importance==='NUTTIG'&&bucket.count>=3)continue;
-      bucket.count++;Toast[e.payload.method]?.(...(opts&&typeof opts==='object'?args.slice(0,-1):args));continue;
+      const rt=game.state.runtime||(game.state.runtime={}),now=performance.now(),bucket=rt.toastBudget||(rt.toastBudget={window:now,count:0,skipped:0});
+      if(now-bucket.window>2500){bucket.window=now;bucket.count=0;if(bucket.skipped){Toast.warn(`${bucket.skipped} meldingen overgeslagen tijdens drukte.`);bucket.skipped=0;}}
+      if(importance==='NUTTIG'&&bucket.count>=3){bucket.skipped=(bucket.skipped||0)+1;continue;}
+      if(bucket.skipped){Toast.warn(`${bucket.skipped} meldingen overgeslagen tijdens drukte.`);bucket.skipped=0;}
+      if(importance!=='KRITIEK')bucket.count++;
+      Toast[e.payload.method]?.(...(opts&&typeof opts==='object'?args.slice(0,-1):args));continue;
     }
     if(e.type==='save'){SaveSystem[e.payload.method]?.(...e.payload.args);continue;}
     if(e.type==='aar')aarController[e.payload.method]?.(...e.payload.args);
@@ -65,7 +69,7 @@ function installDevTestConsole(){
   panel.style.cssText='position:fixed;z-index:9999;right:8px;bottom:8px;width:min(320px,calc(100vw - 16px));max-height:70vh;overflow:auto;background:#071518;color:#d8e7d2;border:1px solid #c4a24a;padding:8px;font:12px monospace;box-shadow:0 4px 18px #000b';
   const title=document.createElement('div');title.textContent='DEV TEST CONSOLE';title.style.cssText='color:#e8c75a;margin-bottom:6px;font-weight:bold';panel.append(title);
   const out=document.createElement('pre');out.style.cssText='white-space:pre-wrap;max-height:90px;overflow:auto;margin:6px 0;color:#8fe0a4';panel.append(out);
-  const report=(text,level='ok')=>{out.textContent=`${text}\n`+out.textContent;Toast[level]?.(text);};
+  const report=(text,level='ok')=>{out.textContent=`${text}\n`+out.textContent;uiToast(level,text);};
   const targetTemplate=()=>game.state.world.contacts.find(c=>c.side!=='FRIENDLY'&&!c.sunk)||game.state.world.contacts[0];
   const addTargets=()=>{const n=Math.max(1,Math.min(12,Number(prompt('Targets','3'))||3)),base=targetTemplate(),sub=game.state.playerSub;if(!base){report('No target template available.','warn');return;}for(let i=0;i<n;i++){const c=JSON.parse(JSON.stringify(base));c.id=`DEV-TARGET-${Date.now()}-${i}`;c.name=`DEV TARGET ${i+1}`;c.side='ENEMY';c.sunk=false;c.stationary=true;c.speedKnots=0;c.desiredSpeed=0;c.position={xNm:sub.position.xNm+(i+1)*.12,yNm:sub.position.yNm-.28};c.damage={...(c.damage||{}),hullIntegrity:100};game.state.world.contacts.push(c);}report(`Spawned ${n} stationary targets.`);};
   const forceAir=()=>{const sub=game.state.playerSub,a={id:`DEV-AIR-${Date.now()}`,side:'ENEMY',name:'DEV ATTACKER',kind:'BOMBER',ordnance:'BOMB',position:{xNm:sub.position.xNm,yNm:sub.position.yNm-.08},heading:0,speedKnots:150,state:'ATTACKING',bombs:1,runTimer:0,spotted:true,seenBySub:true,bornAt:game.state.time.elapsedSeconds};game.state.world.aircraft.push(a);game.engine.sys?.aircraft?.update(game.engine.ctx,.1);report('Forced aircraft attack.');};
@@ -88,16 +92,16 @@ installDevTestConsole();
 ['saveGameButton','mSaveGame'].forEach(id=>{
   document.getElementById(id)?.addEventListener('click',()=>{
     if(SaveSystem.quickSave(game.getSnapshot())){
-      audio.event?.('SAVE_CONFIRMED'); Toast.ok('Quick save updated — manual slots unchanged'); buzz(15);
+      audio.event?.('SAVE_CONFIRMED'); uiToast('ok','Quick save updated — manual slots unchanged'); buzz(15);
     }
   });
 });
 ['loadGameButton','mLoadGame'].forEach(id=>document.getElementById(id)?.addEventListener('click',async()=>{
   const state=SaveSystem.quickLoad();
-  if(!state){Toast.warn(`No quick save available${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:''}.`);return;}
+  if(!state){uiToast('warn',`No quick save available${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:''}.`);return;}
   if(!await DecisionDialog.confirm({title:'LOAD QUICK SAVE',message:'Unsaved progress in the current patrol will be replaced.',confirmLabel:'LOAD',danger:true}))return;
   SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();Object.assign(game.state,state);
-  document.getElementById('scenarioOverlay')?.classList.remove('open');showBriefing(state.campaign.patrolArea,state);audio.event?.('RESUME_CONFIRMED');Toast.ok('Quick save loaded');
+  document.getElementById('scenarioOverlay')?.classList.remove('open');showBriefing(state.campaign.patrolArea,state);audio.event?.('RESUME_CONFIRMED');uiToast('ok','Quick save loaded');
 }));
 
 // torpedo run-depth slider (desktop)
@@ -127,7 +131,7 @@ layoutToggle?.addEventListener('click',()=>{
   hotkeyOverlay?.classList.remove('open');
   touchCtrl.applyLayout(true);
   refreshLayoutLabel();
-  Toast.ok(cur==='touch'?'Desktop layout':'Touch layout — tabs at the bottom');
+  uiToast('ok',cur==='touch'?'Desktop layout':'Touch layout — tabs at the bottom');
 });
 
 /* Keyboard ownership is shared by the global shell and BridgeController.
@@ -166,11 +170,11 @@ window.addEventListener('keydown',e=>{
   if(ppKeyboardBlocked())return;
   if(k==='m'){sceneSelector.open();return;}
   if(k==='l'){tutorial.active?tutorial.next():tutorial.start();return;}
-  if(k==='t'){const on=audio.toggle();Toast.ok(on?'Audio ON':'Audio OFF');return;}
+  if(k==='t'){const on=audio.toggle();uiToast('ok',on?'Audio ON':'Audio OFF');return;}
   if(k==='?'||k==='/'){hotkeyOverlay?.classList.toggle('open');refreshDiag();return;}
   if(e.ctrlKey&&e.shiftKey&&k==='d'&&PP_BUILD.isDev){e.preventDefault();globalThis.toggleDevTestConsole?.();return;}
   if(k==='tab'){e.preventDefault();game.dispatch({type:'CYCLE_TIME_SCALE'});return;}
-  if(k==='f'){game.dispatch({type:'FLOOD_ALL_TUBES'});Toast.ok('Fwd tubes flooded');}
+  if(k==='f'){game.dispatch({type:'FLOOD_ALL_TUBES'});uiToast('ok','Fwd tubes flooded');}
   if(k==='g'){game.dispatch({type:'FIRE_TORPEDO',tubeId:1});}
   if(k==='v'){game.dispatch({type:'FIRE_READY_SPREAD'});}
   if(k==='c'){game.dispatch({type:'PERISCOPE_SELECT_CENTER_CONTACT'});}
@@ -214,7 +218,7 @@ window.addEventListener('pointerdown',e=>{
   if(window.matchMedia?.('(pointer:fine)').matches&&window.innerWidth>=900) return;
   localStorage.setItem(PP_BUILD.storageKey('ss_ui'),'touch');
   touchCtrl.applyLayout(true);
-  Toast.ok('Touch detected — switched to the touch layout');
+  uiToast('ok','Touch detected — switched to the touch layout');
 },{capture:true});
 
 // live layout diagnostics — shown in the help overlay
@@ -242,7 +246,7 @@ document.getElementById('tutHelpBtn')?.addEventListener('click',()=>setTimeout(r
 document.getElementById('deskLayoutBtn')?.addEventListener('click',()=>{
   localStorage.setItem(PP_BUILD.storageKey('ss_ui'),'touch');
   touchCtrl.applyLayout(true);
-  Toast.ok('Touch layout — tabs are at the bottom of the screen');
+  uiToast('ok','Touch layout — tabs are at the bottom of the screen');
 });
 document.getElementById('deskTutBtn')?.addEventListener('click',()=>tutorial.start());
 
@@ -277,7 +281,7 @@ for(const [id,pane] of Object.entries(deskCmdForStation)){
 // one-off touch hint
 if(LayoutService.get().shell==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){
   setTimeout(()=>{
-    Toast.ok('Tip: drag the compass to steer, drag the depth column to dive');
+    uiToast('ok','Tip: drag the compass to steer, drag the depth column to dive');
     localStorage.setItem(PP_BUILD.storageKey('ss_hint'),'1');
   },2600);
 }

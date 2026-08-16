@@ -56,8 +56,8 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       W.enemy.searchCenter={...sub.position};W.enemy.lastKnownSubPosition={...sub.position};W.enemy.lastKnownConfidence=Math.max(W.enemy.lastKnownConfidence||0,.88);H.alert=2;
       if(!wasLit&&now-(H.lastSearchlightContactAt||-999)>45){
         H.lastSearchlightContactAt=now;
-        const T=this.state.time;if((T.timeScale||1)>1||T.transitUntil){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.stopReason='searchlight contact';T.stopReasonAt=now;}
-        this.notify('SEARCHLIGHT CONTACT — the beam has you. Dive, turn hard or run out of it before the batteries correct.','bad');
+        this.stopAutomaticTimeCompression?.('searchlight contact');
+        this.notify('SEARCHLIGHT CONTACT — the beam has you. Dive, turn hard or run out of it before the batteries correct.','bad', 'KRITIEK');
         PresentationBridge.audio(this.state).event?.('SEARCHLIGHT_CONTACT');this.aarRecordEvent?.('SEARCHLIGHT_CONTACT','Caught in a harbour searchlight.',{},sub.position,H.center);
       }
     },
@@ -79,7 +79,7 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       const miss=distNm(sub.position,ev.impactPosition),hit=sub.depthFeet<12&&miss<.020;
       if(hit){
         this.sys.damage.applyShock(ev.damage);s.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
-        this.notify(`COASTAL BATTERY HIT — ${ev.damage.toFixed(0)}% damage. The battery has the range; get below or spoil the solution.`,'bad');
+        this.notify(`COASTAL BATTERY HIT — ${ev.damage.toFixed(0)}% damage. The battery has the range; get below or spoil the solution.`,'bad', 'KRITIEK');
         PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,ev.origin),sub.heading,.9);this.shake?.(1.2);
         if(s.world.harbor)s.world.harbor.batteryCorrection=.46;
       }else{

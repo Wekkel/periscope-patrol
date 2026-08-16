@@ -33,8 +33,8 @@ const IntelSystem={
 
   acceptPartialRadio(){
     const R=this.ensureRadioOperations(),need=Math.max(1,R.copyRequired||40);
-    if(!R.pending){this.notify('RADIO ROOM — no signal is currently being copied.','warn');return false;}
-    if(R.copying<need*.45){this.notify('RADIO ROOM — too few groups copied for a useful partial message.','warn');return false;}
+    if(!R.pending){this.notify('RADIO ROOM — no signal is currently being copied.','warn', 'NUTTIG');return false;}
+    if(R.copying<need*.45){this.notify('RADIO ROOM — too few groups copied for a useful partial message.','warn', 'NUTTIG');return false;}
     const m={...R.pending,partial:true,text:`${R.pending.text} [PARTIAL COPY — positions and timing carry extra uncertainty.]`};
     if(m.intel)m.intel={...m.intel,uncBaseNm:(m.intel.uncBaseNm||.8)*1.9,ageSec:(m.intel.ageSec||0)+1200};
     R.pending=null;R.copying=0;R.copyRequired=40;m.time=this.state.time.elapsedSeconds;m.seq=(R.seq=(R.seq||0)+1);this.threadShippingSignal(m);if(R.inbox.length>12)R.inbox.pop();
@@ -282,7 +282,6 @@ const IntelSystem={
         PresentationBridge.toast(this.state).action('Shipping intelligence intercept plotted — steer to cut her off','VIEW MAP',focus,9500,'ok','intel-fit');
       }
       const T=this.state.time||{},compressed=!!T.transitUntil||(T.timeScale||1)>1;
-      if(compressed)PresentationBridge.toast(this.state).ok(shippingCopy?.toastSingle||'Shipping intelligence intercept plotted — steer to cut her off',{importance:'NUTTIG',coalesceKey:shippingCopy?.toastTag||'SHIPPING_INTEL_INTERCEPT'});
     }
     if(m.airThreat){W.airThreat=W.airThreat||{};W.airThreat.level=m.airThreat;}
     if(m.score) this.state.campaign.score+=m.score;

@@ -2,7 +2,7 @@ const AAGunSystem={
   standDownAA(why,quiet=false){
     if(!this.state.world.aaManned) return;
     this.state.world.aaManned=false;
-    quiet?this.log(why,'warn'):this.notify(why,'warn');
+    quiet?this.log(why,'warn'):this.notify(why,'warn', 'NUTTIG');
   },
 
   manageAutomaticAA(){
@@ -22,7 +22,7 @@ const AAGunSystem={
     // if the skipper has stayed on the surface until an attacker is close.
     if(!close||diveOrdered||G?.manned||sub.depthFeet>8||env.seaState>0.82||(W.aaAmmo??aaDefault)<=0) return;
     W.aaManned=true;
-    this.notify('Air attack close — AA crew manning the 20 mm automatically. A dive ordered now will pause briefly while they clear the hatch.','warn');
+    this.notify('Air attack close — AA crew manning the 20 mm automatically. A dive ordered now will pause briefly while they clear the hatch.','warn', 'KRITIEK');
   },
 
   aaCasualty(what){
@@ -30,8 +30,7 @@ const AAGunSystem={
     W.aaManned=false;
     W.aaHurt=(W.aaHurt||0)+1;
     sub.damage.crewFatigue=clamp(sub.damage.crewFatigue+0.24,0,1);
-    this.notify(`${what} Men down on the cigarette deck — gun abandoned, wounded passed below.`,'bad');
-    PresentationBridge.toast(this.state).bad(`${what} Men down on the cigarette deck — gun abandoned, wounded passed below.`);
+    this.notify(`${what} Men down on the cigarette deck — gun abandoned, wounded passed below.`,'bad','KRITIEK');
     PresentationBridge.audio(this.state).event?.('AIRCRAFT_ATTACK');
   },
 

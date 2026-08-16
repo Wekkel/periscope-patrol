@@ -108,7 +108,7 @@ const DamageSystem={
 
     if(!dm.driveBankOffline&&(dm.motorDamage>=.68||dm.electricalDamage>=.68)){
       dm.driveBankOffline=true;
-      this.notify('PROPULSION CASUALTY — one drive bank is offline until the motor/electrical plant is repaired.','bad');
+      this.notify('PROPULSION CASUALTY — one drive bank is offline until the motor/electrical plant is repaired.','bad', 'KRITIEK');
     }
     dm.instrumentBias=damageBiasesFor(this.state);
     if(dm.hullIntegrity<=0&&sub.mode!=='SUNK'){
@@ -122,7 +122,7 @@ const DamageSystem={
     if(!REPAIR_PRIORITIES.includes(priority))return false;
     if(d.repairPriority===priority)return true;
     d.repairPriority=priority;
-    this.notify(`Damage control priority: ${repairPriorityLabel(priority)}. Other casualties receive stabilization only.`,'warn');
+    this.notify(`Damage control priority: ${repairPriorityLabel(priority)}. Other casualties receive stabilization only.`,'warn', 'NUTTIG');
     return true;
   },
 
@@ -156,7 +156,7 @@ const DamageSystem={
         const tripAt=clamp(58-(d.pumpDamage||0)*42,15,42);
         if(d.pumpLoadSec>=tripAt){
           d.pumpTripped=true;d.pumpActive=false;d.pumpLoadSec=0;
-          this.notify('PUMP CASUALTY — damaged dewatering pump tripped under load. Repair it before restarting.','bad');
+          this.notify('PUMP CASUALTY — damaged dewatering pump tripped under load. Repair it before restarting.','bad', 'KRITIEK');
         }
       }else d.pumpLoadSec=Math.max(0,(d.pumpLoadSec||0)-dt*.5);
     }else if(!d.pumpActive)d.pumpLoadSec=Math.max(0,(d.pumpLoadSec||0)-dt*.25);
@@ -183,10 +183,10 @@ const DamageSystem={
         d[field]=Math.max(floor,clamp((d[field]||0)-base*mult[field],0,1));
       }
       if(d.driveBankOffline&&P==='PROPULSION'&&d.motorDamage<.42&&d.electricalDamage<.42){
-        d.driveBankOffline=false;this.notify('PROPULSION — damaged drive bank restored to service.','ok');
+        d.driveBankOffline=false;this.notify('PROPULSION — damaged drive bank restored to service.','ok', 'KRITIEK');
       }
       if(d.pumpTripped&&P==='FLOODING'&&d.pumpDamage<.46){
-        d.pumpTripped=false;d.pumpLoadSec=0;this.notify('DEWATERING PUMP RESET — available again; pumps remain stopped until ordered on.','ok');
+        d.pumpTripped=false;d.pumpLoadSec=0;this.notify('DEWATERING PUMP RESET — available again; pumps remain stopped until ordered on.','ok', 'NUTTIG');
       }
     }
 

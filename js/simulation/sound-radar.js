@@ -168,7 +168,7 @@ const SoundRadarSystem={
   markSoundBearing(){
     this.ensureSoundRadarState();
     const s=this.state,W=s.world,S=W.sound,now=s.time.elapsedSeconds,sig=this.currentSoundSignal();
-    if(!sig.contact||sig.strength<.055||sig.offsetDeg>SOUND_ROOM.markConeDeg){this.notify('SOUND — no bearing sharp enough to mark. Train through the strongest screws first.','warn');return null;}
+    if(!sig.contact||sig.strength<.055||sig.offsetDeg>SOUND_ROOM.markConeDeg){this.notify('SOUND — no bearing sharp enough to mark. Train through the strongest screws first.','warn', 'NUTTIG');return null;}
     const c=sig.contact,q=clamp(sig.baseQuality*(.78+.22*Math.min(1,sig.strength/.25)),.04,1),seed=s.campaign.scenarioSeed||1;
     const errMax=.35+(1-q)*5.4+(s.playerSub.propulsion.speedKnots||0)*.18,tag=`MARK:${c.id}:${Math.floor(now/4)}`;
     const bearing=normDeg(bearingBetween(s.playerSub.position,c.position)+(_soundHashUnit(seed,tag,41)*2-1)*errMax);
@@ -193,9 +193,9 @@ const SoundRadarSystem={
   echoRange(){
     this.ensureSoundRadarState();const s=this.state,W=s.world,S=W.sound,now=s.time.elapsedSeconds;
     const sensorUi=getPlayerSensorPresentation(s);
-    if(!sensorUi.activeEcho){this.notify('No active echo-ranging set is fitted to this submarine.','warn');return null;}
+    if(!sensorUi.activeEcho){this.notify('No active echo-ranging set is fitted to this submarine.','warn', 'NUTTIG');return null;}
     const echoName=sensorUi.activeEcho.shortLabel||sensorUi.activeEcho.label||'Active echo';
-    if(now-S.activeEchoLastAt<SOUND_ROOM.activeEchoCooldownSec){this.notify(`${echoName} recharging — ${Math.ceil(SOUND_ROOM.activeEchoCooldownSec-(now-S.activeEchoLastAt))} seconds.`,'warn');return null;}
+    if(now-S.activeEchoLastAt<SOUND_ROOM.activeEchoCooldownSec){this.notify(`${echoName} recharging — ${Math.ceil(SOUND_ROOM.activeEchoCooldownSec-(now-S.activeEchoLastAt))} seconds.`,'warn', 'RUIS');return null;}
     S.activeEchoLastAt=now;S.qcLastAt=now;
     S.qcVisual={bearing:normDeg(s.tactical.soundBearing||0),at:now};
     PresentationBridge.audio(this.state).playOwnSonarPing?.();
@@ -203,14 +203,14 @@ const SoundRadarSystem={
     // the player's echo comes back.
     this.sys.escorts.alert('ACTIVE_ECHO',{...s.playerSub.position},.88);
     const sig=this.currentSoundSignal(),c=sig.contact;
-    if(!c||sig.offsetDeg>24||distNm(s.playerSub.position,c.position)>SOUND_ROOM.activeEchoMaxRangeNm){this.notify(`${echoName} — NO USEFUL ECHO. Every hydrophone in the area heard that transmission.`,'bad');return null;}
+    if(!c||sig.offsetDeg>24||distNm(s.playerSub.position,c.position)>SOUND_ROOM.activeEchoMaxRangeNm){this.notify(`${echoName} — NO USEFUL ECHO. Every hydrophone in the area heard that transmission.`,'bad', 'NUTTIG');return null;}
     const seed=s.campaign.scenarioSeed||1,tag=`QC:${c.id}:${Math.floor(now/3)}`,trueR=distNm(s.playerSub.position,c.position),rangeNm=trueR*(1+(_soundHashUnit(seed,tag,51)*2-1)*.018);
     const bearing=normDeg(s.tactical.soundBearing+clamp(shortDelta(s.tactical.soundBearing,bearingBetween(s.playerSub.position,c.position)),-4,4));
     const br=degToRad(bearing),pos={xNm:s.playerSub.position.xNm+Math.sin(br)*rangeNm,yNm:s.playerSub.position.yNm-Math.cos(br)*rangeNm};
     let tr=W.contactTracks[c.id]||{id:c.id,typeEstimate:'UNKNOWN',courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,contactType:c.type,lengthYards:c.lengthYards};
     tr.lastUpdated=now;tr.staleSeconds=0;tr.confidence=clamp(Math.max(tr.confidence||0,.72),0,1);tr.lastSensorSource=CONTACT_FIX_SOURCE.ACTIVE_ECHO;
     updateStableContactPlot(s,tr,pos,CONTACT_FIX_SOURCE.ACTIVE_ECHO,.95,.1);
-    W.contactTracks[c.id]=tr;this.notify(`${echoName} — ECHO RANGE ${rangeNm.toFixed(2)} nm on ${fmtDeg(bearing)}. Transmission heard by the enemy.`,'bad');return tr;
+    W.contactTracks[c.id]=tr;this.notify(`${echoName} — ECHO RANGE ${rangeNm.toFixed(2)} nm on ${fmtDeg(bearing)}. Transmission heard by the enemy.`,'bad', 'NUTTIG');return tr;
   },
 
   _updateSurfaceSearchRadar(dt){

@@ -11,7 +11,7 @@ for(const m of graph.methods){
 }
 const definitionsByName=new Map();
 for(const m of graph.methods){if(!definitionsByName.has(m.name))definitionsByName.set(m.name,[]);definitionsByName.get(m.name).push(m);}
-const sharedContextNames=new Set(['log','notify','shake','captainLog','isNavigableMapPoint','ensureBattleAtmosphereState','friendlyPortNav','clearDeckForDive','derivMode','ensureSoundRadarState']);
+const sharedContextNames=new Set(['log','notify','shake','captainLog','isNavigableMapPoint','ensureBattleAtmosphereState','friendlyPortNav','clearDeckForDive','derivMode','ensureSoundRadarState','stopAutomaticTimeCompression']);
 const misses=[];
 // Parser limitation allowlist: these are control-flow labels or methods in
 // scopes the legacy graph parser does not associate with a class definition.
@@ -34,7 +34,7 @@ for(const m of graph.methods){
       if(newlyComposed.has(m.class)&&['direct','optional-direct'].includes(c.kind)&&!systemMethods.has(c.name)&&!sharedContextNames.has(c.name)&&!missingDirectAllowlist.has(c.name))
         misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:'none',reason:'composed system internal call has no matching method'});
       if(['direct','optional-direct'].includes(c.kind)&&c.relation==='unresolved'&&!sharedContextNames.has(c.name)){
-        const external=definitionsByName.get(c.name)?.find(d=>d.class!==m.class);
+        const external=sharedContextNames.has(c.name)?null:definitionsByName.get(c.name)?.find(d=>d.class!==m.class);
         if(external)misses.push({file:m.file,line:c.line,caller:`${m.class}.${m.name}`,name:c.name,definedBy:external.file,reason:'composed system calls a method owned by another layer without an explicit dependency'});
       }
       if(c.kind==='system-path'){

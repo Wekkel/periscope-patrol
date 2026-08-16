@@ -140,7 +140,7 @@ class SimEngine extends SimEngineCore {
       const r=this.friendlyPortNav();
       this.notify(r
         ? `PATROL OBJECTIVE COMPLETE — every merchant accounted for. Make for ${r.port.name}: rendezvous ${r.rngNm.toFixed(1)} nm on ${fmtDeg(r.brg)}. Use HEAD TO PORT to plot the safe-water approach.`
-        : 'PATROL OBJECTIVE COMPLETE — every merchant accounted for. Return to a friendly port.','ok');
+        : 'PATROL OBJECTIVE COMPLETE — every merchant accounted for. Return to a friendly port.','ok', 'NUTTIG');
     }
   }
 

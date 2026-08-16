@@ -17,6 +17,7 @@ function createLeafSystemContext(engine){
   ctx.friendlyPortNav=(...args)=>engine.friendlyPortNav?.(...args);
   ctx.clearDeckForDive=(...args)=>engine.clearDeckForDive(...args);
   ctx.notify=(...args)=>engine.notify(...args);
+  ctx.stopAutomaticTimeCompression=(...args)=>engine.stopAutomaticTimeCompression(...args);
   ctx.aar={
     torpedoLaunch:(...args)=>engine.aarTorpedoLaunch?.(...args),
     torpedoFinish:(...args)=>engine.aarTorpedoFinish?.(...args),

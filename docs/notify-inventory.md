@@ -141,4 +141,13 @@ De oorzaak volgt nu het moment waarop de melding ontstaat: direct op commando = 
 | `js/simulation/weapons/torpedoes.js` | 227 | GEBEURTENIS | KRITIEK | ``${t.id} caught in the harbour torpedo net — warhead spent against the boom.`,'warn');` |
 | `js/simulation/weapons/torpedoes.js` | 328 | GEBEURTENIS | KRITIEK | ``TORPEDO HIT — ${c.name}: ${condition}${speedCap>0?` · estimated max ${speedCap.toFixed(1)} kn`:''}.`,'bad');` |
 
+## Supplemental same-line notifications
+
+These two calls share a source line with an earlier inventory entry and were
+previously omitted by the line-oriented export. They are included explicitly
+so the reviewed inventory covers every call.
+
+| Bestand | Regel | Oorzaak | Belang | Melding / expressie |
+| `js/simulation/mission-framework.js` | 397 | GEBEURTENIS | KRITIEK | `ENEMY PATROL RESPONSE — aircraft reported approaching the rendezvous.` |
+| `js/simulation/mission-framework.js` | 413 | GEBEURTENIS | NUTTIG | `content.reportSentNotice` |
 

@@ -9,6 +9,24 @@ for(const key of ['US_FLETCHER_DESTROYER','US_DESTROYER_ESCORT','GERMAN_TORPEDO_
 const composedSystems=[['js/simulation/harbor.js','HarborSystem','SimEngineHarbor'],['js/simulation/weather-system.js','WeatherSystem','SimEngineWeather'],['js/simulation/sound-radar.js','SoundRadarSystem','SimEngineSoundRadar'],['js/simulation/radio-intel.js','IntelSystem','SimEngineIntel'],['js/simulation/sensors.js','SensorsSystem','SimEngineSensors'],['js/simulation/weapons/torpedoes.js','TorpedoSystem','SimEngineTorpedoes'],['js/simulation/weapons/deck-gun.js','DeckGunSystem','SimEngineDeckGun'],['js/simulation/weapons/aa-gun.js','AAGunSystem','SimEngineAAGun'],['js/simulation/ai/aircraft.js','AircraftSystem','SimEngineAircraft'],['js/simulation/ai/asw-brain.js','ASWBrainSystem','SimEngineASWBrain'],['js/simulation/ai/escort-asw.js','ASWSystem','SimEngineASW'],['js/simulation/ai/enemy-ai.js','EnemyAISystem','SimEngineEnemyAI'],['js/simulation/collision/vessel-collision.js','CollisionSystem','SimEngineCollision'],['js/simulation/damage-control.js','DamageSystem','SimEngineDamage'],['js/simulation/career-history.js','CareerSystem','SimEngineCareer']];
 const compatibilityAllowlist=[];
 for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf8');if(/engine\.updateAircraft\s*=/.test(src)&&!compatibilityAllowlist.includes(rel(p)))fail.push(`unapproved compatibility entry point: ${rel(p)}: engine.updateAircraft`);}
+/* Every simulation notification carries the reviewed importance. The ctx
+   adapter is intentionally variadic: it forwards the caller's classification. */
+const notifyMissing=[];
+for(const p of all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');for(const m of src.matchAll(/(?:this|engine|ctx)\.notify\([\s\S]*?\);/g)){const call=m[0];if(/\.notify\(\.\.\.args\)/.test(call))continue;if(!/,\s*['"](?:KRITIEK|NUTTIG|RUIS)['"]\s*\);$/.test(call))notifyMissing.push(`${rel(p)}:${src.slice(0,m.index).split('\n').length}`);}}
+if(notifyMissing.length)fail.push(`notify importance missing: ${notifyMissing.join(', ')}`);
+/* Toast is materialized only by the presentation bridge's UI drain. The
+   implementation and that drain are the two deliberate sinks. */
+const toastDirect=[];
+// UI-only action feedback remains a deliberate sink; simulation notifications
+// never use it. Each entry is documented here rather than silently ignored.
+const toastUiAllowlist=new Set(['js/controllers/bridge-controller.js','js/controllers/touch-controller.js','js/persistence/autosave.js','js/pwa/version.js','js/tutorial/tutorial.js']);
+for(const p of all.filter(p=>p.endsWith('.js'))){const r=rel(p);if(r==='js/ui/toast.js'||r==='js/ui/presentation-bridge.js'||r==='js/bootstrap/wiring.js'||toastUiAllowlist.has(r))continue;const src=await readFile(p,'utf8');if(/\bToast(?:\.|\[)/.test(src))toastDirect.push(r);}
+if(toastDirect.length)fail.push(`direct Toast use outside presentation route: ${toastDirect.join(', ')}`);
+/* Automatic time-scale resets have one writer. SET/CYCLE_TIME_SCALE and the
+   explicit resume-from-pause command remain player commands. */
+const timeWrites=[];const timeWriteAllowlist=new Set(['js/tutorial/tutorial.js']);
+for(const p of all.filter(p=>p.endsWith('.js'))){const r=rel(p),lines=(await readFile(p,'utf8')).split('\n');for(let i=0;i<lines.length;i++){if(!/\.timeScale\s*=\s*1/.test(lines[i]))continue;const context=lines.slice(Math.max(0,i-2),i+1).join('\n');const command=/timeScale===0/.test(lines[i])||/SET_TIME_SCALE|CYCLE_TIME_SCALE/.test(context);const central=/PP_AUTOMATIC_TIMESCALE_WRITER/.test(context);if(!command&&!central&&!timeWriteAllowlist.has(r))timeWrites.push(`${r}:${i+1}`);}}
+if(timeWrites.length)fail.push(`direct automatic timeScale writes: ${timeWrites.join(', ')}`);
 for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf8');if(/(?:state|s|u)\.ui\s*=.*(?:toasts|toastSeq)|ui\.(?:toasts|toastSeq)\s*=/.test(src))fail.push(`legacy state toast queue write: ${rel(p)}`);}
 for(const [file,symbol,oldClass] of composedSystems){const src=await readFile(path.join(root,file),'utf8');if(!src.includes(`const ${symbol}=`))fail.push(`composed system missing: ${symbol}`);if(new RegExp(`class\\s+${oldClass}\\b`).test(src))fail.push(`composed class remains: ${oldClass}`);}
 for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf8');for(const [,,oldClass] of composedSystems)if(new RegExp(`extends\\s+${oldClass}\\b`).test(src))fail.push(`old composed inheritance remains: ${rel(p)} extends ${oldClass}`);}

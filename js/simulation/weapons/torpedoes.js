@@ -25,9 +25,9 @@ const TorpedoSystem={
     const t=this.state.weapons.tubes.find(t=>t.id===id);
     const tdc=this.state.tdc; const sub=this.state.playerSub;
     const W=this.state.weapons;
-    if(!t||t.status!=='READY'){this.notify(`Tube ${id} is not ready — flood a loaded tube or wait for reload.`,'warn');return;}
-    if(!tdc.targetId||tdc.gyroAngle===null||tdc.solutionQuality<0.25){this.notify(`TDC solution ${Math.round((tdc.solutionQuality||0)*100)}% — obtain a bearing/range plot and build at least 25% before firing.`,'warn');return;}
-    if(sub.depthFeet>160){this.notify(`Too deep to fire at ${Math.round(sub.depthFeet)} ft — come above 160 ft.`,'warn');return;}
+    if(!t||t.status!=='READY'){this.notify(`Tube ${id} is not ready — flood a loaded tube or wait for reload.`,'warn', 'NUTTIG');return;}
+    if(!tdc.targetId||tdc.gyroAngle===null||tdc.solutionQuality<0.25){this.notify(`TDC solution ${Math.round((tdc.solutionQuality||0)*100)}% — obtain a bearing/range plot and build at least 25% before firing.`,'warn', 'NUTTIG');return;}
+    if(sub.depthFeet>160){this.notify(`Too deep to fire at ${Math.round(sub.depthFeet)} ft — come above 160 ft.`,'warn', 'NUTTIG');return;}
 
     const spec=TORPEDO_SPECS[tdc.torpedoSpecKey];
     if(!spec){this.log(`Unknown torpedo specification: ${tdc.torpedoSpecKey||'NONE'}.`,'bad');return;}
@@ -38,10 +38,10 @@ const TorpedoSystem={
       const runNm=this.sys.torpedoes.interceptRunNm(tdc,spec);
       if(runNm>spec.maxRangeNm){
         const longBy=runNm-spec.maxRangeNm;
-        this.notify(`Tube ${id}: intercept run ${runNm.toFixed(1)} nm; ${spec.name} max ${spec.maxRangeNm.toFixed(1)} nm — long by ${longBy.toFixed(1)} nm (${Math.round(longBy*2025)} yd). Close the range.`,'warn');
+        this.notify(`Tube ${id}: intercept run ${runNm.toFixed(1)} nm; ${spec.name} max ${spec.maxRangeNm.toFixed(1)} nm — long by ${longBy.toFixed(1)} nm (${Math.round(longBy*2025)} yd). Close the range.`,'warn', 'NUTTIG');
         return;
       }
-      if(runNm>spec.maxRangeNm*0.85)this.notify(`Long shot — intercept run ${runNm.toFixed(1)} nm of ${spec.maxRangeNm.toFixed(1)} nm max. Little margin if she zigs.`,'warn');
+      if(runNm>spec.maxRangeNm*0.85)this.notify(`Long shot — intercept run ${runNm.toFixed(1)} nm of ${spec.maxRangeNm.toFixed(1)} nm max. Little margin if she zigs.`,'warn', 'NUTTIG');
     }
     const dudMode=DUD_MODES[tdc.dudMode]??1;
     const dudChance=typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(this.state,tdc.torpedoSpecKey,tdc.dudMode):spec.dudChanceBase*dudMode;
@@ -52,12 +52,12 @@ const TorpedoSystem={
     // this bank; a manual wrong-bank click gets an actionable warning.
     const tubeAxis=t.pos==='AFT'?normDeg(sub.heading+180):sub.heading;
     if(tdc.launchBank&&t.pos!==tdc.launchBank){
-      this.notify(`TDC launch solution is for ${tdc.launchBank} tubes — use that bank or swing the boat for a new solution.`,'warn');
+      this.notify(`TDC launch solution is for ${tdc.launchBank} tubes — use that bank or swing the boat for a new solution.`,'warn', 'NUTTIG');
       return;
     }
     const courseSet=normDeg((tdc.solutionCourse??normDeg(sub.heading+(tdc.gyroAngle??0)))+(Number(spreadOffsetDeg)||0));
     const turn=shortDelta(tubeAxis,courseSet);
-    if(Math.abs(turn)>TDC_MAX_TUBE_TURN_DEG){this.notify(`Tube ${id}: gyro ${turn.toFixed(0)}° exceeds the setting limit — swing the boat toward the target and rebuild the solution.`,'warn');return;}
+    if(Math.abs(turn)>TDC_MAX_TUBE_TURN_DEG){this.notify(`Tube ${id}: gyro ${turn.toFixed(0)}° exceeds the setting limit — swing the boat toward the target and rebuild the solution.`,'warn', 'NUTTIG');return;}
     if(Math.abs(turn)>62)this.log(`Very wide gyro ${turn.toFixed(0)}° — TDC geometry is valid, but swinging the boat will improve the attack.`,'warn');
     else if(Math.abs(turn)>38)this.log(`Wide gyro ${turn.toFixed(0)}° — TDC is accounting for the turn.`,'warn');
     const launchBear=tubeAxis;
@@ -109,7 +109,7 @@ const TorpedoSystem={
 
   fireSpreadByPos(pos){
     const ready=this.state.weapons.tubes.filter(t=>t.status==='READY'&&t.pos===pos);
-    if(!ready.length){this.notify(`No ready ${pos} tubes — flood a loaded ${pos} tube or wait for reload.`,'warn');return;}
+    if(!ready.length){this.notify(`No ready ${pos} tubes — flood a loaded ${pos} tube or wait for reload.`,'warn', 'NUTTIG');return;}
     const before=this.state.weapons.activeTorpedoes.length;
     // A compact arcade spread brackets small errors without deliberately
     // throwing the outer fish hundreds of metres away from a good solution.
@@ -132,7 +132,7 @@ const TorpedoSystem={
     const where=ahead?'ahead of her stem':astern?'astern of her rudder':'clear down her side';
     const side=c.lateral>0?'to starboard':'to port';
     this.notify(`MISS — ${t.id} ran past ${c.name}, ${yards} yards ${side}, passing ${where}.`+
-      (ahead?' Aim further astern — you led her too much.':astern?' Aim further ahead — you did not lead her enough.':''),'warn');
+      (ahead?' Aim further astern — you led her too much.':astern?' Aim further ahead — you did not lead her enough.':''),'warn', 'NUTTIG');
   },
 
 
@@ -224,7 +224,7 @@ const TorpedoSystem={
         this.sys.harbor.revealHarborNet('CONTACT');
         t.status='NETTED';this.aar.torpedoFinish(t,'NETTED');
         W.explosions.push({position:{...t.position},ageSec:0,maxAgeSec:5,label:'NET',kind:'dud'});
-        this.notify(`${t.id} caught in the harbour torpedo net — warhead spent against the boom.`,'warn');
+        this.notify(`${t.id} caught in the harbour torpedo net — warhead spent against the boom.`,'warn', 'KRITIEK');
         PresentationBridge.audio(this.state).playDud();
         const H=this.state.world.harbor;if(H){H.alert=2;H.suspicion=100;}
         continue;
@@ -325,7 +325,7 @@ const TorpedoSystem={
               const speedCap=Math.max(0,(c.baseSpeed??c.speedKnots??0)*shipDamageSpeedFactor(c));
               const sum=shipDamageSummary(c);
               this.log(`${t.id} HIT ${c.name} ${dmg.location.toLowerCase()} (track ${incidence.toFixed(0)}°) — ${condition}. ${sum}.`,'bad');
-              this.notify(`TORPEDO HIT — ${c.name}: ${condition}${speedCap>0?` · estimated max ${speedCap.toFixed(1)} kn`:''}.`,'bad');
+              this.notify(`TORPEDO HIT — ${c.name}: ${condition}${speedCap>0?` · estimated max ${speedCap.toFixed(1)} kn`:''}.`,'bad', 'KRITIEK');
             }
             this.sys.mission.checkObjectives();
           }

@@ -53,14 +53,14 @@ const DeckGunSystem={
 
   layDeckGun(){
     const G=this.state.weapons.deckGun, sub=this.state.playerSub, c=this.sys.deckGun.deckGunTarget();
-    if(!G.manned){this.notify('Deck gun is not manned.','warn');return;}
-    if(!c){this.notify('No selected surface target for the gun. Tap a visible ship first.','warn');return;}
+    if(!G.manned){this.notify('Deck gun is not manned.','warn', 'RUIS');return;}
+    if(!c){this.notify('No selected surface target for the gun. Tap a visible ship first.','warn', 'NUTTIG');return;}
     const r0=distNm(sub.position,c.position),gun=deckGunSpecForState(this.state),maxRange=gun.maxRangeNm;
     if(r0>maxRange){
-      this.notify(`Target ${c.id} at ${r0.toFixed(1)} nm — beyond ${gun.shortLabel} maximum range (${maxRange.toFixed(1)} nm).`,'warn');return;
+      this.notify(`Target ${c.id} at ${r0.toFixed(1)} nm — beyond ${gun.shortLabel} maximum range (${maxRange.toFixed(1)} nm).`,'warn', 'NUTTIG');return;
     }
     const usefulVisualRange=Math.min(maxRange,Math.max(5,this.state.world.environment.visibilityNm*1.05));
-    if(r0>usefulVisualRange){this.notify('Target is beyond useful visual gun range.','warn');return;}
+    if(r0>usefulVisualRange){this.notify('Target is beyond useful visual gun range.','warn', 'NUTTIG');return;}
     // Iterate flight time and target motion. This is a crew estimate, not magic
     // aim assist: sea state and dispersion still have to be bracketed by eye.
     let pred={...c.position},tof=r0*NM_M/gun.muzzleVelocityMS,ballistic=null;
@@ -72,27 +72,27 @@ const DeckGunSystem={
       tof=ballistic.timeSec;
     }
     const br=bearingBetween(sub.position,pred), rel=shortDelta(sub.heading,br);
-    if(Math.abs(rel)>140){this.notify(`Target bears ${fmtDeg(br)} — outside the deck gun's training arc. Turn the boat.`,'warn');return;}
+    if(Math.abs(rel)>140){this.notify(`Target bears ${fmtDeg(br)} — outside the deck gun's training arc. Turn the boat.`,'warn', 'NUTTIG');return;}
     const rangeM=distNm(sub.position,pred)*NM_M;
     ballistic=this.sys.deckGun.deckGunBallisticSolution(rangeM,gun.muzzleVelocityMS,3);
     const el=ballistic?.elevation??null;
-    if(el==null||el>22){this.notify('No practical deck-gun elevation solution at this range.','warn');return;}
+    if(el==null||el>22){this.notify('No practical deck-gun elevation solution at this range.','warn', 'NUTTIG');return;}
     G.trainDeg=clamp(rel,-140,140);G.elevationDeg=clamp(el,0,22);
-    this.notify(`Gun laid on ${c.id}: bearing ${fmtDeg(br)}, range ${r0.toFixed(1)} nm. Fire and watch the fall of shot.`,'ok');
+    this.notify(`Gun laid on ${c.id}: bearing ${fmtDeg(br)}, range ${r0.toFixed(1)} nm. Fire and watch the fall of shot.`,'ok', 'NUTTIG');
   },
 
   fireDeckGun(){
     const G=this.state.weapons.deckGun, sub=this.state.playerSub, now=this.state.time.elapsedSeconds;
-    if(!G.manned){this.notify('Deck gun is not manned.','warn');return;}
-    if(this.state.time.timeScale===0){this.notify('Simulation is paused — resume time before firing.','warn');return;}
-    if(sub.depthFeet>8){G.manned=false;this.notify('Deck awash — gun crew driven below.','warn');return;}
-    if(G.ammo<=0){this.notify('Deck gun magazine empty.','warn');return;}
+    if(!G.manned){this.notify('Deck gun is not manned.','warn', 'RUIS');return;}
+    if(this.state.time.timeScale===0){this.notify('Simulation is paused — resume time before firing.','warn', 'RUIS');return;}
+    if(sub.depthFeet>8){G.manned=false;this.notify('Deck awash — gun crew driven below.','warn', 'NUTTIG');return;}
+    if(G.ammo<=0){this.notify('Deck gun magazine empty.','warn', 'RUIS');return;}
     const gun=deckGunSpecForState(this.state);
-    if(now-(G.lastFireAt??-999)<gun.reloadSec){this.notify('Gun crew still loading.','warn');return;}
+    if(now-(G.lastFireAt??-999)<gun.reloadSec){this.notify('Gun crew still loading.','warn', 'RUIS');return;}
     const tgt=this.sys.deckGun.deckGunTarget();
     if(tgt){
       const r=distNm(sub.position,tgt.position);
-      if(r>gun.maxRangeNm){this.notify(`Target ${tgt.id} at ${r.toFixed(1)} nm — beyond ${gun.shortLabel} maximum range (${gun.maxRangeNm.toFixed(1)} nm).`,'warn');return;}
+      if(r>gun.maxRangeNm){this.notify(`Target ${tgt.id} at ${r.toFixed(1)} nm — beyond ${gun.shortLabel} maximum range (${gun.maxRangeNm.toFixed(1)} nm).`,'warn', 'NUTTIG');return;}
     }
     const sea=clamp(this.state.world.environment.seaState||0,0,1);
     const fatigue=clamp(sub.damage.crewFatigue||0,0,1);
@@ -181,7 +181,7 @@ const DeckGunSystem={
     if(!G)return;
     if(G.manned&&(sub.mode==='SUNK'||sub.depthFeet>10||this.state.world.environment.seaState>0.88)){
       G.manned=false;if(this.state.tactical.activeStation==='DECK_GUN')this.state.tactical.activeStation='TACTICAL';
-      this.notify(sub.depthFeet>10?'Deck going under — deck gun crew below.':'Deck gun secured — conditions no longer permit firing.','warn');
+      this.notify(sub.depthFeet>10?'Deck going under — deck gun crew below.':'Deck gun secured — conditions no longer permit firing.','warn', 'NUTTIG');
     }
     for(const sp of G.splashes||[])sp.age+=dt;
     G.splashes=(G.splashes||[]).filter(sp=>sp.age<4);

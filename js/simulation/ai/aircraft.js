@@ -53,9 +53,7 @@ wearAirNotice(msg,kind='warn'){
     this.log(msg,kind);
     // Routine transit normally holds queued toasts. This hand-off message is
     // one of the rare things the player should see immediately even at 32x.
-    if(typeof Toast!=='undefined'){
-      const fn=kind==='bad'?'bad':kind==='ok'?'ok':'warn';Toast[fn]?.(msg);
-    }
+    this.notify(msg,kind,'NUTTIG');
   },
 noteWearManualAircraft(a,wasCompressed=true){
     const wear=this.wearAirState();
@@ -81,7 +79,7 @@ abortWearAirRoutine(reason){
     const wear=this.wearAirState(),active=wear.active;if(!active)return;
     const a=(this.state.world.aircraft||[]).find(x=>x.id===active.aircraftId);if(a)a._wearManaged=false;
     wear.active=null;
-    const T=this.state.time;T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason=reason;T.stopReason=reason;T.stopReasonAt=T.elapsedSeconds;
+    this.stopAutomaticTimeCompression?.(reason);
     // Deliberately do NOT restore depth/RPM/heading orders. The crew hands the
     // conn over; it does not cancel a safety manoeuvre halfway through it.
     this.wearAirNotice(`CAPTAIN REQUIRED — ${reason.toUpperCase()}. Routine air evasion disengaged; current orders remain in force.`,'bad');
@@ -149,7 +147,7 @@ beginAircraftAttack(a,observed,source='VISUAL',motion=null){
     // an intentional arcade hand-off of the conn to the player.
     a.seenBySub=true;s.world.airThreat.alarmedAt=now;
     const T=s.time,wasCompressed=!!(T.transitUntil||(T.timeScale||1)>1);this.noteWearManualAircraft(a,wasCompressed);
-    if(wasCompressed){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
+    if(wasCompressed)this.stopAutomaticTimeCompression?.('aircraft attack');
     this.log(src==='WAKE'?`${a.name} has picked up the diving wake and is turning onto the last datum!`:`${a.name} has sighted the boat and is turning in!`,'bad');
     PresentationBridge.audio(this.state).event?.('AIRCRAFT_SPOTTED');
   },
@@ -301,7 +299,7 @@ updateAircraft(dt){
          strike before the lookout/map warning is restored. */
       if((a.state==='ATTACKING'||a.state==='STRAFING')&&!a.seenBySub){
         a.seenBySub=true;air.alarmedAt=now;
-        const T=this.state.time;if(T.transitUntil||(T.timeScale||1)>1){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.transitReason='aircraft attack';T.stopReason='aircraft attack';T.stopReasonAt=now;}
+        if(this.state.time.transitUntil||(this.state.time.timeScale||1)>1)this.stopAutomaticTimeCompression?.('aircraft attack');
         if(!a._attackHandoffLogged){a._attackHandoffLogged=true;this.log(`⚠ AIR ALARM — ${a.name} is already on an attack run!`,'bad');PresentationBridge.audio(this.state).event?.('AIRCRAFT_SPOTTED');}
       }
       if(a.state==='SEARCHING'&&!a.spotted&&friendly&&friendly.rngNm<5.5){

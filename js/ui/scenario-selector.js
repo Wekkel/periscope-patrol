@@ -23,7 +23,7 @@ class ScenarioSelector{
     if(party&&party.id!==this.selWarPartyId){this.selCampaignId=party.campaignId;this.selWarPartyId=party.id;this.selArea=current.campaign.patrolArea||campaign.defaultArea;this.selMission='AUTO';this.renderCards();}
     // Opening the anchor/menu is the alternative acknowledgement path for the
     // persistent end-of-patrol AAR offer.
-    if(typeof Toast!=='undefined')Toast.dismissRole?.('patrol-aar');
+    PresentationBridge.toast(this.game.state).dismissRole?.('patrol-aar');
     this.syncFooter();
     const career=SaveSystem.getCareer();
     const el=document.getElementById('scenCareerScore');
@@ -203,8 +203,8 @@ class ScenarioSelector{
       const blob=new Blob([text],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
       a.href=url;a.download=`periscope-patrol-profile-${stamp}.ppprofile.json`;document.body.appendChild(a);a.click();a.remove();
       setTimeout(()=>URL.revokeObjectURL(url),1000);
-      globalThis.Toast?.ok?.('Player profile exported — keep the file somewhere safe.');
-    }catch(e){console.warn('Profile export failed',e);Toast.bad(`Profile export failed: ${e?.message||e}`);}
+      PresentationBridge.toast(this.game.state).ok('Player profile exported — keep the file somewhere safe.');
+    }catch(e){console.warn('Profile export failed',e);PresentationBridge.toast(this.game.state).bad(`Profile export failed: ${e?.message||e}`);}
   }
 
   async importPlayerProfile(file){
@@ -215,22 +215,22 @@ class ScenarioSelector{
       const career=SaveSystem.getCareer(),score=document.getElementById('scenCareerScore'),meta=document.getElementById('scenCareerMeta');
       if(score)score.textContent=(career.totalScore||0).toLocaleString();
       if(meta)meta.textContent=`${career.totalShips||0} ships · ${(career.totalTonnage||0).toLocaleString()} tons · ${career.patrolHistory?.length||0} recorded patrols`;
-      globalThis.Toast?.ok?.(`Profile imported — ${result.saves} save slot${result.saves===1?'':'s'}, ${result.patrols} patrol record${result.patrols===1?'':'s'}.`);
+      PresentationBridge.toast(this.game.state).ok(`Profile imported — ${result.saves} save slot${result.saves===1?'':'s'}, ${result.patrols} patrol record${result.patrols===1?'':'s'}.`);
       // Offer the imported current patrol immediately. While it is pending,
       // SaveSystem suppresses autosave writes so the device we are importing ON
       // cannot overwrite the transferred boat before the player makes a choice.
       if(result.resumeState&&typeof AutoSave!=='undefined')AutoSave.offer();
-    }catch(e){console.warn('Profile import failed',e);Toast.bad(`Profile import failed: ${e?.message||e}`);}
+    }catch(e){console.warn('Profile import failed',e);PresentationBridge.toast(this.game.state).bad(`Profile import failed: ${e?.message||e}`);}
   }
 
   saveToSlot(slot){
     if(SaveSystem.save(slot,this.game.getSnapshot())){audio.event?.('SAVE_CONFIRMED');this.renderSaveSlots();}
-    else Toast.bad('Save failed.');
+    else PresentationBridge.toast(this.game.state).bad('Save failed.');
   }
 
   async loadSlot(slot){
     const state=SaveSystem.load(slot);
-    if(!state){Toast.bad(`Load failed${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:'.'}`);return;}
+    if(!state){PresentationBridge.toast(this.game.state).bad(`Load failed${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:'.'}`);return;}
     if(!await this.confirmPatrolReplacement(`Loading slot ${slot+1}`))return;
     SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();
     Object.assign(this.game.state,state);
@@ -249,7 +249,7 @@ class ScenarioSelector{
     // Save/Load are review/management screens and must never fall through to
     // a random patrol. Historical missions also require an explicit choice.
     if(this.activeTab!=='patrol'&&this.activeTab!=='historical')return;
-    if(this.activeTab==='historical'&&!this.selHist){globalThis.Toast?.warn?.('Choose a historical mission first.');return;}
+    if(this.activeTab==='historical'&&!this.selHist){PresentationBridge.toast(this.game.state).warn('Choose a historical mission first.');return;}
     if(!await this.confirmPatrolReplacement('Launching a new mission'))return;
     if(this.activeTab==='historical'&&this.selHist){
       const h=HISTORICAL_SCENARIOS.find(s=>s.id===this.selHist);
@@ -257,7 +257,7 @@ class ScenarioSelector{
         const aKey=PATROL_AREAS[h.area]?h.area:null;
         // Historical missions must never silently fall back to another chart: that
         // turned the old Yellow Sea/Wahoo entry into a Solomon Sea patrol.
-        if(!aKey){globalThis.Toast?.bad?.(`Historical chart missing: ${h.area}`);return;}
+        if(!aKey){PresentationBridge.toast(this.game.state).bad(`Historical chart missing: ${h.area}`);return;}
         SaveSystem.autoClear?.();
         const hp=h.campaignProfileId&&getCampaignProfile(h.campaignProfileId),gameIdentity=hp?{theaterId:hp.theaterId,playerFactionId:hp.playerFactionId,campaignProfileId:hp.id,submarineProfileId:hp.submarineProfileId}:DEFAULT_GAME_IDENTITY;
         this.game.dispatch({type:'NEW_PATROL',areaKey:aKey,startDate:h.date,difficulty:h.difficulty,missionType:h.missionType||'CONVOY_INTERDICTION',gameIdentity});

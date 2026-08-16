@@ -6,7 +6,7 @@ const PresentationBridge=(()=>{
   function take(state){const q=state?.runtime?.effects;if(!Array.isArray(q)||!q.length)return[];return q.splice(0,q.length);}
   function audioState(state,key,method,...args){if(!state?.runtime)return null;const s=state.runtime.audioState||(state.runtime.audioState={});s[key]={method,args};return s[key];}
   function audio(state){return new Proxy({}, {get:(_,key)=> (...args)=>emit(state,'audio',{method:key,args})});}
-  function toast(state){return{show:(...args)=>emit(state,'toast',{method:'show',args}),ok:(...args)=>emit(state,'toast',{method:'ok',args}),warn:(...args)=>emit(state,'toast',{method:'warn',args}),bad:(...args)=>emit(state,'toast',{method:'bad',args}),action:(...args)=>emit(state,'toast',{method:'action',args}),clear:(...args)=>emit(state,'toast',{method:'clear',args})};}
+  function toast(state){return{show:(...args)=>emit(state,'toast',{method:'show',args}),ok:(...args)=>emit(state,'toast',{method:'ok',args}),warn:(...args)=>emit(state,'toast',{method:'warn',args}),bad:(...args)=>emit(state,'toast',{method:'bad',args}),action:(...args)=>emit(state,'toast',{method:'action',args}),clear:(...args)=>emit(state,'toast',{method:'clear',args}),dismissRole:(...args)=>emit(state,'toast',{method:'dismissRole',args})};}
   function save(state,method,...args){return emit(state,'save',{method,args});}
   function aar(state,method,...args){return emit(state,'aar',{method,args});}
   function ui(state,method,...args){return emit(state,'ui',{method,args});}
