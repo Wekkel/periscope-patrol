@@ -107,7 +107,7 @@ function _careerLessons(state,engagements){
   return out.slice(0,3);
 }
 
-class SimEngineCareer extends SimEngineDamage {
+const CareerSystem={
   ensureCareerPatrolState(){
     const c=this.state.campaign;
     c.importantEvents=Array.isArray(c.importantEvents)?c.importantEvents:[];
@@ -116,7 +116,7 @@ class SimEngineCareer extends SimEngineDamage {
     c._careerStartDate=c._careerStartDate||`${c.startDate||this.state.time.campaignDate||'1943-08-17'} 06:00`;
     if(c._historyRecorded===undefined)c._historyRecorded=false;
     return c;
-  }
+  },
 
   captainLog(type,text,data={},key=null){
     const c=this.ensureCareerPatrolState();
@@ -131,9 +131,9 @@ class SimEngineCareer extends SimEngineDamage {
     if(key)ev.key=key;
     c.importantEvents.push(ev);
     const aarTrack=ev.data?.contactId?this.state.world.contactTracks?.[ev.data.contactId]:null;
-    this.aarRecordEvent?.(ev.type,ev.text,{...ev.data,aarKey:key||null},this.state.playerSub?.position,aarTrack?.plotPosition||aarTrack?.lastFixPosition||null);
+    this.aar.recordEvent?.(ev.type,ev.text,{...ev.data,aarKey:key||null},this.state.playerSub?.position,aarTrack?.plotPosition||aarTrack?.lastFixPosition||null);
     return ev;
-  }
+  },
 
   buildPatrolRecord(outcome,meta={}){
     const s=this.state,c=this.ensureCareerPatrolState(),W=s.weapons,G=W.deckGun||{},contacts=s.world.contacts||[];
@@ -183,10 +183,10 @@ class SimEngineCareer extends SimEngineDamage {
       ownBoat:_careerClone(ownBoat),lessons:_careerClone(lessons),historicalContext:{era:hp.era||null,date:hp.date||c.startDate||null,area:c.patrolArea||null,equipment:_careerClone(hp.equipment||c.equipment||[])},
       // Keep the compact recorder payload for save compatibility and for the
       // static per-engagement mini maps. The AAR UI no longer runs an animated replay.
-      replay:this.buildAfterActionReplay?.()||null,
+      replay:this.aar.buildReplay?.()||null,
       returnPort:meta.portName||null
     });
-  }
+  },
 
   finalizePatrol(outcome,meta={}){
     const c=this.ensureCareerPatrolState();
@@ -204,4 +204,4 @@ class SimEngineCareer extends SimEngineDamage {
     c._historyRecorded=true;c._historyRecordId=rec.id;
     return rec;
   }
-}
+};

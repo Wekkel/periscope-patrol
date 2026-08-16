@@ -2,7 +2,7 @@
   "scripts": {
     "lint:undef": "node tests/generate-eslint-globals.mjs . && eslint .",
     "callgraph": "node tests/generate-call-graph.mjs .",
-    "test": "node tests/quality-gates.mjs . && node tests/behaviour.mjs && node tests/boot-harness.mjs . && npm run lint:undef && npm run callgraph && node tests/verify-call-graph.mjs && node tests/verify-call-targets.mjs ."
+    "test": "node tests/run-all.mjs"
   },
   "devDependencies": {
     "eslint": "^10.8.1",

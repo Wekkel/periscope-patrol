@@ -3,7 +3,7 @@ const HarborSystem={
      The campaign authors the location, geometry, targets and presentation. This
      engine owns only the reusable defended-harbour mechanics: persistent mines,
      swept approach, torpedo net, hydrophones, searchlights and coastal batteries. */
-  ensureWorldExtensions(){
+  ensureHarborWorldState(){
     const W=this.state.world, G=this.state.weapons, C=this.state.campaign;
     if(!Array.isArray(W.portScenes))W.portScenes=materializePortScenes(PATROL_AREAS[C.patrolArea]);
     if(!Array.isArray(C.optionalObjectives)) C.optionalObjectives=[]; // migrate pre-Phase-2 saves
@@ -299,7 +299,7 @@ const HarborSystem={
   },
 
   updateHarbor(dt){
-    this.ensureWorldExtensions();
+    this.ensureHarborWorldState();
     const W=this.state.world,H=W.harbor,sub=this.state.playerSub;
     if(!H||sub.mode==='SUNK') return;
     const now=this.state.time.elapsedSeconds,rng=distNm(sub.position,H.center);

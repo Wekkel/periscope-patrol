@@ -42,12 +42,7 @@ function scopeOpticProfile(damage){
     scratches:d<.07?0:Math.round(3+d*11),distortion:d<.42?0:clamp((d-.42)*.9,0,.52)};
 }
 
-class SimEngineDamage extends SimEngineCollision {
-  ensureWorldExtensions(){
-    super.ensureWorldExtensions();
-    this.ensureDamageState();
-  }
-
+const DamageSystem={
   ensureDamageState(){
     const sub=this.state.playerSub,d=sub.damage||(sub.damage={});
     const nums=['tdcDamage','gyroDamage','pumpDamage','electricalDamage'];
@@ -66,7 +61,7 @@ class SimEngineDamage extends SimEngineCollision {
     for(const k of repairable) this._fieldRepairFloor(k,d[k]||0);
     d.instrumentBias=damageBiasesFor(this.state);
     return d;
-  }
+  },
 
   _fieldRepairFloor(field,value){
     // Flooding can be stopped at sea, but a smashed motor, bent rudder stock or
@@ -75,7 +70,7 @@ class SimEngineDamage extends SimEngineCollision {
     if(value<0.68)return;
     const frac=field==='periscopeDamage'?0.52:(field==='tdcDamage'||field==='gyroDamage'?0.38:0.34);
     d.repairFloor[field]=Math.max(d.repairFloor[field]||0,value*frac);
-  }
+  },
 
   applyShock(amount){
     this.ensureDamageState();
@@ -83,11 +78,11 @@ class SimEngineDamage extends SimEngineCollision {
     const sub=this.state.playerSub,dm=sub.damage,d=Math.max(0,Number(amount)||0);
     dm.damageEventSeq=(dm.damageEventSeq||0)+1;
     const seq=dm.damageEventSeq,seed=(this.state.campaign.scenarioSeed||1)+seq*7919;
-    this.state.world.ownHitVisual={t:this.state.time.elapsedSeconds||0,wallAt:(typeof performance!=='undefined'?performance.now():Date.now()),amount:d,seq};
+    this.state.world.ownHitVisual={t:this.state.time.elapsedSeconds||0,amount:d,seq};
 
     // Preserve the pre-Phase-3 hull/basic-system damage law exactly.
     dm.hullIntegrity=clamp(dm.hullIntegrity-d,0,100);
-    if(d>=3)this.aarRecordEvent?.('DAMAGE',`Boat damaged — ${d.toFixed(0)}% shock.`,{damage:d,hullAfter:dm.hullIntegrity},sub.position);
+    if(d>=3)this.aar.recordEvent?.('DAMAGE',`Boat damaged — ${d.toFixed(0)}% shock.`,{damage:d,hullAfter:dm.hullIntegrity},sub.position);
     dm.flooding=clamp(dm.flooding+d/180,0,1);
     dm.ballastDamage=clamp(dm.ballastDamage+d/230,0,1);
     dm.motorDamage=clamp(dm.motorDamage+d/270,0,1);
@@ -120,7 +115,7 @@ class SimEngineDamage extends SimEngineCollision {
       sub.mode='SUNK';this.state.campaign.missionStatus='LOST';
       this.log('HULL FAILURE — boat lost. Open ⚓ Missions to start a new patrol.','bad');
     }
-  }
+  },
 
   setRepairPriority(priority){
     const d=this.ensureDamageState();
@@ -129,7 +124,7 @@ class SimEngineDamage extends SimEngineCollision {
     d.repairPriority=priority;
     this.notify(`Damage control priority: ${repairPriorityLabel(priority)}. Other casualties receive stabilization only.`,'warn');
     return true;
-  }
+  },
 
   updateDmgCtrl(sub,dt){
     const d=this.ensureDamageState();
@@ -201,4 +196,4 @@ class SimEngineDamage extends SimEngineCollision {
       this.log('Flooding uncontrolled. Boat lost. Open ⚓ Missions to start a new patrol.','bad');
     }
   }
-}
+};

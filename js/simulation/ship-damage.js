@@ -229,13 +229,13 @@ function beginShipSinking(engine,c,reason='FLOODING'){
         if(known){
           engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name} sunk by enemy surface gunfire.`,'warn');
           engine.log(`${c.name} is sinking under enemy gunfire. No player penalty or enemy tonnage credited.`,'warn');
-          engine.captainLog?.('FRIENDLY_LOST_TO_ENEMY',`${c.name} lost to enemy surface gunfire.`,{contactId:c.id,type:c.displayType||c.type,attackerId:D.lastAttackerId},`friendly-enemy-loss:${c.id}`);
+          engine.ctx.captainLog?.('FRIENDLY_LOST_TO_ENEMY',`${c.name} lost to enemy surface gunfire.`,{contactId:c.id,type:c.displayType||c.type,attackerId:D.lastAttackerId},`friendly-enemy-loss:${c.id}`);
         }
       }else{
         const pts=side==='FRIENDLY'?-2500:-1000;camp.score+=pts;D.killCredited=true;D.killPoints=pts;
         engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name}. ${pts.toLocaleString()} pts.`,'bad');
         engine.log(`${c.name} is sinking — ${side.toLowerCase()} traffic hit. No enemy tonnage credited.`,'bad');
-        engine.captainLog?.(side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
+        engine.ctx.captainLog?.(side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
       }
     }else{
       const combatant=typeof isSurfaceCombatant==='function'&&isSurfaceCombatant(c);
@@ -246,7 +246,7 @@ function beginShipSinking(engine,c,reason='FLOODING'){
       D.killCredited=true;D.killPoints=pts;
       engine.notify(`${D.lastWeapon==='DECK_GUN'?'DECK GUN':'TORPEDO DAMAGE'} — ${c.name} is going down. +${pts} pts.`,'ok');
       engine.log(`${c.name} is sinking — ${reason.toLowerCase()}. ${camp.tonnageSunk.toLocaleString()} tons sunk.`,'bad');
-      engine.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:D.lastWeapon||'DAMAGE'},`sunk:${c.id}`);
+      engine.ctx.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:D.lastWeapon||'DAMAGE'},`sunk:${c.id}`);
     }
   }
   if(c.harborTarget){engine.noteHarborAttack?.(c);if(engine.state.world.harbor){engine.state.world.harbor.alert=2;engine.state.world.harbor.suspicion=100;}}

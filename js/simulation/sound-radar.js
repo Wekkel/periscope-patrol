@@ -122,15 +122,6 @@ function radarObservation(state,contact){
 }
 
 const SoundRadarSystem={
-  ensureTacticalExtensions(){
-    const T=this._ensureTacticalExtensions();
-    if(!Number.isFinite(T.soundBearing))T.soundBearing=this.state.playerSub?.heading||0;
-    if(!['PASSIVE','RADAR'].includes(T.soundDisplay))T.soundDisplay='PASSIVE';
-    return T;
-  },
-
-  ensureWorldExtensions(){this._ensureWorldExtensions();this.ensureSoundRadarState();},
-
   ensureSoundRadarState(){
     const W=this.state.world,fit=radarFitForDate(this.state.campaign?.startDate||this.state.time?.campaignDate,this.state.campaign?.campaignProfileId);
     const S=W.sound||(W.sound={});

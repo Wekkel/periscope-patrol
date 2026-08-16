@@ -11,9 +11,8 @@ function createLeafSystemContext(engine){
   const ctx={state:engine.state,bus:engine.bus,sys:{}};
   ctx.emit=(type,payload)=>engine.bus?.dispatch({type,payload});
   ctx.log=(...args)=>engine.log(...args);
-  ctx.captainLog=(...args)=>engine.captainLog(...args);
+  ctx.captainLog=(...args)=>CareerSystem.captainLog.call(ctx,...args);
   ctx.derivMode=(...args)=>engine.derivMode(...args);
-  ctx.ensureSoundRadarState=(...args)=>engine.ensureSoundRadarState?.(...args);
   ctx.ensureRadioOperations=(...args)=>IntelSystem.ensureRadioOperations.call(ctx,...args);
   ctx.friendlyPortNav=(...args)=>engine.friendlyPortNav?.(...args);
   ctx.clearDeckForDive=(...args)=>engine.clearDeckForDive(...args);
@@ -24,29 +23,27 @@ function createLeafSystemContext(engine){
     gunRound:(...args)=>engine.aarGunRound?.(...args),
     gunFinish:(...args)=>engine.aarGunFinish?.(...args),
     recordEvent:(...args)=>engine.aarRecordEvent?.(...args),
-    enemyResponse:(...args)=>engine.aarEnemyResponse?.(...args)
+    enemyResponse:(...args)=>engine.aarEnemyResponse?.(...args),
+    buildReplay:(...args)=>engine.buildAfterActionReplay?.(...args)
   };
   ctx.ensureBattleAtmosphereState=(...args)=>engine.ensureBattleAtmosphereState(...args);
   ctx.shake=(...args)=>engine.shake(...args);
-  // Temporary service: ensureWorldExtensions is removed in STAP 8.
-  ctx.ensureWorldExtensions=(...args)=>HarborSystem.ensureWorldExtensions.call(ctx,...args);
-  ctx._ensureTacticalExtensions=(...args)=>engine.ensureTacticalExtensions(...args);
-  ctx._ensureWorldExtensions=(...args)=>engine.ensureWorldExtensions(...args);
   ctx.isNavigableMapPoint=(...args)=>engine.isNavigableMapPoint(...args);
   const api=(system,names)=>Object.fromEntries(names.map(name=>[name,(...args)=>system[name].call(ctx,...args)]));
   ctx.sys.harbor={
     update:(_ctx,dt)=>HarborSystem.update(ctx,dt),
-    ...api(HarborSystem,['harborTorpedoNetHit','revealHarborNet','noteHarborAttack','updateHarborKnowledge','ensureHarborIntel','grantHarborSpecialIntel'])
+    ...api(HarborSystem,['ensureHarborWorldState','harborTorpedoNetHit','revealHarborNet','noteHarborAttack','updateHarborKnowledge','ensureHarborIntel','grantHarborSpecialIntel'])
   };
   ctx.sys.traffic={trafficIntelCandidates:(...args)=>engine.trafficIntelCandidates(...args)};
   ctx.sys.intel={update:(_ctx,dt)=>IntelSystem.updateRadio.call(ctx,dt),...api(IntelSystem,['threadShippingSignal','ensureRadioOperations','radioCopyRequirement','acceptPartialRadio','updateRadio','composeSignal','intelSummary','interceptSolution','applySignal'])};
-  ctx.sys.weather=WeatherSystem;
-  ctx.sys.soundRadar={update:(_ctx,dt)=>SoundRadarSystem.update(ctx,dt),...api(SoundRadarSystem,['markSoundBearing','echoRange'])};
+  ctx.sys.weather={update:(_ctx,dt)=>WeatherSystem.update(ctx,dt),...api(WeatherSystem,['ensureWeatherSystem'])};
+  ctx.sys.soundRadar={update:(_ctx,dt)=>SoundRadarSystem.update(ctx,dt),...api(SoundRadarSystem,['ensureSoundRadarState','markSoundBearing','echoRange'])};
   // Temporary adapters point at classes that are converted in later STEP 7 parts.
   ctx.sys.navigation={updateTdc:(...args)=>engine.updateTdc(...args)};
   ctx.sys.navigation.derivMode=(...args)=>engine.derivMode(...args);
   ctx.sys.navigation.ensureWaterRoute=(...args)=>engine.ensureWaterRoute(...args);
   ctx.sys.navigation.clampToArea=(...args)=>engine.clampToArea(...args);
+  ctx.sys.navigation.checkTerrainCollision=(...args)=>engine.checkTerrainCollision(...args);
   ctx.sys.impact={captureShipState:(...args)=>engine.captureImpactShipState?.(...args),offerObservation:(...args)=>engine.offerImpactObservation?.(...args)};
   ctx.sys.enemyAI={
     update:(_ctx,dt)=>EnemyAISystem.updateEnemyAI.call(ctx,dt),
@@ -57,7 +54,9 @@ function createLeafSystemContext(engine){
     updateLookouts:(...args)=>SensorsSystem.updateLookouts.call(ctx,...args)
   };
   ctx.sys.escorts={alert:(...args)=>EnemyAISystem.alertEscorts.call(ctx,...args)};
-  ctx.sys.damage={applyShock:(...args)=>engine.applyShock(...args)};
+  ctx.sys.collision=api(CollisionSystem,['ensureCollisionState','captureCollisionFrame','surfaceAvoidance','collisionRiskAhead','collisionRiskText','compressedCollisionWatch','vesselMotionVelocity','collisionImpact','resolveSubShipCollision','resolveShipShipCollision','updateVesselCollisions']);
+  ctx.sys.damage=api(DamageSystem,['ensureDamageState','_fieldRepairFloor','applyShock','setRepairPriority','updateDmgCtrl']);
+  ctx.sys.career=api(CareerSystem,['ensureCareerPatrolState','captainLog','buildPatrolRecord','finalizePatrol']);
   ctx.sys.battleAtmosphere={noteSurfaceGunfire:(...args)=>engine.noteSurfaceGunfire(...args),noteTacticalSignal:(...args)=>engine.noteTacticalSignal(...args)};
   ctx.sys.deckOperations={clearForDive:(...args)=>engine.clearDeckForDive(...args)};
   ctx.sys.mission={checkObjectives:(...args)=>engine.checkMissionObjectives(...args)};
@@ -71,10 +70,13 @@ function createLeafSystemContext(engine){
   for(const name of ['ensureASWState','aswProsecutionLimits','armASWProsecution','aswProsecutionExpiry','resetASWProsecution','convoyFrame','damagedGuardShip','damagedGuardTarget','screenTarget','cueEstimate','noteASWCue','freshStrongASWCue','aswDatum','noteASWFix','loseASWContact','assignASWRoles','searchTarget','updateASWBrain'])bindLeafMethod(ctx,ASWBrainSystem,name);
   for(const name of ['updateEscortBeh','surfaceAction','dropDC','updateDCs'])bindLeafMethod(ctx,ASWSystem,name);
   for(const name of ['markEscortAlerted','startMerchantEvasion','surfaceAttackObservers','surfaceAlarmRelayType','escortDirectlyNotices','maybeMerchantSpotTorpedo','alertEscorts','updateEnemyAI','updateSurfaceTrafficCombat'])bindLeafMethod(ctx,EnemyAISystem,name);
-  for(const name of ['setupHarbor','ensureHarborApproachWater','ensureHarborIntel','harborOperationProfile','harborOptionalObjective','harborIdentityLabel','refreshHarborOptionalObjective','harborNetSegments','pointSegNm','revealHarborNet','updateHarborGateProgress','harborChannelFrame','ensureWorldExtensions','startHarborSearchlightSweep','scheduleCoastalBatteryShot','recordHarborBatteryFire','updateHarborKnowledge','updateHarbor','grantHarborSpecialIntel','noteHarborAttack','harborTorpedoNetHit'])bindLeafMethod(ctx,HarborSystem,name);
+  for(const name of ['setupHarbor','ensureHarborApproachWater','ensureHarborIntel','harborOperationProfile','harborOptionalObjective','harborIdentityLabel','refreshHarborOptionalObjective','harborNetSegments','pointSegNm','revealHarborNet','updateHarborGateProgress','harborChannelFrame','ensureHarborWorldState','startHarborSearchlightSweep','scheduleCoastalBatteryShot','recordHarborBatteryFire','updateHarborKnowledge','updateHarbor','grantHarborSpecialIntel','noteHarborAttack','harborTorpedoNetHit'])bindLeafMethod(ctx,HarborSystem,name);
   for(const name of ['ensureWeatherSystem','_spawnWeatherCell','_syncLocalWeather','updateWeather'])bindLeafMethod(ctx,WeatherSystem,name);
   for(const name of ['ensureSoundRadarState','currentSoundSignal','_soundOperatorReport','markSoundBearing','echoRange','_updateSurfaceSearchRadar','updateSoundRadar'])bindLeafMethod(ctx,SoundRadarSystem,name);
   for(const name of ['threadShippingSignal','ensureRadioOperations','radioCopyRequirement','acceptPartialRadio','updateRadio','composeSignal','intelSummary','interceptSolution','applySignal'])bindLeafMethod(ctx,IntelSystem,name);
   for(const name of ['updateLookouts','updateSonar'])bindLeafMethod(ctx,SensorsSystem,name);
+  for(const name of ['ensureCollisionState','captureCollisionFrame','surfaceAvoidance','collisionRiskAhead','collisionRiskText','compressedCollisionWatch','vesselMotionVelocity','collisionImpact','resolveSubShipCollision','resolveShipShipCollision','updateVesselCollisions'])bindLeafMethod(ctx,CollisionSystem,name);
+  for(const name of ['ensureDamageState','_fieldRepairFloor','applyShock','setRepairPriority','updateDmgCtrl'])bindLeafMethod(ctx,DamageSystem,name);
+  for(const name of ['ensureCareerPatrolState','captainLog','buildPatrolRecord','finalizePatrol'])bindLeafMethod(ctx,CareerSystem,name);
   return ctx;
 }

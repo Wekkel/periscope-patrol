@@ -11,10 +11,7 @@ function clearDevelopmentOverrides(state){
 }
 class SimEngineCore{
   constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;this.ctx=typeof createLeafSystemContext==='function'?createLeafSystemContext(this):null;this.sys=this.ctx?.sys||{};}
-  ensureWorldExtensions(...args){return this.ctx?.ensureWorldExtensions?.(...args)||null;}
-  ensureWeatherSystem(...args){return this.ctx?.ensureWeatherSystem?.(...args)||null;}
-  ensureSoundRadarState(...args){return this.ctx?.ensureSoundRadarState?.(...args)||null;}
-  updateHarborKnowledge(...args){return this.ctx?.updateHarborKnowledge?.(...args)||null;}
+  ensureWorldExtensions(){this.sys.harbor.ensureHarborWorldState();this.sys.damage.ensureDamageState();}
   pauseForModal(){const t=this.state.time||{};if((t.modalPauses||0)===0)t.preModalScale=Number(t.timeScale)||1;t.modalPauses=(t.modalPauses||0)+1;t.timeScale=0;return t.modalPauses;}
   resumeFromModal(){const t=this.state.time||{};t.modalPauses=Math.max(0,(t.modalPauses||0)-1);if(t.modalPauses===0)t.timeScale=Number(t.preModalScale)>0?Number(t.preModalScale):1;return t.modalPauses;}
 
@@ -92,15 +89,15 @@ class SimEngineCore{
     this.ensureTacticalExtensions();
     this.ensureWorldExtensions();
     this.ensurePatrolRuntimeContext();
-    this.ensureCareerPatrolState?.();
+    this.sys.career.ensureCareerPatrolState();
     this.ensureHistoricalCampaignProfile?.();
     this.ensureMissionFramework?.();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
-    if(this.state.campaign.missionStatus==='LOST'){const rec=this.finalizePatrol?.('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
+    if(this.state.campaign.missionStatus==='LOST'){const rec=this.sys.career.finalizePatrol('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
     // Manual 8x/16x/32x hands the conn back before a predicted vessel collision.
     // Transit/skip uses transitInterrupt(), which reports the same hull-aware CPA.
-    if(!this.state.time.transitUntil&&(this.state.time.timeScale||1)>1&&this.compressedCollisionWatch?.()) return;
+    if(!this.state.time.transitUntil&&(this.state.time.timeScale||1)>1&&this.sys.collision.compressedCollisionWatch()) return;
     if(total<=0) return;
     // Tactical simulation stays at one-second maximum integration: a torpedo
     // at 46 knots can otherwise step over a target. Only verified quiet open-
@@ -119,7 +116,7 @@ class SimEngineCore{
       // after startImpactObservation() had set timeScale to zero.
       if(this.state.tactical?.impactObservation&&this.state.time.timeScale===0)break;
     }
-    if(this.state.campaign.missionStatus==='LOST'){const rec=this.finalizePatrol?.('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
+    if(this.state.campaign.missionStatus==='LOST'){const rec=this.sys.career.finalizePatrol('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
   }
 
   processCommands(){for(const c of this.bus.drain())this.applyCmd(c);}
@@ -310,7 +307,7 @@ class SimEngineCore{
         this.log('CRASH DIVE! Flooding ballast tanks.','warn'); PresentationBridge.audio(this.state).playCrashDive(); break;
       case'TOGGLE_AIR_WARNING_RADAR':
       case'TOGGLE_SD_RADAR':{ // legacy command ID retained for old UI/save integrations
-        this.ensureSoundRadarState?.();const a=this.state.world.airThreat,R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),airUi=sensorUi.airWarningRadar||{};
+        this.sys.soundRadar.ensureSoundRadarState();const a=this.state.world.airThreat,R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),airUi=sensorUi.airWarningRadar||{};
         a.airWarningOn=!!R?.airWarningAvailable;a.sdOn=a.airWarningOn;
         const managed=airUi.crewManagedLabel||airUi.label||'air-warning radar',status=airUi.statusLabel||airUi.label||'air-warning radar';
         this.notify(R?.airWarningAvailable?`${managed} is crew-managed automatically whenever it can be used.`:`No ${status} is fitted on this patrol date.`,R?.airWarningAvailable?'ok':'warn');break;}
@@ -350,16 +347,16 @@ class SimEngineCore{
       case'RADIO_AUTHORIZE_REPORT':{
         const m=this.state.campaign?.primaryMission,R=this.sys.intel.ensureRadioOperations()||(this.state.world.radio=this.state.world.radio||{});
         if(m?.type!=='SHADOW_REPORT'||!m.reportReady){this.notify('RADIO ROOM — no contact report is ready for transmission.','warn');break;}
-        m.reportTransmitAuthorized=true;R.txSilence=false;this.captainLog?.('REPORT_TRANSMISSION_AUTHORIZED','Skipper authorized transmission of the contact report.',{},'report-authorized');this.notify('CONTACT REPORT AUTHORIZED — remain at antenna depth until transmission is complete.','ok');PresentationBridge.audio(this.state).playRadioMessage?.();break;}
+        m.reportTransmitAuthorized=true;R.txSilence=false;this.ctx.captainLog?.('REPORT_TRANSMISSION_AUTHORIZED','Skipper authorized transmission of the contact report.',{},'report-authorized');this.notify('CONTACT REPORT AUTHORIZED — remain at antenna depth until transmission is complete.','ok');PresentationBridge.audio(this.state).playRadioMessage?.();break;}
       case'RADIO_ACCEPT_PARTIAL': this.sys.intel.acceptPartialRadio(); break;
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
         this.sys.enemyAI.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); break;
       case'TOGGLE_DAMAGE_CONTROL':
         this.notify(`Damage control parties are automatic. Choose one repair priority instead — currently ${repairPriorityLabel(sub.damage.repairPriority)}.`,'ok'); break;
-      case'SET_REPAIR_PRIORITY': this.setRepairPriority(cmd.priority); break;
+      case'SET_REPAIR_PRIORITY': this.sys.damage.setRepairPriority(cmd.priority); break;
       case'TOGGLE_PUMPS':
-        this.ensureDamageState();
+        this.sys.damage.ensureDamageState();
         if(sub.damage.pumpTripped){this.notify('Dewatering pump is tripped and cannot be restarted until damage control repairs it.','bad');break;}
         sub.damage.pumpActive=!sub.damage.pumpActive;
         this.log(sub.damage.pumpActive?`Pumps running at ${Math.round(clamp(1-sub.damage.pumpDamage*.78,.16,1)*100)}% capacity — noise increases.`:'Pumps stopped.'); break;
@@ -420,14 +417,14 @@ class SimEngineCore{
           this.state.tactical.periscopeBearing=tr&&Number.isFinite(tr.bearing)?tr.bearing:sub.heading;
           this.refreshScopeVisualContacts?.();
         }
-        if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.ensureSoundRadarState?.();}
+        if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.sys.soundRadar.ensureSoundRadarState();}
         if(prevStation!==this.state.tactical.activeStation)PresentationBridge.audio(this.state).playStationSwitch?.();
         break;}
       case'ROTATE_SOUND': this.state.tactical.soundBearing=normDeg((this.state.tactical.soundBearing||sub.heading)+(cmd.deltaDeg||0)); break;
       case'SOUND_MARK_BEARING': this.sys.soundRadar.markSoundBearing(); break;
       case'SOUND_ECHO_RANGE': this.sys.soundRadar.echoRange(); break;
       case'TOGGLE_SOUND_DISPLAY':{
-        this.ensureSoundRadarState?.();const R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),radarUi=sensorUi.surfaceSearchRadar||{};
+        this.sys.soundRadar.ensureSoundRadarState();const R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),radarUi=sensorUi.surfaceSearchRadar||{};
         if(this.state.tactical.soundDisplay==='PASSIVE'){
           if(!R?.surfaceSearchAvailable){this.notify(`${radarUi.statusLabel||radarUi.label||'Surface-search radar'} is not fitted on this patrol date.`,'warn');break;}
           this.state.tactical.soundDisplay='RADAR';
@@ -709,7 +706,7 @@ class SimEngineCore{
         this.setDepthAndClearance(sub,sea-3,sea);
         sub.verticalSpeedFps=0;
         sub.propulsion.speedKnots*=0.25;
-        this.applyShock(dmg);
+        this.sys.damage.applyShock(dmg);
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.7,0,1.5);
         this.sys.enemyAI.alertEscorts('NOISE',{...sub.position},0.8);
         this.notify(`SHE IS ON THE BOTTOM — ${sub.bottomType.toLowerCase()} at ${sea.toFixed(0)} ft, ${spd.toFixed(1)} kn. Hull damage ${dmg.toFixed(0)}%. Every escort in the sea heard that.`,'bad');
@@ -796,11 +793,11 @@ class SimEngineCore{
       sub.propulsion.speedKnots*=0.1;
       if(sub.depthFeet>10){
         const dmg=8+Math.random()*12;
-        this.applyShock(dmg);
+        this.sys.damage.applyShock(dmg);
         this.log(`GROUNDING — hull impact! Damage ${dmg.toFixed(0)}%.`,'bad');
       } else {
         const dmg=2+Math.random()*4;
-        this.applyShock(dmg);
+        this.sys.damage.applyShock(dmg);
         this.log('Keel contact with terrain.','warn');
       }
     }
@@ -1062,9 +1059,9 @@ class SimEngineCore{
     const patrolScore=camp.score;
     camp.totalScore+=patrolScore;
     const hullAtReturn=sub.damage.hullIntegrity;
-    this.captainLog?.('RETURNED_TO_PORT',`Returned to ${portName}.`,{portName,hull:hullAtReturn},'returned-to-port');
+    this.ctx.captainLog?.('RETURNED_TO_PORT',`Returned to ${portName}.`,{portName,hull:hullAtReturn},'returned-to-port');
     this.updateAfterActionRecorder?.(999);
-    const patrolRecord=this.finalizePatrol?.('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
+    const patrolRecord=this.sys.career.finalizePatrol('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
     if(typeof historicalNextPatrolDate==='function'){
       const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(camp._careerStartDate,camp.patrolDuration):camp.startDate);
       camp.nextPatrolDate=historicalNextPatrolDate(endDate,camp.patrolNumber,camp.scenarioSeed);
@@ -1213,7 +1210,7 @@ class SimEngineCore{
     const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
     s.world.contacts=training?[]:this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
-    this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
+    this.sys.soundRadar.ensureSoundRadarState();this.sys.weather.ensureWeatherSystem(true);
     if(training){
       s.world.traffic={enabled:false,generated:true,groups:[],primaryGroup:null};
       s.campaign.objectives=[{text:'Find the merchant',done:false},{text:'Sink it',done:false},{text:'Evade the escort',done:false},{text:'Finish the training',done:false}];

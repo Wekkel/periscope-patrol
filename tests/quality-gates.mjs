@@ -6,7 +6,7 @@ const budgets={repository:4_500_000,javascript:1_850_000,styles:220_000,audio:2_
 for(const [k,v] of Object.entries(values))if(v>budgets[k])fail.push(`${k} ${v} > ${budgets[k]}`);
 const ships=await readFile(path.join(root,'js/rendering/world-geometry.js'),'utf8');
 for(const key of ['US_FLETCHER_DESTROYER','US_DESTROYER_ESCORT','GERMAN_TORPEDO_BOAT','GERMAN_MINESWEEPER','ITALIAN_SOLDATI_DESTROYER','ITALIAN_GABBIANO_CORVETTE','SOVIET_GNEVNY_DESTROYER','SOVIET_PATROL_ESCORT'])if(!ships.includes(`SHIP_MODELS.${key}=`))fail.push(`national silhouette missing: ${key}`);
-const composedSystems=[['js/simulation/harbor.js','HarborSystem','SimEngineHarbor'],['js/simulation/weather-system.js','WeatherSystem','SimEngineWeather'],['js/simulation/sound-radar.js','SoundRadarSystem','SimEngineSoundRadar'],['js/simulation/radio-intel.js','IntelSystem','SimEngineIntel'],['js/simulation/sensors.js','SensorsSystem','SimEngineSensors'],['js/simulation/weapons/torpedoes.js','TorpedoSystem','SimEngineTorpedoes'],['js/simulation/weapons/deck-gun.js','DeckGunSystem','SimEngineDeckGun'],['js/simulation/weapons/aa-gun.js','AAGunSystem','SimEngineAAGun'],['js/simulation/ai/aircraft.js','AircraftSystem','SimEngineAircraft'],['js/simulation/ai/asw-brain.js','ASWBrainSystem','SimEngineASWBrain'],['js/simulation/ai/escort-asw.js','ASWSystem','SimEngineASW'],['js/simulation/ai/enemy-ai.js','EnemyAISystem','SimEngineEnemyAI']];
+const composedSystems=[['js/simulation/harbor.js','HarborSystem','SimEngineHarbor'],['js/simulation/weather-system.js','WeatherSystem','SimEngineWeather'],['js/simulation/sound-radar.js','SoundRadarSystem','SimEngineSoundRadar'],['js/simulation/radio-intel.js','IntelSystem','SimEngineIntel'],['js/simulation/sensors.js','SensorsSystem','SimEngineSensors'],['js/simulation/weapons/torpedoes.js','TorpedoSystem','SimEngineTorpedoes'],['js/simulation/weapons/deck-gun.js','DeckGunSystem','SimEngineDeckGun'],['js/simulation/weapons/aa-gun.js','AAGunSystem','SimEngineAAGun'],['js/simulation/ai/aircraft.js','AircraftSystem','SimEngineAircraft'],['js/simulation/ai/asw-brain.js','ASWBrainSystem','SimEngineASWBrain'],['js/simulation/ai/escort-asw.js','ASWSystem','SimEngineASW'],['js/simulation/ai/enemy-ai.js','EnemyAISystem','SimEngineEnemyAI'],['js/simulation/collision/vessel-collision.js','CollisionSystem','SimEngineCollision'],['js/simulation/damage-control.js','DamageSystem','SimEngineDamage'],['js/simulation/career-history.js','CareerSystem','SimEngineCareer']];
 const compatibilityAllowlist=[];
 for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf8');if(/engine\.updateAircraft\s*=/.test(src)&&!compatibilityAllowlist.includes(rel(p)))fail.push(`unapproved compatibility entry point: ${rel(p)}: engine.updateAircraft`);}
 for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf8');if(/(?:state|s|u)\.ui\s*=.*(?:toasts|toastSeq)|ui\.(?:toasts|toastSeq)\s*=/.test(src))fail.push(`legacy state toast queue write: ${rel(p)}`);}
@@ -15,6 +15,21 @@ for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf
 const campaignCatalog=await readFile(path.join(root,'js/data/multi-theater-campaigns.js'),'utf8');
 if(/x\.specialOperationsProfile\s*=\s*null\s*;/.test(campaignCatalog))fail.push('runtime campaign profiles discard specialOperationsProfile');
 if(!/x\.specialOperationsProfile\s*=\s*base\.specialOperationsProfile\s*\?/.test(campaignCatalog))fail.push('runtime campaign profiles do not preserve authored special operations');
+const callGraphPath=path.join(root,'tests/call-graph-current.json');
+const callGraph=JSON.parse(await readFile(callGraphPath,'utf8'));
+const callGraphMtime=(await stat(callGraphPath)).mtimeMs;
+const newestSimulationMtime=Math.max(...await Promise.all(all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js')).map(async p=>(await stat(p)).mtimeMs)));
+if(callGraphMtime<newestSimulationMtime)fail.push('call graph is stale; run tests/generate-call-graph.mjs before quality-gates');
+const duplicateMethodAllowlist=new Set(['constructor','update']);
+const methodOwners=new Map();
+for(const method of callGraph.methods||[]){
+  if(!methodOwners.has(method.name))methodOwners.set(method.name,[]);
+  methodOwners.get(method.name).push(method);
+}
+for(const [name,definitions] of methodOwners){
+  const owners=[...new Set(definitions.map(item=>item.class))];
+  if(owners.length>1&&!duplicateMethodAllowlist.has(name))fail.push(`duplicate simulation method: ${name} — ${definitions.map(item=>`${item.class}@${item.file}:${item.line}`).join(', ')}`);
+}
 const strictPatterns=[/(^|[^\w.])Toast\./,/(^|[^\w.])audio\./,/(^|[^\w.])SaveSystem\./,/(^|[^\w.])globalThis\./,/(^|[^\w.])document\./,/(^|[^\w.])setTimeout\b/,/(^|[^\w.])performance\.now\b/];
 const layerViolations=[];let layerCalls=0;const layerFiles=new Set();
 for(const p of all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');let fileCalls=0;for(const re of strictPatterns){const hits=src.match(new RegExp(re.source,'g'))||[];fileCalls+=hits.length;if(hits.length)layerViolations.push(`${rel(p)}: ${re}`);}if(fileCalls){layerCalls+=fileCalls;layerFiles.add(p);}}

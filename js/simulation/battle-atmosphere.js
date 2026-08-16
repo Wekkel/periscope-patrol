@@ -78,7 +78,7 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       if(ev.resolved)return;ev.resolved=true;const A=this.ensureBattleAtmosphereState(),s=this.state,sub=s.playerSub,now=s.time.elapsedSeconds;
       const miss=distNm(sub.position,ev.impactPosition),hit=sub.depthFeet<12&&miss<.020;
       if(hit){
-        this.applyShock(ev.damage);s.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
+        this.sys.damage.applyShock(ev.damage);s.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
         this.notify(`COASTAL BATTERY HIT — ${ev.damage.toFixed(0)}% damage. The battery has the range; get below or spoil the solution.`,'bad');
         PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,ev.origin),sub.heading,.9);this.shake?.(1.2);
         if(s.world.harbor)s.world.harbor.batteryCorrection=.46;

@@ -202,7 +202,13 @@ const updateSystemNames = new Map([
   ['this.sys.aaGun.update', 'updateAAGun'],
   ['this.sys.enemyAI.update', 'updateEnemyAI'],
   ['this.sys.aircraft.update', 'updateAircraft'],
-  ['this.sys.intel.update', 'updateRadio']
+  ['this.sys.intel.update', 'updateRadio'],
+  ['this.sys.collision.captureCollisionFrame', 'captureCollisionFrame'],
+  ['this.sys.collision.updateVesselCollisions', 'updateVesselCollisions'],
+  ['this.sys.damage.updateDmgCtrl', 'updateDmgCtrl'],
+  ['this.sys.career.ensureCareerPatrolState', 'ensureCareerPatrolState'],
+  ['this.sys.career.finalizePatrol', 'finalizePatrol'],
+  ['this.sys.collision.compressedCollisionWatch', 'compressedCollisionWatch']
 ]);
 function orderedCalls(method) {
   const mappedNames = new Set(method.callDetails

@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════ VESSEL COLLISION MODEL
-class SimEngineCollision extends SimEngineCore {
+const CollisionSystem={
   ensureCollisionState(){
     const W=this.state.world;
     W.collisionEvents=W.collisionEvents||[];
     W._collisionCooldowns=W._collisionCooldowns||{};
-  }
+  },
 
   captureCollisionFrame(){
     this.ensureCollisionState();
@@ -12,7 +12,7 @@ class SimEngineCollision extends SimEngineCore {
     sub._collisionPrev={position:{...sub.position},heading:sub.heading,depthFeet:sub.depthFeet};
     for(const c of this.state.world.contacts||[]) if(!c.sunk)
       c._collisionPrev={position:{...c.position},heading:c.heading};
-  }
+  },
 
   surfaceAvoidance(){
     const ships=(this.state.world.contacts||[]).filter(c=>!c.sunk&&c.type!=='RAFT');
@@ -53,7 +53,7 @@ class SimEngineCollision extends SimEngineCore {
     const waterProbe=(c,heading,dNm)=>{
       const r=degToRad(heading),p={xNm:c.position.xNm+Math.sin(r)*dNm,yNm:c.position.yNm-Math.cos(r)*dNm};
       const mid={xNm:(c.position.xNm+p.xNm)/2,yNm:(c.position.yNm+p.yNm)/2};
-      if(this.checkTerrainCollision?.({position:p})?.collision||this.checkTerrainCollision?.({position:mid})?.collision)return false;
+      if(this.sys.navigation.checkTerrainCollision({position:p})?.collision||this.sys.navigation.checkTerrainCollision({position:mid})?.collision)return false;
       return Bathy.feet(p.xNm,p.yNm)>=24&&Bathy.feet(mid.xNm,mid.yNm)>=24;
     };
     for(const c of ships){
@@ -75,7 +75,7 @@ class SimEngineCollision extends SimEngineCore {
       c._collisionAvoidAppliedHeading=normDeg(base+clamp(delta,-145,145));
       c.desiredHeading=c._collisionAvoidAppliedHeading;
     }
-  }
+  },
 
   collisionRiskAhead(horizonSec=90){
     const sub=this.state.playerSub;
@@ -90,11 +90,11 @@ class SimEngineCollision extends SimEngineCore {
       if(!best||ca.rawTimeSec<best.rawTimeSec)best={contact:c,...ca,timeSec:ca.rawTimeSec};
     }
     return best;
-  }
+  },
 
   collisionRiskText(risk){
     return `COLLISION RISK · CPA ${Math.max(0,risk.centerNm).toFixed(2)} NM · ${risk.contact.id} in ${Math.max(1,Math.round(risk.timeSec))} s`;
-  }
+  },
 
   compressedCollisionWatch(){
     const t=this.state.time;
@@ -107,12 +107,12 @@ class SimEngineCollision extends SimEngineCore {
     t.timeScale=1;t.stopReason=text;t.stopReasonAt=now;
     this.notify(`TIME COMPRESSION STOPPED — ${text}. Take the conn.`,'bad');
     return true;
-  }
+  },
 
   vesselMotionVelocity(prev,now,dt){
     const d=Math.max(dt,1e-6);
     return{x:(now.xNm-prev.xNm)/d,y:(now.yNm-prev.yNm)/d};
-  }
+  },
 
   collisionImpact(sub,ship,hit,dt){
     const sp=sub._collisionPrev?.position||sub.position,cp=ship._collisionPrev?.position||ship.position;
@@ -125,7 +125,7 @@ class SimEngineCollision extends SimEngineCore {
     const subMass=Math.max(1,sub.dimensions?.massTons||getSubmarineProfile(sub.profileId).dimensions.massTons);
     const damage=clamp(0.35+0.65*Math.pow(Math.max(0,normalKn),1.55)*Math.sqrt(mass/subMass),0.35,95);
     return{relativeSpeedKnots:relKn,normalSpeedKnots:normalKn,impactAngleDeg:angleDeg,massTons:mass,damage};
-  }
+  },
 
   resolveSubShipCollision(sub,c,hit,dt){
     const now=this.state.time.elapsedSeconds,key=`OWN_SUB|${c.id}`,last=this.state.world._collisionCooldowns[key]??-999;
@@ -139,7 +139,7 @@ class SimEngineCollision extends SimEngineCore {
                 yNm:lerp(cp.yNm,c.position.yNm,t)+hit.normal.y*0.00025};
     sub.propulsion.speedKnots*=0.35;sub.propulsion.actualRpm*=0.55;
     c.speedKnots*=0.58;c.desiredSpeed=Math.min(c.desiredSpeed??c.speedKnots,c.speedKnots);
-    this.applyShock(impact.damage);
+    this.sys.damage.applyShock(impact.damage);
     sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.75,0,1.5);
     this.sys.enemyAI.alertEscorts('COLLISION',{...sub.position},0.92);
     const ram=isSurfaceCombatant(c)&&this.state.world.enemy.alertState==='ATTACKING';
@@ -149,7 +149,7 @@ class SimEngineCollision extends SimEngineCore {
     this.state.world.lastCollision=ev;this.state.world.collisionEvents.push(ev);
     if(this.state.world.collisionEvents.length>40)this.state.world.collisionEvents.shift();
     return ev;
-  }
+  },
 
   resolveShipShipCollision(a,b,hit,dt){
     const now=this.state.time.elapsedSeconds,key=[a.id,b.id].sort().join('|'),last=this.state.world._collisionCooldowns[key]??-999;
@@ -167,7 +167,7 @@ class SimEngineCollision extends SimEngineCore {
     if(this.state.world.collisionEvents.length>40)this.state.world.collisionEvents.shift();
     this.log(`NAVIGATION COLLISION — ${a.name} and ${b.name} made contact at ${relKn.toFixed(1)} kn relative.`,'warn');
     return ev;
-  }
+  },
 
   updateVesselCollisions(dt){
     this.ensureCollisionState();
@@ -194,4 +194,4 @@ class SimEngineCollision extends SimEngineCore {
       if(hit)this.resolveShipShipCollision(a,b,hit,dt);
     }
   }
-}
+};

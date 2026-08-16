@@ -1,4 +1,4 @@
-class SimEngine extends SimEngineCareer {
+class SimEngine extends SimEngineCore {
   snapshotWatch(){
     const s=this.state,tracks=s.world.contactTracks||{},contacts=s.world.contacts||[],now=s.time.elapsedSeconds;
     const ids=Object.keys(tracks),byId=new Map(contacts.map(c=>[c.id,c]));
@@ -69,8 +69,8 @@ class SimEngine extends SimEngineCareer {
     const s=this.state, w=s.time._watch;
     if(!w) return 'ok';
     if(s.playerSub.mode==='SUNK') return 'the boat is lost';
-    const collisionRisk=this.collisionRiskAhead(90);
-    if(collisionRisk) return this.collisionRiskText(collisionRisk);
+    const collisionRisk=this.sys.collision.collisionRiskAhead(90);
+    if(collisionRisk) return this.sys.collision.collisionRiskText(collisionRisk);
     if(s.playerSub.damage.hullIntegrity<w.hull-0.5) return 'the boat has taken damage';
     if(s.world.enemy.alertState!==w.alert&&s.world.enemy.alertState!=='UNAWARE') return 'the escorts are stirring';
     /* Contact changes are judged by tactical SALIENCE, not just count. During
@@ -129,7 +129,7 @@ class SimEngine extends SimEngineCareer {
     const convoyLocated=Object.keys(this.state.world.contactTracks).some(id=>convoyIds.has(id));
     if(convoyLocated&&camp.objectives[0]&&!camp.objectives[0].done){
       camp.objectives[0].done=true;
-      this.captainLog?.('CONVOY_SIGHTED','Enemy convoy sighted.',{},'convoy-sighted');
+      this.ctx.captainLog?.('CONVOY_SIGHTED','Enemy convoy sighted.',{},'convoy-sighted');
     }
     const anyConvoyHit=this.state.weapons.hits.some(h=>convoyIds.has(h.contactId));
     if(anyConvoyHit&&camp.objectives[1]) camp.objectives[1].done=true;
@@ -148,7 +148,7 @@ class SimEngine extends SimEngineCareer {
   updateSub(dt){
     const sub=this.state.playerSub,sunk=sub.mode==='SUNK';
     if(!sunk){
-      this.captureCollisionFrame();this.updateBridgeDiveSequence?.(dt);this.updateHeading(sub,dt);this.updateDepth(sub,dt);this.updatePropulsion(sub,dt);this.updatePosition(sub,dt);this.applyTerrainEffects(sub,dt);
+      this.sys.collision.captureCollisionFrame();this.updateBridgeDiveSequence?.(dt);this.updateHeading(sub,dt);this.updateDepth(sub,dt);this.updatePropulsion(sub,dt);this.updatePosition(sub,dt);this.applyTerrainEffects(sub,dt);
     }else{
       // The battle may continue after loss for observation/AAR purposes, but a
       // destroyed boat is not an invisible 9-knot powered object in that world.
@@ -156,13 +156,13 @@ class SimEngine extends SimEngineCareer {
     }
     this.sys.weather.update(this.ctx,dt);
     this.updateTrafficDirector?.(dt);
-    this.updateWorld(dt); this.updateVesselCollisions(dt); this.updateSigs(sub); this.sys.harbor.update(this.ctx,dt);
+    this.updateWorld(dt); this.sys.collision.updateVesselCollisions(dt); this.updateSigs(sub); this.sys.harbor.update(this.ctx,dt);
     this.updateDetection(dt); this.sys.soundRadar.update(this.ctx,dt); this.sys.harbor.updateHarborKnowledge(dt); this.updateTdc(); this.sys.torpedoes.update(this.ctx,dt); this.sys.deckGun.update(this.ctx,dt);
     this.sys.enemyAI.update(this.ctx,dt); this.sys.aircraft.update(this.ctx,dt); this.sys.aaGun.update(this.ctx,dt); this.sys.intel.update(this.ctx,dt); this.updateMapState(dt);
     this.updateBattleAtmosphere?.(dt);
     this.updateMissionFramework?.(dt);
     if(!sunk&&this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length)this.steerWaypoint(false);
-    if(!sunk){this.updateDmg(sub,dt);this.updateDmgCtrl(sub,dt);this.checkMissionObjectives();this.checkPortArrival(dt);this.updateModeAfter(sub);}
+    if(!sunk){this.updateDmg(sub,dt);this.sys.damage.updateDmgCtrl(sub,dt);this.checkMissionObjectives();this.checkPortArrival(dt);this.updateModeAfter(sub);}
     this.updateWarnings(sub);
     this.updateAfterActionRecorder?.(dt);
     if(this.state.tactical.activeStation==='BRIDGE'&&!bridgeCanUse(this.state)){
@@ -346,7 +346,7 @@ class SimEngine extends SimEngineCareer {
   updateWorld(dt){
     const elapsed=this.state.time.elapsedSeconds;
     this.updateConvoyNavigation();
-    this.surfaceAvoidance();
+    this.sys.collision.surfaceAvoidance();
     for(const c of this.state.world.contacts){
       if(c.sunk) continue;
       updateShipDamage(this,c,dt);
