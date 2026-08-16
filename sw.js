@@ -107,7 +107,8 @@ const SHELL = [
   './js/data/game-catalog.js',
   './js/data/pacific-terrain-data.js',
   './js/data/multi-theater-campaigns.js',
-  './js/rendering/optics.js'
+  './js/rendering/optics.js',
+  './js/rendering/world-3d.js'
 ];
 
 const OPTIONAL_SHELL = new Set([
