@@ -48,6 +48,14 @@ const mid=route.routePointAt(lane,3).pos;approx(mid.xNm,3);approx(mid.yNm,0);
 assert.equal(route.routeAdvanceOneWay(lane,0,3).dir,1);
 const end=route.routeAdvanceOneWay(lane,6,10);assert.equal(end.ended,true);approx(end.pos.xNm,3);approx(end.pos.yNm,4);
 
+const optics=await load('js/rendering/optics.js',['phaseSmooth01','dayPhaseRgb','projectWorldPoint','seaSurfaceY','projectAzimuthElevation'],{clamp,lerp,degToRad,radToDeg,shortDelta,EARTH_R:6371000,makeWorldCamera(){}});
+approx(optics.phaseSmooth01(0),0);approx(optics.phaseSmooth01(1),1);
+assert.deepEqual([...optics.dayPhaseRgb(.5,[0,0,0],[100,100,100],[200,200,200])],[145,145,145]);
+const cam={E:0,N:0,sin:0,cos:1,cx:320,cy:240,h:2,f:1000};
+const projected=optics.projectWorldPoint(cam,0,100,0);assert.ok(projected&&projected.y>240&&projected.d===100,'forward world point projects into view');
+approx(optics.seaSurfaceY(cam,100),240+(2/100+100/(2*6371000))*1000,1e-9);
+const opticalPoint={...cam,horizonY:240,halfFov:Math.PI/4};assert.ok(optics.projectAzimuthElevation(opticalPoint,0,0),'on-axis optical point projects');assert.equal(optics.projectAzimuthElevation(opticalPoint,180,0),null,'rear optical point is outside the optic');
+
 const hull=await load('js/simulation/collision/hull-geometry.js',['movingHullIntersection'],{degToRad,radToDeg,normDeg,shortDelta,knotsNmSec,clamp,distNm,lerp,bearingBetween,vesselGameplayType:c=>c?.gameplayType||'MERCHANT',getSubmarineProfile:()=>null});
 const box=(x,y)=>({position:{xNm:x,yNm:y},heading:0,halfLengthNm:.5,halfBeamNm:.2});
 assert.ok(hull.movingHullIntersection(box(-2,0),box(2,0),box(0,-2),box(0,2)),'crossing OBBs should hit');
@@ -56,4 +64,10 @@ assert.ok(hull.movingHullIntersection(box(0,-1.02),box(0,-.999),box(0,0),box(0,0
 assert.equal(hull.movingHullIntersection(box(-2,0),box(-1.1,0),box(0,2),box(0,2.9)),null,'parallel paths should miss');
 assert.ok(hull.movingHullIntersection(box(-2,-2),box(0,0),box(2,-2),box(0,0)),'diagonal crossing should hit');
 
-console.log('behaviour tests passed: TDC 6, routes 4, hull SAT 5');
+// Render failures must not prevent the station-navigation phase of a frame.
+let navigated=false;
+const frameWithRenderRecovery=(render,navigate)=>{try{render();}catch(_err){}finally{navigate();}};
+frameWithRenderRecovery(()=>{throw new Error('periscope display fault');},()=>{navigated=true;});
+assert.equal(navigated,true,'station navigation must survive a render failure');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, hull SAT 5, render recovery 1');

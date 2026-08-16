@@ -1,0 +1,13 @@
+{
+  "source": "tests/boot-harness.mjs",
+  "commitScope": "before 7b-1 render conversion",
+  "canvas": { "width": 1280, "height": 800 },
+  "stations": {
+    "TACTICAL": 707,
+    "BRIDGE": 2396,
+    "SOUND": 201,
+    "PERISCOPE": 2039,
+    "MAP": 1162,
+    "DECK_GUN": 2208
+  }
+}

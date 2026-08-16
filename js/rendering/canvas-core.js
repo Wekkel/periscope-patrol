@@ -174,7 +174,7 @@ class CanvasViewCore{
 
   drawHitFlash(ctx,w,h,state){
     const station=state.tactical.activeStation;
-    if(!['DECK_GUN','PERISCOPE','BRIDGE'].includes(station)||typeof this.proj!=='function')return;
+    if(!['DECK_GUN','PERISCOPE','BRIDGE'].includes(station)||typeof projectWorldPoint!=='function')return;
     const cam=station==='DECK_GUN'?this.gunCam:station==='BRIDGE'?this.bridgeCam:this.cam;
     if(!cam)return;
     const now=state.time.elapsedSeconds,k=this.k;
@@ -189,7 +189,7 @@ class CanvasViewCore{
       const f=1-e.ageSec/.8;if(f>fade){hit=e.position;fade=f;power=/GUN/.test(e.label||'')?.9:1.15;zM=Math.max(.5,Number(e.zM)||3);}
     }
     if(!hit||fade<=0)return;
-    const p=this.proj(cam,hit.xNm*NM_M,-hit.yNm*NM_M,zM);if(!p)return;
+    const p=projectWorldPoint(cam,hit.xNm*NM_M,-hit.yNm*NM_M,zM);if(!p)return;
     const rr=clamp((48+10200/Math.max(90,p.d))*k,42*k,175*k),a=clamp(fade*power,0,1);
     ctx.save();ctx.globalCompositeOperation='screen';
 

@@ -12,7 +12,8 @@ const checks=[
   ['ESLint globals',process.execPath,['tests/generate-eslint-globals.mjs','.']],
   ['ESLint no-undef',eslintBin,['.']],
   ['call-order baseline',process.execPath,['tests/verify-call-graph.mjs']],
-  ['call-target resolution',process.execPath,['tests/verify-call-targets.mjs','.']]
+  ['call-target resolution',process.execPath,['tests/verify-call-targets.mjs','.']],
+  ['render call-target resolution',process.execPath,['tests/verify-render-call-targets.mjs','.']]
 ];
 
 for(const [label,command,args] of checks){

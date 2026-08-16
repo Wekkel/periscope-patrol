@@ -1,28 +1,4 @@
 class CanvasViewDeckGun extends CanvasViewTactical {
-  setupCam(state,fovDeg,cx,cy,r,opts={}){
-    const sub=state.playerSub;
-    const camH=opts.heightM??(sub.depthFeet<8?6.5:clamp(1.8-(sub.depthFeet-45)*0.06,0.35,1.9));
-    // Compatibility wrapper around the shared camera contract. New station
-    // callers should pass their own bearing; the default is only for SCOPE.
-    return makeWorldCamera(state,{position:opts.position||sub.position,heightM:camH,
-      bearingDeg:opts.bearingDeg??state.tactical.periscopeBearing,fovDeg,cx,cy,r,
-      viewW:opts.viewW,viewH:opts.viewH,kind:opts.kind||'PERISCOPE'});
-  }
-  // world point → screen. d is the horizontal distance (also used for sorting)
-  proj(cam,E,N,Y){
-    const dE=E-cam.E, dN=N-cam.N;
-    const fwd=dE*cam.sin+dN*cam.cos;
-    const rgt=dE*cam.cos-dN*cam.sin;
-    if(fwd<3) return null;
-    return{
-      x:cam.cx+rgt/fwd*cam.f,
-      y:cam.cy+((cam.h-Y)/fwd+fwd/(2*EARTH_R))*cam.f,
-      d:fwd
-    };
-  }
-  // screen y of the sea surface at distance d (straight ahead)
-  seaY(cam,d){return cam.cy+(cam.h/d+d/(2*EARTH_R))*cam.f;}
-
   ownshipDeckPoint(sub,forwardM,sideM,zM=1.35){
     const h=degToRad(sub.heading),fx=Math.sin(h),fy=-Math.cos(h),sx=Math.cos(h),sy=Math.sin(h);
     return{xNm:sub.position.xNm+(fx*forwardM+sx*sideM)/NM_M,
@@ -262,7 +238,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       const s2=side*cb-u2*sb,u3=side*sb+u2*cb;
       return{E:E0+fx*f2+rx*s2,N:N0+fy*f2+ry*s2,Y:alt+u3};
     };
-    const project=q=>{const p=this.proj(cam,q.E,q.N,q.Y);return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?p:null;};
+    const project=q=>{const p=projectWorldPoint(cam,q.E,q.N,q.Y);return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?p:null;};
     const friendly=a.side==='FRIENDLY',attack=!friendly&&(a.state==='ATTACKING'||a.state==='STRAFING');
     const haze=clamp(1-rng/Math.max(1,vis),.24,1),night=clamp(1-dl,0,1);
     const base=friendly?[39,68,54]:attack?[53,45,35]:[45,52,51];
@@ -327,7 +303,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     const sub=state.playerSub,G=state.weapons.deckGun,env=state.world.environment,t=state.time.elapsedSeconds;
     const bearing=normDeg(sub.heading+(G?.trainDeg||0));
     const fov=this.portrait?62:56,cx=w/2,cy=this.portrait?h*0.46:h*0.49,r=Math.max(w,h)*0.72;
-    const cam=this.setupCam(state,fov,cx,cy,r,{heightM:5.6,bearingDeg:bearing,viewW:w,viewH:h,kind:'GUN'});
+    const cam=setupViewCamera(state,fov,cx,cy,r,{heightM:5.6,bearingDeg:bearing,viewW:w,viewH:h,kind:'GUN'});
     // The gun camera physically stands at the forward mount. setupCam's
     // generic world camera is at the submarine origin; with the gun trained
     // abeam that made a correctly simulated shell appear to emerge from the
@@ -443,7 +419,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
 
   drawGunSplashOne(ctx,cam,state,sp){
     const k=this.k,env=state.world.environment||{},sea=clamp(env.seaState||0,0,1),rain=clamp(env.precipitation||0,0,1);
-    const p=this.proj(cam,sp.position.xNm*NM_M,-sp.position.yNm*NM_M,0);if(!p)return;
+    const p=projectWorldPoint(cam,sp.position.xNm*NM_M,-sp.position.yNm*NM_M,0);if(!p)return;
     const a=clamp(1-sp.age/4,0,1)*(1-rain*.38),rise=Math.sin(clamp(sp.age/1.4,0,1)*Math.PI)*22*k*(1+sea*.42);
     const rangeM=state.playerSub?.position?distNm(state.playerSub.position,sp.position)*NM_M:p.d,beyondHorizon=rangeM>(cam.dHor||Infinity);
     const canClip=beyondHorizon&&typeof ctx.save==='function'&&typeof ctx.clip==='function';
@@ -469,7 +445,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
   drawGunProjectiles3D(ctx,cam,state,includeSplashes=true){
     const G=state.weapons.deckGun,k=this.k,sub=state.playerSub;
     for(const sh of G?.shells||[]){
-      const p=this.proj(cam,sh.xNm*NM_M,-sh.yNm*NM_M,sh.zM);if(!p)continue;
+      const p=projectWorldPoint(cam,sh.xNm*NM_M,-sh.yNm*NM_M,sh.zM);if(!p)continue;
       const rangeNm=distNm(sub.position,{xNm:sh.xNm,yNm:sh.yNm});
       // A 3-inch projectile is not a glowing tennis ball five miles away.
       // Keep a short readable tracer near the muzzle, then let the player watch
@@ -479,7 +455,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       const distanceFade=clamp((2.15-rangeNm)/.75,0,1),a=clamp(1-sh.age/10,.25,1)*distanceFade;
       if(a<=.02)continue;
       ctx.fillStyle=`rgba(255,235,155,${a})`;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.75,1.55*k),0,Math.PI*2);ctx.fill();
-      if(sh.prev&&rangeNm<1.75){const q=this.proj(cam,sh.prev.xNm*NM_M,-sh.prev.yNm*NM_M,sh.prev.zM);if(q){ctx.strokeStyle=`rgba(255,210,120,${a*.34})`;ctx.lineWidth=Math.max(.7,1.05*k);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(p.x,p.y);ctx.stroke();}}
+      if(sh.prev&&rangeNm<1.75){const q=projectWorldPoint(cam,sh.prev.xNm*NM_M,-sh.prev.yNm*NM_M,sh.prev.zM);if(q){ctx.strokeStyle=`rgba(255,210,120,${a*.34})`;ctx.lineWidth=Math.max(.7,1.05*k);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(p.x,p.y);ctx.stroke();}}
     }
     // Backward-compatible helper contract for renderer tests/tools that call
     // this method directly; drawDeckGun passes false and depth-sorts splashes.

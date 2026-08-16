@@ -323,9 +323,9 @@ const GULLS=Array.from({length:6},(_,i)=>({az:(i*61.7)%360,el:1.4+((i*17)%7)*0.5
   s:0.6+((i*7)%5)*0.22,spd:(i%2?1:-1)*(0.5+(i%3)*0.3)}));
 
 // project a ship-local point with no sinking transform
-function V0(cv,cam,it,cosH,sinH,S,lx,ly,lz){
+function V0(cam,it,cosH,sinH,S,lx,ly,lz){
   const x=lx*S,y=ly*S,z=lz*S;
-  return cv.proj(cam,it.E+x*cosH+z*sinH,it.N-x*sinH+z*cosH,y);
+  return projectWorldPoint(cam,it.E+x*cosH+z*sinH,it.N-x*sinH+z*cosH,y);
 }
 
 /* ═══════════════════════════════════════════════════ BATHYMETRY

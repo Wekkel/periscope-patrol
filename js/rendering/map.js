@@ -1314,7 +1314,7 @@ class CanvasView extends CanvasViewSound {
     const p=this.toLocal(clientX,clientY),cam=this.gunCam;if(!cam)return null;
     let best=null,bd=Infinity;
     for(const c of state.world.contacts){
-      if(c.sunk)continue;const scr=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
+      if(c.sunk)continue;const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
       const d=Math.hypot(scr.x-p.x,(scr.y-p.y)*0.7);if(d<bd){bd=d;best=c.id;}
     }
     return bd<Math.max(50,65*this.k)?best:null;
@@ -1333,7 +1333,7 @@ class CanvasView extends CanvasViewSound {
     for(const c of state.world.contacts){
       if(c.sunk&&(c.sinkingProgress??0)>=1) continue;
       if(typeof scopeCanResolveHull==='function'&&!scopeCanResolveHull(state,c,{fovPad:.60}))continue;
-      const scr=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);
+      const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);
       if(!scr) continue;
       const d=Math.abs(scr.x-p.x);
       if(d<bd){bd=d;best=c.id;}

@@ -78,7 +78,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       const bear=bearingBetween(own,c.position),bd=shortDelta(cam.bearingDeg,bear);
       if(Math.abs(bd)>cam.fovDeg*.52)continue;
       const E=c.position.xNm*NM_M,N=-c.position.yNm*NM_M;
-      const p=this.proj(cam,E,N,18);if(!p)continue;
+      const p=projectWorldPoint(cam,E,N,18);if(!p)continue;
       const strength=clamp(1-(rng-vis*.72)/(vis*.72),.08,.75)*(c.type==='TANKER'?1.25:1);
       const n=this.lowSpec?2:3;
       for(let i=0;i<n;i++){
@@ -162,7 +162,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     for(const c of state.world.contacts){
       if(c.sunk&&(c.sinkingProgress??0)>=1)continue;
       if(distNm(state.playerSub.position,c.position)>bridgeVisualLimitNm(state,c)*1.02)continue;
-      const scr=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
+      const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
       const d=Math.hypot(scr.x-p.x,(scr.y-p.y)*.65);if(d<bd){bd=d;best=c.id;}
     }
     return bd<Math.max(48,62*this.k)?best:null;

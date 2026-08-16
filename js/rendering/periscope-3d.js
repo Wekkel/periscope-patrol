@@ -1,10 +1,3 @@
-function phaseSmooth01(x){x=clamp(x,0,1);return x*x*(3-2*x);}
-function dayPhaseRgb(dl,night,twilight,day){
-  if(dl<=.36){const q=phaseSmooth01((dl-.04)/.32);return night.map((v,i)=>Math.round(lerp(v,twilight[i],q)));}
-  const q=phaseSmooth01((dl-.36)/.30);return twilight.map((v,i)=>Math.round(lerp(v,day[i],q)));
-}
-function rgbCss(a){return `rgb(${a[0]},${a[1]},${a[2]})`;}
-
 class CanvasViewPeriscope extends CanvasViewDeckGun {
   drawPeriscope(ctx,w,h,state,layout){
     const sub=state.playerSub, tact=state.tactical, env=state.world.environment;
@@ -14,7 +7,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const r=Math.min(w*0.48,h*0.41);
     const cx=w/2, cy=this.portrait?h*0.42:h*0.5;
     this.scopeGeom={cx,cy,r,hor:cy};
-    const cam=this.setupCam(state,opt.fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'PERISCOPE'});
+    const cam=setupViewCamera(state,opt.fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'PERISCOPE'});
     this.cam=cam;
     this.scopeGeom.hor=cam.horizonY;
 
@@ -93,7 +86,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       time:{...state.time,elapsedSeconds:(state.time.elapsedSeconds||0)+Math.max(0,impactAge)},
       world:{...state.world,environment:env,contacts:[target],contactTracks:{},depthCharges:[]},
       weapons:{...state.weapons,activeTorpedoes:[],explosions:beforeImpact?[]:[{position:{...impactPos},zM:Math.max(0,Number(obs.impactPosition?.zM)||0),ageSec:impactAge,maxAgeSec:5,label:`${obs.weapon||'TORPEDO'} HIT`,big:String(obs.weapon||'TORPEDO').toUpperCase()==='TORPEDO',targetLengthFeet:Number(target.lengthYards)||300,warheadKg:Number(obs.warheadKg)||292,impactSide:obs.impactSide,incidenceDeg:obs.incidenceDeg}]}};
-    const cam=this.setupCam(viewState,fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'IMPACT',viewW:w,viewH:h});this.impactCam=cam;
+    const cam=setupViewCamera(viewState,fov,cx,cy,r,{bearingDeg:tact.periscopeBearing,kind:'IMPACT',viewW:w,viewH:h});this.impactCam=cam;
 
     ctx.save();ctx.setTransform(this.dpr,0,0,this.dpr,0,0);ctx.globalAlpha=1;ctx.setLineDash([]);
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
@@ -113,7 +106,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     // Film-style exposure remains local to the impact. It blooms outward from
     // the projected strike without any camera-pointing reflection beam; that
     // directional cone previously read as a rocket trail.
-    const ip=this.proj(cam,impactPos.xNm*NM_M,-impactPos.yNm*NM_M,Math.max(.4,Number(obs.impactPosition?.zM)||3));
+    const ip=projectWorldPoint(cam,impactPos.xNm*NM_M,-impactPos.yNm*NM_M,Math.max(.4,Number(obs.impactPosition?.zM)||3));
     if(ip&&impactAge>=0&&impactAge<1.1){
       const a=(1-impactAge/1.1)*.72,rr=clamp(30*k+7000/Math.max(100,ip.d)*k,32*k,125*k);
       ctx.save();ctx.globalCompositeOperation='screen';
@@ -168,12 +161,12 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const raw=Array.isArray(obs.torpedoWakePath)?obs.torpedoWakePath.filter(p=>Number.isFinite(p?.xNm)&&Number.isFinite(p?.yNm)):[];
     let pts=[];
     if(raw.length>=2){
-      pts=raw.map(p=>this.proj(cam,p.xNm*NM_M,-p.yNm*NM_M,0)).filter(Boolean);
+      pts=raw.map(p=>projectWorldPoint(cam,p.xNm*NM_M,-p.yNm*NM_M,0)).filter(Boolean);
     }
     if(pts.length<2&&Number.isFinite(obs.torpedoHeading)){
       // Save compatibility for observations created before wake history existed.
       const runNm=clamp(Number(obs.torpedoWakeNm)||.28,.10,.48),hb=degToRad(obs.torpedoHeading),E=obs.impactPosition.xNm*NM_M,N=-obs.impactPosition.yNm*NM_M,run=runNm*NM_M;
-      const tail=this.proj(cam,E-Math.sin(hb)*run,N-Math.cos(hb)*run,0),head=this.proj(cam,E,N,0);
+      const tail=projectWorldPoint(cam,E-Math.sin(hb)*run,N-Math.cos(hb)*run,0),head=projectWorldPoint(cam,E,N,0);
       if(tail&&head)pts=[tail,head];
     }
     if(pts.length<2)return;
@@ -257,7 +250,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       for(let i=0;i<n;i++){
         const az=(i*137.508)%360;
         const el=degToRad(2+((i*53)%60));
-        const p=this.projAzEl(cam,az,el);
+        const p=projectAzimuthElevation(cam,az,el);
         if(!p||p.y>hy-2) continue;
         const tw=0.45+0.55*Math.sin(t*1.3+i);
         ctx.fillStyle=`rgba(226,240,255,${(0.3-dl)*2.2*tw*(1-cloudCover*.82)})`;
@@ -268,14 +261,14 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const tod=((state.time.elapsedSeconds/DayNightCycle.CYCLE_SECONDS)%1+1)%1;
     const sunAz=normDeg(90+tod*360);
     const sunEl=degToRad(-8+62*Math.sin(Math.PI*clamp(dl,0,1)));
-    const body=this.projAzEl(cam,sunAz,sunEl);
+    const body=projectAzimuthElevation(cam,sunAz,sunEl);
     const sunA=phaseSmooth01((dl-.07)/.16),moonA=1-phaseSmooth01((dl-.04)/.18);
     if(body&&sunA>.01){
       const rr=cam.r*0.055*(cam.fovDeg<15?2.6:1),sa=sunA*clamp(.35+dl,.25,1),gg=ctx.createRadialGradient(body.x,body.y,0,body.x,body.y,rr*7);
       gg.addColorStop(0,`rgba(255,247,214,${0.95*sa})`);gg.addColorStop(.12,`rgba(255,226,150,${0.55*sa})`);gg.addColorStop(1,'rgba(255,190,90,0)');ctx.fillStyle=gg;ctx.beginPath();ctx.arc(body.x,body.y,rr*7,0,Math.PI*2);ctx.fill();ctx.fillStyle=`rgba(255,252,236,${.9*sa})`;ctx.beginPath();ctx.arc(body.x,body.y,rr,0,Math.PI*2);ctx.fill();this.sunScreen=body;this.celestialIsMoon=false;this.celestialPathStrength=sa;
     }
     if(body&&moonA>.01){
-      const rr=cam.r*0.045*(cam.fovDeg<15?2.6:1),moon=this.projAzEl(cam,normDeg(sunAz+180),degToRad(28));
+      const rr=cam.r*0.045*(cam.fovDeg<15?2.6:1),moon=projectAzimuthElevation(cam,normDeg(sunAz+180),degToRad(28));
       if(moon){const ma=clamp((state.world.environment.moonIllumination??.55)*(1-cloudCover*.78),.06,.92)*moonA;ctx.fillStyle=`rgba(232,240,255,${ma})`;ctx.beginPath();ctx.arc(moon.x,moon.y,rr,0,Math.PI*2);ctx.fill();ctx.fillStyle=`rgba(3,8,16,${.9*moonA})`;ctx.beginPath();ctx.arc(moon.x-rr*.42,moon.y-rr*.2,rr*.92,0,Math.PI*2);ctx.fill();if(moonA>sunA){this.sunScreen=moon;this.celestialIsMoon=true;this.celestialPathStrength=ma;}}
     }
     // clouds — fixed in the world, so they pan as the scope trains around.
@@ -284,7 +277,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     if(this.quality>0.35){
       for(let ci=0;ci<CLOUDS.length;ci++){
         const c=CLOUDS[ci];
-        const p=this.projAzEl(cam,normDeg(c.az+t*0.12),degToRad(c.el));
+        const p=projectAzimuthElevation(cam,normDeg(c.az+t*0.12),degToRad(c.el));
         if(!p) continue;
         const cw=cam.r*c.w*(cam.fovDeg<15?3.4:1);
         const ch=cw*(storm?0.20:0.34);
@@ -321,7 +314,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         ctx.strokeStyle=`rgba(255,255,255,${0.13*dl})`;
         ctx.lineWidth=Math.max(1,cam.r*0.006);
         for(let i=0;i<4;i++){
-          const p2=this.projAzEl(cam,normDeg(i*83+31+t*0.05),degToRad(16+i*4));
+          const p2=projectAzimuthElevation(cam,normDeg(i*83+31+t*0.05),degToRad(16+i*4));
           if(!p2||p2.y>hy) continue;
           const lw=cam.r*(0.5+i*0.13)*(cam.fovDeg<15?3:1);
           ctx.beginPath();
@@ -339,7 +332,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         const fa=(ph-0.982)/0.018;
         this._flash=fa*0.30;
         const az=normDeg(Math.floor(t/4)*97.3);
-        const bp=this.projAzEl(cam,az,degToRad(13));
+        const bp=projectAzimuthElevation(cam,az,degToRad(13));
         if(bp&&bp.y<hy){
           ctx.strokeStyle=`rgba(235,240,255,${fa*0.9})`;
           ctx.lineWidth=Math.max(1,1.6*this.k);
@@ -356,13 +349,6 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       }
     }
   }
-  // azimuth/elevation → screen (for objects at optical infinity)
-  projAzEl(cam,azDeg,elRad){
-    const rel=degToRad(shortDelta(radToDeg(Math.atan2(cam.sin,cam.cos)),azDeg));
-    if(Math.abs(rel)>cam.halfFov*2.4) return null;
-    return{x:cam.cx+Math.tan(rel)*cam.f, y:cam.horizonY-Math.tan(elRad)*cam.f};
-  }
-
   /* ── SEA: perspective wave rows, glitter path, whitecaps ── */
   drawSea3D(ctx,w,h,cam,dl,seaState,wx,t,env=null){
     const hy=cam.horizonY;
@@ -405,7 +391,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       for(let i=0;i<rows;i++){
         const f=i/rows;
         const d=cam.dHor*Math.pow(1-f,2.1)+18;
-        const y=this.seaY(cam,d);
+        const y=seaSurfaceY(cam,d);
         if(y>cam.cy+cam.r) continue;
         const spread=(cam.f/d)*22*(0.4+f*3)*(0.45+seaState*1.4);
         const n=Math.round(3+f*8);
@@ -458,7 +444,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const rowD=new Float32Array(rows);
     for(let i=0;i<rows;i++){const f=(i+0.5)/rows;
       rowD[i]=cam.dHor*Math.pow(1-f,2.55)+13;
-      rowY[i]=this.seaY(cam,rowD[i]);}
+      rowY[i]=seaSurfaceY(cam,rowD[i]);}
     for(let i=0;i<rows;i++){
       const f=(i+0.5)/rows, d=rowD[i], y=rowY[i];
       if(y>bot+6) continue;
@@ -669,7 +655,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         const lum=Math.round(20+dl*46);
         const mix=(r,g,b)=>`rgb(${Math.round(r*fade+hazeCol[0]*hzMix)},${Math.round(g*fade+hazeCol[1]*hzMix)},${Math.round(b*fade+hazeCol[2]*hzMix)})`;
         const topY=cc=>cam.cy+((cam.h-cc.h)/cc.d+cc.d/(2*EARTH_R))*cam.f;
-        const baseY=cc=>Math.min(this.seaY(cam,cc.d),cam.cy+cam.r+4);
+        const baseY=cc=>Math.min(seaSurfaceY(cam,cc.d),cam.cy+cam.r+4);
 
         // ── interior ridge: the island's far side, hazier, drawn first ──
         if(farthest-nearest>2.5*NM_M&&this.quality>0.45){
@@ -759,7 +745,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const b=GULLS[i];
       const az=normDeg(b.az+t*b.spd);
       const el=degToRad(b.el+Math.sin(t*0.6+i)*1.3);
-      const p=this.projAzEl(cam,az,el);
+      const p=projectAzimuthElevation(cam,az,el);
       if(!p||p.y>cam.horizonY) continue;
       const s=cam.r*0.012*b.s*(cam.fovDeg<15?3:1);
       const flap=Math.sin(t*6+i*2.1);
@@ -780,7 +766,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     for(const c of cells){
       const rng=distNm(own,c.center);if(rng>34)continue;
       const br=bearingBetween(own,c.center),d=Math.abs(shortDelta(cam.bearingDeg,br));if(d>cam.fovDeg*.72)continue;
-      const p=this.projAzEl(cam,br,degToRad(3.5));if(!p)continue;
+      const p=projectAzimuthElevation(cam,br,degToRad(3.5));if(!p)continue;
       const angular=radToDeg(Math.atan2(c.radiusNm||5,Math.max(.4,rng)));
       const ww=Math.max(24*this.k,cam.f*Math.tan(degToRad(Math.min(angular,38))));
       const hh=Math.max(18*this.k,cam.r*(.10+.10*clamp(1-rng/30,0,1)));
@@ -1117,7 +1103,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const sinkDrop=realLen*(.018*phaseSmooth01(clamp(sinkP/.30,0,1))+.50*Math.pow(sinkP,2.05));
       passes.push({zMin:-1,zMax:1,sink:sinkP>0?{p:sinkP,pitch:bowFirst?-.92:.92,pitchP:sinkPitchP,pivot:0,roll:rollSide*.34,drop:sinkDrop,shift:0}:null});
     }
-    const seaLine=this.seaY(cam,it.d);
+    const seaLine=seaSurfaceY(cam,it.d);
     ctx.save();
     ctx.beginPath();ctx.rect(0,0,this.w,seaLine);ctx.clip();
 
@@ -1152,7 +1138,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
           const nx=x*cr-y*sr; y=x*sr+y*cr; x=nx;
           y-=sink.drop;
         }
-        return this.proj(cam,it.E+x*cosH+z*sinH,it.N-x*sinH+z*cosH,y);
+        return projectWorldPoint(cam,it.E+x*cosH+z*sinH,it.N-x*sinH+z*cosH,y);
       };
       const worldN=(a,b,cc)=>{                            // normal from three local points
         const p1=[a[0]*S,a[1]*S,a[2]*S],p2=[b[0]*S,b[1]*S,b[2]*S],p3=[cc[0]*S,cc[1]*S,cc[2]*S];
@@ -1280,7 +1266,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
           z=pv+nz+(fk.shift||0)*S; y=ny;
           y-=fk.drop;
         }
-        return {scr:this.proj(cam,it.E+z*sinH,it.N+z*cosH,Math.max(y,0)),yW:y};
+        return {scr:projectWorldPoint(cam,it.E+z*sinH,it.N+z*cosH,Math.max(y,0)),yW:y};
       };
       const fw=firePt(model.fb+1.5);
       if(fw.scr&&fw.yW>-2){
@@ -1332,7 +1318,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
 
     // ── hull mirrored faintly in a calm sea ──
     if(!c.sunk&&state.world.environment.seaState<0.55&&dl>0.25&&pxLen>14&&this.quality>0.45){
-      const base=this.proj(cam,it.E,it.N,0);
+      const base=projectWorldPoint(cam,it.E,it.N,0);
       if(base){
         const rw=pxLen*0.85, rh=Math.max(2,pxLen*0.10*(1-state.world.environment.seaState));
         const rg=ctx.createLinearGradient(0,base.y,0,base.y+rh);
@@ -1350,7 +1336,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const SD=c.shipDamage;
     if(!c.sunk&&SD&&lod>0&&(SD.fire>.12||SD.propulsion>.58)){
       const hz=(Number.isFinite(SD.lastHitFrac)?SD.lastHitFrac:0)*model.len;
-      const base=V0(this,cam,it,cosH,sinH,S,0,model.fb+2.5,hz);
+      const base=V0(cam,it,cosH,sinH,S,0,model.fb+2.5,hz);
       if(base){
         const scale=cam.f/it.d,sev=clamp(Math.max(SD.fire,SD.propulsion*.65),.15,1);
         const puffs=this.lowSpec?3:Math.round(4+sev*3);
@@ -1372,7 +1358,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     // ── funnel smoke ──
     if(!c.sunk&&c.type!=='RAFT'&&this.quality>0.35&&lod>0){
       const f=model.smoke||{x:0,y:26,z:-10};
-      const base=V0(this,cam,it,cosH,sinH,S,f.x,f.y,f.z);
+      const base=V0(cam,it,cosH,sinH,S,f.x,f.y,f.z);
       if(base){
         const scale=cam.f/it.d;
         for(let i=0;i<6;i++){
@@ -1395,11 +1381,11 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     if(!c.sunk&&c.speedKnots>1&&lod>0){
       const scale=cam.f/it.d;
       const spdF=clamp(c.speedKnots/11,0.3,1.5);
-      const bowW=(sx)=>this.proj(cam,
+      const bowW=(sx)=>projectWorldPoint(cam,
         it.E+(sx)*cosH+(model.len*0.48*S)*sinH,
         it.N-(sx)*sinH+(model.len*0.48*S)*cosH,0);
-      const bow=V0(this,cam,it,cosH,sinH,S,0,0,model.len*0.48);
-      const stern=V0(this,cam,it,cosH,sinH,S,0,0,-model.len*0.5);
+      const bow=V0(cam,it,cosH,sinH,S,0,0,model.len*0.48);
+      const stern=V0(cam,it,cosH,sinH,S,0,0,-model.len*0.5);
       if(bow&&stern){
         // moustache at the stem
         ctx.fillStyle=`rgba(255,255,255,${0.5*haze*spdF})`;
@@ -1418,7 +1404,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
               const back=k2/4*realLen*1.2*spdF;
               const out=side*(model.beam*0.5*S+back*tanK);
               const zAbs=model.len*0.46*S-back;
-              const pt=this.proj(cam,
+              const pt=projectWorldPoint(cam,
                 it.E+out*cosH+zAbs*sinH,
                 it.N-out*sinH+zAbs*cosH,0);
               if(!pt){started=false;continue;}
@@ -1431,7 +1417,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
           for(let k2=0;k2<3;k2++){
             const zAbs=(model.len*(0.40-k2*0.12))*S;
             for(const side of [-1,1]){
-              const pt=this.proj(cam,
+              const pt=projectWorldPoint(cam,
                 it.E+side*model.beam*0.52*S*cosH+zAbs*sinH,
                 it.N-side*model.beam*0.52*S*sinH+zAbs*cosH,0);
               if(pt) ctx.fillRect(pt.x-1.5,pt.y-0.8,Math.max(2,realLen*0.02*scale),Math.max(1,realLen*0.006*scale));
@@ -1440,7 +1426,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         }
         // wake astern: bright churn, then a broad fading strip
         const wl=Math.min(realLen*3.4,c.speedKnots*95);
-        const tail=this.proj(cam,it.E-Math.sin(hb)*wl,it.N-Math.cos(hb)*wl,0);
+        const tail=projectWorldPoint(cam,it.E-Math.sin(hb)*wl,it.N-Math.cos(hb)*wl,0);
         if(tail){
           const g=ctx.createLinearGradient(stern.x,stern.y,tail.x,tail.y);
           g.addColorStop(0,`rgba(255,255,255,${0.38*haze})`);
@@ -1477,7 +1463,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     if(night>0.55&&!c.sunk&&(seed%3!==0)){
       const scale=cam.f/it.d;
       const lamp=(lx,ly,lz,col,size)=>{
-        const p=V0(this,cam,it,cosH,sinH,S,lx,ly,lz);
+        const p=V0(cam,it,cosH,sinH,S,lx,ly,lz);
         if(!p) return;
         const rr=Math.max(1.1,size*scale*3);
         const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr*4);
@@ -1489,7 +1475,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     }
 
     // ── label ──
-    const top=this.proj(cam,it.E,it.N,(model.fb+22)*S);
+    const top=projectWorldPoint(cam,it.E,it.N,(model.fb+22)*S);
     if(top&&lod>0){
       const tr=state.world.contactTracks[c.id];
       const sinking=(c.sinkingProgress??0)>0;
@@ -1531,7 +1517,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   drawWreck3D(ctx,cam,c,state,dl,t){
     const since=state.time.elapsedSeconds-((c.sunkAt||0)+(c.sinkDurationSec||45));
     if(since<0||since>300) return;
-    const p=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);if(!p)return;
+    const p=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);if(!p)return;
     const sub=state.playerSub,bd=shortDelta(cam.bearingDeg,bearingBetween(sub.position,c.position));
     if(Math.abs(bd)>cam.fovDeg*0.9)return;
     for(const o of (this._landOcc||[]))if(p.x>=o.x0-4&&p.x<=o.x1+4&&p.d>o.d*1.02)return;
@@ -1630,7 +1616,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
     const N_SEG=surfaced?(this.lowSpec?8:11):5,left=[],right=[],mid=[];
     const world=(d,side=0)=>({E:E+sinB*d+px*side,N:N+cosB*d+pz*side});
     for(let i=0;i<=N_SEG;i++){
-      const f=i/N_SEG,d=sternM+(lenM-sternM)*Math.pow(f,1.28),hw=halfNear+d*spread,c=world(d),l=this.proj(cam,c.E+px*hw,c.N+pz*hw,0),r=this.proj(cam,c.E-px*hw,c.N-pz*hw,0),m=this.proj(cam,c.E,c.N,0);
+      const f=i/N_SEG,d=sternM+(lenM-sternM)*Math.pow(f,1.28),hw=halfNear+d*spread,c=world(d),l=projectWorldPoint(cam,c.E+px*hw,c.N+pz*hw,0),r=projectWorldPoint(cam,c.E-px*hw,c.N-pz*hw,0),m=projectWorldPoint(cam,c.E,c.N,0);
       if(!l||!r||!m)break;left.push(l);right.push(r);mid.push({p:m,f,hw,d});
     }
     if(left.length<3)return;
@@ -1647,7 +1633,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       // blob. At low speed it is almost the only visible wake.
       const coreL=[],coreR=[];
       for(let i=0;i<mid.length;i++){
-        const m=mid[i],cw=m.hw*lerp(.19,.31,speedN),c=world(m.d),a=this.proj(cam,c.E+px*cw,c.N+pz*cw,0),b=this.proj(cam,c.E-px*cw,c.N-pz*cw,0);if(a&&b){coreL.push(a);coreR.push(b);}
+        const m=mid[i],cw=m.hw*lerp(.19,.31,speedN),c=world(m.d),a=projectWorldPoint(cam,c.E+px*cw,c.N+pz*cw,0),b=projectWorldPoint(cam,c.E-px*cw,c.N-pz*cw,0);if(a&&b){coreL.push(a);coreR.push(b);}
       }
       if(coreL.length>2){
         const cg=ctx.createLinearGradient(coreL[0].x,coreL[0].y,coreL.at(-1).x,coreL.at(-1).y),ca=lerp(.25,.53,speedN)*dl;
@@ -1662,7 +1648,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
         for(const side of [-1,1]){
           ctx.strokeStyle=`rgba(224,240,246,${(.055+.075*foamN)*dl})`;ctx.lineWidth=Math.max(.75,1.05*this.k);ctx.beginPath();let begun=false;
           for(let i=0;i<=steps;i++){
-            const f=i/steps,d=sternM+25+(lenM-sternM-20)*f,lateral=side*d*kelvin*(.58+.22*f),c=world(d,lateral),q=this.proj(cam,c.E,c.N,0);if(!q)continue;if(!begun){ctx.moveTo(q.x,q.y);begun=true;}else ctx.lineTo(q.x,q.y);
+            const f=i/steps,d=sternM+25+(lenM-sternM-20)*f,lateral=side*d*kelvin*(.58+.22*f),c=world(d,lateral),q=projectWorldPoint(cam,c.E,c.N,0);if(!q)continue;if(!begun){ctx.moveTo(q.x,q.y);begun=true;}else ctx.lineTo(q.x,q.y);
           }ctx.stroke();
         }
       }
@@ -1708,8 +1694,8 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
       const rngM=distNm(own,tp.position)*NM_M;
       if(rngM>1300) continue;                             // beyond that it is simply not visible
       const run=Math.min(tp.rangeRunNm*NM_M,900);
-      const head=this.proj(cam,E,N,0);
-      const tail=this.proj(cam,E-Math.sin(hb)*run,N-Math.cos(hb)*run,0);
+      const head=projectWorldPoint(cam,E,N,0);
+      const tail=projectWorldPoint(cam,E-Math.sin(hb)*run,N-Math.cos(hb)*run,0);
       if(!head||!tail) continue;
       const fade=clamp(1-rngM/1300,0,1)*calm*clamp(dl*1.4,0,1);
       const wHead=Math.max(0.7,4*cam.f/Math.max(head.d,60));
@@ -1735,7 +1721,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   drawExplosions3D(ctx,cam,state,dl){
     for(const e of state.weapons.explosions){
       const gunHit=/GUN HIT/.test(e.label||'');
-      const p=this.proj(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,gunHit?Math.max(.5,Number(e.zM)||3.5):0);
+      const p=projectWorldPoint(cam,e.position.xNm*NM_M,-e.position.yNm*NM_M,gunHit?Math.max(.5,Number(e.zM)||3.5):0);
       if(!p) continue;
       const sc=cam.f/p.d;                                   // pixels per metre
       const dud=e.kind==='dud'||/DUD|GLANCED/.test(e.label||'');
@@ -1923,7 +1909,7 @@ class CanvasViewPeriscope extends CanvasViewDeckGun {
   /* ── depth-charge splashes ── */
   drawSplashes3D(ctx,cam,state,dl){
     for(const dc of state.world.depthCharges){
-      const p=this.proj(cam,dc.position.xNm*NM_M,-dc.position.yNm*NM_M,0);
+      const p=projectWorldPoint(cam,dc.position.xNm*NM_M,-dc.position.yNm*NM_M,0);
       if(!p) continue;
       const sc=cam.f/p.d, tt=dc.ageSec/dc.fuseSec;
       if(tt<0.35){

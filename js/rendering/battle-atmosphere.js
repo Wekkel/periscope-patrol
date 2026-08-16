@@ -4,7 +4,7 @@
 (function installBattleAtmosphereRendering(){
   if(typeof CanvasView==='undefined')return;
   Object.assign(CanvasView.prototype,{
-    battlePoint(cam,p,z=0){return p?this.proj(cam,p.xNm*NM_M,-p.yNm*NM_M,z):null;},
+    battlePoint(cam,p,z=0){return p?projectWorldPoint(cam,p.xNm*NM_M,-p.yNm*NM_M,z):null;},
 
     drawBattleAtmosphereBack(ctx,cam,state,dl,t){
       this.drawPortScenes3D(ctx,cam,state,dl);
