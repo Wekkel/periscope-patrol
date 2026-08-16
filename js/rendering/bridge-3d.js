@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════ SURFACE BRIDGE VIEW
 // Wide, unmasked conning-tower view. It deliberately reuses the existing
 // periscope/deck-gun world renderer so a second 3-D engine is not kept alive.
-class CanvasViewBridge extends CanvasViewPeriscope {
+class CanvasViewBridge extends CanvasViewDeckGun {
   setupBridgeCam(state,fovDeg,w,h){
     const tact=state.tactical,cx=w/2,cy=this.portrait?h*.47:h*.50,r=w/2;
     return makeWorldCamera(state,{heightM:BRIDGE_VIEW.cameraHeightM,bearingDeg:tact.bridgeBearing,
