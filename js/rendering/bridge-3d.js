@@ -1,12 +1,10 @@
-// ═══════════════════════════════════════════════════ SURFACE BRIDGE VIEW
-// Wide, unmasked conning-tower view. It deliberately reuses the existing
-// periscope/deck-gun world renderer so a second 3-D engine is not kept alive.
-class CanvasViewBridge extends CanvasViewDeckGun {
+/* Bridge station rendering and surface-watch interaction. */
+const BridgeStation={
   setupBridgeCam(state,fovDeg,w,h){
     const tact=state.tactical,cx=w/2,cy=this.portrait?h*.47:h*.50,r=w/2;
     return makeWorldCamera(state,{heightM:BRIDGE_VIEW.cameraHeightM,bearingDeg:tact.bridgeBearing,
       fovDeg,cx,cy,r,viewW:w,viewH:h,kind:'BRIDGE'});
-  }
+  },
 
   bridgeSurfaceMotion(state,t){
     const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),maxSurface=Math.max(1,sub.propulsion?.characteristics?.maxSurfaceSpeedKn||18),spd=clamp((sub.propulsion?.speedKnots||0)/maxSurface,0,1);
@@ -17,7 +15,7 @@ class CanvasViewBridge extends CanvasViewDeckGun {
       pitchDeg:Math.sin(t*.71+.35)*(.08+.72*sea+.13*spd)*live,
       rollDeg:Math.sin(t*.57+2.2)*(.10+1.05*sea)*live
     };
-  }
+  },
 
   drawBridge(ctx,w,h,state){
     const sub=state.playerSub,tact=state.tactical,env=state.world.environment,t=state.time.elapsedSeconds;
@@ -30,7 +28,7 @@ class CanvasViewBridge extends CanvasViewDeckGun {
       return;
     }
     const zoom=bridgeZoomAmount(state),bino=zoom>.55,fov=bridgeFovDeg(state);
-    const cam=this.setupBridgeCam(state,fov,w,h),deckCam={...cam},motion=(this.bridgeSurfaceMotion||CanvasViewBridge.prototype.bridgeSurfaceMotion).call(this,state,t);
+    const cam=this.setupBridgeCam(state,fov,w,h),deckCam={...cam},motion=this.bridgeSurfaceMotion(state,t);
     // The observer and submarine move together, so ownship stays stable in the
     // foreground while the horizon/world gently heaves, pitches and rolls.
     cam.h+=motion.heaveM;cam.cy+=Math.tan(degToRad(motion.pitchDeg))*cam.f;
@@ -61,13 +59,13 @@ class CanvasViewBridge extends CanvasViewDeckGun {
       // ownship therefore does not wobble relative to the observer.
       this.drawBridgeForedeck(ctx,w,h,deckCam,state,t);
       this.drawBridgeDeckSpray?.(ctx,w,h,state,t);
-      (this.drawBridgeDiveSequence||CanvasViewBridge.prototype.drawBridgeDiveSequence).call(this,ctx,w,h,state,t);
+      this.drawBridgeDiveSequence(ctx,w,h,state,t);
       if((env.precipitation||0)>.04||weatherIsWet(env.weather))this.drawRain(ctx,w,h,env.seaState,t,env.weather,env.precipitation||.25);
       if(env.seaState>.58&&this.quality>.48)this.drawScopeSpray(ctx,w,h,env.seaState,t);
       if(env.daylight<.32)this.drawNightOverlay(ctx,w,h,env.daylight);
     }finally{this.quality=savedQ;}
     this.drawBridgeHud(ctx,w,h,state,cam,bino);
-  }
+  },
 
   drawDistantBridgeSmoke(ctx,cam,state,dl,t){
     if(dl<.16||this.quality<.32)return;
@@ -88,7 +86,7 @@ class CanvasViewBridge extends CanvasViewDeckGun {
         ctx.beginPath();ctx.arc(p.x+drift,p.y-i*rr*2.2,rr,0,Math.PI*2);ctx.fill();
       }
     }
-  }
+  },
 
   drawBridgeAircraft(ctx,cam,state,dl,t){
     // Aircraft are world entities, not 2-D station icons. The shared renderer in
@@ -97,7 +95,7 @@ class CanvasViewBridge extends CanvasViewDeckGun {
     // passes the camera. This is deliberately Canvas2D pseudo-3D, not a costly
     // second 3-D engine.
     this.drawWorldAircraft(ctx,cam,state,dl,t,{station:'BRIDGE'});
-  }
+  },
 
   drawBridgeForedeck(ctx,w,h,cam,state,t){
     // The old bridge used a screen-space trapezoid.  Its bow point was
@@ -111,7 +109,7 @@ class CanvasViewBridge extends CanvasViewDeckGun {
     ctx.strokeStyle='rgba(105,119,112,.68)';ctx.lineWidth=Math.max(1,1.4*k);
     const ry=h-10*k;ctx.beginPath();ctx.moveTo(w*.08,ry);ctx.lineTo(w*.92,ry);ctx.stroke();
     for(let x=.12;x<.92;x+=.10){ctx.beginPath();ctx.moveTo(w*x,ry);ctx.lineTo(w*x,ry-12*k);ctx.stroke();}
-  }
+  },
 
   drawBridgeDiveSequence(ctx,w,h,state,t){
     const seq=state.tactical.bridgeDiveSequence;if(!seq?.active)return;
@@ -136,7 +134,7 @@ class CanvasViewBridge extends CanvasViewDeckGun {
     if(p>=.90){const q=clamp((p-.90)/.10,0,1);ctx.strokeStyle=`rgba(174,188,180,${.85*q})`;ctx.lineWidth=Math.max(2,3*k);ctx.beginPath();ctx.ellipse(hatchX,hatchY,hatchR*(1-q*.08),hatchR*.58*(1-q*.08),0,0,Math.PI*2);ctx.stroke();}
     ctx.fillStyle='rgba(3,13,16,.70)';this.rr(ctx,w*.18,18*k,w*.64,34*k,5*k);ctx.fill();ctx.fillStyle=crash?'#ef6a58':'#f5c65c';ctx.font=this.fnt(9.5,true);ctx.textAlign='center';
     ctx.fillText(p<.78?(crash?'CRASH DIVE — CLEAR THE BRIDGE!':'DIVE — BRIDGE WATCH GOING BELOW'):p<.92?'LAST MAN DOWN':'HATCH SHUT',w/2,39*k);ctx.textAlign='left';
-  }
+  },
 
   drawBridgeHud(ctx,w,h,state,cam,bino){
     const k=this.k,t=state.tactical,sub=state.playerSub;
@@ -154,7 +152,7 @@ class CanvasViewBridge extends CanvasViewDeckGun {
       ctx.fillStyle='rgba(245,198,92,.88)';ctx.font=this.fnt(8.5);ctx.textAlign='right';
       ctx.fillText(`TARGET ${id} · ${tr.rangeEstimateNm.toFixed(2)} nm · ${fmtDeg(tr.bearing)}`,w-12*k,22*k);ctx.textAlign='left';
     }
-  }
+  },
 
   pickBridgeContact(state,clientX,clientY){
     const p=this.toLocal(clientX,clientY),cam=this.bridgeCam;if(!cam||!bridgeCanUse(state))return null;
@@ -167,4 +165,6 @@ class CanvasViewBridge extends CanvasViewDeckGun {
     }
     return bd<Math.max(48,62*this.k)?best:null;
   }
-}
+};
+
+Object.assign(CanvasViewDeckGun.prototype,BridgeStation);

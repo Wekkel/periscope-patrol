@@ -29,7 +29,7 @@ for(const file of files){
   }
   // Named station objects are composition units in the render chain, not legacy classes.
   for(let i=0;i<lines.length;i++){
-    const om=lines[i].match(/^const\s+(World3D|PeriscopeStation)\s*=\s*\{/);if(!om)continue;
+    const om=lines[i].match(/^const\s+(World3D|PeriscopeStation|BridgeStation)\s*=\s*\{/);if(!om)continue;
     const end=closeBrace(lines,i),methods=[];
     for(let j=i+1;j<end;j++){
       const mm=lines[j].match(/^\s{2}([A-Za-z_$][\w$]*)\s*\([^;]*\)\s*\{/);if(!mm)continue;

@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════ SOUND ROOM + SURFACE RADAR
 // One lightweight instrument canvas.  PASSIVE is the default; RADAR is simply
 // another page on the same station, not a second station or render engine.
-class CanvasViewSound extends CanvasViewBridge {
+class CanvasViewSound extends CanvasViewDeckGun {
   drawSound(ctx,w,h,state){
     const radar=state.tactical.soundDisplay==='RADAR';
     ctx.fillStyle='#02090b';ctx.fillRect(0,0,w,h);

@@ -3658,511 +3658,522 @@
     },
     {
       "level": 6,
-      "class": "CanvasViewBridge",
-      "extends": "CanvasViewDeckGun",
+      "class": "BridgeStation",
+      "kind": "object",
+      "extends": null,
       "file": "js/rendering/bridge-3d.js",
-      "line": 4,
-      "end": 170,
+      "line": 2,
+      "end": 168,
       "methods": [
         {
           "name": "setupBridgeCam",
-          "line": 5,
-          "end": 9,
+          "line": 3,
+          "end": 7,
           "calls": [],
           "fields": [
             {
               "path": "portrait",
               "access": "read",
-              "line": 6
+              "line": 4
             }
           ]
         },
         {
           "name": "bridgeSurfaceMotion",
-          "line": 11,
-          "end": 20,
+          "line": 9,
+          "end": 18,
           "calls": [],
           "fields": []
         },
         {
           "name": "drawBridge",
-          "line": 22,
-          "end": 70,
+          "line": 20,
+          "end": 68,
           "calls": [
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 25
+            },
             {
               "method": "fnt",
               "kind": "direct",
               "line": 27
             },
             {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 29
-            },
-            {
               "method": "setupBridgeCam",
               "kind": "direct",
-              "line": 33
+              "line": 31
+            },
+            {
+              "method": "bridgeSurfaceMotion",
+              "kind": "direct",
+              "line": 31
             },
             {
               "method": "drawSky3D",
               "kind": "direct",
-              "line": 47
+              "line": 45
             },
             {
               "method": "drawSea3D",
               "kind": "direct",
-              "line": 48
+              "line": 46
             },
             {
               "method": "drawTerrain3D",
               "kind": "direct",
-              "line": 49
+              "line": 47
             },
             {
               "method": "drawWeatherCells3D",
               "kind": "optional",
-              "line": 50
+              "line": 48
             },
             {
               "method": "drawBattleAtmosphereBack",
               "kind": "optional",
-              "line": 51
+              "line": 49
             },
             {
               "method": "drawDistantBridgeSmoke",
               "kind": "direct",
-              "line": 52
+              "line": 50
             },
             {
               "method": "drawOwnWake",
               "kind": "direct",
-              "line": 53
+              "line": 51
             },
             {
               "method": "drawWakes3D",
               "kind": "direct",
-              "line": 54
+              "line": 52
             },
             {
               "method": "drawFleet3D",
               "kind": "direct",
-              "line": 55
+              "line": 53
             },
             {
               "method": "drawBridgeAircraft",
               "kind": "optional",
-              "line": 56
+              "line": 54
             },
             {
               "method": "drawExplosions3D",
               "kind": "direct",
-              "line": 57
+              "line": 55
             },
             {
               "method": "drawSplashes3D",
               "kind": "direct",
-              "line": 58
+              "line": 56
             },
             {
               "method": "drawBattleAtmosphereFront",
               "kind": "optional",
-              "line": 59
+              "line": 57
             },
             {
               "method": "drawBridgeForedeck",
               "kind": "direct",
-              "line": 62
+              "line": 60
             },
             {
               "method": "drawBridgeDeckSpray",
               "kind": "optional",
-              "line": 63
+              "line": 61
+            },
+            {
+              "method": "drawBridgeDiveSequence",
+              "kind": "direct",
+              "line": 62
             },
             {
               "method": "drawRain",
               "kind": "direct",
-              "line": 65
+              "line": 63
             },
             {
               "method": "drawScopeSpray",
               "kind": "direct",
-              "line": 66
+              "line": 64
             },
             {
               "method": "drawNightOverlay",
               "kind": "direct",
-              "line": 67
+              "line": 65
             },
             {
               "method": "drawBridgeHud",
               "kind": "direct",
-              "line": 69
+              "line": 67
             }
           ],
           "fields": [
             {
               "path": "fnt",
               "access": "read",
-              "line": 27
+              "line": 25
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 29
+              "line": 27
             },
             {
               "path": "k",
               "access": "read",
-              "line": 29
+              "line": 27
             },
             {
               "path": "setupBridgeCam",
               "access": "read",
-              "line": 33
+              "line": 31
             },
             {
               "path": "bridgeSurfaceMotion",
               "access": "read",
-              "line": 33
+              "line": 31
             },
             {
               "path": "cam",
               "access": "write",
-              "line": 38
+              "line": 36
             },
             {
               "path": "bridgeCam",
               "access": "write",
-              "line": 38
+              "line": 36
             },
             {
               "path": "bridgeDeckCam",
               "access": "write",
-              "line": 38
+              "line": 36
             },
             {
               "path": "bridgeMotion",
               "access": "write",
-              "line": 38
+              "line": 36
             },
             {
               "path": "quality",
               "access": "read",
-              "line": 39
+              "line": 37
             },
             {
               "path": "lowSpec",
               "access": "read",
-              "line": 43
+              "line": 41
             },
             {
               "path": "quality",
               "access": "write",
-              "line": 43
+              "line": 41
             },
             {
               "path": "quality",
               "access": "read",
-              "line": 43
+              "line": 41
             },
             {
               "path": "quality",
               "access": "write",
-              "line": 44
+              "line": 42
             },
             {
               "path": "quality",
               "access": "read",
-              "line": 44
+              "line": 42
             },
             {
               "path": "drawSky3D",
               "access": "read",
-              "line": 47
+              "line": 45
             },
             {
               "path": "drawSea3D",
               "access": "read",
-              "line": 48
+              "line": 46
             },
             {
               "path": "drawTerrain3D",
               "access": "read",
-              "line": 49
+              "line": 47
             },
             {
               "path": "drawWeatherCells3D",
               "access": "read",
-              "line": 50
+              "line": 48
             },
             {
               "path": "drawBattleAtmosphereBack",
               "access": "read",
-              "line": 51
+              "line": 49
             },
             {
               "path": "drawDistantBridgeSmoke",
               "access": "read",
-              "line": 52
+              "line": 50
             },
             {
               "path": "drawOwnWake",
               "access": "read",
-              "line": 53
+              "line": 51
             },
             {
               "path": "drawWakes3D",
               "access": "read",
-              "line": 54
+              "line": 52
             },
             {
               "path": "drawFleet3D",
               "access": "read",
-              "line": 55
+              "line": 53
             },
             {
               "path": "drawBridgeAircraft",
               "access": "read",
-              "line": 56
+              "line": 54
             },
             {
               "path": "drawExplosions3D",
               "access": "read",
-              "line": 57
+              "line": 55
             },
             {
               "path": "drawSplashes3D",
               "access": "read",
-              "line": 58
+              "line": 56
             },
             {
               "path": "drawBattleAtmosphereFront",
               "access": "read",
-              "line": 59
+              "line": 57
             },
             {
               "path": "drawBridgeForedeck",
               "access": "read",
-              "line": 62
+              "line": 60
             },
             {
               "path": "drawBridgeDeckSpray",
               "access": "read",
-              "line": 63
+              "line": 61
             },
             {
               "path": "drawBridgeDiveSequence",
               "access": "read",
-              "line": 64
+              "line": 62
             },
             {
               "path": "drawRain",
+              "access": "read",
+              "line": 63
+            },
+            {
+              "path": "quality",
+              "access": "read",
+              "line": 64
+            },
+            {
+              "path": "drawScopeSpray",
+              "access": "read",
+              "line": 64
+            },
+            {
+              "path": "drawNightOverlay",
               "access": "read",
               "line": 65
             },
             {
               "path": "quality",
-              "access": "read",
-              "line": 66
-            },
-            {
-              "path": "drawScopeSpray",
-              "access": "read",
-              "line": 66
-            },
-            {
-              "path": "drawNightOverlay",
-              "access": "read",
-              "line": 67
-            },
-            {
-              "path": "quality",
               "access": "write",
-              "line": 68
+              "line": 66
             },
             {
               "path": "drawBridgeHud",
               "access": "read",
-              "line": 69
+              "line": 67
             }
           ]
         },
         {
           "name": "drawDistantBridgeSmoke",
-          "line": 72,
-          "end": 91,
+          "line": 70,
+          "end": 89,
           "calls": [],
           "fields": [
             {
               "path": "quality",
               "access": "read",
-              "line": 73
+              "line": 71
             },
             {
               "path": "lowSpec",
               "access": "read",
-              "line": 83
+              "line": 81
             }
           ]
         },
         {
           "name": "drawBridgeAircraft",
-          "line": 93,
-          "end": 100,
+          "line": 91,
+          "end": 98,
           "calls": [
             {
               "method": "drawWorldAircraft",
               "kind": "direct",
-              "line": 99
+              "line": 97
             }
           ],
           "fields": [
             {
               "path": "drawWorldAircraft",
               "access": "read",
-              "line": 99
+              "line": 97
             }
           ]
         },
         {
           "name": "drawBridgeForedeck",
-          "line": 102,
-          "end": 114,
+          "line": 100,
+          "end": 112,
           "calls": [
             {
               "method": "drawOwnshipSurfaceDeck3D",
               "kind": "direct",
-              "line": 108
+              "line": 106
             }
           ],
           "fields": [
             {
               "path": "drawOwnshipSurfaceDeck3D",
               "access": "read",
-              "line": 108
+              "line": 106
             },
             {
               "path": "k",
               "access": "read",
-              "line": 109
+              "line": 107
             }
           ]
         },
         {
           "name": "drawBridgeDiveSequence",
-          "line": 116,
-          "end": 139,
+          "line": 114,
+          "end": 137,
           "calls": [
             {
               "method": "rr",
               "kind": "direct",
-              "line": 137
+              "line": 135
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 137
+              "line": 135
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 118
+              "line": 116
             },
             {
               "path": "rr",
               "access": "read",
-              "line": 137
+              "line": 135
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 137
+              "line": 135
             }
           ]
         },
         {
           "name": "drawBridgeHud",
-          "line": 141,
-          "end": 157,
+          "line": 139,
+          "end": 155,
           "calls": [
             {
               "method": "rr",
+              "kind": "direct",
+              "line": 141
+            },
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 142
+            },
+            {
+              "method": "fnt",
               "kind": "direct",
               "line": 143
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 144
-            },
-            {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 145
-            },
-            {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 154
+              "line": 152
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 142
+              "line": 140
             },
             {
               "path": "rr",
+              "access": "read",
+              "line": 141
+            },
+            {
+              "path": "fnt",
+              "access": "read",
+              "line": 142
+            },
+            {
+              "path": "fnt",
               "access": "read",
               "line": 143
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 144
-            },
-            {
-              "path": "fnt",
-              "access": "read",
-              "line": 145
-            },
-            {
-              "path": "fnt",
-              "access": "read",
-              "line": 154
+              "line": 152
             }
           ]
         },
         {
           "name": "pickBridgeContact",
-          "line": 159,
-          "end": 169,
+          "line": 157,
+          "end": 167,
           "calls": [
             {
               "method": "toLocal",
               "kind": "direct",
-              "line": 160
+              "line": 158
             }
           ],
           "fields": [
             {
               "path": "toLocal",
               "access": "read",
-              "line": 160
+              "line": 158
             },
             {
               "path": "bridgeCam",
               "access": "read",
-              "line": 160
+              "line": 158
             },
             {
               "path": "k",
               "access": "read",
-              "line": 168
+              "line": 166
             }
           ]
         }
@@ -4171,7 +4182,7 @@
     {
       "level": 7,
       "class": "CanvasViewSound",
-      "extends": "CanvasViewBridge",
+      "extends": "CanvasViewDeckGun",
       "file": "js/rendering/sound-room.js",
       "line": 4,
       "end": 75,
