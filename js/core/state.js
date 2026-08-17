@@ -33,6 +33,15 @@ function initRuntime(state){
   runtime.aar.airStates=runtime.aar.airStates&&typeof runtime.aar.airStates==='object'?runtime.aar.airStates:{};
   runtime.aar.seenTrackIds=runtime.aar.seenTrackIds&&typeof runtime.aar.seenTrackIds==='object'?runtime.aar.seenTrackIds:{};
   runtime.aar.harborPenetrationLogged=!!runtime.aar.harborPenetrationLogged;
+  runtime.campaign=runtime.campaign&&typeof runtime.campaign==='object'?runtime.campaign:{};
+  runtime.playerSub=runtime.playerSub&&typeof runtime.playerSub==='object'?runtime.playerSub:{};
+  runtime.tdc=runtime.tdc&&typeof runtime.tdc==='object'?runtime.tdc:{};
+  runtime.environment=runtime.environment&&typeof runtime.environment==='object'?runtime.environment:{};
+  runtime.time=runtime.time&&typeof runtime.time==='object'?runtime.time:{};
+  runtime.deckGun=runtime.deckGun&&typeof runtime.deckGun==='object'?runtime.deckGun:{};
+  runtime.sound=runtime.sound&&typeof runtime.sound==='object'?runtime.sound:{};
+  runtime.radar=runtime.radar&&typeof runtime.radar==='object'?runtime.radar:{};
+  runtime.collisionPrev=runtime.collisionPrev&&typeof runtime.collisionPrev==='object'?runtime.collisionPrev:{};
   runtime.presentation=runtime.presentation&&typeof runtime.presentation==='object'?runtime.presentation:{};
   if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactToken'))runtime.presentation.impactToken=null;
   if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactStartedWall'))runtime.presentation.impactStartedWall=null;

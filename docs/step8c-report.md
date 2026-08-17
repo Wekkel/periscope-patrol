@@ -19,4 +19,12 @@ Known open item: the legacy underscore compatibility accessors are still
 present for the 23 named legacy fields (plus per-contact collision snapshots).
 They remain behavior-preserving until every reader is moved to explicit
 `state.runtime` paths. This is intentionally reported rather than silently
-claiming that accessor removal is complete.
+claiming that accessor removal is complete; 8c is not fully closed until that
+follow-up is implemented.
+
+The six removed tick initializers are `ensureTacticalExtensions`,
+`ensureWorldExtensions`, `ensurePatrolRuntimeContext`,
+`ensureCareerPatrolState`, `ensureHistoricalCampaignProfile`, and
+`ensureMissionFramework`. The old order is preserved in
+`tests/call-graph-baseline-pre-step8.json`; the active baseline now records the
+post-8c order without filtering.
