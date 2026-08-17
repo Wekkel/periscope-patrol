@@ -273,7 +273,7 @@ assignASWRoles(preferredId=null,force=false){
     this.log(`ASW roles: ${escorts.map(x=>`${x.id} ${x.aswRole.replace('_',' ')}`).join(' · ')}`);
   },
 updateASWBrain(dt){
-    const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
+    const W=this.state.world,e=W.enemy,A=e.asw;if(!A)return;const now=this.state.time.elapsedSeconds;
     const escorts=W.contacts.filter(c=>isASWCombatant(c));
     for(const x of escorts)if(x.sonarContact&&now>(x.sonarContactUntil||-1))x.sonarContact=false;
     const straggler=this.damagedGuardShip(),guard=escorts.find(x=>x.aswRole==='DAMAGED_GUARD');

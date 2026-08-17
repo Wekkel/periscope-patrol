@@ -169,7 +169,6 @@ const CollisionSystem={
   },
 
   updateVesselCollisions(dt){
-    this.ensureCollisionState();
     const sub=this.state.playerSub,W=this.state.world;
     if(sub._collisionPrev&&sub.mode!=='SUNK')for(const c of W.contacts||[]){
       if(c.sunk||c.type==='RAFT'||!c._collisionPrev)continue;

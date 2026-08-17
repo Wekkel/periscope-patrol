@@ -138,7 +138,7 @@ const WeatherSystem={
     return q;
   },
   updateWeather(dt){
-    const S=this.ensureWeatherSystem();S.tickAcc=(S.tickAcc||0)+dt;if(S.tickAcc<5)return;
+    const S=this.state.world.weatherSystem;if(!S)return;S.tickAcc=(S.tickAcc||0)+dt;if(S.tickAcc<5)return;
     const step=S.tickAcc;S.tickAcc=0;const now=this.state.time.elapsedSeconds||0,sub=this.state.playerSub;
     for(const c of S.cells){const d=knotsNmSec(c.speedKnots||12)*step,h=degToRad(c.heading||0);c.center.xNm+=Math.sin(h)*d;c.center.yNm-=Math.cos(h)*d;}
     S.cells=S.cells.filter(c=>now-(c.bornAt||0)<(c.lifeSec||18000)&&distNm(c.center,sub.position)<55);

@@ -47,7 +47,7 @@ const boundBySystem=new Map([...contextSource.matchAll(/for\(const name of \[([^
 const domainSystem=new Map([['harbor','HarborSystem'],['weather','WeatherSystem'],['soundRadar','SoundRadarSystem'],['intel','IntelSystem'],['sensors','SensorsSystem'],['torpedoes','TorpedoSystem'],['deckGun','DeckGunSystem'],['aaGun','AAGunSystem'],['aircraft','AircraftSystem'],['asw','ASWSystem'],['enemyAI','EnemyAISystem'],['collision','CollisionSystem'],['damage','DamageSystem'],['career','CareerSystem']]);
 domainSystem.set('aswBrain','ASWBrainSystem');
 const adapterTargets=new Map([
-  ['navigation',new Set(['updateTdc','derivMode','ensureWaterRoute','clampToArea','checkTerrainCollision'])],['traffic',new Set(['trafficIntelCandidates'])],['impact',new Set(['captureShipState','offerObservation'])],
+  ['navigation',new Set(['updateTdc','derivMode','resolveWaterRoute','clampToArea','checkTerrainCollision'])],['traffic',new Set(['trafficIntelCandidates'])],['impact',new Set(['captureShipState','offerObservation'])],
   ['enemyAI',new Set(['maybeMerchantSpotTorpedo'])],['escorts',new Set(['alert'])],
   ['damage',new Set(['applyShock'])],['deckOperations',new Set(['clearForDive'])],
   ['mission',new Set(['checkObjectives'])],['battleAtmosphere',new Set(['noteSurfaceGunfire','noteTacticalSignal'])],['sensors',new Set(['updateSonar','updateLookouts'])]

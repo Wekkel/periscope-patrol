@@ -79,7 +79,7 @@ function _trafficFormation(i){
     generateTrafficDirector(){
       const s=this.state,W=s.world,T=W.traffic,route=(W.convoyRoutes||[])[0];
       if(!T||!T.enabled||!route)return T;
-      const path=this.ensureWaterRoute(route);if(!path||path.length<2)return T;
+      const path=this.resolveWaterRoute(route);if(!path||path.length<2)return T;
       const C=routeCum(path),L=C[C.length-1];if(L<10)return T;
       const area=s.campaign.patrolArea||'Patrol Area',seed=s.campaign.scenarioSeed||1,hp=s.campaign.historicalProfile||null;
       const traffic=getAmbientTrafficProfile(s.campaign?.campaignProfileId);
@@ -112,7 +112,7 @@ function _trafficFormation(i){
     adoptPrimaryConvoy(){
       const s=this.state,W=s.world,T=W.traffic,ships=(W.contacts||[]).filter(c=>c.convoyId==='MAIN');if(!ships.length)return null;
       const alive=ships.filter(c=>!c.sunk),use=alive.length?alive:ships,center={xNm:use.reduce((a,c)=>a+c.position.xNm,0)/use.length,yNm:use.reduce((a,c)=>a+c.position.yNm,0)/use.length};
-      const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route),pr=path?.length?routeProject(path,center):null,lead=use.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0];
+      const route=(W.convoyRoutes||[])[0],path=route&&this.resolveWaterRoute(route),pr=path?.length?routeProject(path,center):null,lead=use.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0];
       T.primaryGroup={id:'MAIN',label:'convoy',kind:'CONVOY',side:'ENEMY',missionCritical:true,state:'TACTICAL',position:center,heading:lead?.heading||0,
         speedKnots:lead?.baseSpeed||lead?.speedKnots||8,routeS:pr?.s??0,routeDir:W.convoyLeg||1,memberIds:ships.map(c=>c.id),savedMembers:null,abstractedAt:null,materializedAt:s.time.elapsedSeconds||0,destroyed:false};
       return T.primaryGroup;
@@ -128,7 +128,7 @@ function _trafficFormation(i){
     syncPrimaryConvoy(g){
       const W=this.state.world,ships=(W.contacts||[]).filter(c=>c.convoyId==='MAIN'),alive=ships.filter(c=>!c.sunk);if(!ships.length)return;
       if(!alive.length){g.destroyed=true;g.state='TACTICAL';return;}
-      const center={xNm:alive.reduce((a,c)=>a+c.position.xNm,0)/alive.length,yNm:alive.reduce((a,c)=>a+c.position.yNm,0)/alive.length},route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route),pr=path?.length?routeProject(path,center):null,lead=alive.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0];
+      const center={xNm:alive.reduce((a,c)=>a+c.position.xNm,0)/alive.length,yNm:alive.reduce((a,c)=>a+c.position.yNm,0)/alive.length},route=(W.convoyRoutes||[])[0],path=route&&this.resolveWaterRoute(route),pr=path?.length?routeProject(path,center):null,lead=alive.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0];
       g.position=center;g.heading=lead?.heading??g.heading;g.speedKnots=lead?.baseSpeed||lead?.speedKnots||g.speedKnots;if(pr)g.routeS=pr.s;g.routeDir=W.convoyLeg||g.routeDir||1;g.memberIds=ships.map(c=>c.id);
     },
 
@@ -163,7 +163,7 @@ function _trafficFormation(i){
 
     materializeTrafficGroup(g){
       const s=this.state,W=s.world,T=W.traffic;if(!g||g.state==='TACTICAL')return g;
-      const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);if(!path?.length)return g;
+      const route=(W.convoyRoutes||[])[0],path=route&&this.resolveWaterRoute(route);if(!path?.length)return g;
       const {q,pos}=this.trafficGroupPosition(g,path),defs=_trafficManifest(g,s);g.memberIds=[];
       for(let i=0;i<defs.length;i++){
         const d=defs[i],o=_trafficFormation(i),r=degToRad(q.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
@@ -191,7 +191,7 @@ function _trafficFormation(i){
       if(this.trafficGroupObserved(g))return g;
       if(members.some(c=>c.sunk||shipDamageSeverity(c)>.025||c.missionRole||c.harborTarget))return g;
       const center={xNm:members.reduce((a,c)=>a+c.position.xNm,0)/members.length,yNm:members.reduce((a,c)=>a+c.position.yNm,0)/members.length};
-      const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);if(path?.length>1){const pr=routeProject(path,center);g.routeS=pr.s;}
+      const route=(W.convoyRoutes||[])[0],path=route&&this.resolveWaterRoute(route);if(path?.length>1){const pr=routeProject(path,center);g.routeS=pr.s;}
       g.position=center;g.heading=members[0]?.heading??g.heading;g.speedKnots=members.reduce((a,c)=>a+c.speedKnots,0)/members.length;
       const ids=new Set(g.memberIds);W.contacts=W.contacts.filter(c=>!ids.has(c.id));
       for(const id of ids){const tr=W.contactTracks[id];if(tr){tr.worldContactAbstract=true;tr.abstractedAt=s.time.elapsedSeconds||0;}}
@@ -217,7 +217,7 @@ function _trafficFormation(i){
     updateTrafficDirector(dt){
       const s=this.state,W=s.world,T=this.ensureTrafficDirector();if(!T?.enabled||!T.generated)return;
       T.clock=(T.clock||0)+dt;if(T.clock<TRAFFIC_TICK_SEC)return;const step=T.clock;T.clock=0;
-      const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);if(!path?.length)return;
+      const route=(W.convoyRoutes||[])[0],path=route&&this.resolveWaterRoute(route);if(!path?.length)return;
       const sub=s.playerSub,groups=T.groups||[];
       this.updatePrimaryTraffic(T.primaryGroup,path,step);
       // Abstract motion is paid only once every ten simulated seconds.
@@ -245,7 +245,7 @@ function _trafficFormation(i){
     trafficIntelCandidates(){
       const s=this.state,W=s.world,T=this.ensureTrafficDirector(),out=[];
       const main=W.contacts.filter(c=>c.convoyId==='MAIN'&&!isSurfaceCombatant(c)&&!c.sunk),pg=T?.primaryGroup;
-      if(main.length){const lead=main.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0],route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route),pr=path?.length?routeProject(path,lead.position):null;
+      if(main.length){const lead=main.slice().sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0))[0],route=(W.convoyRoutes||[])[0],path=route&&this.resolveWaterRoute(route),pr=path?.length?routeProject(path,lead.position):null;
         out.push({id:'MAIN',label:'convoy',kind:'CONVOY',count:main.length,side:'ENEMY',missionCritical:true,position:{xNm:main.reduce((a,c)=>a+c.position.xNm,0)/main.length,yNm:main.reduce((a,c)=>a+c.position.yNm,0)/main.length},
           heading:lead.heading,speedKnots:lead.speedKnots,routeS:pr?.s??null,routeDir:1});}
       else if(pg&&!pg.destroyed&&pg.state==='ABSTRACT')out.push({id:'MAIN',label:'convoy',kind:'CONVOY',count:(pg.savedMembers||[]).filter(c=>!isSurfaceCombatant(c)&&!c.sunk).length,side:'ENEMY',missionCritical:true,

@@ -20,7 +20,7 @@ const HarborSystem={
     return getCampaignHarborOperationProfile(this.state.campaign?.campaignProfileId);
   },
 
-  ensureHarborApproachWater(H){
+  validateHarborApproachWater(H){
     if(!H||typeof this.isNavigableMapPoint!=='function')return{ok:true,lastSafeNm:H?.mineOuterNm||0};
     const valid=(bearing,maxAlong)=>{const r=degToRad(bearing),edge=H.channelHalfWidthNm+.70,inner=.75,steps=Math.max(2,Math.ceil((maxAlong-inner)/.2));for(let i=0;i<=steps;i++){const a=inner+(maxAlong-inner)*i/steps;for(const side of [-edge,0,edge]){const p={xNm:H.center.xNm+Math.sin(r)*a+Math.cos(r)*side,yNm:H.center.yNm-Math.cos(r)*a+Math.sin(r)*side};if(!this.isNavigableMapPoint(p,30))return false;}}return true;};
     const outer=H.mineOuterNm+.55;if(valid(H.channelBearing,outer))return{ok:true,lastSafeNm:outer};
@@ -45,7 +45,7 @@ const HarborSystem={
       suspicion:0,alert:0,entered:false,inside:false,lastGunAt:-999,lastSweepAt:-999,
       mines:[]
     };
-    const approach=this.ensureHarborApproachWater(H);
+    const approach=this.validateHarborApproachWater(H);
     if(!approach.ok){H.approachStatus='LIMITED';H.approachLimitNm=approach.lastSafeNm;H.mineOuterNm=Math.min(H.mineOuterNm,Math.max(H.mineInnerNm+.4,approach.lastSafeNm-.55));}
     else H.approachStatus='CLEAR';
     // Physical mines: positions are randomised ONCE, not rerolled as the player
@@ -299,7 +299,6 @@ const HarborSystem={
   },
 
   updateHarbor(dt){
-    this.ensureHarborWorldState();
     const W=this.state.world,H=W.harbor,sub=this.state.playerSub;
     if(!H||sub.mode==='SUNK') return;
     const now=this.state.time.elapsedSeconds,rng=distNm(sub.position,H.center);

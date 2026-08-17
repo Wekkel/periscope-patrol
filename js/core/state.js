@@ -83,6 +83,27 @@ function initRuntime(state){
   return runtime;
 }
 
+/* Initialize schema-owned state once at lifecycle boundaries.  The update
+   loop must consume these structures, not recreate them every tick. */
+function initializeStateSchema(engine,reset=false){
+  if(!engine)return;
+  engine.ensureTacticalExtensions?.();
+  engine.ensureWorldExtensions?.();
+  engine.ensurePatrolRuntimeContext?.();
+  engine.sys?.career?.ensureCareerPatrolState?.();
+  engine.ensureHistoricalCampaignProfile?.();
+  engine.ensureMissionFramework?.();
+  engine.sys?.intel?.ensureRadioOperations?.();
+  engine.sys?.soundRadar?.ensureSoundRadarState?.();
+  engine.sys?.weather?.ensureWeatherSystem?.(reset);
+  engine.sys?.aswBrain?.ensureASWState?.();
+  engine.ensureBattleAtmosphereState?.(reset);
+  engine.sys?.collision?.ensureCollisionState?.();
+  engine.sys?.damage?.ensureDamageState?.();
+  engine.ensureTrafficDirector?.(reset);
+  engine.ensureAfterActionReport?.(reset);
+}
+
 function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
   const validation=validateGameIdentity(requestedIdentity);
   if(!validation.ok)throw new Error(`Invalid game identity: ${validation.errors.join('; ')}`);

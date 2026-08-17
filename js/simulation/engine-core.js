@@ -99,12 +99,6 @@ const CoreSystem={
   }
 ,
   update(dt){
-    this.ensureTacticalExtensions();
-    this.ensureWorldExtensions();
-    this.ensurePatrolRuntimeContext();
-    this.sys.career.ensureCareerPatrolState();
-    this.ensureHistoricalCampaignProfile?.();
-    this.ensureMissionFramework?.();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
     if(this.state.campaign.missionStatus==='LOST'){const rec=this.sys.career.finalizePatrol('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
@@ -1240,7 +1234,7 @@ const CoreSystem={
     const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
     s.world.contacts=training?[]:this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
-    this.sys.soundRadar.ensureSoundRadarState();this.sys.weather.ensureWeatherSystem(true);
+    initializeStateSchema(this,true);
     if(training){
       s.world.traffic={enabled:false,generated:true,groups:[],primaryGroup:null};
       s.campaign.objectives=[{text:'Find the merchant',done:false},{text:'Sink it',done:false},{text:'Evade the escort',done:false},{text:'Finish the training',done:false}];
@@ -1296,7 +1290,7 @@ const CoreSystem={
       this._lastWaypointRouteReason='endpoint-invalid';
       return null;
     }
-    const route={from:{...from},to:{...to}},path=this.ensureWaterRoute(route);
+    const route={from:{...from},to:{...to}},path=this.resolveWaterRoute(route);
     if(!path||path.length<2){this._lastWaypointRouteReason=route.waterRouteReason||'no-path';return null;}
     for(let i=0;i<path.length-1;i++){
       const a=path[i],b=path[i+1],steps=Math.max(1,Math.ceil(distNm(a,b)/.20));
@@ -1308,7 +1302,7 @@ const CoreSystem={
   /* Build a shipping lane through water, once per patrol area. The bathymetry
      grid is already available for depth/grounding, so use that same truth for
      traffic. A* is paid once; ships then follow the resulting light polyline. */,
-  ensureWaterRoute(route){
+  resolveWaterRoute(route){
     if(!route) return[];
     if(route.waterPath&&route.waterPath.length>1) return route.waterPath;
     const B=Bathy.ensure(this.state.world.terrain);
@@ -1365,7 +1359,7 @@ const CoreSystem={
     const safePoint=(p,label)=>{if(!p)return;const d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;minimum=Math.min(minimum,d);if(land||d<minDepthFeet)errors.push(`${label} is ${land?'on land':`only ${d.toFixed(0)} ft deep`}`);};
     safePoint(area?.start,'start');
     for(const [i,route] of (W.convoyRoutes||[]).entries()){
-      const path=this.ensureWaterRoute(route);if(path.length<2){errors.push(`route ${i} has no water path`);continue;}let length=0;
+      const path=this.resolveWaterRoute(route);if(path.length<2){errors.push(`route ${i} has no water path`);continue;}let length=0;
       let routeSafe=true;for(let n=0;n<path.length-1&&routeSafe;n++){length+=distNm(path[n],path[n+1]);const steps=Math.max(1,Math.ceil(distNm(path[n],path[n+1])/.25));for(let q=0;q<=steps;q++){const t=q/steps,p={xNm:lerp(path[n].xNm,path[n+1].xNm,t),yNm:lerp(path[n].yNm,path[n+1].yNm,t)},d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;minimum=Math.min(minimum,d);if(land||d<minDepthFeet){errors.push(`route ${i} leaves navigable water`);routeSafe=false;break;}}}
       routes.push({label:route.label,vertices:path.length,lengthNm:length});
     }
@@ -1394,7 +1388,7 @@ const CoreSystem={
 ,
   makeConvoy(area,options={}){
     const cr=area.convoyRoutes[0];
-    const path=this.ensureWaterRoute(cr);
+    const path=this.resolveWaterRoute(cr);
     let spawn=path[0]||cr.from,next=path[1]||cr.to;
     // One patrol-start pacing decision keeps the persistent convoy inside a
     // bounded intercept envelope. It is never moved again after commissioning.

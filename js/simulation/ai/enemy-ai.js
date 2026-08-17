@@ -85,7 +85,7 @@ const EnemyAISystem={
   },
 
   alertEscorts(reason,pos,conf,meta={}){
-    const W=this.state.world,e=W.enemy;this.sys.aswBrain.ensureASWState?.();
+    const W=this.state.world,e=W.enemy;
     // First let surface ships react to what THEY can plausibly perceive. This
     // must happen before the escort early-return: a lone freighter still takes
     // evasive action after being hit even when no ASW ship is nearby.

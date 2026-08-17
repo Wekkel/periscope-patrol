@@ -127,7 +127,7 @@ const DamageSystem={
   },
 
   updateDmgCtrl(sub,dt){
-    const d=this.ensureDamageState();
+    const d=this.state.playerSub.damage;if(!d)return;
     const repairFields=['ballastDamage','motorDamage','rudderDamage','periscopeDamage','tdcDamage','gyroDamage','pumpDamage','electricalDamage'];
     const needDC=sub.mode!=='SUNK'&&(d.flooding>0.005||repairFields.some(k=>(d[k]||0)>(d.repairFloor[k]||0)+0.003)||d.driveBankOffline||d.pumpTripped);
     if(needDC!==!!d.damageControlActive){

@@ -74,6 +74,11 @@ const SaveSystem={
       for(const g of state.world?.traffic?.groups||[])for(const c of g?.savedMembers||[])materializeVesselIdentity(c,state);
       for(const c of state.world?.traffic?.primaryGroup?.savedMembers||[])materializeVesselIdentity(c,state);
     }
+    // Schema services are lifecycle initialization, not simulation work. Keep
+    // the legacy load path equivalent to the v3 migration path without putting
+    // ensure* calls back into the tick loop.
+    if(typeof SimEngine==='function'&&typeof initializeStateSchema==='function')
+      initializeStateSchema(new SimEngine(state,typeof CommandBus==='function'?new CommandBus():null));
     return state;
   },
 

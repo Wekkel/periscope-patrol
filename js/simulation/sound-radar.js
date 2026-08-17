@@ -147,7 +147,7 @@ const SoundRadarSystem={
     return{S,R,fit};
   },
 
-  currentSoundSignal(){this.ensureSoundRadarState();return soundSignalAt(this.state,this.state.tactical.soundBearing);},
+  currentSoundSignal(){return soundSignalAt(this.state,this.state.tactical.soundBearing);},
 
   _soundOperatorReport(){
     const s=this.state,W=s.world,S=W.sound,now=s.time.elapsedSeconds;
@@ -234,7 +234,7 @@ const SoundRadarSystem={
   },
 
   updateSoundRadar(dt){
-    this.ensureSoundRadarState();const s=this.state,S=s.world.sound;
+    const s=this.state,S=s.world.sound;if(!S)return;
     S._tick+=dt;if(S._tick>=.25){S._tick=0;this._soundOperatorReport();
       if(s.tactical.activeStation==='SOUND'&&s.tactical.soundDisplay==='PASSIVE'){
         const sig=this.currentSoundSignal();S.monitor={strength:sig.strength,offsetDeg:sig.offsetDeg,cadenceHz:sig.cadenceHz,id:sig.contact?.id||null};PresentationBridge.audioState(this.state,'hydrophone','setHydrophoneMonitor',sig.strength,sig.cadenceHz,sig.offsetDeg);

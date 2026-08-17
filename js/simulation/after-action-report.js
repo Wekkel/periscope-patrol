@@ -84,7 +84,7 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
     aarEnemyResponse(reason,cue,receivers=[],via='local observation'){const A=this.ensureAfterActionReport(),now=this.state.time.elapsedSeconds||0;_aarPush(A.enemyResponses,{t:now,reason:String(reason||'UNKNOWN'),source:String(cue?.source||reason||'UNKNOWN'),via:String(via||'local observation'),confidence:Number(cue?.confidence)||0,uncertaintyNm:Number(cue?.errNm)||0,receiverIds:receivers.map(x=>typeof x==='string'?x:x?.id).filter(Boolean),datum:_aarPos(cue)},80);},
 
     updateAfterActionRecorder(dt){
-      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING')return;const A=this.ensureAfterActionReport(),now=s.time.elapsedSeconds||0,sub=s.playerSub,W=s.world;
+      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING')return;const A=c.afterAction;if(!A)return;const now=s.time.elapsedSeconds||0,sub=s.playerSub,W=s.world;
       const R=s.runtime.aar||(s.runtime.aar={routeClock:999,trackClock:999,airStates:{},seenTrackIds:{},harborPenetrationLogged:false});
       R.routeClock=(R.routeClock||0)+dt;R.trackClock=(R.trackClock||0)+dt;
       if(R.routeClock>=AAR_ROUTE_SAMPLE_SEC||A.route.length===0){

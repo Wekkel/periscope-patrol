@@ -45,7 +45,7 @@ const IntelSystem={
   updateRadio(dt){
     const W=this.state.world, sub=this.state.playerSub;
     const now=this.state.time.elapsedSeconds;
-    const R=this.ensureRadioOperations();R.enigma.workload=Math.max(0,(R.enigma.workload||0)-dt/900);
+    const R=this.state.world.radio;if(!R)return;R.enigma=R.enigma||{};R.enigma.workload=Math.max(0,(R.enigma.workload||0)-dt/900);
 
     if(!R.pending){
       // Mission-authored priority traffic uses the same antenna-depth/copying
@@ -129,7 +129,7 @@ const IntelSystem={
       const err=forced?(0.4+Math.random()*0.8):(0.8+Math.random()*2.2);
       const ageSec=forced?(600+Math.random()*1800):(1800+Math.random()*7200);
       const speed=q.speedKnots||8,back=knotsNmSec(speed)*ageSec;
-      const route=(W.convoyRoutes||[])[0],path=route&&this.sys.navigation.ensureWaterRoute(route);
+      const route=(W.convoyRoutes||[])[0],path=route&&this.sys.navigation.resolveWaterRoute(route);
       let pos,courseDeg=q.heading||0,routeS=q.routeS??null,routeDir=q.routeDir??null;
       if(path&&path.length>1&&routeS!=null&&routeDir!=null){
         if(q.missionCritical){

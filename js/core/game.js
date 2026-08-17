@@ -8,8 +8,7 @@ class Game{
     this.state.world.contacts=bootEngine.makeConvoy(PATROL_AREAS[startArea],{areaKey:startArea,startDate:this.state.campaign.startDate,historicalProfile:this.state.campaign.historicalProfile});
     this.bus=new CommandBus();
     this.engine=new SimEngine(this.state,this.bus);
-    this.engine.ensureHistoricalCampaignProfile?.();
-    this.engine.ensureTrafficDirector?.(true);
+    initializeStateSchema(this.engine,true);
   }
   dispatch(cmd){
     /* Station changes are UI/navigation state, not physics orders.  Keeping
