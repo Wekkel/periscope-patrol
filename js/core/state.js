@@ -27,6 +27,12 @@ function initRuntime(state){
   const runtime=state.runtime&&typeof state.runtime==='object'?state.runtime:(state.runtime={});
   runtime.effects=Array.isArray(runtime.effects)?runtime.effects:[];
   runtime.audioState=runtime.audioState&&typeof runtime.audioState==='object'?runtime.audioState:{};
+  runtime.aar=runtime.aar&&typeof runtime.aar==='object'?runtime.aar:{};
+  runtime.aar.routeClock=Number.isFinite(runtime.aar.routeClock)?runtime.aar.routeClock:999;
+  runtime.aar.trackClock=Number.isFinite(runtime.aar.trackClock)?runtime.aar.trackClock:999;
+  runtime.aar.airStates=runtime.aar.airStates&&typeof runtime.aar.airStates==='object'?runtime.aar.airStates:{};
+  runtime.aar.seenTrackIds=runtime.aar.seenTrackIds&&typeof runtime.aar.seenTrackIds==='object'?runtime.aar.seenTrackIds:{};
+  runtime.aar.harborPenetrationLogged=!!runtime.aar.harborPenetrationLogged;
   runtime.presentation=runtime.presentation&&typeof runtime.presentation==='object'?runtime.presentation:{};
   if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactToken'))runtime.presentation.impactToken=null;
   if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactStartedWall'))runtime.presentation.impactStartedWall=null;

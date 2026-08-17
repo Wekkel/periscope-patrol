@@ -21,9 +21,17 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
       const c=this.state.campaign;
       if(reset||!c.afterAction){
         c.afterAction={version:AAR_VERSION,route:[],observedById:{},truthById:{},events:[],torpedoes:[],gunRounds:[],enemyResponses:[],aircraftEvaded:0,
-          _routeClock:999,_trackClock:999,_airStates:{},_seenTrackIds:{},_harborPenetrationLogged:false};
+          };
       }
-      const A=c.afterAction;A.version=AAR_VERSION;A.gunRounds=Array.isArray(A.gunRounds)?A.gunRounds:[];A.enemyResponses=Array.isArray(A.enemyResponses)?A.enemyResponses:[];return A;
+      const A=c.afterAction,R=this.state.runtime.aar||(this.state.runtime.aar={routeClock:999,trackClock:999,airStates:{},seenTrackIds:{},harborPenetrationLogged:false});
+      // Migrate the pre-8a recorder clocks once; these fields are runtime and
+      // must not live in the persistent after-action record.
+      if(A._routeClock!==undefined){R.routeClock=A._routeClock;delete A._routeClock;}
+      if(A._trackClock!==undefined){R.trackClock=A._trackClock;delete A._trackClock;}
+      if(A._airStates){R.airStates=A._airStates;delete A._airStates;}
+      if(A._seenTrackIds){R.seenTrackIds=A._seenTrackIds;delete A._seenTrackIds;}
+      if(A._harborPenetrationLogged!==undefined){R.harborPenetrationLogged=A._harborPenetrationLogged;delete A._harborPenetrationLogged;}
+      A.version=AAR_VERSION;A.gunRounds=Array.isArray(A.gunRounds)?A.gunRounds:[];A.enemyResponses=Array.isArray(A.enemyResponses)?A.enemyResponses:[];return A;
     },
 
     aarRecordEvent(type,text,data={},position=null,targetPosition=null){
@@ -77,19 +85,20 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
 
     updateAfterActionRecorder(dt){
       const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING')return;const A=this.ensureAfterActionReport(),now=s.time.elapsedSeconds||0,sub=s.playerSub,W=s.world;
-      A._routeClock=(A._routeClock||0)+dt;A._trackClock=(A._trackClock||0)+dt;
-      if(A._routeClock>=AAR_ROUTE_SAMPLE_SEC||A.route.length===0){
-        A._routeClock=0;_aarTimelinePush(A.route,[Math.round(now),+sub.position.xNm.toFixed(4),+sub.position.yNm.toFixed(4),+sub.depthFeet.toFixed(1),+sub.heading.toFixed(1),+sub.propulsion.speedKnots.toFixed(1)],AAR_MAX_ROUTE);
+      const R=s.runtime.aar||(s.runtime.aar={routeClock:999,trackClock:999,airStates:{},seenTrackIds:{},harborPenetrationLogged:false});
+      R.routeClock=(R.routeClock||0)+dt;R.trackClock=(R.trackClock||0)+dt;
+      if(R.routeClock>=AAR_ROUTE_SAMPLE_SEC||A.route.length===0){
+        R.routeClock=0;_aarTimelinePush(A.route,[Math.round(now),+sub.position.xNm.toFixed(4),+sub.position.yNm.toFixed(4),+sub.depthFeet.toFixed(1),+sub.heading.toFixed(1),+sub.propulsion.speedKnots.toFixed(1)],AAR_MAX_ROUTE);
       }
-      if(A._trackClock>=AAR_TRACK_SAMPLE_SEC){
-        A._trackClock=0;
+      if(R.trackClock>=AAR_TRACK_SAMPLE_SEC){
+        R.trackClock=0;
         for(const tr of Object.values(W.contactTracks||{})){
           if(!tr||tr.confidence<.12)continue;const p=tr.plotPosition||tr.lastFixPosition;if(!p)continue;
           let g=A.observedById[tr.id];if(!g)g=A.observedById[tr.id]={id:tr.id,type:tr.typeEstimate||'UNKNOWN',affiliation:tr.affiliation||null,points:[]};
           g.type=tr.typeEstimate||g.type;g.affiliation=tr.affiliation||g.affiliation;
           _aarTimelinePush(g.points,[Math.round(now),+p.xNm.toFixed(4),+p.yNm.toFixed(4),+(tr.courseEstimate||0).toFixed(1),+(tr.speedEstimateKnots||0).toFixed(1),
             +tr.confidence.toFixed(2),+(tr.positionConfidence??tr.confidence).toFixed(2),_aarSourceCode(tr.source||tr.lastSensorSource),tr.visualHullConfirmed?1:0],AAR_MAX_POINTS_PER_TRACK);
-          if(!A._seenTrackIds[tr.id]){A._seenTrackIds[tr.id]=true;this.aarRecordEvent('FIRST_SIGHTING',`First contact — ${tr.typeEstimate||tr.id}.`,{contactId:tr.id,source:tr.source||tr.lastSensorSource||'UNKNOWN'},p);}
+          if(!R.seenTrackIds[tr.id]){R.seenTrackIds[tr.id]=true;this.aarRecordEvent('FIRST_SIGHTING',`First contact — ${tr.typeEstimate||tr.id}.`,{contactId:tr.id,source:tr.source||tr.lastSensorSource||'UNKNOWN'},p);}
         }
         for(const x of W.contacts||[]){
           if(!x||!x.position)continue;const known=!!W.contactTracks?.[x.id],near=distNm(sub.position,x.position)<=38,important=x.convoyId==='MAIN'||x.harborTarget;
@@ -99,17 +108,17 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
         }
       }
       const live={};for(const a of W.aircraft||[]){if(a.side==='FRIENDLY')continue;
-        live[a.id]=true;const st=A._airStates[a.id]||(A._airStates[a.id]={attacked:false,seen:false,lastState:a.state,pos:_aarPos(a.position),name:a.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,kind:a.kind||null});
+        live[a.id]=true;const st=R.airStates[a.id]||(R.airStates[a.id]={attacked:false,seen:false,lastState:a.state,pos:_aarPos(a.position),name:a.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,kind:a.kind||null});
         st.pos=_aarPos(a.position);st.seen=st.seen||!!a.seenBySub;
         if(!st.attacked&&(a.state==='ATTACKING'||a.state==='STRAFING')){st.attacked=true;this.aarRecordEvent('AIRCRAFT_ATTACK',`${a.name||'Aircraft'} attacking.`,{aircraftId:a.id,name:a.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,kind:a.kind||null},a.position);}
         st.lastState=a.state;st.shotDown=!!a.shotDown;
       }
-      for(const [id,st] of Object.entries(A._airStates)){if(live[id]||st.finished)continue;st.finished=true;if(st.attacked&&!st.shotDown){A.aircraftEvaded++;this.aarRecordEvent('AIRCRAFT_EVADED','Aircraft attack evaded.',{aircraftId:id},st.pos);}}
+      for(const [id,st] of Object.entries(R.airStates)){if(live[id]||st.finished)continue;st.finished=true;if(st.attacked&&!st.shotDown){A.aircraftEvaded++;this.aarRecordEvent('AIRCRAFT_EVADED','Aircraft attack evaded.',{aircraftId:id},st.pos);}}
       // Migrate recorder state from the original Truk-only flag without replaying
       // the penetration event when an in-progress patrol loads after this refactor.
-      if(A._harborPenetrationLogged==null)A._harborPenetrationLogged=!!A._trukPenetrationLogged;
+      if(R.harborPenetrationLogged==null)R.harborPenetrationLogged=!!A._trukPenetrationLogged;
       const I=W.harborIntel,harborOp=getCampaignHarborOperationProfile(c.campaignProfileId),event=harborOp?.events;
-      if(I?.raid?.attempted&&!A._harborPenetrationLogged&&event?.penetrationId){A._harborPenetrationLogged=true;this.aarRecordEvent(event.penetrationId,event.penetrationText,{},sub.position);}
+      if(I?.raid?.attempted&&!R.harborPenetrationLogged&&event?.penetrationId){R.harborPenetrationLogged=true;this.aarRecordEvent(event.penetrationId,event.penetrationText,{},sub.position);}
     },
 
     buildAfterActionReplay(){

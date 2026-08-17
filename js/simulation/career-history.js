@@ -152,7 +152,7 @@ const CareerSystem={
     });
     const torpHits=(W.hits||[]).filter(h=>h.weapon!=='DECK_GUN').length;
     const engagements=_careerEngagements(s);
-    const aircraftEncounters=Object.entries(c.afterAction?._airStates||{}).filter(([,a])=>a?.seen||a?.attacked||a?.shotDown).map(([id,a])=>{const p=typeof getAircraftProfile==='function'?getAircraftProfile(a.aircraftProfileId):null;return{id,name:a.name||p?.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,factionId:p?.factionId||null,kind:a.kind||p?.kind||null,status:a.shotDown?'SHOT DOWN':a.attacked?'ATTACK EVADED':'SIGHTED',dimensionsM:p?{span:p.spanM,length:p.lengthM}:null,speedKnots:_careerClone(p?.speedKnots||[]),ordnance:p?.ordnance||null,recognition:p?.recognition||null,doctrine:p?.doctrine||null};});
+    const aircraftEncounters=Object.entries(this.state.runtime?.aar?.airStates||{}).filter(([,a])=>a?.seen||a?.attacked||a?.shotDown).map(([id,a])=>{const p=typeof getAircraftProfile==='function'?getAircraftProfile(a.aircraftProfileId):null;return{id,name:a.name||p?.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,factionId:p?.factionId||null,kind:a.kind||p?.kind||null,status:a.shotDown?'SHOT DOWN':a.attacked?'ATTACK EVADED':'SIGHTED',dimensionsM:p?{span:p.spanM,length:p.lengthM}:null,speedKnots:_careerClone(p?.speedKnots||[]),ordnance:p?.ordnance||null,recognition:p?.recognition||null,doctrine:p?.doctrine||null};});
     const ownBoat=_careerOwnBoat(s),lessons=_careerLessons(s,engagements),hp=c.historicalProfile||{};
     const I=s.world.harborIntel;
     const opts=(c.optionalObjectives||[]).map(o=>({text:o.text,done:!!o.done,failed:!!o.failed,result:o.result||null}));

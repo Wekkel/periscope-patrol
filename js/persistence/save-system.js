@@ -45,6 +45,10 @@ const SaveSystem={
   },
 
   _cloneStateForStorage(state){
+    // Capture any runtime fields created since the last tick before cloning;
+    // initRuntime also converts legacy underscore fields to non-enumerable
+    // accessors, so they cannot leak into a serialized snapshot.
+    if(typeof initRuntime==='function')initRuntime(state);
     const s=JSON.parse(JSON.stringify(state));const obs=s?.tactical?.impactObservation;
     if(obs){s.tactical.impactObservation=null;if((s.time?.timeScale??0)===0)s.time.timeScale=Number(s.time?.preModalScale)>0?Number(s.time.preModalScale):1;}
     // Runtime is rebuilt by initRuntime() after load; never serialize it.
