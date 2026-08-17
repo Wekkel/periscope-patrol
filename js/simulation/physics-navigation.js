@@ -307,7 +307,7 @@ class SimEngine {
   updateConvoyNavigation(){
     const W=this.state.world, route=(W.convoyRoutes||[])[0];
     if(!route) return;
-    const path=this.ensureWaterRoute(route);if(path.length<2)return;
+    const path=this.resolveWaterRoute(route);if(path.length<2)return;
     const merchants=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.convoyRole==='MERCHANT'&&!c.sunk);
     if(!merchants.length) return;
     merchants.sort((a,b)=>(a.formationIndex||0)-(b.formationIndex||0));
@@ -380,7 +380,7 @@ class SimEngine {
       const crossedLand=this.checkTerrainCollision?.(mid)?.collision===true;
       if(exactLand||crossedLand||Bathy.feet(c.position.xNm,c.position.yNm)<24){
         c.position=prev;c.speedKnots*=0.72;
-        const route=(this.state.world.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);
+        const route=(this.state.world.convoyRoutes||[])[0],path=route&&this.resolveWaterRoute(route);
         if(path&&path.length>1){const pr=routeProject(path,prev),aim=routeAdvance(path,pr.s,this.state.world.convoyLeg||1,1.0);c.desiredHeading=bearingBetween(prev,aim.pos);}
       }
       this.keepInArea(c);

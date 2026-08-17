@@ -52,7 +52,7 @@ const scripts=[...dom.window.document.querySelectorAll('script[src]')].map(s=>s.
 const context=dom.getInternalVMContext();
 const vmConsoleWarn=context.console.warn.bind(context.console),vmConsoleError=context.console.error.bind(context.console);
 context.console.warn=(...args)=>{const message=args.map(String).join(' ');if(/render failed|DISPLAY RECOVERING/i.test(message))errors.push({kind:'render',message,stack:args.find(x=>x?.stack)?.stack||''});vmConsoleWarn(...args);};
-context.console.error=(...args)=>{const message=args.map(String).join(' ');if(/\[RENDER\]|render failed|DISPLAY RECOVERING/i.test(message))errors.push({kind:'render',message,stack:args.find(x=>x?.stack)?.stack||''});vmConsoleError(...args);};
+context.console.error=(...args)=>{const message=args.map(String).join(' ');if(/\[RENDER\]|render failed|DISPLAY RECOVERING/i.test(message))errors.push({kind:'render',message,stack:args.find(x=>x?.stack)?.stack||''});if(/\[SIM\] update failed/i.test(message))errors.push({kind:'simulation',message,stack:args.find(x=>x?.stack)?.stack||''});vmConsoleError(...args);};
 for(const src of scripts){const file=src.replace(/^\.\//,'');try{vm.runInContext(await readFile(path.join(root,file),'utf8')+`\n//# sourceURL=${file}`,context,{filename:file});}catch(error){errors.push({kind:'script',file,message:error.message,stack:error.stack});break;}}
 if(errors.length){console.log(JSON.stringify(errors,null,2));process.exit(1);}
 const gestureStates=[];

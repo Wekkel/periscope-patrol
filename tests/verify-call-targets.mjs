@@ -23,6 +23,16 @@ for(const m of graph.methods){if(!definitionsByName.has(m.name))definitionsByNam
 const sharedContextNames=new Set(['log','notify','shake','captainLog','isNavigableMapPoint','ensureBattleAtmosphereState','friendlyPortNav','clearDeckForDive','derivMode','ensureSoundRadarState','stopAutomaticTimeCompression']);
 const misses=[];
 
+// Renamed lifecycle services must not leave stale callers behind. This check
+// covers the remaining SimEngine class as well as composed systems.
+for(const file of await simulationFiles()){
+  const source=await readFile(path.join(root,file),'utf8');
+  for(const match of source.matchAll(/\b(?:this\.)?ensureWaterRoute\s*\(/g))
+    misses.push({file,line:source.slice(0,match.index).split(/\r?\n/).length,caller:'stale-route-call',name:'ensureWaterRoute',definedBy:'renamed-to-resolveWaterRoute',reason:'stale validator name'});
+  for(const match of source.matchAll(/\b(?:this\.)?ensureHarborApproachWater\s*\(/g))
+    misses.push({file,line:source.slice(0,match.index).split(/\r?\n/).length,caller:'stale-harbor-call',name:'ensureHarborApproachWater',definedBy:'renamed-to-validateHarborApproachWater',reason:'stale validator name'});
+}
+
 // A free helper can receive either the SimEngine instance or a composed system
 // context. Direct `engine.ctx.*` access is therefore unsafe unless the helper's
 // contract explicitly guarantees a SimEngine. This catches the failure mode
