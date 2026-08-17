@@ -1137,6 +1137,10 @@ const CoreSystem={
     // stale alarm or AAR-pause state may leak across it.
     Object.assign(s.time,{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:patrolStartDate,campaignDateTime:`${patrolStartDate} 00:00:00`,
       transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null});
+    // Presentation state is a patrol-lifecycle resource. Keep the render path
+    // total even before the first impact event has reached the bridge.
+    s.runtime=s.runtime||{};
+    s.runtime.presentation={impactToken:null,impactStartedWall:null,impactTimer:null,impactQueue:[]};
     s.log=[{t:0,level:'info',message:training?`Training waters prepared. Area: ${key}.`:`Patrol commenced. Area: ${key}. Good hunting.`}];
     if(s.ui){delete s.ui.toasts;delete s.ui.toastSeq;}
     PresentationBridge.toast(this.state).clear();
