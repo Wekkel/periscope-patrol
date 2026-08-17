@@ -52,20 +52,34 @@ function initRuntime(state){
   // Legacy saves may contain underscore-prefixed state members. Move their
   // values into a non-persistent runtime bucket and leave non-enumerable
   // accessors so old simulation code continues to address the same fields.
-  runtime.legacyFields=Array.isArray(runtime.legacyFields)?runtime.legacyFields:[];
+  // Rebuild the inventory on each initialization so replaced patrol objects
+  // do not leave stale accessor slots behind.
+  runtime.legacyFields=[];
   const seen=new Set();
-  const visit=(obj)=>{
+  const visit=(obj,path='state')=>{
     if(!obj||typeof obj!=='object'||obj===runtime||seen.has(obj))return;
     seen.add(obj);
     for(const key of Object.keys(obj)){
       const value=obj[key];
       if(key.startsWith('_')){
-        const slot={value};runtime.legacyFields.push(slot);delete obj[key];
+        const slot={path:`${path}.${key}`,key,value};runtime.legacyFields.push(slot);delete obj[key];
         Object.defineProperty(obj,key,{configurable:true,enumerable:false,get(){return slot.value;},set(next){slot.value=next;}});
-      }else if(value&&typeof value==='object')visit(value);
+      }else if(value&&typeof value==='object')visit(value,`${path}.${key}`);
     }
   };
   visit(state);
+  // Fields introduced lazily after a save has been written need an accessor
+  // even though the old snapshot contains no enumerable property to inspect.
+  const lazy=[
+    ['campaign',['_captainEventSeq','_careerStartDate','_historyRecorded','_historyRecordId','_lossAarOffered','_headingHome','_rvSeen','_approachReached','_portServiceLock','_portTouchActive','_depthChargeAttackSeen']],
+    ['playerSub',['_nhdWarned','_keelClosingFps','_suctWarn','_collisionPrev']],
+    ['tdc',['_lastSolvedTargetId','_lastSolveAt']],
+    ['world',['_collisionCooldowns']],
+    ['world.environment',['_baseVisibilityNm','_weatherBaseVisibilityNm','_weatherBaseSeaState']],
+    ['world.sound',['_tick']],['world.radar',['_tick']]
+  ];
+  const resolve=(path)=>path.split('.').reduce((o,k)=>o?.[k],state);
+  for(const [path,keys] of lazy){const obj=resolve(path);if(!obj||typeof obj!=='object')continue;for(const key of keys){if(Object.prototype.hasOwnProperty.call(obj,key))continue;const slot={path:`state.${path}.${key}`,key,value:undefined};runtime.legacyFields.push(slot);Object.defineProperty(obj,key,{configurable:true,enumerable:false,get(){return slot.value;},set(next){slot.value=next;}});}}
   return runtime;
 }
 

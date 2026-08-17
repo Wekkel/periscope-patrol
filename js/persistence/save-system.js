@@ -15,7 +15,7 @@ const SaveSystem={
   // release can migrate old patrol states without gratuitously invalidating or
   // redesigning the backup container itself. Schema 0 means a pre-Mega save;
   // the current runtime already upgrades those through its ensure* extensions.
-  STATE_SCHEMA_VERSION:2,
+  STATE_SCHEMA_VERSION:3,
   _importedResumePending:false,lastLoadError:null,
 
   _decimateArray(a,max=120){
@@ -74,6 +74,28 @@ const SaveSystem={
       for(const g of state.world?.traffic?.groups||[])for(const c of g?.savedMembers||[])materializeVesselIdentity(c,state);
       for(const c of state.world?.traffic?.primaryGroup?.savedMembers||[])materializeVesselIdentity(c,state);
     }
+    return state;
+  },
+
+  _migrateV3(state){
+    if(!state||typeof state!=='object')throw new Error('Schema v3 migration requires a game state.');
+    if(typeof initRuntime==='function')initRuntime(state);
+    // The ensure functions are the authoritative inventory of fields used by
+    // the pre-v3 hot path. Run each schema initializer once during migration;
+    // 8c will remove their per-tick calls after the equivalence test passes.
+    const names=['ensureAfterActionReport','ensureASWState','ensureBattleAtmosphereState','ensureCareerPatrolState','ensureCollisionState','ensureDamageState','ensureWorldExtensions','ensurePatrolRuntimeContext','ensureTacticalExtensions','ensureHarborWorldState','ensureHarborIntel','ensureHistoricalCampaignProfile','ensureMissionFramework','ensureRadioOperations','ensureSoundRadarState','ensureTrafficDirector','ensureWeatherSystem'];
+    if(typeof SimEngine!=='function')throw new Error('Schema v3 migration cannot initialize simulation services.');
+    const engine=new SimEngine(state,typeof CommandBus==='function'?new CommandBus():null);
+    for(const name of names){
+      const fn=engine[name]||engine.sys?.harbor?.[name]||engine.sys?.weather?.[name]||engine.sys?.soundRadar?.[name]||engine.sys?.intel?.[name]||engine.sys?.collision?.[name]||engine.sys?.damage?.[name]||engine.sys?.career?.[name]||engine.sys?.aswBrain?.[name];
+      if(typeof fn!=='function')throw new Error(`Schema v3 migration missing initializer ${name}.`);
+      try{fn.call(engine);}catch(error){throw new Error(`Schema v3 migration failed in ${name}: ${error?.message||error}`);}
+    }
+    // Run the zero-time ensure pass once more through the public coordinator.
+    // This covers Core-owned initializers whose adapters are installed only
+    // after the coordinator is constructed, without advancing simulation time.
+    try{engine.update(0);}catch(error){throw new Error(`Schema v3 migration finalization failed: ${error?.message||error}`);}
+    if(typeof initRuntime==='function')initRuntime(state);
     return state;
   },
 
@@ -197,6 +219,7 @@ const SaveSystem={
       c.campaignId=c.campaignId||p?.campaignId||'pacific-submarine-war';c.warPartyId=c.warPartyId||p?.id||'pacific-usa';
       c.campaignSchemaVersion=PP_CAMPAIGN_SCHEMA_VERSION;c.contentSchemaVersion=PP_CONTENT_SCHEMA_VERSION;snapshot.stateSchemaVersion=2;
     }
+    if(snapshot.stateSchemaVersion<3){this._migrateV3(snapshot.fullState);snapshot.stateSchemaVersion=3;}
     snapshot.fullState=this._normalizeLoadedState(snapshot.fullState);return snapshot;
   },
 
