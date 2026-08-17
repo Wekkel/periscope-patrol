@@ -256,7 +256,7 @@ class Tutorial{
     sub.heading=20;sub.orderedHeading=20;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;
     sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
-    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
+    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;s.runtime.playerSub._nhdWarned=false;
     sub.stealth.silentRunning=false;
     Object.assign(sub.damage,{hullIntegrity:100,flooding:0,ballastDamage:0,motorDamage:0,
       rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,

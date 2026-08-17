@@ -2,9 +2,8 @@
 
 The schema initializers now run at lifecycle boundaries (`createState`, load,
 and `NEW_PATROL`) instead of at the top of every simulation tick. The gameplay
-call-order check intentionally filters only the six schema-initializer calls
-that were removed from `update()`; the immutable pre-STEP-7 baseline remains
-unchanged.
+call-order check compares the active post-8c baseline directly; the immutable
+pre-STEP-7 baseline is preserved separately for audit.
 
 Renamed validators:
 
@@ -15,12 +14,16 @@ The current harness reports 34 `updateSub` calls, zero runtime-load
 differences for fresh, mid-patrol, and completed saves, and all 71 command
 paths execute successfully.
 
-Known open item: the legacy underscore compatibility accessors are still
-present for the 23 named legacy fields (plus per-contact collision snapshots).
-They remain behavior-preserving until every reader is moved to explicit
-`state.runtime` paths. This is intentionally reported rather than silently
-claiming that accessor removal is complete; 8c is not fully closed until that
-follow-up is implemented.
+Accessor progress is delivered in groups. Group 1 (`campaign._*`) and group 2
+(`playerSub._*` and contact `_collisionPrev`) now move values into
+`state.runtime.campaign`, `state.runtime.playerSub`, and
+`state.runtime.collisionPrev`; their readers no longer use compatibility
+accessors. The remaining groups are environment, TDC/time, and deck-gun/AAR
+runtime fields.
+
+For group 2, all three save variants compare with zero persistent-field
+differences: fresh 3654 fields, mid-patrol 3677, completed 3694. No field in
+these groups required a behavior-changing exception.
 
 The six removed tick initializers are `ensureTacticalExtensions`,
 `ensureWorldExtensions`, `ensurePatrolRuntimeContext`,

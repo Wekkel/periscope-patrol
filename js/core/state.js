@@ -42,6 +42,28 @@ function initRuntime(state){
   runtime.sound=runtime.sound&&typeof runtime.sound==='object'?runtime.sound:{};
   runtime.radar=runtime.radar&&typeof runtime.radar==='object'?runtime.radar:{};
   runtime.collisionPrev=runtime.collisionPrev&&typeof runtime.collisionPrev==='object'?runtime.collisionPrev:{};
+  const campaign=state.campaign&&typeof state.campaign==='object'?state.campaign:null;
+  if(campaign){
+    for(const key of ['_captainEventSeq','_careerStartDate','_historyRecorded','_historyRecordId','_lossAarOffered','_headingHome','_rvSeen','_approachReached','_portServiceLock','_portTouchActive','_depthChargeAttackSeen']){
+      if(campaign[key]!==undefined&&runtime.campaign[key]===undefined)runtime.campaign[key]=campaign[key];
+      delete campaign[key];
+    }
+  }
+  // Collision and depth-warning state is runtime-only.  Move legacy values
+  // before installing compatibility accessors so saves never retain them.
+  const playerSub=state.playerSub&&typeof state.playerSub==='object'?state.playerSub:null;
+  if(playerSub){
+    for(const key of ['_nhdWarned','_keelClosingFps','_suctWarn','_collisionPrev']){
+      if(playerSub[key]!==undefined&&runtime.playerSub[key]===undefined)runtime.playerSub[key]=playerSub[key];
+      delete playerSub[key];
+    }
+  }
+  for(const contact of state.world?.contacts||[]){
+    if(!contact?.id)continue;
+    if(contact._collisionPrev!==undefined&&runtime.collisionPrev[contact.id]===undefined)
+      runtime.collisionPrev[contact.id]=contact._collisionPrev;
+    delete contact._collisionPrev;
+  }
   runtime.presentation=runtime.presentation&&typeof runtime.presentation==='object'?runtime.presentation:{};
   if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactToken'))runtime.presentation.impactToken=null;
   if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactStartedWall'))runtime.presentation.impactStartedWall=null;
@@ -80,8 +102,6 @@ function initRuntime(state){
   // Fields introduced lazily after a save has been written need an accessor
   // even though the old snapshot contains no enumerable property to inspect.
   const lazy=[
-    ['campaign',['_captainEventSeq','_careerStartDate','_historyRecorded','_historyRecordId','_lossAarOffered','_headingHome','_rvSeen','_approachReached','_portServiceLock','_portTouchActive','_depthChargeAttackSeen']],
-    ['playerSub',['_nhdWarned','_keelClosingFps','_suctWarn','_collisionPrev']],
     ['tdc',['_lastSolvedTargetId','_lastSolveAt']],
     ['world',['_collisionCooldowns']],
     ['world.environment',['_baseVisibilityNm','_weatherBaseVisibilityNm','_weatherBaseSeaState']],

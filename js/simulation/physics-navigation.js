@@ -211,12 +211,13 @@ class SimEngine {
        the one a frightened man reaches for. */
     const wantUp=sub.orderedDepthFeet<sub.depthFeet-3;
     sub.cannotHoldDepth=wantUp&&!em&&(mv*sp<fp+0.02);
-    if(sub.cannotHoldDepth&&!sub._nhdWarned){
-      sub._nhdWarned=true;
+    const PR=this.state.runtime.playerSub;
+    if(sub.cannotHoldDepth&&!PR._nhdWarned){
+      PR._nhdWarned=true;
       this.log('SHE WILL NOT ANSWER THE PLANES — water is coming in faster than we can rise. Blow main ballast (emergency surface), pumps on, damage control to the leak, and get way on her: the planes need speed to bite.','bad');
     }
-    if(!sub.cannotHoldDepth&&sub._nhdWarned&&(!wantUp||mv*sp>fp*1.4)){
-      sub._nhdWarned=false;
+    if(!sub.cannotHoldDepth&&PR._nhdWarned&&(!wantUp||mv*sp>fp*1.4)){
+      PR._nhdWarned=false;
       if(wantUp) this.log('She has her nose up again — the planes are biting.','warn');
     }
     if(sub.mode==='EMERGENCY_SURFACING') sub.ballastState='EMERGENCY_BLOW';
@@ -699,7 +700,7 @@ class SimEngine {
     const camp=this.state.campaign;
     const friendlyRv=this.friendlyPortNav();
     if(camp.missionStatus!=='RETURN TO BASE'&&friendlyRv&&friendlyRv.rngNm<=1.5){
-      if(camp._portServiceLock) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — SERVICED`});
+      if(this.state.runtime.campaign._portServiceLock) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — SERVICED`});
       else if(friendlyRv.rngNm<=0.30&&sub.depthFeet>=8) W.push({level:'warn',text:`${friendlyRv.port.name.toUpperCase()} RV — SURFACE TO SERVICE`});
       else if(friendlyRv.rngNm<=0.30&&(sub.propulsion.speedKnots||0)>.45&&(sub.propulsion.orderedRpm||0)>0) W.push({level:'warn',text:`${friendlyRv.port.name.toUpperCase()} RV — ORDER STOP`});
       else if(friendlyRv.rngNm<=0.30) W.push({level:'normal',text:`${friendlyRv.port.name.toUpperCase()} FRIENDLY RV — STOP FOR SERVICE`});

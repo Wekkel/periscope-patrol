@@ -1,5 +1,8 @@
 // ═══════════════════════════════════════════════════ VESSEL COLLISION MODEL
 const CollisionSystem={
+  collisionPrevFor(v){
+    return v===this.state.playerSub?this.state.runtime.playerSub._collisionPrev:this.state.runtime.collisionPrev[v?.id];
+  },
   ensureCollisionState(){
     const W=this.state.world;
     W.collisionEvents=W.collisionEvents||[];
@@ -9,9 +12,9 @@ const CollisionSystem={
   captureCollisionFrame(){
     this.ensureCollisionState();
     const sub=this.state.playerSub;
-    sub._collisionPrev={position:{...sub.position},heading:sub.heading,depthFeet:sub.depthFeet};
+    this.state.runtime.playerSub._collisionPrev={position:{...sub.position},heading:sub.heading,depthFeet:sub.depthFeet};
     for(const c of this.state.world.contacts||[]) if(!c.sunk)
-      c._collisionPrev={position:{...c.position},heading:c.heading};
+      this.state.runtime.collisionPrev[c.id]={position:{...c.position},heading:c.heading};
   },
 
   surfaceAvoidance(){
@@ -114,7 +117,7 @@ const CollisionSystem={
   },
 
   collisionImpact(sub,ship,hit,dt){
-    const sp=sub._collisionPrev?.position||sub.position,cp=ship._collisionPrev?.position||ship.position;
+    const sp=this.collisionPrevFor(sub)?.position||sub.position,cp=this.collisionPrevFor(ship)?.position||ship.position;
     const sv=this.vesselMotionVelocity(sp,sub.position,dt),cv=this.vesselMotionVelocity(cp,ship.position,dt);
     const rv={x:cv.x-sv.x,y:cv.y-sv.y};
     const relKn=Math.hypot(rv.x,rv.y)*3600;
@@ -131,7 +134,7 @@ const CollisionSystem={
     if(now-last<12)return null;
     this.state.world._collisionCooldowns[key]=now;
     const impact=this.collisionImpact(sub,c,hit,dt);
-    const sp=sub._collisionPrev.position,cp=c._collisionPrev.position,t=Math.max(0,hit.t-0.002);
+    const sp=this.collisionPrevFor(sub).position,cp=this.collisionPrevFor(c).position,t=Math.max(0,hit.t-0.002);
     sub.position={xNm:lerp(sp.xNm,sub.position.xNm,t)-hit.normal.x*0.00025,
                   yNm:lerp(sp.yNm,sub.position.yNm,t)-hit.normal.y*0.00025};
     c.position={xNm:lerp(cp.xNm,c.position.xNm,t)+hit.normal.x*0.00025,
@@ -154,7 +157,7 @@ const CollisionSystem={
     const now=this.state.time.elapsedSeconds,key=[a.id,b.id].sort().join('|'),last=this.state.world._collisionCooldowns[key]??-999;
     if(now-last<15)return null;
     this.state.world._collisionCooldowns[key]=now;
-    const ap=a._collisionPrev.position,bp=b._collisionPrev.position,t=Math.max(0,hit.t-0.002);
+    const ap=this.collisionPrevFor(a).position,bp=this.collisionPrevFor(b).position,t=Math.max(0,hit.t-0.002);
     const av=this.vesselMotionVelocity(ap,a.position,dt),bv=this.vesselMotionVelocity(bp,b.position,dt);
     const rv={x:bv.x-av.x,y:bv.y-av.y},relKn=Math.hypot(rv.x,rv.y)*3600;
     const normalKn=Math.abs(rv.x*hit.normal.x+rv.y*hit.normal.y)*3600;
@@ -170,25 +173,27 @@ const CollisionSystem={
 
   updateVesselCollisions(dt){
     const sub=this.state.playerSub,W=this.state.world;
-    if(sub._collisionPrev&&sub.mode!=='SUNK')for(const c of W.contacts||[]){
-      if(c.sunk||c.type==='RAFT'||!c._collisionPrev)continue;
-      const sh0=subHull(sub,sub._collisionPrev.position,sub._collisionPrev.heading),sh1=subHull(sub,sub.position,sub.heading);
-      const ch0=shipHull(c,c._collisionPrev.position,c._collisionPrev.heading),ch1=shipHull(c,c.position,c.heading);
+    if(this.collisionPrevFor(sub)&&sub.mode!=='SUNK')for(const c of W.contacts||[]){
+      if(c.sunk||c.type==='RAFT'||!this.collisionPrevFor(c))continue;
+      const sp=this.collisionPrevFor(sub),cp=this.collisionPrevFor(c);
+      const sh0=subHull(sub,sp.position,sp.heading),sh1=subHull(sub,sub.position,sub.heading);
+      const ch0=shipHull(c,cp.position,cp.heading),ch1=shipHull(c,c.position,c.heading);
       // A deep boat is physically below the surface ship's draft. Use the
       // shallowest depth reached during this step so a diving boat cannot phase
       // through a hull during the transition.
-      const shallowDepth=Math.min(sub._collisionPrev.depthFeet??sub.depthFeet,sub.depthFeet);
+      const shallowDepth=Math.min(sp.depthFeet??sub.depthFeet,sub.depthFeet);
       const proxy={...sub,depthFeet:shallowDepth};sh1.source=proxy;
       if(!HullGeometry.verticalOverlap(sh1,ch1))continue;
       const hit=movingHullIntersection(sh0,sh1,ch0,ch1);
       if(hit)this.resolveSubShipCollision(sub,c,hit,dt);
     }
 
-    const ships=(W.contacts||[]).filter(c=>!c.sunk&&c.type!=='RAFT'&&c._collisionPrev);
+    const ships=(W.contacts||[]).filter(c=>!c.sunk&&c.type!=='RAFT'&&this.collisionPrevFor(c));
     for(let i=0;i<ships.length;i++)for(let j=i+1;j<ships.length;j++){
       const a=ships[i],b=ships[j];if(a.stationary&&b.stationary)continue;
-      const hit=movingHullIntersection(shipHull(a,a._collisionPrev.position,a._collisionPrev.heading),shipHull(a),
-        shipHull(b,b._collisionPrev.position,b._collisionPrev.heading),shipHull(b));
+      const ap=this.collisionPrevFor(a),bp=this.collisionPrevFor(b);
+      const hit=movingHullIntersection(shipHull(a,ap.position,ap.heading),shipHull(a),
+        shipHull(b,bp.position,bp.heading),shipHull(b));
       if(hit)this.resolveShipShipCollision(a,b,hit,dt);
     }
   }

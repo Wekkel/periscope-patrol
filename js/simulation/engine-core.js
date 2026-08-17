@@ -76,7 +76,7 @@ const CoreSystem={
   }
 ,
   offerLossAar(record){
-    const c=this.state.campaign;if(!record||c._lossAarOffered)return false;c._lossAarOffered=true;const historyId=c.historyId;
+    const c=this.state.campaign,R=this.state.runtime.campaign;if(!record||R._lossAarOffered)return false;R._lossAarOffered=true;const historyId=c.historyId;
     PresentationBridge.save(this.state,'autoClear');
     PresentationBridge.toast(this.state).action('BOAT LOST — After Action Report ready.','VIEW AAR',()=>PresentationBridge.aar(this.state,'open',record,{completed:false}),10000,'warn','patrol-aar');return true;
   }
@@ -653,7 +653,7 @@ const CoreSystem={
     if(sub.mode==='SUNK'||sub.bottomed)return;
     const clr=sub.keelClearanceFeet??3000;
     const surfaced=sub.depthFeet<12;                    // effectively on the roof / awash
-    const closing=Math.max(0,sub._keelClosingFps||0);  // ft of clearance lost per ship-second
+    const closing=Math.max(0,this.state.runtime.playerSub._keelClosingFps||0);  // ft of clearance lost per ship-second
 
     /* Shallow water is not itself an emergency. A surfaced fleet boat can
        legitimately con through twenty-something feet of water. Compression is
@@ -688,7 +688,7 @@ const CoreSystem={
     sub.bottomType=Bathy.bottomType(sub.position.xNm,sub.position.yNm);
     const prevClr=sub.keelClearanceFeet??(sea-sub.depthFeet);
     this.setDepthAndClearance(sub,sub.depthFeet,sea);
-    sub._keelClosingFps=dt>0?(prevClr-sub.keelClearanceFeet)/dt:0;
+    this.state.runtime.playerSub._keelClosingFps=dt>0?(prevClr-sub.keelClearanceFeet)/dt:0;
     const safe=Math.max(0,sea-25);
 
     // Ordinary depth orders keep 25 ft under the keel. A validated bottoming
@@ -770,8 +770,8 @@ const CoreSystem={
        a noise every set within miles will hear. */
     const grip=sub.bottomType==='MUD'?1:0.28;
     sub.suction=clamp((sub.suction||0)+dt/900*grip,0,1);
-    if(sub.suction>0.34&&!sub._suctWarn){
-      sub._suctWarn=true;
+    if(sub.suction>0.34&&!this.state.runtime.playerSub._suctWarn){
+      this.state.runtime.playerSub._suctWarn=true;
       this.notify('She is settling into the mud. Breaking free now will take a blow — and a blow can be heard.','warn', 'NUTTIG');
     }
     // the order to get up again
@@ -783,7 +783,7 @@ const CoreSystem={
   unbottom(sub){
     if(!sub.bottomed) return;
     const s=sub.suction||0;
-    sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null; sub._suctWarn=false;
+    sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null; this.state.runtime.playerSub._suctWarn=false;
     if(s>0.34){
       this.notify('Blowing her off the bottom — she comes free with a rush of air. That was heard.','bad', 'NUTTIG');
       sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55+s*0.5,0,1.5);
@@ -970,7 +970,7 @@ const CoreSystem={
     if(!r){this.log('No friendly port in this area.','warn');return;}
     this.state.map.plottedCourse=[{...r.approach.pos,navKind:'FRIENDLY_APPROACH',portName:r.port.name}];
     this.state.map.autoFollowPlot=true;
-    this.state.campaign._headingHome=true;
+    this.state.runtime.campaign._headingHome=true;
     this.steerWaypoint(true);
     this.notify(`Course set for ${r.port.name} rendezvous — ${r.rngNm.toFixed(1)} nm on ${fmtDeg(r.brg)}. The marker is in safe water; compressed time will hand the conn back near the approach.`,'warn', 'NUTTIG');
   }
@@ -1002,13 +1002,13 @@ const CoreSystem={
       periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
       pumpActive:false,pumpTripped:false,pumpLoadSec:0,damageControlActive:false,
       driveBankOffline:false,crewFatigue:0,oxygen:100,repairFloor:{},instrumentBias:{}});
-    sub.cannotHoldDepth=false;sub._nhdWarned=false;
+    sub.cannotHoldDepth=false;this.state.runtime.playerSub._nhdWarned=false;
     this.notify(`${String(portName||'FRIENDLY PORT').toUpperCase()} — SERVICE COMPLETE. Fuel and battery 100%; torpedoes, gun ammunition and AA replenished; battle damage repaired.`,'ok', 'NUTTIG');
     this.log(`${portName||'Friendly port'} service complete — rearmed, refuelled, batteries charged and battle damage repaired.`,'warn');
   }
 ,
   checkPortArrival(dt){
-    const sub=this.state.playerSub,camp=this.state.campaign;
+    const sub=this.state.playerSub,camp=this.state.campaign,R=this.state.runtime.campaign;
     if(camp.missionStatus==='COMPLETED'||sub.mode==='SUNK'){
       camp.alongside=0;camp.portService=0;return;
     }
@@ -1026,12 +1026,12 @@ const CoreSystem={
     // Friendly rendezvous points remain usable service stops throughout the
     // patrol, but the interaction is now simpler: enter the close ring,
     // surface, and stop the boat. No countdown and no special harbor bell.
-    if(r.rngNm<4&&r.rngNm>APPROACH_NM&&!camp._rvSeen){
-      camp._rvSeen=true;
+    if(r.rngNm<4&&r.rngNm>APPROACH_NM&&!R._rvSeen){
+      R._rvSeen=true;
       this.notify(`${r.port.name.toUpperCase()} FRIENDLY RV — ${r.rngNm.toFixed(1)} nm. Rearm, refuel, charge batteries and repair are available inside the green ring.`,'ok', 'NUTTIG');
     }
-    if(r.rngNm<=APPROACH_NM&&!camp._approachReached){
-      camp._approachReached=true;
+    if(r.rngNm<=APPROACH_NM&&!R._approachReached){
+      R._approachReached=true;
       if((this.state.time.timeScale||1)>1||this.state.time.transitUntil){
         this.stopAutomaticTimeCompression('friendly port approach');
       }
@@ -1039,27 +1039,27 @@ const CoreSystem={
         ? `${r.port.name.toUpperCase()} — FINAL RETURN. Enter the 0.3 nm green ring surfaced and stop the boat to complete the patrol.`
         : `${r.port.name.toUpperCase()} — FRIENDLY RENDEZVOUS. Enter the 0.3 nm green ring surfaced and stop the boat for service.`,'ok', 'NUTTIG');
     }
-    if(r.rngNm>APPROACH_NM*1.25) camp._approachReached=false;
-    if(r.rngNm>4.5) camp._rvSeen=false;
-    if(r.rngNm>CLOSE_NM*1.55){camp._portServiceLock=false;camp.portService=0;camp.alongside=0;camp._portTouchActive=false;}
+    if(r.rngNm>APPROACH_NM*1.25) R._approachReached=false;
+    if(r.rngNm>4.5) R._rvSeen=false;
+    if(r.rngNm>CLOSE_NM*1.55){R._portServiceLock=false;camp.portService=0;camp.alongside=0;R._portTouchActive=false;}
 
     const surfaced=sub.depthFeet<8,close=r.rngNm<=CLOSE_NM;
     const stopped=(sub.propulsion.speedKnots||0)<=0.45||(sub.propulsion.orderedRpm||0)<=0;
     if(!close||!surfaced||!stopped){
-      camp.alongside=0;camp.portService=0;camp._portTouchActive=false;
+      camp.alongside=0;camp.portService=0;R._portTouchActive=false;
       return;
     }
 
-    if(!camp._portTouchActive){
-      camp._portTouchActive=true;PresentationBridge.audio(this.state).event?.('HARBOR_REACHED');
+    if(!R._portTouchActive){
+      R._portTouchActive=true;PresentationBridge.audio(this.state).event?.('HARBOR_REACHED');
       this.notify(returning
         ? `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Patrol complete.`
         : `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Taking on fuel, stores and repair parties.`,'ok', 'NUTTIG');
     }
     sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;
     if(returning){camp.alongside=0;this.completeMission(r.port.name);return;}
-    if(camp._portServiceLock)return;
-    camp.portService=0;camp._portServiceLock=true;camp.lastPortServiceAt=this.state.time.elapsedSeconds;
+    if(R._portServiceLock)return;
+    camp.portService=0;R._portServiceLock=true;camp.lastPortServiceAt=this.state.time.elapsedSeconds;
     this.performFriendlyPortService(r.port.name);
   }
 ,
@@ -1083,7 +1083,7 @@ const CoreSystem={
     this.updateAfterActionRecorder?.(999);
     const patrolRecord=this.sys.career.finalizePatrol('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
     if(typeof historicalNextPatrolDate==='function'){
-      const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(camp._careerStartDate,camp.patrolDuration):camp.startDate);
+      const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(this.state.runtime.campaign._careerStartDate,camp.patrolDuration):camp.startDate);
       camp.nextPatrolDate=historicalNextPatrolDate(endDate,camp.patrolNumber,camp.scenarioSeed);
     }
     if(patrolRecord)PresentationBridge.aar(this.state,'open',patrolRecord,{completed:true});
@@ -1095,7 +1095,7 @@ const CoreSystem={
     // Rearm and refuel. Static store capacity comes from the submarine profile;
     // mutable tube state remains in the patrol state.
     const fresh=materializeFreshSubmarine(sub.profileId,this.state.tdc.torpedoSpecKey);
-    sub.propulsion.fuel=100; sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
+    sub.propulsion.fuel=100; sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;this.state.runtime.playerSub._nhdWarned=false;
     W.torpedoInventory=fresh.weapons.torpedoInventory;
     for(const t of W.tubes){t.status='LOADED_DRY';t.reloadProgress=1;}
     sub.damage.hullIntegrity=clamp(sub.damage.hullIntegrity+25,0,100);
@@ -1208,7 +1208,7 @@ const CoreSystem={
     this.setDepthAndClearance(sub,0,3000);sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
     sub.propulsion.characteristics=fresh.propulsionProfile;
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
-    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
+    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;this.state.runtime.playerSub._nhdWarned=false;
     sub.stealth.silentRunning=false;sub.stealth.acousticSignature=0;
     Object.assign(sub.damage,{hullIntegrity:100,crushDepthFeet:subProfile.damage.crushDepthFeet,flooding:0,ballastDamage:0,motorDamage:0,
       rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
@@ -1217,7 +1217,7 @@ const CoreSystem={
       repairFloor:{},instrumentBias:{},warnings:[]});
     sub.inShallowWater=false;sub.groundingRisk=false;sub.inShallowWarned=false;
     s.map.estimatedPosition={...sub.position};
-    sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.suction=0;sub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
+    sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.suction=0;this.state.runtime.playerSub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
     s.weapons.torpedoInventory=weaponProfile.torpedoInventory;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
     s.weapons.deckGun={manned:false,ammo:weaponProfile.deckGun.ammo,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
     // Rebuild the tube bank from the profile at the patrol lifecycle boundary.

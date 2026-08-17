@@ -56,7 +56,7 @@ function createLeafSystemContext(engine){
     updateLookouts:(...args)=>SensorsSystem.updateLookouts.call(ctx,...args)
   };
   ctx.sys.escorts={alert:(...args)=>EnemyAISystem.alertEscorts.call(ctx,...args)};
-  ctx.sys.collision=api(CollisionSystem,['ensureCollisionState','captureCollisionFrame','surfaceAvoidance','collisionRiskAhead','collisionRiskText','compressedCollisionWatch','vesselMotionVelocity','collisionImpact','resolveSubShipCollision','resolveShipShipCollision','updateVesselCollisions']);
+  ctx.sys.collision=api(CollisionSystem,['collisionPrevFor','ensureCollisionState','captureCollisionFrame','surfaceAvoidance','collisionRiskAhead','collisionRiskText','compressedCollisionWatch','vesselMotionVelocity','collisionImpact','resolveSubShipCollision','resolveShipShipCollision','updateVesselCollisions']);
   ctx.sys.damage=api(DamageSystem,['ensureDamageState','_fieldRepairFloor','applyShock','setRepairPriority','updateDmgCtrl']);
   ctx.sys.career=api(CareerSystem,['ensureCareerPatrolState','captainLog','buildPatrolRecord','finalizePatrol']);
   ctx.sys.battleAtmosphere={noteSurfaceGunfire:(...args)=>engine.noteSurfaceGunfire(...args),noteTacticalSignal:(...args)=>engine.noteTacticalSignal(...args)};
@@ -77,7 +77,7 @@ function createLeafSystemContext(engine){
   for(const name of ['ensureSoundRadarState','currentSoundSignal','_soundOperatorReport','markSoundBearing','echoRange','_updateSurfaceSearchRadar','updateSoundRadar'])bindLeafMethod(ctx,SoundRadarSystem,name);
   for(const name of ['threadShippingSignal','ensureRadioOperations','radioCopyRequirement','acceptPartialRadio','updateRadio','composeSignal','intelSummary','interceptSolution','applySignal'])bindLeafMethod(ctx,IntelSystem,name);
   for(const name of ['updateLookouts','updateSonar'])bindLeafMethod(ctx,SensorsSystem,name);
-  for(const name of ['ensureCollisionState','captureCollisionFrame','surfaceAvoidance','collisionRiskAhead','collisionRiskText','compressedCollisionWatch','vesselMotionVelocity','collisionImpact','resolveSubShipCollision','resolveShipShipCollision','updateVesselCollisions'])bindLeafMethod(ctx,CollisionSystem,name);
+  for(const name of ['collisionPrevFor','ensureCollisionState','captureCollisionFrame','surfaceAvoidance','collisionRiskAhead','collisionRiskText','compressedCollisionWatch','vesselMotionVelocity','collisionImpact','resolveSubShipCollision','resolveShipShipCollision','updateVesselCollisions'])bindLeafMethod(ctx,CollisionSystem,name);
   for(const name of ['ensureDamageState','_fieldRepairFloor','applyShock','setRepairPriority','updateDmgCtrl'])bindLeafMethod(ctx,DamageSystem,name);
   for(const name of ['ensureCareerPatrolState','captainLog','buildPatrolRecord','finalizePatrol'])bindLeafMethod(ctx,CareerSystem,name);
   return ctx;

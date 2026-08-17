@@ -173,7 +173,7 @@ const TorpedoSystem={
   },
 
   torpedoShipSweepHit(t,prevPos,c){
-    const prev=c._collisionPrev||{},ship0=prev.position||c.position,ship1=c.position;
+    const prev=this.state.runtime.collisionPrev[c.id]||{},ship0=prev.position||c.position,ship1=c.position;
     const h0=Number.isFinite(prev.heading)?prev.heading:(c.heading||0),h1=c.heading||h0;
     const midH=normDeg(h0+shortDelta(h0,h1)*.5),H=shipHull(c,c.position,midH);
     if(c.id===t.targetId){
