@@ -22,6 +22,47 @@ function materializeFreshSubmarine(profileId=DEFAULT_GAME_IDENTITY.submarineProf
   return{profile,weapons,propulsionProfile:materializeSubmarinePropulsionCharacteristics(profile.id),torpedoSpecKey,torpedoSpec,tubes};
 }
 
+function initRuntime(state){
+  if(!state||typeof state!=='object')throw new Error('Cannot initialize runtime for an invalid state.');
+  const runtime=state.runtime&&typeof state.runtime==='object'?state.runtime:(state.runtime={});
+  runtime.effects=Array.isArray(runtime.effects)?runtime.effects:[];
+  runtime.audioState=runtime.audioState&&typeof runtime.audioState==='object'?runtime.audioState:{};
+  runtime.presentation=runtime.presentation&&typeof runtime.presentation==='object'?runtime.presentation:{};
+  if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactToken'))runtime.presentation.impactToken=null;
+  if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactStartedWall'))runtime.presentation.impactStartedWall=null;
+  if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactTimer'))runtime.presentation.impactTimer=null;
+  if(!Array.isArray(runtime.presentation.impactQueue))runtime.presentation.impactQueue=[];
+  runtime.world=runtime.world&&typeof runtime.world==='object'?runtime.world:{};
+  const world=state.world&&typeof state.world==='object'?state.world:null;
+  if(world){
+    for(const key of ['atmosphere','collisionEvents','lastCollision','_collisionCooldowns','sound','radar','weatherSystem','traffic']){
+      if(world[key]!==undefined){
+        if(runtime.world[key]===undefined)runtime.world[key]=world[key];
+        delete world[key];
+      }
+      Object.defineProperty(world,key,{configurable:true,enumerable:false,get(){return runtime.world[key];},set(value){runtime.world[key]=value;}});
+    }
+  }
+  // Legacy saves may contain underscore-prefixed state members. Move their
+  // values into a non-persistent runtime bucket and leave non-enumerable
+  // accessors so old simulation code continues to address the same fields.
+  runtime.legacyFields=Array.isArray(runtime.legacyFields)?runtime.legacyFields:[];
+  const seen=new Set();
+  const visit=(obj)=>{
+    if(!obj||typeof obj!=='object'||obj===runtime||seen.has(obj))return;
+    seen.add(obj);
+    for(const key of Object.keys(obj)){
+      const value=obj[key];
+      if(key.startsWith('_')){
+        const slot={value};runtime.legacyFields.push(slot);delete obj[key];
+        Object.defineProperty(obj,key,{configurable:true,enumerable:false,get(){return slot.value;},set(next){slot.value=next;}});
+      }else if(value&&typeof value==='object')visit(value);
+    }
+  };
+  visit(state);
+  return runtime;
+}
+
 function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
   const validation=validateGameIdentity(requestedIdentity);
   if(!validation.ok)throw new Error(`Invalid game identity: ${validation.errors.join('; ')}`);
@@ -40,7 +81,7 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
   // explicitly terrain-less open-ocean area materializes no coastline at all.
   // Never rebuild a whole theater catalogue here on low-memory devices.
   const terrain=materializePatrolTerrain(area),chartBounds=patrolChartBounds(area);
-  return{
+  const state={
     runtime:{effects:[],audioState:{},presentation:{impactToken:null,impactStartedWall:null,impactTimer:null,impactQueue:[]}},
     time:{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:startDate,campaignDateTime:`${startDate} 00:00:00`},
     log:[{t:0,level:'info',message:`Patrol commenced. Area: ${resolvedAreaKey}. Good hunting.`}],
@@ -120,4 +161,6 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
       seabedFeet:3000,keelClearanceFeet:3000,bottomType:'DEEP',bottomed:false,suction:0
     }
   };
+  initRuntime(state);
+  return state;
 }

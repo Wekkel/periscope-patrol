@@ -54,6 +54,16 @@ for(const [name,definitions] of methodOwners){
   if(owners.length>1&&!duplicateMethodAllowlist.has(name))fail.push(`duplicate simulation method: ${name} — ${definitions.map(item=>`${item.class}@${item.file}:${item.line}`).join(', ')}`);
 }
 const strictPatterns=[/(^|[^\w.])Toast\./,/(^|[^\w.])audio\./,/(^|[^\w.])SaveSystem\./,/(^|[^\w.])globalThis\./,/(^|[^\w.])document\./,/(^|[^\w.])setTimeout\b/,/(^|[^\w.])performance\.now\b/];
+/* Step 8a runtime boundary. initRuntime is the single compatibility seam:
+   underscore-prefixed legacy state fields and simulation caches are moved
+   behind non-enumerable accessors, while storage drops the complete runtime
+   branch. Keep this contract explicit so a future refactor cannot silently
+   restore selective runtime serialization. */
+const stateSource=await readFile(path.join(root,'js/core/state.js'),'utf8');
+const saveSource=await readFile(path.join(root,'js/persistence/save-system.js'),'utf8');
+if(!/function\s+initRuntime\s*\(/.test(stateSource)||!/key\.startsWith\(['"]_['"]\)/.test(stateSource))fail.push('runtime boundary missing underscore-field migration in initRuntime');
+if(!/delete\s+s\.runtime\s*;/.test(saveSource))fail.push('storage boundary must omit the complete state.runtime branch');
+if(!/typeof initRuntime==='function'\)initRuntime\(state\)/.test(saveSource))fail.push('loaded states do not rebuild runtime through initRuntime');
 const layerViolations=[];let layerCalls=0;const layerFiles=new Set();
 for(const p of all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');let fileCalls=0;for(const re of strictPatterns){const hits=src.match(new RegExp(re.source,'g'))||[];fileCalls+=hits.length;if(hits.length)layerViolations.push(`${rel(p)}: ${re}`);}if(fileCalls){layerCalls+=fileCalls;layerFiles.add(p);}}
 if(layerViolations.length){const message=`strict simulation-layer warnings: ${layerCalls} calls in ${layerFiles.size} files`;if(process.env.PP_STRICT_LAYERS==='1')fail.push(...layerViolations.map(v=>`simulation layer violation: ${v}`));else console.warn(message);}
