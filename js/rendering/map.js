@@ -1,4 +1,5 @@
-class CanvasView extends CanvasViewDeckGun {
+/* Map station rendering and map interaction surface. */
+const MapStation={
   drawMap(ctx,w,h,state,layout){
     const sub=state.playerSub, map=state.map, k=this.k;
     this._mapViewport={w,h};
@@ -142,7 +143,7 @@ class CanvasView extends CanvasViewDeckGun {
     const wall=typeof performance!=='undefined'?performance.now():Date.now();
     if(this._intelFocusUntil>wall){const label='MAP FOCUS · OWN BOAT + INTEL ESTIMATE';ctx.font=this.fnt(7.5,true);const bw=ctx.measureText(label).width+14*k,x=(w-bw)/2,y=8*k;ctx.fillStyle='rgba(4,15,18,.88)';this.rr(ctx,x,y,bw,19*k,4*k);ctx.fill();ctx.strokeStyle='rgba(111,224,143,.45)';ctx.stroke();ctx.fillStyle='rgba(190,240,215,.95)';ctx.textAlign='center';ctx.fillText(label,w/2,y+13*k);ctx.textAlign='left';}
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
-  }
+  },
 
   drawInterceptAdvice(ctx,state,w2s,w,h){
     const p=state.map?.interceptPlot;if(!p?.point)return;
@@ -154,8 +155,7 @@ class CanvasView extends CanvasViewDeckGun {
     const label=`ADVICE ${fmtDeg(p.courseDeg)} · ETA ${eta} · ±${Number(p.uncertaintyNm||0).toFixed(1)} NM · ${age<60?Math.round(age)+'s':Math.round(age/60)+'m'} OLD · HELM UNCHANGED`;
     ctx.font=this.fnt(7.5,true);const bw=Math.min(w-16*K,ctx.measureText(label).width+16*K),x=w-bw-8*K,y=34*K;
     ctx.fillStyle='rgba(4,15,18,.84)';this.rr(ctx,x,y,bw,21*K,4*K);ctx.fill();ctx.strokeStyle='rgba(111,224,143,.45)';ctx.stroke();ctx.fillStyle='rgba(190,240,215,.95)';ctx.textAlign='right';ctx.fillText(label,w-16*K,y+14*K);ctx.textAlign='left';ctx.restore();
-  }
-
+  },
 
   drawEnemySonarPing(ctx,state,w2s){
     const cue=state.world.sound?.lastEnemyPingVisual;if(!cue?.position)return;
@@ -163,7 +163,7 @@ class CanvasView extends CanvasViewDeckGun {
     const p=w2s(cue.position.xNm,cue.position.yNm),K=this.k,u=clamp(age/.95,0,1),r=(7+34*u)*K,a=(1-u)*.82;
     ctx.save();ctx.strokeStyle=`rgba(111,224,180,${a})`;ctx.lineWidth=Math.max(1.2,2*K*(1-u*.35));ctx.setLineDash([3*K,4*K]);ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
     if(u<.62){ctx.fillStyle=`rgba(205,245,228,${a*.88})`;ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText('PING',p.x,p.y-r-5*K);ctx.textAlign='left';}ctx.restore();
-  }
+  },
 
   drawMapWeather(ctx,state,w2s,w,h,layout){
     if(!state?.map?.weatherOverlay)return;
@@ -227,7 +227,7 @@ class CanvasView extends CanvasViewDeckGun {
       }
     }
     ctx.setLineDash([]);ctx.textAlign='left';ctx.restore();
-  }
+  },
 
   drawMissionOverlay(ctx,state,w2s){
     const m=state.campaign?.primaryMission;if(!m||m.type==='CONVOY_INTERDICTION')return;
@@ -270,7 +270,7 @@ class CanvasView extends CanvasViewDeckGun {
       for(const q of m.mines||[]){const p=w2s(q.pos.xNm,q.pos.yNm);ctx.fillStyle='rgba(245,198,92,.72)';ctx.beginPath();ctx.arc(p.x,p.y,Math.max(1.5,2*K),0,Math.PI*2);ctx.fill();}
       if(m.zone&&Number.isFinite(m.layHeading)){const p=w2s(m.zone.xNm,m.zone.yNm),r=degToRad(m.layHeading),L=Math.min(2.2*this.zoom,58*K);ctx.strokeStyle='rgba(245,198,92,.6)';ctx.beginPath();ctx.moveTo(p.x-Math.sin(r)*L,p.y+Math.cos(r)*L);ctx.lineTo(p.x+Math.sin(r)*L,p.y-Math.cos(r)*L);ctx.stroke();}
     }
-  }
+  },
 
   drawUltra(ctx,state,w2s){
     const U=state.world.ultra;if(!U)return;
@@ -299,7 +299,7 @@ class CanvasView extends CanvasViewDeckGun {
     const sp=state.playerSub.position;ctx.fillStyle='rgba(190,225,255,.9)';ctx.font=this.fnt(8,true);ctx.fillText(`${distNm(sp,dr).toFixed(1)} nm · steer ${fmtDeg(bearingBetween(sp,dr))}`,b.x+11*K,b.y+18*K);
     this._mapFixedLabelRects?.push({x:b.x+7*K,y:b.y-15*K,w:196*K,h:38*K,reserved:true});
     this.shipIcon(ctx,b.x,b.y,heading,clamp(.22*this.zoom,14*K,40*K),'MERCHANT','rgba(120,190,255,.30)','rgba(160,210,255,.8)',.95);
-  }
+  },
 
   drawMapAircraft(ctx,list,w2s,sub){
     const K=this.k;
@@ -348,7 +348,7 @@ class CanvasView extends CanvasViewDeckGun {
         ctx.beginPath();ctx.arc(p.x,p.y,16*K,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
       }
     }
-  }
+  },
 
   drawMapLegend(ctx,w,h){
     const k=this.k, lw=Math.round(196*k), lh=Math.round(140*k);
@@ -365,23 +365,10 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.fillStyle=r[0];ctx.fillText(r[1],lx+Math.round(8*k),y);
       ctx.fillStyle='#82a89a';ctx.fillText(r[2],lx+Math.round(24*k),y);
     });
-  }
+  },
 
-  /* ── BATHYMETRY ────────────────────────────────────────────────────
-     The charts of 1943 had no colour to spare, but they had the one line a
-     submariner read before anything else: the 100-fathom curve. Inside it a
-     boat under attack has nowhere to go — the depth charges find the bottom
-     and so do you. Outside it the whole dark ocean is yours to hide in.
-     There is no survey data in the game, so the sea floor is synthesised
-     the way it mostly works in nature: a shelf that falls away with
-     distance from the land, roughened with a fixed noise so the contours
-     wander like real ones. Drawn as the palest of washes — chart tint, not
-     decoration — with spot soundings in fathoms when zoomed close. */
-  _ensureBathy(state){ return (this._bathy=Bathy.ensure(state.world.terrain)); }
+  _ensureBathy(state){ return (this._bathy=Bathy.ensure(state.world.terrain)); },
 
-  /* THE PATROL AREA. It had no edge you could see, only a message that
-     appeared when you crossed one. Drawn now as the box it is, with the
-     margin where the boat is considered to be standing out of it shaded. */
   drawAreaBounds(ctx,state,w2s){
     const B=this._bathy; if(!B) return;
     const A=state.world.chartBounds||{x0:B.x0,y0:B.y0,x1:B.x0+(B.nx-1)*B.cell,y1:B.y0+(B.ny-1)*B.cell};
@@ -404,7 +391,7 @@ class CanvasView extends CanvasViewDeckGun {
     ctx.textAlign='left';
     ctx.fillText('PATROL AREA BOUNDARY',p.x+8,p.y+14);
     ctx.restore();
-  }
+  },
 
   _buildBathyOverview(B){
     /* legitieme DOM-toegang: offscreen buffer, geen layout- of statuslezing */
@@ -438,7 +425,7 @@ class CanvasView extends CanvasViewDeckGun {
     };
     curve(4,'rgba(239,106,88,0.48)',[]);curve(10,'rgba(235,195,125,0.26)',[3,3]);curve(100,'rgba(150,200,214,0.30)',[6,4]);
     this._bathyOverview={ref:B,canvas,scale};return this._bathyOverview;
-  }
+  },
 
   drawMapBathy(ctx,state,w2s,w,h){
     const B=this._ensureBathy(state); if(!B) return;
@@ -490,7 +477,7 @@ class CanvasView extends CanvasViewDeckGun {
        viewport-dependent sampling changed which labels were painted while
        panning. Keep the bathymetry, fills and contour lines as navigation
        truth; omit the decorative numbers for a calmer, stable chart. */
-  }
+  },
 
   drawMapTerrain(ctx,terrain,w2s){
     const K=this.k,margin=42*K;
@@ -531,7 +518,7 @@ class CanvasView extends CanvasViewDeckGun {
         if(cx>-120&&cx<this.w+120&&cy>-60&&cy<this.h+60){ctx.fillStyle='rgba(226,238,180,0.8)';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(f.name.toUpperCase(),cx,cy);if(f.peakM>500){ctx.fillStyle='rgba(226,238,180,0.5)';ctx.font=this.fnt(7.5);ctx.fillText(`▲ ${f.peakM} m`,cx,cy+10*K);}ctx.textAlign='left';}
       }
     }
-  }
+  },
 
   drawNavigationCorridors(ctx,corridors,w2s){
     const K=this.k;for(const corridor of corridors){const pts=corridor.points||[];if(pts.length<2)continue;
@@ -541,7 +528,7 @@ class CanvasView extends CanvasViewDeckGun {
       const a=P[0],b=P[1],dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy)||1,ux=dx/L,uy=dy/L,nx=-uy,ny=ux,tip={x:a.x+ux*14*K,y:a.y+uy*14*K};ctx.strokeStyle=`rgba(${col},.72)`;ctx.lineWidth=Math.max(1,1.25*K);ctx.beginPath();ctx.moveTo(tip.x,tip.y);ctx.lineTo(tip.x-ux*7*K+nx*4*K,tip.y-uy*7*K+ny*4*K);ctx.moveTo(tip.x,tip.y);ctx.lineTo(tip.x-ux*7*K-nx*4*K,tip.y-uy*7*K-ny*4*K);ctx.stroke();
       const mid=P[(P.length/2)|0];ctx.fillStyle=`rgba(${col},.78)`;ctx.font=this.fnt(7.2,true);ctx.textAlign='center';ctx.fillText(String(corridor.label||'CHARTED APPROACH').toUpperCase(),mid.x,mid.y-7*K);ctx.textAlign='left';ctx.restore();
     }
-  }
+  },
 
   drawFriendlyApproach(ctx,state,w2s){
     const camp=state.campaign,ap=camp&&camp.portApproach;
@@ -562,7 +549,7 @@ class CanvasView extends CanvasViewDeckGun {
       : `SERVICE · SURFACE · ALL STOP`,p.x,p.y+r+20*K);
     this._mapFixedLabelRects?.push({x:p.x-85*K,y:p.y-r-18*K,w:170*K,h:Math.max(55*K,2*r+38*K)});
     ctx.textAlign='left';ctx.restore();
-  }
+  },
 
   drawTorpedoEnvelope(ctx,state,w2s,w,h){
     const preferred=state.tactical.selectedTrackId||state.tdc.targetId;
@@ -594,7 +581,7 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.fillStyle=col;ctx.textAlign='center';ctx.fillText(line,mx,my+3*K);ctx.textAlign='left';
     }
     ctx.restore();
-  }
+  },
 
   drawMapPorts(ctx,ports,w2s){
     for(const port of ports){
@@ -624,7 +611,7 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.fillText(friendly?'FRIENDLY PORT':'ENEMY PORT',p.x,p.y+22);
       ctx.textAlign='left';
     }
-  }
+  },
 
   drawMapPortScenes(ctx,scenes,w2s){
     const K=this.k;for(const scene of scenes){if(!scene.known)continue;const c=w2s(scene.position.xNm,scene.position.yNm),a=degToRad(scene.heading||0),sin=Math.sin(a),cos=Math.cos(a);
@@ -634,7 +621,7 @@ class CanvasView extends CanvasViewDeckGun {
         else{const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));ctx.fillRect(x-s*.5,y-s*.35,s,s*.7);}}
       ctx.restore();
     }
-  }
+  },
 
   drawMapHarbor(ctx,H,I,w2s,now,campaign=null){
     if(!H) return;
@@ -746,14 +733,14 @@ class CanvasView extends CanvasViewDeckGun {
     }
     if(H.alert>0){ctx.fillStyle=H.alert>=2?'rgba(239,106,88,.95)':'rgba(245,198,92,.9)';ctx.font=this.fnt(8.5,true);ctx.textAlign='center';ctx.fillText(H.alert>=2?'HARBOR ALARM':'DEFENCES ALERT',c.x,c.y+34*K);}
     ctx.restore();ctx.textAlign='left';
-  }
+  },
 
   drawMapTrail(ctx,trail,w2s){
     if(trail.length<2) return;
     ctx.strokeStyle='rgba(123,224,143,0.55)';ctx.lineWidth=2;ctx.beginPath();
     [...trail].reverse().forEach((p,i)=>{const s=w2s(p.xNm,p.yNm);if(i===0)ctx.moveTo(s.x,s.y);else ctx.lineTo(s.x,s.y);});
     ctx.stroke();
-  }
+  },
 
   drawMapPlot(ctx,plot,w2s,ownPos,auto){
     if(!plot.length) return;
@@ -776,7 +763,7 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.fillText(String(i+1),s.x,s.y+0.5);
       ctx.textAlign='left';ctx.textBaseline='alphabetic';
     });
-  }
+  },
 
   drawMapDCs(ctx,dcs,w2s){
     for(const dc of dcs){
@@ -784,7 +771,7 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.strokeStyle=dc.status==='SINKING'?'#d7f5e7':'#e36b5d';ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;
       ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.stroke();
     }
-  }
+  },
 
   drawMapTorps(ctx,torps,w2s){
     const K=this.k;
@@ -801,7 +788,7 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.beginPath();ctx.arc(p.x,p.y,3*K,0,Math.PI*2);ctx.fill();
       ctx.font=this.fnt(8);ctx.fillText(t.id,p.x+6*K,p.y-6*K);
     }
-  }
+  },
 
   drawMapExplosions(ctx,exps,w2s){
     for(const e of exps){
@@ -810,7 +797,7 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
       ctx.fillStyle=`rgba(240,195,90,${1-t})`;ctx.font='11px Consolas';ctx.fillText(e.label,p.x+r+4,p.y);
     }
-  }
+  },
 
   drawContactUncertaintyGlyph(ctx,pe,tr,uncertaintyR,K,isSelected,a,ownScreen){
     const src=tr.positionSource||tr.source||'HYDROPHONE';
@@ -835,7 +822,7 @@ class CanvasView extends CanvasViewDeckGun {
       this.shipIcon(ctx,pe.x,pe.y,tr.courseEstimate||0,clamp(13*K,11,24),iconType,
         'rgba(245,198,92,.035)','rgba(245,198,92,.20)',.22);
     }
-  }
+  },
 
   _mapIconType(type='MERCHANT'){
     const t=String(type||'MERCHANT').toUpperCase().replace(/\s+/g,'_');
@@ -845,7 +832,7 @@ class CanvasView extends CanvasViewDeckGun {
     if(t==='TANKER')return 'TANKER';
     if(t==='SUB')return 'SUB';
     return 'MERCHANT';
-  }
+  },
 
   _mapCompactTypeLabel(type='UNKNOWN'){
     const t=String(type||'UNKNOWN').toUpperCase();
@@ -861,20 +848,20 @@ class CanvasView extends CanvasViewDeckGun {
     if(t==='CARRIER') return 'CARRIER';
     if(t==='UNKNOWN') return 'CONTACT';
     return t.replace(/\s+/g,' ').slice(0,18);
-  }
+  },
 
   _mapLabelOverlapArea(a,b){
     const x=Math.max(0,Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x));
     const y=Math.max(0,Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y));
     return x*y;
-  }
+  },
 
   _mapLabelRectFor(anchor,w,h,dx,dy,dist,K){
     let x=anchor.x+dx*dist*K,y=anchor.y+dy*dist*K;
     x+=dx>0.42?3*K:dx<-0.42?-(w+3*K):-(w*0.5);
     y+=dy>0.42?(h*0.15):dy<-0.42?-(h+2*K):-(h*0.45);
     return {x,y,w,h};
-  }
+  },
 
   _placeMapLabel(anchor,w,h,K,occupied,selected=false){
     const vp=this._mapViewport||{w:1024,h:768},strategy=String(this.mapLabelStrategy||'HYBRID').toUpperCase();
@@ -938,7 +925,7 @@ class CanvasView extends CanvasViewDeckGun {
     }
     if(best){clampRect(best);occupied.push(best);return best;}
     const fallback=clampRect({x:anchor.x+12*K,y:anchor.y-h-8*K,w,h});occupied.push(fallback);return fallback;
-  }
+  },
 
   drawScopeFovCue(ctx,state,w2s,w,h){
     const sub=state?.playerSub,T=state?.tactical,K=this.k;
@@ -971,7 +958,7 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.textAlign='left';
     }
     ctx.restore();
-  }
+  },
 
   drawMapContacts(ctx,tracks,w2s,now,ownPos,selId,state=null){
     const K=this.k;this.mapLabelStrategy=this.mapLabelStrategy||'HYBRID';
@@ -1107,11 +1094,8 @@ class CanvasView extends CanvasViewDeckGun {
         ctx.font=this.fnt(li===0?fs:(fs-1),li===0||!!damage);ctx.fillText(lines[li],lx,ly+li*lh);
       }
     }
-  }
+  },
 
-  /* ── Top-down ship icons. Bow points up in local space, then rotated to
-     the ship's heading. Size follows the zoom but never drops below a
-     readable minimum, so the plot works at every scale. ── */
   shipIcon(ctx,x,y,hdgDeg,lenPx,type,fill,stroke,alpha=1){
     const L=lenPx, B=L*(type==='ESCORT'?0.17:type==='CRUISER'?0.20:type==='CARRIER'?0.24:type==='TANKER'?0.20:0.24);
     ctx.save();
@@ -1172,7 +1156,7 @@ class CanvasView extends CanvasViewDeckGun {
     }
     ctx.globalAlpha=1;
     ctx.restore();
-  }
+  },
 
   turnCue(ctx,x,y,hdgDeg,lenPx,rateDegSec,color){
     const L=lenPx,side=rateDegSec>=0?1:-1;
@@ -1184,10 +1168,8 @@ class CanvasView extends CanvasViewDeckGun {
     const ex=cx+Math.cos(a1)*r,ey=cy+Math.sin(a1)*r,ang=a1+(side>0?Math.PI/2:-Math.PI/2),ah=Math.max(3,L*.10);
     ctx.beginPath();ctx.moveTo(ex,ey);ctx.lineTo(ex-Math.cos(ang-.55)*ah,ey-Math.sin(ang-.55)*ah);ctx.lineTo(ex-Math.cos(ang+.55)*ah,ey-Math.sin(ang+.55)*ah);ctx.closePath();ctx.fill();
     ctx.restore();
-  }
+  },
 
-  /* ── Course-and-speed vector: length is where the ship will be in six
-     minutes, so a long arrow literally means a fast ship. ── */
   courseVector(ctx,p,hdgDeg,speedKn,w2s,posNm,color,K,label){
     const mins=6;
     const distNmAhead=Math.max(speedKn*mins/60,0.05);
@@ -1221,7 +1203,7 @@ class CanvasView extends CanvasViewDeckGun {
       ctx.fillText(label,end.x+ux*7*K,end.y+uy*7*K+2*K);
       ctx.textAlign='left';
     }
-  }
+  },
 
   drawMapOwnship(ctx,sub,w2s){
     const p=w2s(sub.position.xNm,sub.position.yNm);const K=this.k;
@@ -1244,7 +1226,7 @@ class CanvasView extends CanvasViewDeckGun {
     ctx.shadowBlur=0;
     ctx.strokeStyle='rgba(111,224,143,0.22)';ctx.lineWidth=1;
     ctx.beginPath();ctx.arc(p.x,p.y,48*K,0,Math.PI*2);ctx.stroke();
-  }
+  },
 
   screenToWorldMap(clientX,clientY){
     const rect=this.canvas.getBoundingClientRect();
@@ -1252,14 +1234,14 @@ class CanvasView extends CanvasViewDeckGun {
     const sy=(clientY-rect.top)*(this.h/(rect.height||this.h));
     return{xNm:this.mapCenter.xNm+(sx-this.w/2)/this.zoom,
            yNm:this.mapCenter.yNm+(sy-this.h/2)/this.zoom};
-  }
-  // local (CSS-pixel) coordinates inside the canvas
+  },
+
   toLocal(clientX,clientY){
     const rect=this.canvas.getBoundingClientRect();
     return{x:(clientX-rect.left)*(this.w/(rect.width||this.w)),
            y:(clientY-rect.top)*(this.h/(rect.height||this.h))};
-  }
-  // zoom around a screen point so pinch feels anchored
+  },
+
   zoomAt(factor,clientX,clientY){
     const before=this.screenToWorldMap(clientX,clientY);
     this.zoom=clamp(this.zoom*factor,this.minZoom,this.maxZoom);
@@ -1267,18 +1249,20 @@ class CanvasView extends CanvasViewDeckGun {
     this.mapCenter.xNm+=before.xNm-after.xNm;
     this.mapCenter.yNm+=before.yNm-after.yNm;
     if(Math.abs(before.xNm-after.xNm)>1e-9||Math.abs(before.yNm-after.yNm)>1e-9) this.follow=false;
-  }
+  },
+
   panBy(dxPx,dyPx){
     this.mapCenter.xNm-=dxPx/this.zoom;
     this.mapCenter.yNm-=dyPx/this.zoom;
     this.follow=false;
-  }
+  },
+
   recenter(sub){
     // A chart-table centre button is a one-shot reposition, not a camera lock.
     // Ownship must continue to travel across a fixed map after startup/centring.
     this.follow=false;this.mapCenter.xNm=sub.position.xNm;this.mapCenter.yNm=sub.position.yNm;
-  }
-  // nearest contact track to a tap on the map (returns id or null)
+  },
+
   pickTrack(state,clientX,clientY){
     const p=this.toLocal(clientX,clientY);
     const cx=this.w/2, cy=this.h/2;
@@ -1294,8 +1278,8 @@ class CanvasView extends CanvasViewDeckGun {
       if(d<bd){bd=d;best=tr.id;}
     }
     return bd<Math.max(34,40*this.k)?best:null;
-  }
-  // waypoint under the finger on the map (returns index or -1)
+  },
+
   pickWaypoint(state,clientX,clientY){
     const p=this.toLocal(clientX,clientY);
     const cx=this.w/2, cy=this.h/2;
@@ -1307,9 +1291,8 @@ class CanvasView extends CanvasViewDeckGun {
       if(d<bd){bd=d;best=i;}
     });
     return bd<Math.max(30,36*this.k)?best:-1;
-  }
+  },
 
-  // nearest visible ship to a tap in the gun view (returns track id or null)
   pickGunContact(state,clientX,clientY){
     const p=this.toLocal(clientX,clientY),cam=this.gunCam;if(!cam)return null;
     let best=null,bd=Infinity;
@@ -1318,9 +1301,8 @@ class CanvasView extends CanvasViewDeckGun {
       const d=Math.hypot(scr.x-p.x,(scr.y-p.y)*0.7);if(d<bd){bd=d;best=c.id;}
     }
     return bd<Math.max(50,65*this.k)?best:null;
-  }
+  },
 
-  // nearest visible ship to a tap in the periscope view (returns track id or null)
   pickScopeContact(state,clientX,clientY){
     const p=this.toLocal(clientX,clientY);
     const cam=this.cam;
@@ -1350,4 +1332,8 @@ class CanvasView extends CanvasViewDeckGun {
     }
     return bd<Math.max(46,60*this.k)?best:null;
   }
-}
+};
+
+Object.assign(CanvasViewDeckGun.prototype,MapStation);
+
+class CanvasView extends CanvasViewDeckGun {}

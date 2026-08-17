@@ -1,4 +1,5 @@
-class CanvasViewTactical extends CanvasViewCore {
+/* Tactical station rendering. */
+const TacticalStation={
   drawTactical(ctx,w,h,state){
     const sub=state.playerSub, k=this.k, t=state.time.elapsedSeconds;
     const silent=sub.stealth.silentRunning;
@@ -85,9 +86,8 @@ class CanvasViewTactical extends CanvasViewCore {
       ctx.fillStyle='#f5c65c';ctx.font=this.fnt(10.5,true);ctx.textAlign='center';
       ctx.fillText('⚠ ESCORTS SEARCHING — GO SILENT',w/2,sceneTop+bh2*0.72);ctx.textAlign='left';
     }
-  }
+  },
 
-  /* ── Compass / helm gauge ── */
   drawCompassGauge(ctx,c,sub,state){
     const {cx,cy,r}=c, k=this.k;
     // dial face
@@ -186,9 +186,8 @@ class CanvasViewTactical extends CanvasViewCore {
     const hw=rw/2;
     ctx.fillRect(cx,ry,rud*hw,Math.round(6*this.k));
     ctx.fillStyle='rgba(150,190,175,.5)';ctx.fillRect(cx-1,ry-2,2,Math.round(10*this.k));
-  }
+  },
 
-  /* ── Depth column (water cross-section) ── */
   drawDepthColumn(ctx,R,sub,state){
     const ui=getPlayerStationPresentation(state),df=Number(ui.depth?.factor)||1,depthSuffix=ui.depth?.suffix||'ft';
     const k=this.k, maxD=Math.max(300,Math.min(600,Math.ceil((sub.damage.crushDepthFeet||420)/100)*100)),safe=(this.portrait&&this.touchSafeTactical)||null;
@@ -326,9 +325,8 @@ class CanvasViewTactical extends CanvasViewCore {
       ctx.fillText(`${vs>0?'▼':'▲'} ${(Math.abs(vs)*df).toFixed(1)} ${depthSuffix}/s`,readX,top+Math.round(38*k));
     }
     ctx.textAlign='left';
-  }
+  },
 
-  /* ── Bottom status bars ── */
   drawStatusBars(ctx,x,y,w,h,state){
     const sub=state.playerSub, k=this.k, p=sub.propulsion;
     const noise=clamp(sub.stealth.acousticSignature,0,1);
@@ -354,14 +352,4 @@ class CanvasViewTactical extends CanvasViewCore {
       ctx.fillStyle=it.c;this.rr(ctx,ix+Math.round(6*k),by,Math.max(2,bw*clamp(it.v,0,1)),Math.round(4*k),2*k);ctx.fill();
     });
   }
-
-  // ─── PERISCOPE ───
-  // ═══════════════════ PERISCOPE — circular, resolution independent ═══════════════════
-  // ═══════════════════════════════════════════════════════════════════
-  //  PERISCOPE — real 3D scene
-  //  World: E = east (metres), N = north, Y = up, sea surface at Y = 0.
-  //  Camera sits at the eye height of the scope (or the bridge when surfaced),
-  //  looking along the periscope bearing. Earth curvature is included, so
-  //  distant ships genuinely go hull-down over the horizon.
-  // ═══════════════════════════════════════════════════════════════════
-}
+};

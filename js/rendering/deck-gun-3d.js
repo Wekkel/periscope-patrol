@@ -1,4 +1,4 @@
-class CanvasViewDeckGun extends CanvasViewTactical {
+class CanvasViewDeckGun extends CanvasViewCore {
   ownshipDeckPoint(sub,forwardM,sideM,zM=1.35){
     const h=degToRad(sub.heading),fx=Math.sin(h),fy=-Math.cos(h),sx=Math.cos(h),sy=Math.sin(h);
     return{xNm:sub.position.xNm+(fx*forwardM+sx*sideM)/NM_M,
@@ -464,3 +464,5 @@ class CanvasViewDeckGun extends CanvasViewTactical {
 
 
 }
+
+Object.assign(CanvasViewDeckGun.prototype,TacticalStation);

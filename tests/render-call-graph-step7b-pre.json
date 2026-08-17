@@ -558,123 +558,124 @@
     },
     {
       "level": 2,
-      "class": "CanvasViewTactical",
-      "extends": "CanvasViewCore",
+      "class": "TacticalStation",
+      "kind": "object",
+      "extends": null,
       "file": "js/rendering/tactical.js",
-      "line": 1,
-      "end": 367,
+      "line": 2,
+      "end": 355,
       "methods": [
         {
           "name": "drawTactical",
-          "line": 2,
-          "end": 88,
+          "line": 3,
+          "end": 89,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 31
+              "line": 32
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 33
+              "line": 34
             },
             {
               "method": "drawCompassGauge",
               "kind": "direct",
-              "line": 63
+              "line": 64
             },
             {
               "method": "drawDepthColumn",
               "kind": "direct",
-              "line": 64
+              "line": 65
             },
             {
               "method": "drawStatusBars",
               "kind": "direct",
-              "line": 66
+              "line": 67
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 72
+              "line": 73
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 80
+              "line": 81
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 85
+              "line": 86
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 3
+              "line": 4
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 21
+              "line": 22
             },
             {
               "path": "touchSafeTactical",
               "access": "read",
-              "line": 21
+              "line": 22
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 31
+              "line": 32
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 33
+              "line": 34
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 48
+              "line": 49
             },
             {
               "path": "tactGeom",
               "access": "write",
-              "line": 62
+              "line": 63
             },
             {
               "path": "drawCompassGauge",
               "access": "read",
-              "line": 63
+              "line": 64
             },
             {
               "path": "drawDepthColumn",
               "access": "read",
-              "line": 64
+              "line": 65
             },
             {
               "path": "drawStatusBars",
               "access": "read",
-              "line": 66
+              "line": 67
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 72
+              "line": 73
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 80
+              "line": 81
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 85
+              "line": 86
             }
           ]
         },
@@ -779,125 +780,130 @@
         },
         {
           "name": "drawDepthColumn",
-          "line": 192,
-          "end": 329,
+          "line": 191,
+          "end": 328,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 222
+              "line": 221
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 227
+              "line": 226
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 249
+              "line": 248
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 252
+              "line": 251
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 260
+              "line": 259
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 319
+              "line": 318
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 321
+              "line": 320
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 194
+              "line": 193
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 194
+              "line": 193
             },
             {
               "path": "touchSafeTactical",
               "access": "read",
-              "line": 194
+              "line": 193
             },
             {
               "path": "tactGeom",
               "access": "read",
-              "line": 200
+              "line": 199
             },
             {
               "path": "tactGeom.colTop",
               "access": "write",
-              "line": 200
+              "line": 199
             },
             {
               "path": "tactGeom.colBot",
               "access": "write",
-              "line": 200
+              "line": 199
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 222
+              "line": 221
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 227
+              "line": 226
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 249
+              "line": 248
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 252
+              "line": 251
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 260
+              "line": 259
             },
             {
               "path": "quality",
               "access": "read",
-              "line": 302
+              "line": 301
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 319
+              "line": 318
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 321
+              "line": 320
             }
           ]
         },
         {
           "name": "drawStatusBars",
-          "line": 332,
-          "end": 356,
+          "line": 330,
+          "end": 354,
           "calls": [
             {
               "method": "rr",
+              "kind": "direct",
+              "line": 344
+            },
+            {
+              "method": "fnt",
               "kind": "direct",
               "line": 346
             },
@@ -907,29 +913,29 @@
               "line": 348
             },
             {
-              "method": "fnt",
+              "method": "rr",
               "kind": "direct",
-              "line": 350
+              "line": 351
             },
             {
               "method": "rr",
               "kind": "direct",
-              "line": 353
-            },
-            {
-              "method": "rr",
-              "kind": "direct",
-              "line": 354
+              "line": 352
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 333
+              "line": 331
             },
             {
               "path": "rr",
+              "access": "read",
+              "line": 344
+            },
+            {
+              "path": "fnt",
               "access": "read",
               "line": 346
             },
@@ -939,19 +945,14 @@
               "line": 348
             },
             {
-              "path": "fnt",
+              "path": "rr",
               "access": "read",
-              "line": 350
+              "line": 351
             },
             {
               "path": "rr",
               "access": "read",
-              "line": 353
-            },
-            {
-              "path": "rr",
-              "access": "read",
-              "line": 354
+              "line": 352
             }
           ]
         }
@@ -960,7 +961,7 @@
     {
       "level": 3,
       "class": "CanvasViewDeckGun",
-      "extends": "CanvasViewTactical",
+      "extends": "CanvasViewCore",
       "file": "js/rendering/deck-gun-3d.js",
       "line": 1,
       "end": 466,
@@ -4406,554 +4407,564 @@
       "class": "CanvasView",
       "extends": "CanvasViewDeckGun",
       "file": "js/rendering/map.js",
-      "line": 1,
-      "end": 1353,
+      "line": 1339,
+      "end": 1339,
+      "methods": []
+    },
+    {
+      "level": 9,
+      "class": "MapStation",
+      "kind": "object",
+      "extends": null,
+      "file": "js/rendering/map.js",
+      "line": 2,
+      "end": 1335,
       "methods": [
         {
           "name": "drawMap",
-          "line": 2,
-          "end": 145,
+          "line": 3,
+          "end": 146,
           "calls": [
             {
               "method": "recenter",
               "kind": "direct",
-              "line": 28
+              "line": 29
             },
             {
               "method": "drawMapBathy",
               "kind": "direct",
-              "line": 36
+              "line": 37
             },
             {
               "method": "drawAreaBounds",
               "kind": "direct",
-              "line": 37
+              "line": 38
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 63
+              "line": 64
             },
             {
               "method": "drawMapTerrain",
               "kind": "direct",
-              "line": 66
+              "line": 67
             },
             {
               "method": "drawNavigationCorridors",
               "kind": "direct",
-              "line": 68
+              "line": 69
             },
             {
               "method": "drawMapWeather",
               "kind": "direct",
-              "line": 69
+              "line": 70
             },
             {
               "method": "drawMapPortScenes",
               "kind": "direct",
-              "line": 70
+              "line": 71
             },
             {
               "method": "drawMapPorts",
               "kind": "direct",
-              "line": 71
+              "line": 72
             },
             {
               "method": "drawFriendlyApproach",
               "kind": "direct",
-              "line": 72
+              "line": 73
             },
             {
               "method": "drawMapHarbor",
               "kind": "direct",
-              "line": 73
+              "line": 74
             },
             {
               "method": "drawMissionOverlay",
               "kind": "direct",
-              "line": 74
+              "line": 75
             },
             {
               "method": "drawMapTrail",
               "kind": "direct",
-              "line": 75
+              "line": 76
             },
             {
               "method": "drawMapPlot",
               "kind": "direct",
-              "line": 76
+              "line": 77
             },
             {
               "method": "drawTorpedoEnvelope",
               "kind": "direct",
-              "line": 77
+              "line": 78
             },
             {
               "method": "drawScopeFovCue",
               "kind": "direct",
-              "line": 78
+              "line": 79
             },
             {
               "method": "drawMapDCs",
               "kind": "direct",
-              "line": 79
+              "line": 80
             },
             {
               "method": "drawMapTorps",
               "kind": "direct",
-              "line": 80
+              "line": 81
             },
             {
               "method": "drawMapExplosions",
               "kind": "direct",
-              "line": 81
+              "line": 82
             },
             {
               "method": "drawUltra",
               "kind": "direct",
-              "line": 82
+              "line": 83
             },
             {
               "method": "drawInterceptAdvice",
               "kind": "direct",
-              "line": 83
+              "line": 84
             },
             {
               "method": "drawMapContacts",
               "kind": "direct",
-              "line": 84
+              "line": 85
             },
             {
               "method": "drawEnemySonarPing",
               "kind": "direct",
-              "line": 85
+              "line": 86
             },
             {
               "method": "drawMapAircraft",
               "kind": "direct",
-              "line": 86
+              "line": 87
             },
             {
               "method": "drawMapOwnship",
               "kind": "direct",
-              "line": 88
+              "line": 89
             },
             {
               "method": "rr",
-              "kind": "direct",
-              "line": 92
-            },
-            {
-              "method": "fnt",
               "kind": "direct",
               "line": 93
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 95
+              "line": 94
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 106
+              "line": 96
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 114
+              "line": 107
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 139
+              "line": 115
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 143
+              "line": 140
+            },
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 144
             },
             {
               "method": "rr",
               "kind": "direct",
-              "line": 143
+              "line": 144
             },
             {
               "method": "drawMapLegend",
               "kind": "direct",
-              "line": 144
+              "line": 145
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 3
+              "line": 4
             },
             {
               "path": "_mapViewport",
               "access": "write",
-              "line": 4
+              "line": 5
             },
             {
               "path": "_intelContextSeq",
               "access": "read",
-              "line": 6
+              "line": 7
             },
             {
               "path": "_intelContextSeq",
               "access": "write",
-              "line": 7
+              "line": 8
             },
             {
               "path": "_intelFitSeq",
               "access": "write",
-              "line": 8
+              "line": 9
             },
             {
               "path": "_intelFocusUntil",
               "access": "write",
-              "line": 8
+              "line": 9
             },
             {
               "path": "_intelFitSeq",
               "access": "read",
-              "line": 11
+              "line": 12
             },
             {
               "path": "_intelFitSeq",
               "access": "write",
-              "line": 12
+              "line": 13
             },
             {
               "path": "zoom",
               "access": "write",
-              "line": 15
+              "line": 16
             },
             {
               "path": "minZoom",
               "access": "read",
-              "line": 15
+              "line": 16
             },
             {
               "path": "maxZoom",
               "access": "read",
-              "line": 15
+              "line": 16
             },
             {
               "path": "mapCenter.xNm",
-              "access": "write",
-              "line": 17
-            },
-            {
-              "path": "zoom",
-              "access": "read",
-              "line": 17
-            },
-            {
-              "path": "mapCenter.yNm",
-              "access": "write",
-              "line": 17
-            },
-            {
-              "path": "zoom",
-              "access": "read",
-              "line": 17
-            },
-            {
-              "path": "follow",
-              "access": "write",
-              "line": 17
-            },
-            {
-              "path": "_intelFocusUntil",
               "access": "write",
               "line": 18
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 20
+              "line": 18
+            },
+            {
+              "path": "mapCenter.yNm",
+              "access": "write",
+              "line": 18
+            },
+            {
+              "path": "zoom",
+              "access": "read",
+              "line": 18
+            },
+            {
+              "path": "follow",
+              "access": "write",
+              "line": 18
+            },
+            {
+              "path": "_intelFocusUntil",
+              "access": "write",
+              "line": 19
+            },
+            {
+              "path": "zoom",
+              "access": "read",
+              "line": 21
             },
             {
               "path": "_mapRecenterSeq",
               "access": "read",
-              "line": 25
+              "line": 26
             },
             {
               "path": "_mapRecenterSeq",
               "access": "write",
-              "line": 26
+              "line": 27
             },
             {
               "path": "zoom",
               "access": "write",
-              "line": 27
+              "line": 28
             },
             {
               "path": "minZoom",
               "access": "read",
-              "line": 27
+              "line": 28
             },
             {
               "path": "maxZoom",
               "access": "read",
-              "line": 27
+              "line": 28
             },
             {
               "path": "recenter",
               "access": "read",
-              "line": 28
+              "line": 29
             },
             {
               "path": "follow",
               "access": "read",
-              "line": 30
+              "line": 31
             },
             {
               "path": "mapCenter.xNm",
               "access": "write",
-              "line": 30
+              "line": 31
             },
             {
               "path": "mapCenter.yNm",
               "access": "write",
-              "line": 30
+              "line": 31
             },
             {
               "path": "mapCenter.xNm",
               "access": "read",
-              "line": 32
+              "line": 33
             },
             {
               "path": "mapCenter.yNm",
               "access": "read",
-              "line": 32
+              "line": 33
             },
             {
               "path": "_w2s",
               "access": "write",
-              "line": 33
+              "line": 34
             },
             {
               "path": "drawMapBathy",
               "access": "read",
-              "line": 36
+              "line": 37
             },
             {
               "path": "drawAreaBounds",
               "access": "read",
-              "line": 37
+              "line": 38
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 63
+              "line": 64
             },
             {
               "path": "drawMapTerrain",
               "access": "read",
-              "line": 66
+              "line": 67
             },
             {
               "path": "_mapFixedLabelRects",
               "access": "write",
-              "line": 67
+              "line": 68
             },
             {
               "path": "drawNavigationCorridors",
               "access": "read",
-              "line": 68
+              "line": 69
             },
             {
               "path": "drawMapWeather",
               "access": "read",
-              "line": 69
+              "line": 70
             },
             {
               "path": "drawMapPortScenes",
               "access": "read",
-              "line": 70
+              "line": 71
             },
             {
               "path": "drawMapPorts",
               "access": "read",
-              "line": 71
+              "line": 72
             },
             {
               "path": "drawFriendlyApproach",
               "access": "read",
-              "line": 72
+              "line": 73
             },
             {
               "path": "drawMapHarbor",
               "access": "read",
-              "line": 73
+              "line": 74
             },
             {
               "path": "drawMissionOverlay",
               "access": "read",
-              "line": 74
+              "line": 75
             },
             {
               "path": "drawMapTrail",
               "access": "read",
-              "line": 75
+              "line": 76
             },
             {
               "path": "drawMapPlot",
               "access": "read",
-              "line": 76
+              "line": 77
             },
             {
               "path": "drawTorpedoEnvelope",
               "access": "read",
-              "line": 77
+              "line": 78
             },
             {
               "path": "drawScopeFovCue",
               "access": "read",
-              "line": 78
+              "line": 79
             },
             {
               "path": "drawMapDCs",
               "access": "read",
-              "line": 79
+              "line": 80
             },
             {
               "path": "drawMapTorps",
               "access": "read",
-              "line": 80
+              "line": 81
             },
             {
               "path": "drawMapExplosions",
               "access": "read",
-              "line": 81
+              "line": 82
             },
             {
               "path": "drawUltra",
               "access": "read",
-              "line": 82
+              "line": 83
             },
             {
               "path": "drawInterceptAdvice",
               "access": "read",
-              "line": 83
+              "line": 84
             },
             {
               "path": "drawMapContacts",
               "access": "read",
-              "line": 84
+              "line": 85
             },
             {
               "path": "drawEnemySonarPing",
               "access": "read",
-              "line": 85
+              "line": 86
             },
             {
               "path": "drawMapAircraft",
               "access": "read",
-              "line": 86
+              "line": 87
             },
             {
               "path": "drawMapOwnship",
               "access": "read",
-              "line": 88
+              "line": 89
             },
             {
               "path": "rr",
-              "access": "read",
-              "line": 92
-            },
-            {
-              "path": "fnt",
               "access": "read",
               "line": 93
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 95
+              "line": 94
+            },
+            {
+              "path": "fnt",
+              "access": "read",
+              "line": 96
             },
             {
               "path": "follow",
               "access": "read",
-              "line": 104
+              "line": 105
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 106
+              "line": 107
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 114
+              "line": 115
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 139
+              "line": 140
             },
             {
               "path": "_intelFocusUntil",
               "access": "read",
-              "line": 143
+              "line": 144
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 143
+              "line": 144
             },
             {
               "path": "rr",
               "access": "read",
-              "line": 143
+              "line": 144
             },
             {
               "path": "showLegend",
               "access": "read",
-              "line": 144
+              "line": 145
             },
             {
               "path": "drawMapLegend",
               "access": "read",
-              "line": 144
+              "line": 145
             }
           ]
         },
         {
           "name": "drawInterceptAdvice",
-          "line": 147,
-          "end": 157,
+          "line": 148,
+          "end": 158,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 155
+              "line": 156
             },
             {
               "method": "rr",
               "kind": "direct",
-              "line": 156
+              "line": 157
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 150
+              "line": 151
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 155
+              "line": 156
             },
             {
               "path": "rr",
               "access": "read",
-              "line": 156
+              "line": 157
             }
           ]
         },
@@ -5243,341 +5254,346 @@
         },
         {
           "name": "_ensureBathy",
-          "line": 380,
-          "end": 380,
+          "line": 370,
+          "end": 370,
           "calls": [],
           "fields": [
             {
               "path": "_bathy",
               "access": "write",
-              "line": 380
+              "line": 370
             }
           ]
         },
         {
           "name": "drawAreaBounds",
-          "line": 385,
-          "end": 407,
+          "line": 372,
+          "end": 394,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 403
+              "line": 390
             }
           ],
           "fields": [
             {
               "path": "_bathy",
               "access": "read",
-              "line": 386
+              "line": 373
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 403
+              "line": 390
             }
           ]
         },
         {
           "name": "_buildBathyOverview",
-          "line": 409,
-          "end": 441,
+          "line": 396,
+          "end": 428,
           "calls": [],
           "fields": [
             {
               "path": "canvas",
               "access": "read",
-              "line": 411
+              "line": 398
             },
             {
               "path": "_bathyOverview",
               "access": "read",
-              "line": 412
+              "line": 399
             },
             {
               "path": "_bathyOverview",
               "access": "read",
-              "line": 412
+              "line": 399
             },
             {
               "path": "_bathyOverview",
               "access": "write",
-              "line": 440
+              "line": 427
             },
             {
               "path": "_bathyOverview",
               "access": "read",
-              "line": 440
+              "line": 427
             }
           ]
         },
         {
           "name": "drawMapBathy",
-          "line": 443,
-          "end": 493,
+          "line": 430,
+          "end": 480,
           "calls": [
             {
               "method": "_ensureBathy",
               "kind": "direct",
-              "line": 444
+              "line": 431
             },
             {
               "method": "_buildBathyOverview",
               "kind": "direct",
-              "line": 454
+              "line": 441
             }
           ],
           "fields": [
             {
               "path": "_ensureBathy",
               "access": "read",
-              "line": 444
+              "line": 431
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 445
+              "line": 432
             },
             {
               "path": "lowSpec",
               "access": "read",
-              "line": 453
+              "line": 440
             },
             {
               "path": "_buildBathyOverview",
               "access": "read",
-              "line": 454
+              "line": 441
             },
             {
               "path": "mapCenter.xNm",
               "access": "read",
-              "line": 461
+              "line": 448
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 461
+              "line": 448
             },
             {
               "path": "mapCenter.yNm",
               "access": "read",
-              "line": 462
+              "line": 449
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 462
+              "line": 449
             }
           ]
         },
         {
           "name": "drawMapTerrain",
-          "line": 495,
-          "end": 534,
+          "line": 482,
+          "end": 521,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 531
+              "line": 518
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 496
+              "line": 483
             },
             {
               "path": "_terrainBoundsCache",
               "access": "write",
-              "line": 497
+              "line": 484
             },
             {
               "path": "_terrainBoundsCache",
               "access": "read",
-              "line": 497
+              "line": 484
             },
             {
               "path": "h",
               "access": "read",
-              "line": 498
+              "line": 485
             },
             {
               "path": "_terrainBoundsCache.get",
               "access": "read",
-              "line": 507
+              "line": 494
             },
             {
               "path": "_terrainBoundsCache.set",
               "access": "read",
-              "line": 513
+              "line": 500
             },
             {
               "path": "w",
               "access": "read",
-              "line": 516
+              "line": 503
             },
             {
               "path": "h",
               "access": "read",
-              "line": 516
+              "line": 503
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 520
+              "line": 507
             },
             {
               "path": "lowSpec",
               "access": "read",
-              "line": 520
+              "line": 507
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 520
+              "line": 507
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 520
+              "line": 507
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 528
+              "line": 515
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 528
+              "line": 515
             },
             {
               "path": "w",
               "access": "read",
-              "line": 531
+              "line": 518
             },
             {
               "path": "h",
               "access": "read",
-              "line": 531
+              "line": 518
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 531
+              "line": 518
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 531
+              "line": 518
             }
           ]
         },
         {
           "name": "drawNavigationCorridors",
-          "line": 536,
-          "end": 544,
+          "line": 523,
+          "end": 531,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 542
+              "line": 529
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 537
+              "line": 524
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 538
+              "line": 525
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 542
+              "line": 529
             }
           ]
         },
         {
           "name": "drawFriendlyApproach",
-          "line": 546,
-          "end": 565,
+          "line": 533,
+          "end": 552,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 555
+              "line": 542
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 557
+              "line": 544
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 549
+              "line": 536
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 550
+              "line": 537
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 555
+              "line": 542
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 557
+              "line": 544
             },
             {
               "path": "_mapFixedLabelRects",
               "access": "read",
-              "line": 563
+              "line": 550
             }
           ]
         },
         {
           "name": "drawTorpedoEnvelope",
-          "line": 567,
-          "end": 597,
+          "line": 554,
+          "end": 584,
           "calls": [
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 565
+            },
             {
               "method": "fnt",
               "kind": "direct",
               "line": 578
             },
             {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 591
-            },
-            {
               "method": "rr",
               "kind": "direct",
-              "line": 592
+              "line": 579
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 571
+              "line": 558
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 572
+              "line": 559
+            },
+            {
+              "path": "fnt",
+              "access": "read",
+              "line": 565
             },
             {
               "path": "fnt",
@@ -5585,103 +5601,108 @@
               "line": 578
             },
             {
-              "path": "fnt",
-              "access": "read",
-              "line": 591
-            },
-            {
               "path": "rr",
               "access": "read",
-              "line": 592
+              "line": 579
             }
           ]
         },
         {
           "name": "drawMapPorts",
-          "line": 599,
-          "end": 627,
+          "line": 586,
+          "end": 614,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 615
+              "line": 602
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 619
+              "line": 606
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 623
+              "line": 610
             }
           ],
           "fields": [
             {
               "path": "fnt",
               "access": "read",
-              "line": 615
+              "line": 602
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 619
+              "line": 606
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 623
+              "line": 610
             }
           ]
         },
         {
           "name": "drawMapPortScenes",
-          "line": 629,
-          "end": 637,
+          "line": 616,
+          "end": 624,
           "calls": [],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 630
+              "line": 617
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 632
+              "line": 619
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 632
+              "line": 619
             }
           ]
         },
         {
           "name": "drawMapHarbor",
-          "line": 639,
-          "end": 749,
+          "line": 626,
+          "end": 736,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 676
+              "line": 663
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 710
+              "line": 697
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 712
+              "line": 699
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 713
+              "line": 700
+            },
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 702
+            },
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 703
             },
             {
               "method": "fnt",
@@ -5691,76 +5712,76 @@
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 716
+              "line": 717
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 728
+              "line": 721
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 730
+              "line": 725
             },
             {
               "method": "fnt",
               "kind": "direct",
               "line": 734
-            },
-            {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 738
-            },
-            {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 747
             },
             {
               "object": "optionalObjectives",
               "method": "find",
               "kind": "optional-object",
               "unresolved": true,
-              "line": 733
+              "line": 720
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 641
+              "line": 628
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 655
+              "line": 642
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 656
+              "line": 643
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 676
+              "line": 663
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 710
+              "line": 697
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 712
+              "line": 699
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 713
+              "line": 700
+            },
+            {
+              "path": "fnt",
+              "access": "read",
+              "line": 702
+            },
+            {
+              "path": "fnt",
+              "access": "read",
+              "line": 703
             },
             {
               "path": "fnt",
@@ -5770,899 +5791,889 @@
             {
               "path": "fnt",
               "access": "read",
-              "line": 716
+              "line": 717
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 728
+              "line": 721
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 730
+              "line": 725
             },
             {
               "path": "fnt",
               "access": "read",
               "line": 734
-            },
-            {
-              "path": "fnt",
-              "access": "read",
-              "line": 738
-            },
-            {
-              "path": "fnt",
-              "access": "read",
-              "line": 747
             }
           ]
         },
         {
           "name": "drawMapTrail",
-          "line": 751,
-          "end": 756,
+          "line": 738,
+          "end": 743,
           "calls": [],
           "fields": []
         },
         {
           "name": "drawMapPlot",
-          "line": 758,
-          "end": 779,
+          "line": 745,
+          "end": 766,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 775
+              "line": 762
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 760
+              "line": 747
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 775
+              "line": 762
             }
           ]
         },
         {
           "name": "drawMapDCs",
-          "line": 781,
-          "end": 787,
+          "line": 768,
+          "end": 774,
           "calls": [],
           "fields": []
         },
         {
           "name": "drawMapTorps",
-          "line": 789,
-          "end": 804,
+          "line": 776,
+          "end": 791,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 802
+              "line": 789
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 790
+              "line": 777
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 794
+              "line": 781
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 802
+              "line": 789
             }
           ]
         },
         {
           "name": "drawMapExplosions",
-          "line": 806,
-          "end": 813,
+          "line": 793,
+          "end": 800,
           "calls": [],
           "fields": []
         },
         {
           "name": "drawContactUncertaintyGlyph",
-          "line": 815,
-          "end": 838,
+          "line": 802,
+          "end": 825,
           "calls": [
             {
               "method": "_mapIconType",
               "kind": "direct",
-              "line": 834
+              "line": 821
             },
             {
               "method": "shipIcon",
               "kind": "direct",
-              "line": 835
+              "line": 822
             }
           ],
           "fields": [
             {
               "path": "_mapIconType",
               "access": "read",
-              "line": 834
+              "line": 821
             },
             {
               "path": "shipIcon",
               "access": "read",
-              "line": 835
+              "line": 822
             }
           ]
         },
         {
           "name": "_mapIconType",
-          "line": 840,
-          "end": 848,
+          "line": 827,
+          "end": 835,
           "calls": [],
           "fields": []
         },
         {
           "name": "_mapCompactTypeLabel",
-          "line": 850,
-          "end": 864,
+          "line": 837,
+          "end": 851,
           "calls": [],
           "fields": []
         },
         {
           "name": "_mapLabelOverlapArea",
-          "line": 866,
-          "end": 870,
+          "line": 853,
+          "end": 857,
           "calls": [],
           "fields": []
         },
         {
           "name": "_mapLabelRectFor",
-          "line": 872,
-          "end": 877,
+          "line": 859,
+          "end": 864,
           "calls": [],
           "fields": []
         },
         {
           "name": "_placeMapLabel",
-          "line": 879,
-          "end": 941,
+          "line": 866,
+          "end": 928,
           "calls": [
             {
               "method": "_mapLabelOverlapArea",
               "kind": "direct",
-              "line": 881
+              "line": 868
             },
             {
               "method": "_mapLabelRectFor",
               "kind": "direct",
-              "line": 918
+              "line": 905
             },
             {
               "method": "_mapLabelOverlapArea",
               "kind": "direct",
-              "line": 931
+              "line": 918
             }
           ],
           "fields": [
             {
               "path": "_mapViewport",
               "access": "read",
-              "line": 880
+              "line": 867
             },
             {
               "path": "mapLabelStrategy",
               "access": "read",
-              "line": 880
+              "line": 867
             },
             {
               "path": "_mapLabelOverlapArea",
               "access": "read",
-              "line": 881
+              "line": 868
             },
             {
               "path": "_mapLabelDense",
               "access": "read",
-              "line": 902
+              "line": 889
             },
             {
               "path": "_mapLabelRectFor",
               "access": "read",
-              "line": 918
+              "line": 905
             },
             {
               "path": "_mapLabelOverlapArea",
               "access": "read",
-              "line": 931
+              "line": 918
             },
             {
               "path": "_mapLabelDense",
               "access": "read",
-              "line": 934
+              "line": 921
             }
           ]
         },
         {
           "name": "drawScopeFovCue",
-          "line": 943,
-          "end": 974,
+          "line": 930,
+          "end": 961,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 969
+              "line": 956
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 944
+              "line": 931
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 957
+              "line": 944
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 969
+              "line": 956
             }
           ]
         },
         {
           "name": "drawMapContacts",
-          "line": 976,
-          "end": 1110,
+          "line": 963,
+          "end": 1097,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 1006
+              "line": 993
             },
             {
               "method": "drawContactUncertaintyGlyph",
               "kind": "direct",
-              "line": 1041
+              "line": 1028
             },
             {
               "method": "_mapIconType",
               "kind": "direct",
-              "line": 1044
+              "line": 1031
             },
             {
               "method": "courseVector",
               "kind": "direct",
-              "line": 1051
+              "line": 1038
             },
             {
               "method": "shipIcon",
               "kind": "direct",
-              "line": 1056
+              "line": 1043
             },
             {
               "method": "turnCue",
               "kind": "direct",
-              "line": 1058
+              "line": 1045
             },
             {
               "method": "drawContactUncertaintyGlyph",
               "kind": "direct",
-              "line": 1060
+              "line": 1047
             },
             {
               "method": "_mapCompactTypeLabel",
               "kind": "direct",
-              "line": 1076
+              "line": 1063
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 1097
+              "line": 1084
             },
             {
               "method": "_placeMapLabel",
               "kind": "direct",
-              "line": 1100
+              "line": 1087
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 1107
+              "line": 1094
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 977
+              "line": 964
             },
             {
               "path": "mapLabelStrategy",
               "access": "write",
-              "line": 977
+              "line": 964
             },
             {
               "path": "mapLabelStrategy",
               "access": "read",
-              "line": 977
+              "line": 964
             },
             {
               "path": "_mapLabelRects",
               "access": "write",
-              "line": 981
+              "line": 968
             },
             {
               "path": "_mapViewport",
               "access": "read",
-              "line": 981
+              "line": 968
             },
             {
               "path": "_mapFixedLabelRects",
               "access": "read",
-              "line": 981
+              "line": 968
             },
             {
               "path": "_mapLabelDense",
               "access": "write",
-              "line": 983
+              "line": 970
             },
             {
               "path": "_mapLabelDense",
               "access": "read",
-              "line": 988
+              "line": 975
             },
             {
               "path": "_mapLabelRects.push",
               "access": "read",
-              "line": 992
+              "line": 979
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 1006
+              "line": 993
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1032
+              "line": 1019
             },
             {
               "path": "drawContactUncertaintyGlyph",
               "access": "read",
-              "line": 1041
+              "line": 1028
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1042
+              "line": 1029
             },
             {
               "path": "_mapIconType",
               "access": "read",
-              "line": 1044
+              "line": 1031
             },
             {
               "path": "courseVector",
               "access": "read",
-              "line": 1051
+              "line": 1038
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1054
+              "line": 1041
             },
             {
               "path": "shipIcon",
               "access": "read",
-              "line": 1056
+              "line": 1043
             },
             {
               "path": "turnCue",
               "access": "read",
-              "line": 1058
+              "line": 1045
             },
             {
               "path": "drawContactUncertaintyGlyph",
               "access": "read",
-              "line": 1060
+              "line": 1047
             },
             {
               "path": "_mapLabelRects",
               "access": "write",
-              "line": 1073
+              "line": 1060
             },
             {
               "path": "_mapLabelRects",
               "access": "read",
-              "line": 1073
+              "line": 1060
             },
             {
               "path": "_mapCompactTypeLabel",
               "access": "read",
-              "line": 1076
+              "line": 1063
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 1097
+              "line": 1084
             },
             {
               "path": "_placeMapLabel",
               "access": "read",
-              "line": 1100
+              "line": 1087
             },
             {
               "path": "_mapLabelRects",
               "access": "read",
-              "line": 1100
+              "line": 1087
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 1107
+              "line": 1094
             }
           ]
         },
         {
           "name": "shipIcon",
-          "line": 1115,
-          "end": 1175,
+          "line": 1099,
+          "end": 1159,
           "calls": [],
           "fields": []
         },
         {
           "name": "turnCue",
-          "line": 1177,
-          "end": 1187,
+          "line": 1161,
+          "end": 1171,
           "calls": [],
           "fields": []
         },
         {
           "name": "courseVector",
-          "line": 1191,
-          "end": 1224,
+          "line": 1173,
+          "end": 1206,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 1219
+              "line": 1201
             }
           ],
           "fields": [
             {
               "path": "fnt",
               "access": "read",
-              "line": 1219
+              "line": 1201
             }
           ]
         },
         {
           "name": "drawMapOwnship",
-          "line": 1226,
-          "end": 1247,
+          "line": 1208,
+          "end": 1229,
           "calls": [
             {
               "method": "courseVector",
               "kind": "direct",
-              "line": 1239
+              "line": 1221
             },
             {
               "method": "shipIcon",
               "kind": "direct",
-              "line": 1243
+              "line": 1225
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 1227
+              "line": 1209
             },
             {
               "path": "courseVector",
               "access": "read",
-              "line": 1239
+              "line": 1221
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1241
+              "line": 1223
             },
             {
               "path": "shipIcon",
               "access": "read",
-              "line": 1243
+              "line": 1225
             }
           ]
         },
         {
           "name": "screenToWorldMap",
-          "line": 1249,
-          "end": 1255,
+          "line": 1231,
+          "end": 1237,
           "calls": [],
           "fields": [
             {
               "path": "canvas.getBoundingClientRect",
               "access": "read",
-              "line": 1250
+              "line": 1232
             },
             {
               "path": "w",
               "access": "read",
-              "line": 1251
+              "line": 1233
             },
             {
               "path": "w",
               "access": "read",
-              "line": 1251
+              "line": 1233
             },
             {
               "path": "h",
               "access": "read",
-              "line": 1252
+              "line": 1234
             },
             {
               "path": "h",
               "access": "read",
-              "line": 1252
+              "line": 1234
             },
             {
               "path": "mapCenter.xNm",
               "access": "read",
-              "line": 1253
+              "line": 1235
             },
             {
               "path": "w",
               "access": "read",
-              "line": 1253
+              "line": 1235
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1253
+              "line": 1235
             },
             {
               "path": "mapCenter.yNm",
               "access": "read",
-              "line": 1254
+              "line": 1236
             },
             {
               "path": "h",
               "access": "read",
-              "line": 1254
+              "line": 1236
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1254
+              "line": 1236
             }
           ]
         },
         {
           "name": "toLocal",
-          "line": 1257,
-          "end": 1261,
+          "line": 1239,
+          "end": 1243,
           "calls": [],
           "fields": [
             {
               "path": "canvas.getBoundingClientRect",
               "access": "read",
-              "line": 1258
+              "line": 1240
             },
             {
               "path": "w",
               "access": "read",
-              "line": 1259
+              "line": 1241
             },
             {
               "path": "w",
               "access": "read",
-              "line": 1259
+              "line": 1241
             },
             {
               "path": "h",
               "access": "read",
-              "line": 1260
+              "line": 1242
             },
             {
               "path": "h",
               "access": "read",
-              "line": 1260
+              "line": 1242
             }
           ]
         },
         {
           "name": "zoomAt",
-          "line": 1263,
-          "end": 1270,
+          "line": 1245,
+          "end": 1252,
           "calls": [
             {
               "method": "screenToWorldMap",
               "kind": "direct",
-              "line": 1264
+              "line": 1246
             },
             {
               "method": "screenToWorldMap",
               "kind": "direct",
-              "line": 1266
+              "line": 1248
             }
           ],
           "fields": [
             {
               "path": "screenToWorldMap",
               "access": "read",
-              "line": 1264
+              "line": 1246
             },
             {
               "path": "zoom",
               "access": "write",
-              "line": 1265
+              "line": 1247
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1265
+              "line": 1247
             },
             {
               "path": "minZoom",
               "access": "read",
-              "line": 1265
+              "line": 1247
             },
             {
               "path": "maxZoom",
               "access": "read",
-              "line": 1265
+              "line": 1247
             },
             {
               "path": "screenToWorldMap",
               "access": "read",
-              "line": 1266
+              "line": 1248
             },
             {
               "path": "mapCenter.xNm",
               "access": "write",
-              "line": 1267
+              "line": 1249
             },
             {
               "path": "mapCenter.yNm",
               "access": "write",
-              "line": 1268
+              "line": 1250
             },
             {
               "path": "follow",
               "access": "write",
-              "line": 1269
+              "line": 1251
             }
           ]
         },
         {
           "name": "panBy",
-          "line": 1271,
-          "end": 1275,
+          "line": 1254,
+          "end": 1258,
           "calls": [],
           "fields": [
             {
               "path": "mapCenter.xNm",
               "access": "write",
-              "line": 1272
+              "line": 1255
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1272
+              "line": 1255
             },
             {
               "path": "mapCenter.yNm",
               "access": "write",
-              "line": 1273
+              "line": 1256
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1273
+              "line": 1256
             },
             {
               "path": "follow",
               "access": "write",
-              "line": 1274
+              "line": 1257
             }
           ]
         },
         {
           "name": "recenter",
-          "line": 1276,
-          "end": 1280,
+          "line": 1260,
+          "end": 1264,
           "calls": [],
           "fields": [
             {
               "path": "follow",
               "access": "write",
-              "line": 1279
+              "line": 1263
             },
             {
               "path": "mapCenter.xNm",
               "access": "write",
-              "line": 1279
+              "line": 1263
             },
             {
               "path": "mapCenter.yNm",
               "access": "write",
-              "line": 1279
+              "line": 1263
             }
           ]
         },
         {
           "name": "pickTrack",
-          "line": 1282,
-          "end": 1297,
+          "line": 1266,
+          "end": 1281,
           "calls": [
             {
               "method": "toLocal",
               "kind": "direct",
-              "line": 1283
+              "line": 1267
             }
           ],
           "fields": [
             {
               "path": "toLocal",
               "access": "read",
-              "line": 1283
+              "line": 1267
             },
             {
               "path": "w",
               "access": "read",
-              "line": 1284
+              "line": 1268
             },
             {
               "path": "h",
               "access": "read",
-              "line": 1284
+              "line": 1268
             },
             {
               "path": "mapCenter.xNm",
               "access": "read",
-              "line": 1291
+              "line": 1275
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1291
+              "line": 1275
             },
             {
               "path": "mapCenter.yNm",
               "access": "read",
-              "line": 1292
+              "line": 1276
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1292
+              "line": 1276
             },
             {
               "path": "k",
               "access": "read",
-              "line": 1296
+              "line": 1280
             }
           ]
         },
         {
           "name": "pickWaypoint",
-          "line": 1299,
-          "end": 1310,
+          "line": 1283,
+          "end": 1294,
           "calls": [
             {
               "method": "toLocal",
               "kind": "direct",
-              "line": 1300
+              "line": 1284
             }
           ],
           "fields": [
             {
               "path": "toLocal",
               "access": "read",
-              "line": 1300
+              "line": 1284
             },
             {
               "path": "w",
               "access": "read",
-              "line": 1301
+              "line": 1285
             },
             {
               "path": "h",
               "access": "read",
-              "line": 1301
+              "line": 1285
             },
             {
               "path": "mapCenter.xNm",
               "access": "read",
-              "line": 1304
+              "line": 1288
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1304
+              "line": 1288
             },
             {
               "path": "mapCenter.yNm",
               "access": "read",
-              "line": 1305
+              "line": 1289
             },
             {
               "path": "zoom",
               "access": "read",
-              "line": 1305
+              "line": 1289
             },
             {
               "path": "k",
               "access": "read",
-              "line": 1309
+              "line": 1293
             }
           ]
         },
         {
           "name": "pickGunContact",
-          "line": 1313,
-          "end": 1321,
+          "line": 1296,
+          "end": 1304,
           "calls": [
             {
               "method": "toLocal",
               "kind": "direct",
-              "line": 1314
+              "line": 1297
             }
           ],
           "fields": [
             {
               "path": "toLocal",
               "access": "read",
-              "line": 1314
+              "line": 1297
             },
             {
               "path": "gunCam",
               "access": "read",
-              "line": 1314
+              "line": 1297
             },
             {
               "path": "k",
               "access": "read",
-              "line": 1320
+              "line": 1303
             }
           ]
         },
         {
           "name": "pickScopeContact",
-          "line": 1324,
-          "end": 1352,
+          "line": 1306,
+          "end": 1334,
           "calls": [
             {
               "method": "toLocal",
               "kind": "direct",
-              "line": 1325
+              "line": 1307
             }
           ],
           "fields": [
             {
               "path": "toLocal",
               "access": "read",
-              "line": 1325
+              "line": 1307
             },
             {
               "path": "cam",
               "access": "read",
-              "line": 1326
+              "line": 1308
             },
             {
               "path": "k",
               "access": "read",
-              "line": 1351
+              "line": 1333
             }
           ]
         }
@@ -6717,7 +6728,7 @@
     }
   ],
   "assertions": {
-    "allRenderFilesListed": true,
+    "allRenderFilesListed": false,
     "allExternalRenderCallersEnumerated": true
   }
 }
