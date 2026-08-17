@@ -1,9 +1,4 @@
-// ═══════════════════════════════════════════════════ PATCH 10 — ATMOSPHERE RENDERING
-// A small set of vector effects shared by BRIDGE / PERISCOPE / GUN.  All of
-// them are derived from simulation state and capped for low-end devices.
-(function installBattleAtmosphereRendering(){
-  if(typeof CanvasView==='undefined')return;
-  Object.assign(CanvasView.prototype,{
+const BattleAtmosphere={
     battlePoint(cam,p,z=0){return p?projectWorldPoint(cam,p.xNm*NM_M,-p.yNm*NM_M,z):null;},
 
     drawBattleAtmosphereBack(ctx,cam,state,dl,t){
@@ -80,5 +75,4 @@
       const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),depth=sub.depthFeet||0,band=clamp(1-Math.abs(depth-58)/14,0,1),wave=.5+.5*Math.sin(t*(1.05+sea*.55)+depth*.11),vertical=clamp(Math.abs(sub.verticalSpeedFps||0)/3,0,1),a=band*(.16+sea*.64)*(wave*.75+vertical*.35);if(a<.08)return;
       const k=this.k,n=this.lowSpec?4:7;ctx.save();const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,`rgba(130,178,194,${.20*a})`);g.addColorStop(.38,`rgba(35,84,104,${.11*a})`);g.addColorStop(1,'rgba(20,55,70,0)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h*.62);ctx.strokeStyle=`rgba(215,237,242,${.18*a})`;ctx.lineWidth=Math.max(1,1.2*k);for(let i=0;i<n;i++){const x=((i*.173+t*.037)%1)*w,y=((i*.281+t*.11)%1)*h*.58;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+10*k,y+18*k,x+4*k,y+42*k);ctx.stroke();}ctx.restore();
     }
-  });
-})();
+};

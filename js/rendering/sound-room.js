@@ -72,4 +72,3 @@ const SoundStation={
   }
 };
 
-Object.assign(CanvasViewDeckGun.prototype,SoundStation);

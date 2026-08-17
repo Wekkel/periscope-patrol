@@ -1334,6 +1334,22 @@ const MapStation={
   }
 };
 
-Object.assign(CanvasViewDeckGun.prototype,MapStation);
 
-class CanvasView extends CanvasViewDeckGun {}
+function createStationContext(core, definition, includeWorld=true){
+  const runtime=Object.create(null); Object.assign(runtime,core); runtime.core=core; runtime.World3D=World3D; runtime.world3d=World3D;
+  if(includeWorld)Object.assign(runtime,World3D); if(typeof DeckGunStation!=='undefined')Object.assign(runtime,DeckGunStation); if(typeof BattleAtmosphere!=='undefined')Object.assign(runtime,BattleAtmosphere); Object.assign(runtime,definition);
+  for(const name of Object.getOwnPropertyNames(CanvasViewCore.prototype)){if(name==='constructor'||name==='render'||typeof core[name]!=='function')continue;runtime[name]=core[name].bind(runtime);} return runtime;
+}
+class CanvasView{
+  constructor(canvas){this.core=new CanvasViewCore(canvas);this.contexts={TACTICAL:createStationContext(this.core,TacticalStation),BRIDGE:createStationContext(this.core,BridgeStation),SOUND:createStationContext(this.core,SoundStation),PERISCOPE:createStationContext(this.core,PeriscopeStation),MAP:createStationContext(this.core,MapStation),DECK_GUN:createStationContext(this.core,DeckGunStation)};}
+  stationContext(id){return this.contexts[id]||this.contexts.TACTICAL;}
+  drawStation(id,ctx,w,h,state,layout){const r=this.stationContext(id);Object.assign(r,this.core);const n={MAP:'drawMap',PERISCOPE:'drawPeriscope',BRIDGE:'drawBridge',SOUND:'drawSound',DECK_GUN:'drawDeckGun',TACTICAL:'drawTactical'}[id]||'drawTactical';if(typeof r[n]!=='function')throw new Error('Missing station renderer: '+id);r[n].call(r,ctx,w,h,state,layout);for(const key of Object.keys(r)){if(key==='core'||key==='canvas'||key==='ctx'||typeof r[key]==='function')continue;this.core[key]=r[key];}return true;}
+  render(state,layout){return this.core.render(state,layout,this);} resize(force){return this.core.resize(force);}
+  _syncMap(){const m=this.contexts.MAP;this.core.zoom=m.zoom;this.core.mapCenter=m.mapCenter;this.core.follow=m.follow;return m;}
+  zoomAt(...a){const r=this.contexts.MAP.zoomAt(...a);this._syncMap();return r;} panBy(...a){const r=this.contexts.MAP.panBy(...a);this._syncMap();return r;} recenter(...a){const r=this.contexts.MAP.recenter(...a);this._syncMap();return r;} screenToWorldMap(...a){return this.contexts.MAP.screenToWorldMap(...a);} toLocal(...a){return this.contexts.MAP.toLocal(...a);}
+  pickTrack(...a){return this.contexts.MAP.pickTrack(...a);} pickWaypoint(...a){return this.contexts.MAP.pickWaypoint(...a);} pickBridgeContact(...a){return this.contexts.MAP.pickBridgeContact(...a);} pickGunContact(...a){return this.contexts.MAP.pickGunContact(...a);} pickScopeContact(...a){return this.contexts.MAP.pickScopeContact(...a);}
+  revealScopeLabel(...a){return this.contexts.PERISCOPE.revealScopeLabel(...a);}
+  get canvas(){return this.core.canvas;} get ctx(){return this.core.ctx;} get w(){return this.core.w;} get h(){return this.core.h;} get dpr(){return this.core.dpr;} get k(){return this.core.k;} get minZoom(){return this.core.minZoom;} get maxZoom(){return this.core.maxZoom;}
+  get zoom(){return this.contexts.MAP.zoom;} set zoom(v){this.contexts.MAP.zoom=v;this.core.zoom=v;} get mapCenter(){return this.contexts.MAP.mapCenter;} set mapCenter(v){this.contexts.MAP.mapCenter=v;this.core.mapCenter=v;} get follow(){return this.contexts.MAP.follow;} set follow(v){this.contexts.MAP.follow=v;} get mapLabelStrategy(){return this.contexts.MAP.mapLabelStrategy;} set mapLabelStrategy(v){this.contexts.MAP.mapLabelStrategy=v;}
+  get tactGeom(){return this.contexts.TACTICAL.tactGeom;} get scopeGeom(){return this.contexts.PERISCOPE.scopeGeom;} get zoomPill(){return this.contexts.MAP.zoomPill;} get bridgeCam(){return this.contexts.BRIDGE.bridgeCam;} get gunCam(){return this.contexts.DECK_GUN.gunCam;} get cam(){return this.contexts.PERISCOPE.cam;} get touchSafeTactical(){return this.contexts.TACTICAL.touchSafeTactical;} set touchSafeTactical(v){this.contexts.TACTICAL.touchSafeTactical=v;} get lastImpactAge(){return this.contexts.PERISCOPE.lastImpactAge;}
+}

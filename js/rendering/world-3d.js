@@ -1509,4 +1509,3 @@ const World3D={
   }
 };
 
-Object.assign(CanvasViewDeckGun.prototype,World3D);

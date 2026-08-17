@@ -167,4 +167,3 @@ const BridgeStation={
   }
 };
 
-Object.assign(CanvasViewDeckGun.prototype,BridgeStation);

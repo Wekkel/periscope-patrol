@@ -413,4 +413,3 @@ const PeriscopeStation={
   }
 };
 
-Object.assign(CanvasViewDeckGun.prototype,PeriscopeStation);

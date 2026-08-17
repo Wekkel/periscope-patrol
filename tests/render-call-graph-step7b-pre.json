@@ -8,7 +8,7 @@
       "extends": null,
       "file": "js/rendering/canvas-core.js",
       "line": 1,
-      "end": 268,
+      "end": 265,
       "methods": [
         {
           "name": "constructor",
@@ -203,72 +203,17 @@
         {
           "name": "render",
           "line": 53,
-          "end": 125,
+          "end": 122,
           "calls": [
             {
-              "method": "drawMap",
+              "method": "fnt",
               "kind": "direct",
-              "line": 84
-            },
-            {
-              "method": "drawPeriscope",
-              "kind": "direct",
-              "line": 85
-            },
-            {
-              "method": "drawBridge",
-              "kind": "direct",
-              "line": 86
-            },
-            {
-              "method": "drawSound",
-              "kind": "direct",
-              "line": 87
-            },
-            {
-              "method": "drawDeckGun",
-              "kind": "direct",
-              "line": 88
-            },
-            {
-              "method": "drawTactical",
-              "kind": "direct",
-              "line": 89
-            },
-            {
-              "method": "drawHitFlash",
-              "kind": "direct",
-              "line": 91
-            },
-            {
-              "method": "drawOwnBoatImpact",
-              "kind": "direct",
-              "line": 92
-            },
-            {
-              "method": "drawImpactObservation",
-              "kind": "direct",
-              "line": 93
-            },
-            {
-              "method": "drawAirAlarm",
-              "kind": "direct",
-              "line": 95
-            },
-            {
-              "method": "drawSoundCallout",
-              "kind": "direct",
-              "line": 96
+              "line": 115
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 118
-            },
-            {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 120
+              "line": 117
             }
           ],
           "fields": [
@@ -300,257 +245,197 @@
             {
               "path": "_lastRenderError",
               "access": "write",
-              "line": 71
+              "line": 73
             },
             {
               "path": "k",
               "access": "read",
-              "line": 78
+              "line": 80
             },
             {
               "path": "dpr",
-              "access": "read",
-              "line": 82
-            },
-            {
-              "path": "dpr",
-              "access": "read",
-              "line": 82
-            },
-            {
-              "path": "dpr",
-              "access": "read",
-              "line": 82
-            },
-            {
-              "path": "dpr",
-              "access": "read",
-              "line": 82
-            },
-            {
-              "path": "drawMap",
               "access": "read",
               "line": 84
             },
             {
-              "path": "drawPeriscope",
+              "path": "dpr",
               "access": "read",
-              "line": 85
+              "line": 84
             },
             {
-              "path": "drawBridge",
+              "path": "dpr",
               "access": "read",
-              "line": 86
+              "line": 84
             },
             {
-              "path": "drawSound",
+              "path": "dpr",
+              "access": "read",
+              "line": 84
+            },
+            {
+              "path": "dpr",
               "access": "read",
               "line": 87
             },
             {
-              "path": "drawDeckGun",
-              "access": "read",
-              "line": 88
-            },
-            {
-              "path": "drawTactical",
-              "access": "read",
-              "line": 89
-            },
-            {
               "path": "dpr",
               "access": "read",
-              "line": 90
-            },
-            {
-              "path": "dpr",
-              "access": "read",
-              "line": 90
-            },
-            {
-              "path": "drawHitFlash",
-              "access": "read",
-              "line": 91
-            },
-            {
-              "path": "drawOwnBoatImpact",
-              "access": "read",
-              "line": 92
-            },
-            {
-              "path": "drawImpactObservation",
-              "access": "read",
-              "line": 93
-            },
-            {
-              "path": "drawImpactObservation",
-              "access": "read",
-              "line": 93
-            },
-            {
-              "path": "drawAirAlarm",
-              "access": "read",
-              "line": 95
-            },
-            {
-              "path": "drawSoundCallout",
-              "access": "read",
-              "line": 96
+              "line": 87
             },
             {
               "path": "_lastRenderErrorKey",
               "access": "write",
-              "line": 102
+              "line": 99
             },
             {
               "path": "_lastRenderError",
               "access": "write",
-              "line": 106
+              "line": 103
             },
             {
               "path": "_lastRenderErrorKey",
               "access": "read",
-              "line": 108
+              "line": 105
             },
             {
               "path": "_lastRenderErrorKey",
               "access": "write",
-              "line": 109
+              "line": 106
             },
             {
               "path": "dpr",
               "access": "read",
-              "line": 116
+              "line": 113
             },
             {
               "path": "dpr",
               "access": "read",
-              "line": 116
+              "line": 113
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 118
+              "line": 115
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 120
+              "line": 117
             }
           ]
         },
         {
           "name": "drawOwnBoatImpact",
-          "line": 127,
-          "end": 134,
+          "line": 124,
+          "end": 131,
           "calls": [
             {
               "method": "_w2s",
               "kind": "direct",
-              "line": 132
+              "line": 129
             }
           ],
           "fields": [
             {
               "path": "k",
+              "access": "read",
+              "line": 126
+            },
+            {
+              "path": "_w2s",
               "access": "read",
               "line": 129
             },
             {
               "path": "_w2s",
               "access": "read",
-              "line": 132
-            },
-            {
-              "path": "_w2s",
-              "access": "read",
-              "line": 132
+              "line": 129
             }
           ]
         },
         {
           "name": "drawSoundCallout",
-          "line": 136,
-          "end": 146,
+          "line": 133,
+          "end": 143,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 141
+              "line": 138
             },
             {
               "method": "rr",
               "kind": "direct",
-              "line": 144
+              "line": 141
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 139
+              "line": 136
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 141
+              "line": 138
             },
             {
               "path": "rr",
               "access": "read",
-              "line": 144
+              "line": 141
             }
           ]
         },
         {
           "name": "drawAirAlarm",
-          "line": 148,
-          "end": 173,
+          "line": 145,
+          "end": 170,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 164
+              "line": 161
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 157
+              "line": 154
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 164
+              "line": 161
             }
           ]
         },
         {
           "name": "drawHitFlash",
-          "line": 175,
-          "end": 265,
+          "line": 172,
+          "end": 262,
           "calls": [],
           "fields": [
             {
               "path": "gunCam",
               "access": "read",
-              "line": 178
+              "line": 175
             },
             {
               "path": "bridgeCam",
               "access": "read",
-              "line": 178
+              "line": 175
             },
             {
               "path": "cam",
               "access": "read",
-              "line": 178
+              "line": 175
             },
             {
               "path": "k",
               "access": "read",
-              "line": 180
+              "line": 177
             }
           ]
         }
@@ -960,11 +845,12 @@
     },
     {
       "level": 3,
-      "class": "CanvasViewDeckGun",
-      "extends": "CanvasViewCore",
+      "class": "DeckGunStation",
+      "kind": "object",
+      "extends": null,
       "file": "js/rendering/deck-gun-3d.js",
       "line": 1,
-      "end": 466,
+      "end": 465,
       "methods": [
         {
           "name": "ownshipDeckPoint",
@@ -1867,12 +1753,23 @@
           "name": "drawGunProjectiles3D",
           "line": 445,
           "end": 463,
-          "calls": [],
+          "calls": [
+            {
+              "method": "drawGunSplashOne",
+              "kind": "direct",
+              "line": 462
+            }
+          ],
           "fields": [
             {
               "path": "k",
               "access": "read",
               "line": 446
+            },
+            {
+              "path": "drawGunSplashOne",
+              "access": "read",
+              "line": 462
             }
           ]
         }
@@ -4405,11 +4302,253 @@
     {
       "level": 8,
       "class": "CanvasView",
-      "extends": "CanvasViewDeckGun",
+      "extends": null,
       "file": "js/rendering/map.js",
-      "line": 1339,
-      "end": 1339,
-      "methods": []
+      "line": 1343,
+      "end": 1355,
+      "methods": [
+        {
+          "name": "constructor",
+          "line": 1344,
+          "end": 1344,
+          "calls": [],
+          "fields": [
+            {
+              "path": "core",
+              "access": "write",
+              "line": 1344
+            },
+            {
+              "path": "contexts",
+              "access": "write",
+              "line": 1344
+            },
+            {
+              "path": "core",
+              "access": "read",
+              "line": 1344
+            },
+            {
+              "path": "core",
+              "access": "read",
+              "line": 1344
+            },
+            {
+              "path": "core",
+              "access": "read",
+              "line": 1344
+            },
+            {
+              "path": "core",
+              "access": "read",
+              "line": 1344
+            },
+            {
+              "path": "core",
+              "access": "read",
+              "line": 1344
+            },
+            {
+              "path": "core",
+              "access": "read",
+              "line": 1344
+            }
+          ]
+        },
+        {
+          "name": "stationContext",
+          "line": 1345,
+          "end": 1345,
+          "calls": [],
+          "fields": [
+            {
+              "path": "contexts",
+              "access": "read",
+              "line": 1345
+            },
+            {
+              "path": "contexts.TACTICAL",
+              "access": "read",
+              "line": 1345
+            }
+          ]
+        },
+        {
+          "name": "drawStation",
+          "line": 1346,
+          "end": 1346,
+          "calls": [
+            {
+              "method": "stationContext",
+              "kind": "direct",
+              "line": 1346
+            }
+          ],
+          "fields": [
+            {
+              "path": "stationContext",
+              "access": "read",
+              "line": 1346
+            },
+            {
+              "path": "core",
+              "access": "read",
+              "line": 1346
+            },
+            {
+              "path": "core",
+              "access": "read",
+              "line": 1346
+            }
+          ]
+        },
+        {
+          "name": "render",
+          "line": 1347,
+          "end": 1347,
+          "calls": [],
+          "fields": [
+            {
+              "path": "core.render",
+              "access": "read",
+              "line": 1347
+            },
+            {
+              "path": "core.resize",
+              "access": "read",
+              "line": 1347
+            }
+          ]
+        },
+        {
+          "name": "_syncMap",
+          "line": 1348,
+          "end": 1348,
+          "calls": [],
+          "fields": [
+            {
+              "path": "contexts.MAP",
+              "access": "read",
+              "line": 1348
+            },
+            {
+              "path": "core.zoom",
+              "access": "write",
+              "line": 1348
+            },
+            {
+              "path": "core.mapCenter",
+              "access": "write",
+              "line": 1348
+            },
+            {
+              "path": "core.follow",
+              "access": "write",
+              "line": 1348
+            }
+          ]
+        },
+        {
+          "name": "zoomAt",
+          "line": 1349,
+          "end": 1349,
+          "calls": [
+            {
+              "method": "_syncMap",
+              "kind": "direct",
+              "line": 1349
+            }
+          ],
+          "fields": [
+            {
+              "path": "contexts.MAP.zoomAt",
+              "access": "read",
+              "line": 1349
+            },
+            {
+              "path": "_syncMap",
+              "access": "read",
+              "line": 1349
+            },
+            {
+              "path": "contexts.MAP.panBy",
+              "access": "read",
+              "line": 1349
+            },
+            {
+              "path": "_syncMap",
+              "access": "read",
+              "line": 1349
+            },
+            {
+              "path": "contexts.MAP.recenter",
+              "access": "read",
+              "line": 1349
+            },
+            {
+              "path": "_syncMap",
+              "access": "read",
+              "line": 1349
+            },
+            {
+              "path": "contexts.MAP.screenToWorldMap",
+              "access": "read",
+              "line": 1349
+            },
+            {
+              "path": "contexts.MAP.toLocal",
+              "access": "read",
+              "line": 1349
+            }
+          ]
+        },
+        {
+          "name": "pickTrack",
+          "line": 1350,
+          "end": 1350,
+          "calls": [],
+          "fields": [
+            {
+              "path": "contexts.MAP.pickTrack",
+              "access": "read",
+              "line": 1350
+            },
+            {
+              "path": "contexts.MAP.pickWaypoint",
+              "access": "read",
+              "line": 1350
+            },
+            {
+              "path": "contexts.MAP.pickBridgeContact",
+              "access": "read",
+              "line": 1350
+            },
+            {
+              "path": "contexts.MAP.pickGunContact",
+              "access": "read",
+              "line": 1350
+            },
+            {
+              "path": "contexts.MAP.pickScopeContact",
+              "access": "read",
+              "line": 1350
+            }
+          ]
+        },
+        {
+          "name": "revealScopeLabel",
+          "line": 1351,
+          "end": 1351,
+          "calls": [],
+          "fields": [
+            {
+              "path": "contexts.PERISCOPE.revealScopeLabel",
+              "access": "read",
+              "line": 1351
+            }
+          ]
+        }
+      ]
     },
     {
       "level": 9,
@@ -6678,6 +6817,16 @@
           ]
         }
       ]
+    },
+    {
+      "level": 10,
+      "class": "BattleAtmosphere",
+      "kind": "object",
+      "extends": null,
+      "file": "js/rendering/battle-atmosphere.js",
+      "line": 1,
+      "end": 78,
+      "methods": []
     }
   ],
   "sharedHelpers": [
@@ -6728,7 +6877,7 @@
     }
   ],
   "assertions": {
-    "allRenderFilesListed": false,
+    "allRenderFilesListed": true,
     "allExternalRenderCallersEnumerated": true
   }
 }

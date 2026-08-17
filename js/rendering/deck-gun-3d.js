@@ -1,9 +1,9 @@
-class CanvasViewDeckGun extends CanvasViewCore {
+const DeckGunStation={
   ownshipDeckPoint(sub,forwardM,sideM,zM=1.35){
     const h=degToRad(sub.heading),fx=Math.sin(h),fy=-Math.cos(h),sx=Math.cos(h),sy=Math.sin(h);
     return{xNm:sub.position.xNm+(fx*forwardM+sx*sideM)/NM_M,
       yNm:sub.position.yNm+(fy*forwardM+sy*sideM)/NM_M,zM};
-  }
+  },
 
   /* ── OWNSHIP PSEUDO-3D ─────────────────────────────────────────────
      BRIDGE and GUN are cameras physically mounted on the submarine.  The old
@@ -24,7 +24,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
   ownshipVisualModelKey(state){
     const p=typeof getSubmarineProfile==='function'?getSubmarineProfile(state?.playerSub?.profileId):null;
     return p?.visualModelKey||'GATO_FLEET_BOAT';
-  }
+  },
   ownshipSurfaceSections(state=null){
     if(this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941')return[
       {f:-33.2,w:.12,z:.50},{f:-29,w:1.35,z:.67},{f:-23,w:2.35,z:.84},{f:-15,w:2.75,z:1.00},
@@ -36,23 +36,23 @@ class CanvasViewDeckGun extends CanvasViewCore {
       {f:-12,w:3.82,z:1.67},{f:-5,w:3.90,z:1.82},{f:4,w:3.92,z:1.88},{f:11,w:4.00,z:1.73},
       {f:22,w:3.72,z:1.47},{f:35,w:3.05,z:1.18},{f:48,w:1.58,z:.90},{f:55,w:.16,z:.67}
     ];
-  }
-  ownshipDeckGunForwardM(state){return this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941'?8.5:12.0;}
+  },
+  ownshipDeckGunForwardM(state){return this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941'?8.5:12.0;},
   ownshipCameraPose(cam,state,opts={}){
     // Fairwater/bridge is close to amidships. The gun sight lives on the
     // forward gun mount, not at the centre of the submarine.
     const fwd=opts.gun?this.ownshipDeckGunForwardM(state):(this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941'?-2.0:0.0),side=0;
     cam.ownshipCameraFwdM=fwd;cam.ownshipCameraSideM=side;
     return{fwd,side};
-  }
-  ownshipNearPlane(cam,state,opts={}){return opts.gun?.42:.38;}
+  },
+  ownshipNearPlane(cam,state,opts={}){return opts.gun?.42:.38;},
   ownshipCamVertex(cam,sub,forwardM,sideM,zM,opts={}){
     const pose=(Number.isFinite(cam.ownshipCameraFwdM)&&Number.isFinite(cam.ownshipCameraSideM))
       ?{fwd:cam.ownshipCameraFwdM,side:cam.ownshipCameraSideM}:this.ownshipCameraPose(cam,{playerSub:sub},opts);
     const lf=forwardM-pose.fwd,ls=sideM-pose.side;
     const d=degToRad(sub.heading-(cam.bearingDeg??sub.heading)),c=Math.cos(d),q=Math.sin(d);
     return{f:lf*c-ls*q,r:lf*q+ls*c,z:zM};
-  }
+  },
   ownshipFrustumPlanes(cam,near=.38){
     const w=cam.viewW||cam.cx*2,h=cam.viewH||Math.max(cam.cy*2,cam.r||cam.cy*2);
     const left=(0-cam.cx)/cam.f,right=(w-cam.cx)/cam.f,top=cam.cy/cam.f,bottom=(cam.cy-h)/cam.f;
@@ -63,7 +63,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
       v=>top*v.f-(v.z-cam.h),
       v=>(v.z-cam.h)-bottom*v.f
     ];
-  }
+  },
   clipOwnshipPolygon(poly,near=.38,cam=null){
     if(!poly.length)return[];
     const planes=cam?this.ownshipFrustumPlanes(cam,near):[v=>v.f-near];
@@ -78,11 +78,11 @@ class CanvasViewDeckGun extends CanvasViewCore {
       src=out;
     }
     return src;
-  }
+  },
   projectOwnshipLocal(cam,v,near=.38){
     if(v.f<near-.01)return null;
     return{x:cam.cx+v.r/v.f*cam.f,y:cam.cy+((cam.h-v.z)/v.f+v.f/(2*EARTH_R))*cam.f,d:v.f};
-  }
+  },
   clipOwnshipSegment(a,b,near=.38,cam=null){
     const planes=cam?this.ownshipFrustumPlanes(cam,near):[v=>v.f-near];let A={...a},B={...b};
     for(const plane of planes){
@@ -92,7 +92,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
       if(fa<0)A=m;else B=m;
     }
     return[A,B];
-  }
+  },
   ownshipSurfaceMesh(cam,state,opts={}){
     const sub=state.playerSub,secs=this.ownshipSurfaceSections(state),faces=[],near=this.ownshipNearPlane(cam,state,opts);
     this.ownshipCameraPose(cam,state,opts);
@@ -112,7 +112,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
     }
     faces.sort((a,b)=>b.depth-a.depth);
     return faces;
-  }
+  },
 
   drawOwnshipSurfaceDeck3D(ctx,cam,state,opts={}){
     const sub=state.playerSub,k=this.k,near=this.ownshipNearPlane(cam,state,opts),viic=this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941';
@@ -185,7 +185,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
       seg([fwd+barrel,0,z+1.28*compact],[fwd+barrel+.38,0,z+1.30*compact],'rgba(62,72,68,.98)',3.2);
     }
     return faces.length;
-  }
+  },
 
   /* ── AIRCRAFT PSEUDO-3D ─────────────────────────────────────────────
      BRIDGE and GUN share this world-space renderer. Aircraft are deliberately
@@ -204,7 +204,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
     if(kind==='FIGHTER')return{key:'FIGHTER',span:11.0,len:9.0,body:.62,tail:3.7,engines:1,wingY:.05,float:false};
     // B5N / ordinary single-engine carrier aircraft.
     return{key:'B5N',span:15.5,len:10.3,body:.68,tail:5.0,engines:1,wingY:.06,float:false};
-  }
+  },
 
   aircraftVisualAltitudeM(a,rng){
     if(Number.isFinite(a?.visualAltitudeM))return a.visualAltitudeM;
@@ -212,7 +212,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
     if(a?.state==='ORBIT')return 310;
     if(a?.state==='DEPARTING')return 380;
     return 430;
-  }
+  },
 
   drawAircraftPseudo3D(ctx,cam,state,a,dl,t,opts={}){
     const sub=state.playerSub,env=state.world.environment||{},rng=distNm(sub.position,a.position);
@@ -293,11 +293,11 @@ class CanvasViewDeckGun extends CanvasViewCore {
     }
     if((attack||friendly)&&approxPx>5*this.k){const c=project(world(0,L*.10,B*.8));if(c){ctx.fillStyle=friendly?'rgba(111,224,143,.90)':'rgba(239,106,88,.84)';ctx.font=this.fnt(7.5,true);ctx.textAlign='center';ctx.fillText(friendly?'FRIENDLY AIRCRAFT':'AIRCRAFT',c.x,c.y-7*this.k);ctx.textAlign='left';}}
     return true;
-  }
+  },
 
   drawWorldAircraft(ctx,cam,state,dl,t,opts={}){
     for(const a of state.world.aircraft||[]){if(a.shotDown||!a.seenBySub||!a.position)continue;this.drawAircraftPseudo3D(ctx,cam,state,a,dl,t,opts);}
-  }
+  },
 
   drawDeckGun(ctx,w,h,state,layout){
     const sub=state.playerSub,G=state.weapons.deckGun,env=state.world.environment,t=state.time.elapsedSeconds;
@@ -401,7 +401,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
       ctx.fillStyle='#f5c65c';ctx.font=this.fnt(12,true);ctx.textAlign='center';ctx.fillText('DECK GUN NOT MANNED',cx,h*0.36+28*k);
       ctx.font=this.fnt(9);ctx.fillStyle='#d7f5e7';ctx.fillText('Surface and enter GUN station — crew mans automatically',cx,h*0.36+49*k);ctx.textAlign='left';
     }
-  }
+  },
 
   gunSplashBehindShip(cam,state,sp){
     const sub=state.playerSub,spRange=distNm(sub.position,sp.position),spBear=bearingBetween(sub.position,sp.position);
@@ -415,7 +415,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
       if(Math.abs(shortDelta(cb,spBear))<=Math.max(.08,halfDeg))return true;
     }
     return false;
-  }
+  },
 
   drawGunSplashOne(ctx,cam,state,sp){
     const k=this.k,env=state.world.environment||{},sea=clamp(env.seaState||0,0,1),rain=clamp(env.precipitation||0,0,1);
@@ -433,14 +433,14 @@ class CanvasViewDeckGun extends CanvasViewCore {
     ctx.fillStyle=`rgba(225,242,248,${a*.86})`;ctx.beginPath();ctx.ellipse(p.x,p.y-rise*0.45,(4*k+sp.age*2*k)*(1+sea*.18),Math.max(3*k,rise),0,0,Math.PI*2);ctx.fill();
     if(!beyondHorizon){ctx.strokeStyle=`rgba(230,245,250,${a*.65})`;ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.ellipse(p.x,p.y,(8*k+sp.age*5*k)*(1+sea*.22),2.5*k+sp.age*k,0,0,Math.PI*2);ctx.stroke();}
     if(canClip)ctx.restore();
-  }
+  },
 
   drawGunSplashes3D(ctx,cam,state,behindShips){
     for(const sp of state.weapons.deckGun?.splashes||[]){
       if(this.gunSplashBehindShip(cam,state,sp)!==behindShips)continue;
       this.drawGunSplashOne(ctx,cam,state,sp);
     }
-  }
+  },
 
   drawGunProjectiles3D(ctx,cam,state,includeSplashes=true){
     const G=state.weapons.deckGun,k=this.k,sub=state.playerSub;
@@ -459,10 +459,7 @@ class CanvasViewDeckGun extends CanvasViewCore {
     }
     // Backward-compatible helper contract for renderer tests/tools that call
     // this method directly; drawDeckGun passes false and depth-sorts splashes.
-    if(includeSplashes)for(const sp of G?.splashes||[])CanvasViewDeckGun.prototype.drawGunSplashOne.call(this,ctx,cam,state,sp);
+    if(includeSplashes)for(const sp of G?.splashes||[])this.drawGunSplashOne(ctx,cam,state,sp);
   }
 
-
-}
-
-Object.assign(CanvasViewDeckGun.prototype,TacticalStation);
+};

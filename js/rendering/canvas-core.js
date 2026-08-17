@@ -50,7 +50,7 @@ class CanvasViewCore{
   }
   revealScopeLabel(id,ms=3200){this.scopeLabelId=id;this.scopeLabelUntil=performance.now()+ms;}
 
-  render(state,layout){
+  render(state,layout,registry){
     if(!layout){
       if(!this._missingLayoutWarned){this._missingLayoutWarned=true;console.warn('[CanvasView] missing layout parameter; fallback path: CanvasView.render');}
       layout=LayoutService.get();
@@ -68,6 +68,8 @@ class CanvasViewCore{
       state.runtime.presentation.impactQueue=[];
     }
     const ctx=this.ctx,w=this.w,h=this.h,station=state?.tactical?.activeStation||'TACTICAL';
+    if(!registry||typeof registry.drawStation!=='function')throw new Error('CanvasView registry is required');
+    const stationView=registry.stationContext(station);
     this._lastRenderError=null;
     try{
       // the whole view jolts when something goes off nearby
@@ -81,19 +83,14 @@ class CanvasViewCore{
       }
       ctx.setTransform(this.dpr,0,0,this.dpr,sx*this.dpr,sy*this.dpr);
       ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.globalAlpha=1;ctx.setLineDash([]);
-      if(station==='MAP') this.drawMap(ctx,w,h,state,layout);
-      else if(station==='PERISCOPE') this.drawPeriscope(ctx,w,h,state,layout);
-      else if(station==='BRIDGE') this.drawBridge(ctx,w,h,state);
-      else if(station==='SOUND') this.drawSound(ctx,w,h,state,layout);
-      else if(station==='DECK_GUN') this.drawDeckGun(ctx,w,h,state,layout);
-      else this.drawTactical(ctx,w,h,state);
+      registry.drawStation(station,ctx,w,h,state,layout);
       ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
-      this.drawHitFlash(ctx,w,h,state);
-      this.drawOwnBoatImpact(ctx,w,h,state);
-      if(state.tactical.impactObservation&&this.drawImpactObservation)this.drawImpactObservation(ctx,w,h,state);
+      stationView.drawHitFlash(ctx,w,h,state);
+      stationView.drawOwnBoatImpact(ctx,w,h,state);
+      if(state.tactical.impactObservation&&registry.stationContext('PERISCOPE').drawImpactObservation)registry.stationContext('PERISCOPE').drawImpactObservation(ctx,w,h,state);
       else{
-        this.drawAirAlarm(ctx,w,h,state);
-        this.drawSoundCallout(ctx,w,h,state);
+        stationView.drawAirAlarm(ctx,w,h,state);
+        stationView.drawSoundCallout(ctx,w,h,state,layout);
       }
       if(mag>1.6&&!state.tactical.impactObservation){ // dust and flakes shaken loose
         ctx.fillStyle=`rgba(255,235,200,${clamp(mag/26,0,0.10)})`;
