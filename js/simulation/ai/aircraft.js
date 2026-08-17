@@ -32,7 +32,7 @@ wearAirState(){
 wearAirEligibility(requireCompressed=true){
     const s=this.state,W=s.world,sub=s.playerSub,c=s.campaign,T=s.time;
     const wp=s.map.plottedCourse?.[0],nav=this.friendlyPortNav?.();
-    if(c.missionStatus!=='RETURN TO BASE'||!c._headingHome||!wp||wp.navKind!=='FRIENDLY_APPROACH')return{ok:false,why:'not on the homeward approach'};
+    if(c.missionStatus!=='RETURN TO BASE'||!this.state.runtime.campaign._headingHome||!wp||wp.navKind!=='FRIENDLY_APPROACH')return{ok:false,why:'not on the homeward approach'};
     if(!nav||nav.rngNm<=12)return{ok:false,why:'inside the home approach'};
     if(requireCompressed&&!((T.timeScale||1)>1||T.transitUntil))return{ok:false,why:'the captain is manoeuvring at real time'};
     if(W.enemy?.alertState!=='UNAWARE')return{ok:false,why:'escort activity'};

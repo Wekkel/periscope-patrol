@@ -269,7 +269,7 @@ class ScenarioSelector{
         s.campaign.missionName=h.name;
         // Fix 7: set campaign start date from historical scenario
         s.campaign.startDate=h.date;s.time.campaignDate=h.date;
-        s.campaign._careerStartDate=`${h.date} 06:00`;
+        s.runtime.campaign._careerStartDate=`${h.date} 06:00`;
         s.time.elapsedSeconds=0; // reset elapsed so date shows correctly
         if(h.forceDudMode) s.tdc.dudMode=h.forceDudMode;
         if(h.forceTorpedo){

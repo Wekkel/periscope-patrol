@@ -14,16 +14,19 @@ The current harness reports 34 `updateSub` calls, zero runtime-load
 differences for fresh, mid-patrol, and completed saves, and all 71 command
 paths execute successfully.
 
-Accessor progress is delivered in groups. Group 1 (`campaign._*`) and group 2
-(`playerSub._*` and contact `_collisionPrev`) now move values into
-`state.runtime.campaign`, `state.runtime.playerSub`, and
-`state.runtime.collisionPrev`; their readers no longer use compatibility
-accessors. The remaining groups are environment, TDC/time, and deck-gun/AAR
-runtime fields.
+All four accessor groups are now complete. Group 1 (`campaign._*`), group 2
+(`playerSub._*` and contact `_collisionPrev`), group 3 (environment weather
+baselines), and group 4 (TDC, watch, sound/radar ticks, and deck-gun AAR
+clock) now use explicit `state.runtime.*` paths. The harness reports an empty
+`runtime.legacyFields` list.
 
 For group 2, all three save variants compare with zero persistent-field
 differences: fresh 3654 fields, mid-patrol 3677, completed 3694. No field in
 these groups required a behavior-changing exception.
+
+Groups 3 and 4 produce the same zero-difference result for fresh, mid-patrol,
+and completed saves. The strict quality gate now rejects underscore-prefixed
+state writes outside `state.runtime`.
 
 The six removed tick initializers are `ensureTacticalExtensions`,
 `ensureWorldExtensions`, `ensurePatrolRuntimeContext`,

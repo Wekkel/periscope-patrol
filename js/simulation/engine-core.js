@@ -1130,7 +1130,7 @@ const CoreSystem={
     // Patch 10.5: a patrol is a lifecycle boundary. No tactical clock, transit,
     // stale alarm or AAR-pause state may leak across it.
     Object.assign(s.time,{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:patrolStartDate,campaignDateTime:`${patrolStartDate} 00:00:00`,
-      transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null});
+      transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999});
     // Presentation state is a patrol-lifecycle resource. Keep the render path
     // total even before the first impact event has reached the bridge.
     s.runtime=s.runtime||{};
@@ -1145,7 +1145,7 @@ const CoreSystem={
     // Development forcing is patrol-local. Never carry a forced seabed or keel
     // margin from the test console into a newly commissioned patrol.
     clearDevelopmentOverrides(s);
-    s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
+    s.world.collisionEvents=[];s.world.lastCollision=null;s.runtime.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
     s.world.aircraft=[];s.world.knuckles=[];s.world.atmosphere=null;s.world.missionObjects=[];
     s.world.aaManned=false;s.world.aaAmmo=weaponProfile.aaGun.ammo;s.world.aaKills=0;s.world.aaHurt=0;
     delete s.world.ultra;delete s.world.ultraAt;

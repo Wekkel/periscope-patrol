@@ -109,22 +109,22 @@ function _careerLessons(state,engagements){
 
 const CareerSystem={
   ensureCareerPatrolState(){
-    const c=this.state.campaign;
+    const c=this.state.campaign,R=this.state.runtime.campaign;
     c.importantEvents=Array.isArray(c.importantEvents)?c.importantEvents:[];
-    c._captainEventSeq=Number(c._captainEventSeq)||c.importantEvents.length;
+    R._captainEventSeq=Number(R._captainEventSeq)||c.importantEvents.length;
     c.historyId=c.historyId||_careerPatrolId(c);
-    c._careerStartDate=c._careerStartDate||`${c.startDate||this.state.time.campaignDate||'1943-08-17'} 06:00`;
-    if(c._historyRecorded===undefined)c._historyRecorded=false;
+    R._careerStartDate=R._careerStartDate||`${c.startDate||this.state.time.campaignDate||'1943-08-17'} 06:00`;
+    if(R._historyRecorded===undefined)R._historyRecorded=false;
     return c;
   },
 
   captainLog(type,text,data={},key=null){
-    const c=this.ensureCareerPatrolState();
+    const c=this.state.campaign,R=this.state.runtime.campaign;this.ensureCareerPatrolState();
     if(key){const old=c.importantEvents.find(e=>e.key===key);if(old)return old;}
     const ev={
-      seq:++c._captainEventSeq,
+      seq:++R._captainEventSeq,
       t:this.state.time.elapsedSeconds||0,
-      date:_careerStampFrom(c._careerStartDate,c.patrolDuration||0),
+      date:_careerStampFrom(R._careerStartDate,c.patrolDuration||0),
       type:String(type||'EVENT'),text:String(text||''),
       data:_careerClone(data||{})
     };
@@ -136,7 +136,7 @@ const CareerSystem={
   },
 
   buildPatrolRecord(outcome,meta={}){
-    const s=this.state,c=this.ensureCareerPatrolState(),W=s.weapons,G=W.deckGun||{},contacts=s.world.contacts||[];
+    const s=this.state,c=s.campaign,R=s.runtime.campaign;this.ensureCareerPatrolState();const W=s.weapons,G=W.deckGun||{},contacts=s.world.contacts||[];
     const sunk=contacts.filter(x=>x&&x.sunk&&(!x.side||x.side==='ENEMY')).map(x=>({
       id:x.id,name:x.name||x.id,type:x.displayType||x.type||'SHIP',tons:x.tonsFactor||0,
       weapon:x.shipDamage?.lastWeapon||((W.hits||[]).some(h=>h.contactId===x.id&&h.weapon==='DECK_GUN')?'DECK_GUN':
@@ -163,8 +163,8 @@ const CareerSystem={
       relationshipModel:'FACTION_DISPOSITION_AT_EVENT_TIME',aarIdentity:typeof getWarPartyProfile==='function'?getWarPartyProfile(c.warPartyId)?.aarIdentity:null,
       missionType:c.missionType||c.primaryMission?.type||'CONVOY_INTERDICTION',primaryMission:_careerClone(c.primaryMission||null),
       historicalProfile:_careerClone(c.historicalProfile||null),equipment:_careerClone(c.equipment||null),
-      startDate:c._careerStartDate,
-      endDate:_careerStampFrom(c._careerStartDate,c.patrolDuration||0),
+      startDate:R._careerStartDate,
+      endDate:_careerStampFrom(R._careerStartDate,c.patrolDuration||0),
       durationSeconds:Math.round(c.patrolDuration||0),outcome:String(outcome||c.missionStatus||'UNKNOWN'),
       patrolScore:Number(meta.patrolScore!==undefined?meta.patrolScore:c.score)||0,
       careerTotalScore:Number(c.totalScore)||0,
@@ -189,19 +189,19 @@ const CareerSystem={
   },
 
   finalizePatrol(outcome,meta={}){
-    const c=this.ensureCareerPatrolState();
+    const c=this.state.campaign,R=this.state.runtime.campaign;this.ensureCareerPatrolState();
     if(c.missionStatus==='TRAINING'||outcome==='TRAINING')return null;
     if(outcome==='LOST')this.captainLog('BOAT_LOST','Boat lost.',{reason:meta.reason||'combat loss'},'boat-lost');
-    if(c._historyRecorded){
-      const old=this.state.runtime?.careerRecords?.find(r=>r.id===c._historyRecordId||r.id===c.historyId);
+    if(R._historyRecorded){
+      const old=this.state.runtime?.careerRecords?.find(r=>r.id===R._historyRecordId||r.id===c.historyId);
       if(old)return old;
-      c._historyRecorded=false;c._historyRecordId=null;
+      R._historyRecorded=false;R._historyRecordId=null;
     }
     const rec=this.buildPatrolRecord(outcome,meta);
     const records=this.state.runtime.careerRecords=this.state.runtime.careerRecords||[];
     records.push(rec);if(records.length>24)records.shift();
     PresentationBridge.emit(this.state,'save',{method:'recordPatrol',args:[rec]});
-    c._historyRecorded=true;c._historyRecordId=rec.id;
+    R._historyRecorded=true;R._historyRecordId=rec.id;
     return rec;
   }
 };

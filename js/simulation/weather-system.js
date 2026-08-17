@@ -17,9 +17,10 @@ function _weatherHash(seed,tag){
 }
 function _weatherBase(state){
   const env=state.world.environment;
-  if(!Number.isFinite(env._weatherBaseVisibilityNm)) env._weatherBaseVisibilityNm=Number(env._baseVisibilityNm||env.visibilityNm)||12;
-  if(!Number.isFinite(env._baseVisibilityNm)) env._baseVisibilityNm=env._weatherBaseVisibilityNm;
-  if(!Number.isFinite(env._weatherBaseSeaState)) env._weatherBaseSeaState=clamp(Number(env.seaState)||.25,0,1);
+  const runtime=state.runtime.environment;
+  if(!Number.isFinite(runtime._weatherBaseVisibilityNm)) runtime._weatherBaseVisibilityNm=Number(runtime._baseVisibilityNm||env.visibilityNm)||12;
+  if(!Number.isFinite(runtime._baseVisibilityNm)) runtime._baseVisibilityNm=runtime._weatherBaseVisibilityNm;
+  if(!Number.isFinite(runtime._weatherBaseSeaState)) runtime._weatherBaseSeaState=clamp(Number(env.seaState)||.25,0,1);
   return env;
 }
 function _weatherCellInfluence(cell,pos){
@@ -60,7 +61,7 @@ function weatherAtPosition(state,pos){
   // moving fronts. Do not let weather initialization turn it into Pacific-like
   // clear sky merely because the nearest front is still over the horizon.
   if(atlantic&&intensity<.10)stage='OVERCAST';
-  const baseSea=env._weatherBaseSeaState;
+  const baseSea=state.runtime.environment._weatherBaseSeaState;
   const authoredBaseCloud=atlantic?.62:0;
   const authoredBaseRain=atlantic?.025:0;
   const cloud=clamp(Math.max(authoredBaseCloud,(stage==='CLEAR'?0.10:stage==='OVERCAST'?0.62:stage==='BUILDING CLOUD'?0.42:stage==='CLEARING'?0.32:stage==='SQUALL'?0.72:0.96)+intensity*.12),0,1);
@@ -69,7 +70,7 @@ function weatherAtPosition(state,pos){
   const visualFactor=clamp((atlantic?.92:1)-intensity*.76-precipitation*.12,.12,1);
   const moon=weatherMoonIllumination(state),moonFactor=clamp((.38+.62*moon)*(1-cloud*.68),.12,1);
   const day=clamp(env.daylight??.7,0,1),lightFactor=day>.08?(.28+.72*day):(.18+.20*moonFactor);
-  const visibilityNm=Math.max(.35,env._weatherBaseVisibilityNm*lightFactor*visualFactor);
+  const visibilityNm=Math.max(.35,state.runtime.environment._weatherBaseVisibilityNm*lightFactor*visualFactor);
   return{stage,intensity,cloudCover:cloud,precipitation,seaState,visualFactor,visibilityNm,
     aircraftFactor:clamp(1-intensity*.68-precipitation*.18,.16,1),
     aircraftAttackFactor:clamp(1-intensity*.55-precipitation*.22,.18,1),

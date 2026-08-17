@@ -237,7 +237,7 @@ class Tutorial{
     s.weapons.activeTorpedoes=[];s.weapons.hits=[];s.weapons.duds=[];s.weapons.explosions=[];
     s.weapons.torpedoInventory=getSubmarineProfile(identity.submarineProfileId).weapons.torpedoInventory;
     for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;}
-    s.world.environment={daylight:0.9,visibilityNm:16,seaState:0.15,weather:'CLEAR',_baseVisibilityNm:16};
+    s.world.environment={daylight:0.9,visibilityNm:16,seaState:0.15,weather:'CLEAR'};s.runtime.environment._baseVisibilityNm=16;
     // Training is a scripted sandbox. NEW_PATROL also creates the ordinary
     // Pacific traffic director and air-threat clock; leaving those alive lets a
     // random patrol craft/task group or aircraft wander into a long lesson and

@@ -64,6 +64,23 @@ function initRuntime(state){
       runtime.collisionPrev[contact.id]=contact._collisionPrev;
     delete contact._collisionPrev;
   }
+  const environment=state.world?.environment&&typeof state.world.environment==='object'?state.world.environment:null;
+  if(environment){
+    for(const key of ['_baseVisibilityNm','_weatherBaseVisibilityNm','_weatherBaseSeaState']){
+      if(environment[key]!==undefined&&runtime.environment[key]===undefined)runtime.environment[key]=environment[key];
+      delete environment[key];
+    }
+  }
+  const tdc=state.tdc&&typeof state.tdc==='object'?state.tdc:null;
+  if(tdc){for(const key of ['_lastSolvedTargetId','_lastSolveAt']){if(tdc[key]!==undefined&&runtime.tdc[key]===undefined)runtime.tdc[key]=tdc[key];delete tdc[key];}}
+  const time=state.time&&typeof state.time==='object'?state.time:null;
+  if(time){if(time._watch!==undefined&&runtime.time.watch===undefined)runtime.time.watch=time._watch;delete time._watch;}
+  const deckGun=state.weapons?.deckGun&&typeof state.weapons.deckGun==='object'?state.weapons.deckGun:null;
+  if(deckGun&&deckGun._aarLastAttackAt!==undefined&&runtime.deckGun._aarLastAttackAt===undefined){runtime.deckGun._aarLastAttackAt=deckGun._aarLastAttackAt;delete deckGun._aarLastAttackAt;}
+  const sound=state.world?.sound&&typeof state.world.sound==='object'?state.world.sound:null;
+  if(sound&&sound._tick!==undefined&&runtime.sound.tick===undefined){runtime.sound.tick=sound._tick;delete sound._tick;}
+  const radar=state.world?.radar&&typeof state.world.radar==='object'?state.world.radar:null;
+  if(radar&&radar._tick!==undefined&&runtime.radar.tick===undefined){runtime.radar.tick=radar._tick;delete radar._tick;}
   runtime.presentation=runtime.presentation&&typeof runtime.presentation==='object'?runtime.presentation:{};
   if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactToken'))runtime.presentation.impactToken=null;
   if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactStartedWall'))runtime.presentation.impactStartedWall=null;
@@ -101,12 +118,7 @@ function initRuntime(state){
   visit(state);
   // Fields introduced lazily after a save has been written need an accessor
   // even though the old snapshot contains no enumerable property to inspect.
-  const lazy=[
-    ['tdc',['_lastSolvedTargetId','_lastSolveAt']],
-    ['world',['_collisionCooldowns']],
-    ['world.environment',['_baseVisibilityNm','_weatherBaseVisibilityNm','_weatherBaseSeaState']],
-    ['world.sound',['_tick']],['world.radar',['_tick']]
-  ];
+  const lazy=[];
   const resolve=(path)=>path.split('.').reduce((o,k)=>o?.[k],state);
   for(const [path,keys] of lazy){const obj=resolve(path);if(!obj||typeof obj!=='object')continue;for(const key of keys){if(Object.prototype.hasOwnProperty.call(obj,key))continue;const slot={path:`state.${path}.${key}`,key,value:undefined};runtime.legacyFields.push(slot);Object.defineProperty(obj,key,{configurable:true,enumerable:false,get(){return slot.value;},set(next){slot.value=next;}});}}
   return runtime;
@@ -195,10 +207,10 @@ function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
       interceptPlot:null,intelFitRequest:null,intelContextSeq:0,
       recenterSeq:0,weatherOverlay:false},
     world:{
-      contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
+      contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,
       aaManned:false,aaAmmo:weaponProfile.aaGun.ammo,aaKills:0,aaHurt:0,
       airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,airWarningOn:!!subProfile.sensors.airWarningRadar,sdOn:!!subProfile.sensors.airWarningRadar,nextCheck:120},
-      sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,activeEchoLastAt:-999,qcLastAt:-999,_tick:0},
+      sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,activeEchoLastAt:-999,qcLastAt:-999},
       radar:null,weatherSystem:null,
       traffic:{version:2,enabled:false,groups:[],nextId:1,clock:0,generated:false},
       radio:{pending:null,inbox:[],unread:0,nextBroadcast:getCampaignRadioIntelProfile(identity.campaignProfileId)?.initialBroadcastSec??300,copying:0},

@@ -201,7 +201,7 @@ const ASWSystem={
         const dS=clamp(1-dD/75,0,1);
         const air=dc.source==='AIR',strength=air?(dc.strength||28):62;
         const dmg=strength*hS*dS;
-        this.state.campaign._depthChargeAttackSeen=true;
+        this.state.runtime.campaign._depthChargeAttackSeen=true;
         this.state.weapons.explosions.push({position:{...dc.position},ageSec:0,maxAgeSec:10,label:dmg>4?`DC -${Math.round(dmg)}`:'DC'});
         if(dmg<=1&&hNm<0.5) this.shake(clamp(2.2-hNm*4,0.2,2.2));   // felt, not damaging
         if(!air&&(dc.patternIndex??0)===0&&hNm<1.45){

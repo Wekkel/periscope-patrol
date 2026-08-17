@@ -138,7 +138,7 @@ const EnemyAISystem={
       e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;e.alertedEscortIds=[];this.sys.aswBrain.assignASWRoles?.(null,true);
       this.log(budgetExpiry==='HARD_LIMIT'?'Escort commander breaks off the prolonged hunt; convoy screen reforming.':'Escort search abandoned; convoy screen reforming.');
       this.sys.aswBrain.resetASWProsecution?.();
-      if(this.state.campaign._depthChargeAttackSeen){this.captainLog?.('DEPTH_CHARGE_ATTACK_SURVIVED','Depth-charge attack survived.',{},`dc-survived:${Math.floor((this.state.time.elapsedSeconds||0)/60)}`);this.state.campaign._depthChargeAttackSeen=false;}
+      if(this.state.runtime.campaign._depthChargeAttackSeen){this.captainLog?.('DEPTH_CHARGE_ATTACK_SURVIVED','Depth-charge attack survived.',{},`dc-survived:${Math.floor((this.state.time.elapsedSeconds||0)/60)}`);this.state.runtime.campaign._depthChargeAttackSeen=false;}
       const camp=this.state.campaign,evade=camp.objectives?.find?.(o=>o.id==='evade')||(!camp.missionType?camp.objectives?.[2]:null);
       if(evade)evade.done=true;
     }

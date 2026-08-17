@@ -185,7 +185,7 @@ function _missionSafePoint(engine,origin,bearingDeg,distanceNm,minDepthFt=24){
   return engine.clampToArea?engine.clampToArea({...base}):{...base};
 }
 function _missionRoutePoint(engine,aheadNm=12){
-  const W=engine.state.world,sub=engine.state.playerSub,route=(W.convoyRoutes||[])[0],path=route&&engine.ensureWaterRoute?.(route);
+    const W=engine.state.world,sub=engine.state.playerSub,route=(W.convoyRoutes||[])[0],path=route&&engine.resolveWaterRoute?.(route);
   if(path&&path.length>1){const pr=routeProject(path,sub.position),q=routeAdvanceOneWay(path,pr.s,aheadNm);return{pos:q.pos,heading:q.heading,routeS:q.s,routeDir:1};}
   const p=_missionSafePoint(engine,sub.position,sub.heading,aheadNm,30);return{pos:p,heading:sub.heading,routeS:null,routeDir:null};
 }
@@ -240,7 +240,7 @@ function _missionRefreshIntel(engine,m,force=false){
   return true;
 }
 function _missionWeatherAmbushCondition(state,target){
-  if(!target?.position)return false;const wx=weatherBetween(state,state.playerSub.position,target.position),base=state.world.environment?._weatherBaseVisibilityNm||12;
+  if(!target?.position)return false;const wx=weatherBetween(state,state.playerSub.position,target.position),base=state.runtime.environment?._weatherBaseVisibilityNm||12;
   return wx.precipitation>.12||wx.intensity>.20||wx.visibilityNm<Math.max(4.5,base*.62)||(state.world.environment.daylight??1)<.18;
 }
 function missionBriefingText(state){

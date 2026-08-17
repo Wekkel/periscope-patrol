@@ -114,7 +114,7 @@ const DeckGunSystem={
       age:0,bearing,elevation:elev,prev:null,weaponLabel:gun.shortLabel,muzzleVelocityMS:v
     };G.shells.push(shell);this.aar.gunRound(shell);
     G.ammo--;G.lastFireAt=now;G.flashStartedAt=now;G.flashUntil=now+0.30;G.ammoFlashUntil=now+gun.reloadSec;G.ammoFlashCount=G.ammo;G.lastFall=null;
-    if(now-(G._aarLastAttackAt??-999)>45){G._aarLastAttackAt=now;this.aar.recordEvent('DECK_GUN_ATTACK','Deck-gun engagement opened.',{},sub.position); }
+    if(now-(this.state.runtime.deckGun._aarLastAttackAt??-999)>45){this.state.runtime.deckGun._aarLastAttackAt=now;this.aar.recordEvent('DECK_GUN_ATTACK','Deck-gun engagement opened.',{},sub.position); }
     sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.16,0,1.5);
     this.sys.escorts.alert('DECK_GUN',{...sub.position},0.88);
     PresentationBridge.audio(this.state).playDeckGun?.(gun.audioPower);

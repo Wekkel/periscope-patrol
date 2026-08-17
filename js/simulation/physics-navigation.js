@@ -11,7 +11,7 @@ class SimEngine {
     const visualAswIds=visualIds.filter(id=>isASWCombatant(byId.get(id)));
     const aswBands={};
     for(const id of ids){const c=byId.get(id),tr=tracks[id];if(!c||!isASWCombatant(c)||!tr||tr.confidence<=.02)continue;const r=tr.rangeEstimateNm??99;aswBands[id]=r<=1.5?3:r<=3?2:r<=6?1:0;}
-    s.time._watch={
+    s.runtime.time.watch={
       trackIds:ids,mainTrackIds,visualIds,visualMainIds,visualAswIds,aswBands,
       alert:s.world.enemy.alertState,
       hull:s.playerSub.damage.hullIntegrity,
@@ -69,7 +69,7 @@ class SimEngine {
   }
 
   transitInterrupt(){
-    const s=this.state, w=s.time._watch;
+    const s=this.state, w=s.runtime.time.watch;
     if(!w) return 'ok';
     if(s.playerSub.mode==='SUNK') return 'the boat is lost';
     const collisionRisk=this.sys.collision.collisionRiskAhead(90);
@@ -528,14 +528,14 @@ class SimEngine {
 
   updateTdc(force=false){
     const tdc=this.state.tdc;
-    if(!tdc.targetId){tdc.status='NO TARGET';tdc.solutionQuality=0;tdc._lastSolvedTargetId=null;return;}
+    if(!tdc.targetId){tdc.status='NO TARGET';tdc.solutionQuality=0;this.state.runtime.tdc._lastSolvedTargetId=null;return;}
     const now=this.state.time.elapsedSeconds||0,scale=Math.max(1,this.state.time.timeScale||1);
     // TDC 2.0 solves real tube/gyro geometry and is intentionally more involved
     // than the old ideal-line calculation. The display does not need a fresh
     // solve at 60 Hz. At high time compression use a wider SIM-time interval;
     // explicit target/manual changes and FIRE always pass force=true below.
     const minInterval=scale>=8?2:.14;
-    if(!force&&tdc._lastSolvedTargetId===tdc.targetId&&Number.isFinite(tdc._lastSolveAt)&&now-tdc._lastSolveAt<minInterval)return;
+    if(!force&&this.state.runtime.tdc._lastSolvedTargetId===tdc.targetId&&Number.isFinite(this.state.runtime.tdc._lastSolveAt)&&now-this.state.runtime.tdc._lastSolveAt<minInterval)return;
     const tr=this.state.world.contactTracks[tdc.targetId];
     const manual=tdc.targetId==='MANUAL'||tdc.autoTrack===false;
     if(!manual&&(!tr||tr.confidence<=0.02)){tdc.status='TRACK LOST';tdc.solutionQuality=0;return;}
@@ -579,7 +579,7 @@ class SimEngine {
     tdc.timeToImpactSec=res.timeToImpactSec;
     tdc.solutionQuality=clamp(res.solutionQuality*(1-(d.tdcDamage||0)*.18-(d.gyroDamage||0)*.10),0,1);
     tdc.status=res.valid?'SOLUTION':'NO SOLUTION';
-    tdc._lastSolveAt=now;tdc._lastSolvedTargetId=tdc.targetId;
+    this.state.runtime.tdc._lastSolveAt=now;this.state.runtime.tdc._lastSolvedTargetId=tdc.targetId;
   }
 
   calcVis(sub,c,rng,env){

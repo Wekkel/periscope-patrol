@@ -6,7 +6,7 @@ const CollisionSystem={
   ensureCollisionState(){
     const W=this.state.world;
     W.collisionEvents=W.collisionEvents||[];
-    W._collisionCooldowns=W._collisionCooldowns||{};
+    this.state.runtime.world._collisionCooldowns=this.state.runtime.world._collisionCooldowns||{};
   },
 
   captureCollisionFrame(){
@@ -130,9 +130,9 @@ const CollisionSystem={
   },
 
   resolveSubShipCollision(sub,c,hit,dt){
-    const now=this.state.time.elapsedSeconds,key=`OWN_SUB|${c.id}`,last=this.state.world._collisionCooldowns[key]??-999;
+    const now=this.state.time.elapsedSeconds,key=`OWN_SUB|${c.id}`,last=this.state.runtime.world._collisionCooldowns[key]??-999;
     if(now-last<12)return null;
-    this.state.world._collisionCooldowns[key]=now;
+    this.state.runtime.world._collisionCooldowns[key]=now;
     const impact=this.collisionImpact(sub,c,hit,dt);
     const sp=this.collisionPrevFor(sub).position,cp=this.collisionPrevFor(c).position,t=Math.max(0,hit.t-0.002);
     sub.position={xNm:lerp(sp.xNm,sub.position.xNm,t)-hit.normal.x*0.00025,
@@ -154,9 +154,9 @@ const CollisionSystem={
   },
 
   resolveShipShipCollision(a,b,hit,dt){
-    const now=this.state.time.elapsedSeconds,key=[a.id,b.id].sort().join('|'),last=this.state.world._collisionCooldowns[key]??-999;
+    const now=this.state.time.elapsedSeconds,key=[a.id,b.id].sort().join('|'),last=this.state.runtime.world._collisionCooldowns[key]??-999;
     if(now-last<15)return null;
-    this.state.world._collisionCooldowns[key]=now;
+    this.state.runtime.world._collisionCooldowns[key]=now;
     const ap=this.collisionPrevFor(a).position,bp=this.collisionPrevFor(b).position,t=Math.max(0,hit.t-0.002);
     const av=this.vesselMotionVelocity(ap,a.position,dt),bv=this.vesselMotionVelocity(bp,b.position,dt);
     const rv={x:bv.x-av.x,y:bv.y-av.y},relKn=Math.hypot(rv.x,rv.y)*3600;

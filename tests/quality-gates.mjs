@@ -64,6 +64,20 @@ const saveSource=await readFile(path.join(root,'js/persistence/save-system.js'),
 if(!/function\s+initRuntime\s*\(/.test(stateSource)||!/key\.startsWith\(['"]_['"]\)/.test(stateSource))fail.push('runtime boundary missing underscore-field migration in initRuntime');
 if(!/delete\s+s\.runtime\s*;/.test(saveSource))fail.push('storage boundary must omit the complete state.runtime branch');
 if(!/typeof initRuntime==='function'\)initRuntime\(state\)/.test(saveSource))fail.push('loaded states do not rebuild runtime through initRuntime');
+/* Runtime underscore fields must never be written back onto persistent state.
+   This is intentionally a write check (not a read check): legacy reads are
+   handled only at the migration boundary, while new writes must name the
+   runtime bucket explicitly. */
+const runtimeUnderscoreWrites=[];
+for(const p of all.filter(p=>p.endsWith('.js')&&rel(p).startsWith('js/'))){
+  const lines=(await readFile(p,'utf8')).split('\n');
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(/(?:^|[({;,\s])(state|this\.state|s|sub|tdc|env|W|S|G)\.[A-Za-z_$][\w$]*\._[A-Za-z_$][\w$]*\s*=/.test(line)&&!line.includes('.runtime.'))
+      runtimeUnderscoreWrites.push(`${rel(p)}:${i+1}`);
+  }
+}
+if(runtimeUnderscoreWrites.length)fail.push(`underscore state writes outside state.runtime: ${runtimeUnderscoreWrites.join(', ')}`);
 const layerViolations=[];let layerCalls=0;const layerFiles=new Set();
 for(const p of all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');let fileCalls=0;for(const re of strictPatterns){const hits=src.match(new RegExp(re.source,'g'))||[];fileCalls+=hits.length;if(hits.length)layerViolations.push(`${rel(p)}: ${re}`);}if(fileCalls){layerCalls+=fileCalls;layerFiles.add(p);}}
 if(layerViolations.length){const message=`strict simulation-layer warnings: ${layerCalls} calls in ${layerFiles.size} files`;if(process.env.PP_STRICT_LAYERS==='1')fail.push(...layerViolations.map(v=>`simulation layer violation: ${v}`));else console.warn(message);}
