@@ -13,8 +13,8 @@
 1. `core/utilities.js` and immutable/static data.
 2. Navigation/TDC maths and state creation.
 3. Command bus.
-4. Simulation inheritance chain.
-5. Rendering constants/helpers and rendering inheritance chain.
+4. Simulation systems and their explicit context wiring.
+5. Rendering constants/helpers and station registry wiring.
 6. Audio, persistence and UI services.
 7. Game/controllers/tutorial/loop.
 8. Bootstrap wiring, picker/gauges, PWA version reader, autosave and final start.
@@ -42,9 +42,57 @@ Nothing lower in this list needs to import something above it; the final boot co
 
 ### Simulation
 
-`SimEngine` is now a deliberately linear inheritance chain. Each layer owns a coherent method group while retaining the original public class name at the end:
+The simulation is composition-based. `SimEngine` is the only remaining simulation
+coordinator class. `CoreSystem` and the fifteen domain systems below are plain
+system objects; they are composed through an explicit context rather than a
+shared inheritance chain.
 
-`SimEngineCore` → `SimEngineHarbor` → `SimEngineTorpedoes` → `SimEngineEnemyAI` → `SimEngineAircraft` → `SimEngineDeckGun` → `SimEngineAAGun` → `SimEngineIntel` → `SimEngineSensors` → `SimEngineASW` → `SimEngine`.
+Systems:
+
+- `CoreSystem` — command dispatch, patrol lifecycle, common state transitions and the fixed-step update orchestration.
+- `HarborSystem` — harbor setup, defenses, searchlights, batteries, nets and harbor intel.
+- `WeatherSystem` — weather evolution and environmental effects.
+- `SoundRadarSystem` — passive sound, active echo and surface-radar operations.
+- `IntelSystem` — radio intelligence, contact reports and signal interpretation.
+- `SensorsSystem` — visual/lookout and acoustic contact acquisition.
+- `TorpedoSystem` — tube state, launch, run, hit/miss and torpedo effects.
+- `DeckGunSystem` — deck-gun laying, firing and shell effects.
+- `AAGunSystem` — anti-aircraft fire and casualty effects.
+- `AircraftSystem` — aircraft motion, detection and attacks.
+- `ASWBrainSystem` — escort search solutions and doctrine mechanics.
+- `ASWSystem` — escort behavior and depth-charge attacks.
+- `EnemyAISystem` — enemy alert, search and prosecution decisions.
+- `CollisionSystem` — vessel collision detection and collision consequences.
+- `DamageSystem` — damage state, sinking and damage-control effects.
+- `CareerSystem` — patrol completion, career persistence and AAR-facing records.
+
+`SimEngine` owns the update loop boundary and is the composition root: it
+constructs/supplies the context and system registry. `CoreSystem` owns common
+command and lifecycle behavior; it is not the composition root.
+
+The following table is the system-edge projection of the generated call graph;
+ctx-only calls and intra-system calls are deliberately omitted.
+
+The principal `sys` edges are:
+
+| System | Explicit system dependencies |
+|---|---|
+| `CoreSystem` | `sys.career`, `sys.collision`, `sys.damage`, `sys.deckGun`, `sys.enemyAI`, `sys.harbor`, `sys.intel`, `sys.soundRadar`, `sys.torpedoes`, `sys.weather` |
+| `HarborSystem` | `sys.damage` |
+| `WeatherSystem` | none |
+| `SoundRadarSystem` | `sys.enemyAI` for escort alerting |
+| `IntelSystem` | `sys.harbor`; Core/traffic adapters where those remain coordinators |
+| `SensorsSystem` | `sys.aswBrain`, `sys.enemyAI` |
+| `TorpedoSystem` | `sys.harbor`, `sys.damage`, `sys.enemyAI` |
+| `DeckGunSystem` | `sys.damage` |
+| `AAGunSystem` | `sys.damage` |
+| `AircraftSystem` | `sys.aaGun` |
+| `ASWBrainSystem` | its declared sensor/solution services; no generic escape hatch |
+| `ASWSystem` | `sys.damage` and its declared escort services |
+| `EnemyAISystem` | `sys.aswBrain`, `sys.asw`, `sys.sensors` |
+| `CollisionSystem` | `sys.damage` |
+| `DamageSystem` | no system dependency; career/AAR effects use explicit context services |
+| `CareerSystem` | no simulation-system dependency; it consumes explicit context services |
 
 Files:
 
@@ -65,18 +113,81 @@ Files:
 
 ### Rendering
 
-`CanvasView` uses the same conservative pattern:
+The render layer is also composition-based. `CanvasViewCore` is an independent
+canvas/transform/resize/quality service. `CanvasView` is a thin registry that
+dispatches by `activeStation` to six plain station objects:
 
-`CanvasViewCore` → `CanvasViewTactical` → `CanvasViewDeckGun` → `CanvasViewPeriscope` → `CanvasView`.
+`TacticalStation`, `BridgeStation`, `SoundStation`, `PeriscopeStation`,
+`MapStation` and `DeckGunStation`.
 
-- `js/rendering/world-geometry.js` — rendering constants/models/world helpers.
-- `js/rendering/canvas-core.js` — canvas setup, resize, shared camera/math/render dispatch.
-- `js/rendering/tactical.js` — TAC station.
-- `js/rendering/deck-gun-3d.js` — deck-gun 3D station and shell/splash rendering.
-- `js/rendering/periscope-3d.js` — periscope world/sea/sky/ship 3D rendering.
-- `js/rendering/map.js` — MAP station and map interaction/rendering.
+Shared render modules are explicit dependencies: `optics.js` contains pure
+horizon/optics mathematics, while `world-3d.js` contains shared world and
+projection rendering. `battle-atmosphere.js` contains shared atmosphere
+effects. No station inherits from another station or from `CanvasViewCore`.
+
+- `js/rendering/world-geometry.js` — rendering constants, geometry models and shared world helpers.
+- `js/rendering/canvas-core.js` — `CanvasViewCore`, canvas setup, resize, shared transforms, quality and registry dispatch support.
+- `js/rendering/map.js` — `CanvasView` registry and `MapStation` (MAP rendering and map interaction).
+- `js/rendering/tactical.js` — `TacticalStation` (TAC station).
+- `js/rendering/bridge-3d.js` — `BridgeStation` (BRIDGE station).
+- `js/rendering/sound-room.js` — `SoundStation` (SOUND station).
+- `js/rendering/periscope-3d.js` — `PeriscopeStation` (periscope world/sea/sky/ship rendering).
+- `js/rendering/deck-gun-3d.js` — `DeckGunStation` (deck-gun 3D and shell/splash rendering).
+- `js/rendering/optics.js` — pure horizon projection and optics mathematics shared by stations.
+- `js/rendering/world-3d.js` — shared world, projection and vessel rendering module.
+- `js/rendering/battle-atmosphere.js` — shared atmosphere, harbor and combat-visibility effects.
 - `js/rendering/gyro-indicator.js` — gyro widget.
 - `js/rendering/particles.js` — particle effects.
+
+## Composition boundaries
+
+`ctx` contains shared, stateless or infrastructural services: logging,
+notifications, AAR recording, audio/effect emission and temporary compatibility
+services. A function belongs on `ctx` when it does not represent a separate
+domain system and is intentionally reusable by many systems.
+
+`sys` contains system-to-system dependencies. A system belongs on `sys` when it
+owns domain state or behavior, such as `sys.harbor`, `sys.damage`,
+`sys.aaGun`, `sys.asw`, `sys.enemyAI`, `sys.mission` or `sys.aircraft`.
+Dependencies are named explicitly; generic escape hatches are not used.
+
+## Verification gates
+
+The repository's fixed test command runs the following controls. A non-zero
+result stops the test run and the patch is not accepted.
+
+`node tests/run-all.mjs .` is the single command that runs all eight controls.
+
+1. `generate-call-graph.mjs` mechanically regenerates the simulation call graph.
+   A failure means the generated inventory is incomplete or inconsistent; stop and fix the generator or source shape.
+2. `quality-gates.mjs` checks byte budgets, required system/station composition,
+   forbidden layer accesses and the no-inheritance rule. A failure blocks the patch and identifies the violated boundary.
+3. `behaviour.mjs` tests pure navigation, TDC, hull, optics and render-recovery behavior. A failure is a behavioral regression to isolate before delivery.
+4. `boot-harness.mjs` loads the classic scripts, exercises a patrol and command
+   paths, renders every station, and verifies audio, canvas and recovery state. Any exception or missing station render blocks delivery.
+5. The ESLint global generator plus `no-undef` checks unresolved identifiers;
+   generated globals are deliberately top-level only. A real unresolved identifier is repaired; the allowlist is not broadened to hide it.
+6. `verify-call-graph.mjs` compares update/updateSub order with the immutable
+   pre-Step-7 baseline `tests/call-graph-baseline-pre-step7.json`. A difference is investigated as a possible gameplay change. The baseline is updated only after explicit approval, never merely to make the test green.
+7. `verify-call-targets.mjs` checks that system calls resolve to declared targets. A missing target requires an explicit dependency or caller repair.
+8. `verify-render-call-targets.mjs` checks render callers and layout propagation. A failure means the complete render call chain must be repaired before delivery.
+
+The render-call baseline is stored in `tests/render-call-graph-step7b-pre.json`.
+The quality gate also forbids new `class ... extends ...` declarations anywhere
+under `js/simulation/` or `js/rendering/`.
+
+## Script model
+
+The project intentionally remains a classic-script PWA without ES modules,
+bundling or a build step. Script order in `index.html` is the dependency order,
+the same files can be cached by the service worker, and page-global composition
+keeps the offline deployment small and predictable on low-memory devices.
+
+## Reference documents
+
+- `docs/notify-inventory.md` — the inventory and classification of player-facing notification sources.
+- `docs/command-ownership.md` — the command-to-owner map for the central command table.
+- `docs/diagnose-clusters-a-b-c.md` — diagnostic findings for the parked navigation, toast and cinematic clusters.
 
 ### UI, controllers, persistence and boot
 
