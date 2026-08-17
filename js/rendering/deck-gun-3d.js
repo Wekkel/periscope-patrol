@@ -1,28 +1,4 @@
-class CanvasViewDeckGun extends CanvasViewTactical {
-  setupCam(state,fovDeg,cx,cy,r,opts={}){
-    const sub=state.playerSub;
-    const camH=opts.heightM??(sub.depthFeet<8?6.5:clamp(1.8-(sub.depthFeet-45)*0.06,0.35,1.9));
-    // Compatibility wrapper around the shared camera contract. New station
-    // callers should pass their own bearing; the default is only for SCOPE.
-    return makeWorldCamera(state,{position:opts.position||sub.position,heightM:camH,
-      bearingDeg:opts.bearingDeg??state.tactical.periscopeBearing,fovDeg,cx,cy,r,
-      viewW:opts.viewW,viewH:opts.viewH,kind:opts.kind||'PERISCOPE'});
-  }
-  // world point → screen. d is the horizontal distance (also used for sorting)
-  proj(cam,E,N,Y){
-    const dE=E-cam.E, dN=N-cam.N;
-    const fwd=dE*cam.sin+dN*cam.cos;
-    const rgt=dE*cam.cos-dN*cam.sin;
-    if(fwd<3) return null;
-    return{
-      x:cam.cx+rgt/fwd*cam.f,
-      y:cam.cy+((cam.h-Y)/fwd+fwd/(2*EARTH_R))*cam.f,
-      d:fwd
-    };
-  }
-  // screen y of the sea surface at distance d (straight ahead)
-  seaY(cam,d){return cam.cy+(cam.h/d+d/(2*EARTH_R))*cam.f;}
-
+class CanvasViewDeckGun extends CanvasViewCore {
   ownshipDeckPoint(sub,forwardM,sideM,zM=1.35){
     const h=degToRad(sub.heading),fx=Math.sin(h),fy=-Math.cos(h),sx=Math.cos(h),sy=Math.sin(h);
     return{xNm:sub.position.xNm+(fx*forwardM+sx*sideM)/NM_M,
@@ -45,17 +21,27 @@ class CanvasViewDeckGun extends CanvasViewTactical {
 
      It is still cheap Canvas2D vector geometry, but perspective is now the
      same operation at 0°, 90°, 180° and every bearing between. */
-  ownshipSurfaceSections(){
+  ownshipVisualModelKey(state){
+    const p=typeof getSubmarineProfile==='function'?getSubmarineProfile(state?.playerSub?.profileId):null;
+    return p?.visualModelKey||'GATO_FLEET_BOAT';
+  }
+  ownshipSurfaceSections(state=null){
+    if(this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941')return[
+      {f:-33.2,w:.12,z:.50},{f:-29,w:1.35,z:.67},{f:-23,w:2.35,z:.84},{f:-15,w:2.75,z:1.00},
+      {f:-7,w:2.92,z:1.12},{f:0,w:3.02,z:1.18},{f:8,w:2.96,z:1.12},{f:16,w:2.72,z:.98},
+      {f:24,w:2.18,z:.80},{f:30,w:1.12,z:.62},{f:33.8,w:.10,z:.48}
+    ];
     return[
       {f:-47,w:.18,z:.68},{f:-41,w:2.35,z:.96},{f:-32,w:3.15,z:1.20},{f:-22,w:3.55,z:1.43},
       {f:-12,w:3.82,z:1.67},{f:-5,w:3.90,z:1.82},{f:4,w:3.92,z:1.88},{f:11,w:4.00,z:1.73},
       {f:22,w:3.72,z:1.47},{f:35,w:3.05,z:1.18},{f:48,w:1.58,z:.90},{f:55,w:.16,z:.67}
     ];
   }
+  ownshipDeckGunForwardM(state){return this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941'?8.5:12.0;}
   ownshipCameraPose(cam,state,opts={}){
     // Fairwater/bridge is close to amidships. The gun sight lives on the
     // forward gun mount, not at the centre of the submarine.
-    const fwd=opts.gun?12.0:0.0,side=0;
+    const fwd=opts.gun?this.ownshipDeckGunForwardM(state):(this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941'?-2.0:0.0),side=0;
     cam.ownshipCameraFwdM=fwd;cam.ownshipCameraSideM=side;
     return{fwd,side};
   }
@@ -108,7 +94,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     return[A,B];
   }
   ownshipSurfaceMesh(cam,state,opts={}){
-    const sub=state.playerSub,secs=this.ownshipSurfaceSections(),faces=[],near=this.ownshipNearPlane(cam,state,opts);
+    const sub=state.playerSub,secs=this.ownshipSurfaceSections(state),faces=[],near=this.ownshipNearPlane(cam,state,opts);
     this.ownshipCameraPose(cam,state,opts);
     const V=(s,side,z)=>this.ownshipCamVertex(cam,sub,s.f,side*s.w,z===undefined?s.z:z,opts);
     const add=(kind,poly)=>{
@@ -129,7 +115,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
   }
 
   drawOwnshipSurfaceDeck3D(ctx,cam,state,opts={}){
-    const sub=state.playerSub,k=this.k,near=this.ownshipNearPlane(cam,state,opts);
+    const sub=state.playerSub,k=this.k,near=this.ownshipNearPlane(cam,state,opts),viic=this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941';
     this.ownshipCameraPose(cam,state,opts);
     const faces=this.ownshipSurfaceMesh(cam,state,opts);
     for(const face of faces){
@@ -138,7 +124,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       ctx.strokeStyle='rgba(118,137,128,.48)';ctx.lineWidth=Math.max(.65,.8*k);ctx.stroke();
     }
 
-    const secs=this.ownshipSurfaceSections();
+    const secs=this.ownshipSurfaceSections(state);
     const shapeAt=fwd=>{
       if(fwd<=secs[0].f)return{w:secs[0].w,z:secs[0].z};if(fwd>=secs.at(-1).f)return{w:secs.at(-1).w,z:secs.at(-1).z};
       for(let i=0;i<secs.length-1;i++){const a=secs[i],b=secs[i+1];if(fwd>=a.f&&fwd<=b.f){const u=(fwd-a.f)/(b.f-a.f);return{w:lerp(a.w,b.w,u),z:lerp(a.z,b.z,u)};}}return{w:3,z:1};
@@ -172,31 +158,31 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     lineAlong(-.99,.38,'rgba(177,190,183,.65)',.9);lineAlong(.99,.38,'rgba(177,190,183,.65)',.9);
     lineAlong(-.99,.22,'rgba(156,171,163,.46)',.7);lineAlong(.99,.22,'rgba(156,171,163,.46)',.7);
 
-    const seamF=opts.gun?[22,29,36,43,49]:[12,18,25,32,39,46,51];
+    const seamF=viic?(opts.gun?[12,17,22,27,31]:[7,12,17,22,27,31]):(opts.gun?[22,29,36,43,49]:[12,18,25,32,39,46,51]);
     for(const fwd of seamF){const sh=shapeAt(fwd);seg([fwd,-sh.w*.72,sh.z+.11],[fwd,sh.w*.72,sh.z+.11],'rgba(166,179,171,.27)',.65);}
 
-    const posts=opts.gun?[20,27,34,41,48]:[12,18,25,32,39,46,51];
+    const posts=viic?(opts.gun?[11,16,21,26,30]:[7,12,17,22,27,31]):(opts.gun?[20,27,34,41,48]:[12,18,25,32,39,46,51]);
     for(const fwd of posts){const sh=shapeAt(fwd);for(const side of [-1,1]){const y=side*sh.w;seg([fwd,y,sh.z+.03],[fwd,y,sh.z+.39],'rgba(177,190,183,.65)',.82);}}
 
     // Deck fittings: actual projected geometry, not screen-space decoration.
-    for(const fwd of opts.gun?[22,34,44]:[15,26,38,47]){
+    for(const fwd of (viic?(opts.gun?[13,22,29]:[8,16,24,30]):(opts.gun?[22,34,44]:[15,26,38,47]))){
       const sh=shapeAt(fwd),q=this.ownshipCamVertex(cam,sub,fwd,0,sh.z+.14,opts);if(q.f<near)continue;const p=this.projectOwnshipLocal(cam,q,near);if(!p)continue;
       const rr=clamp(cam.f/Math.max(q.f,25)*.10,2.1*k,6.5*k);ctx.fillStyle='rgba(10,16,16,.86)';ctx.beginPath();ctx.ellipse(p.x,p.y,rr*1.5,rr*.70,0,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(176,188,181,.64)';ctx.lineWidth=Math.max(.7,.85*k);ctx.stroke();
     }
-    deckRect(opts.gun?31:27,0,3.0,1.28,.015,'rgba(21,28,27,.88)','rgba(157,171,163,.47)');
-    for(const fwd of opts.gun?[39,42]:[34,36.2]){const sh=shapeAt(fwd);for(let n=-2;n<=2;n++)seg([fwd-1.25,n*.20,sh.z+.12],[fwd+1.25,n*.20,sh.z+.12],'rgba(8,14,14,.68)',.72);}
+    deckRect(viic?(opts.gun?21:18):(opts.gun?31:27),0,viic?2.4:3.0,viic?1.05:1.28,.015,'rgba(21,28,27,.88)','rgba(157,171,163,.47)');
+    for(const fwd of (viic?(opts.gun?[26,28]:[24,26]):(opts.gun?[39,42]:[34,36.2]))){const sh=shapeAt(fwd);for(let n=-2;n<=2;n++)seg([fwd-1.25,n*.20,sh.z+.12],[fwd+1.25,n*.20,sh.z+.12],'rgba(8,14,14,.68)',.72);}
 
     // The early-war 3-inch mount sits on the forward deck close to the
     // fairwater rather than out near the bow. This makes it readable from the
     // bridge while keeping the bow itself clean and recognisably submarine-like.
     if(opts.bridge){
-      const fwd=12.0,sh=shapeAt(fwd),z=sh.z;
-      seg([fwd,0,z+.10],[fwd,0,z+.92],'rgba(137,151,144,.96)',3.0);
-      poly([[fwd-.30,-.66,z+.70],[fwd-.30,.66,z+.70],[fwd-.30,.56,z+1.35],[fwd-.30,-.56,z+1.35]],'rgba(54,64,60,.98)','rgba(185,197,190,.78)',1.05);
-      seg([fwd-.45,-.54,z+.18],[fwd-.22,-.43,z+.86],'rgba(145,159,151,.72)',1.45);
-      seg([fwd-.45,.54,z+.18],[fwd-.22,.43,z+.86],'rgba(145,159,151,.72)',1.45);
-      seg([fwd-.05,0,z+1.04],[fwd+5.3,0,z+1.38],'rgba(190,201,194,.96)',2.6);
-      seg([fwd+5.3,0,z+1.38],[fwd+5.72,0,z+1.40],'rgba(62,72,68,.98)',3.5);
+      const fwd=this.ownshipDeckGunForwardM(state),sh=shapeAt(fwd),z=sh.z,compact=viic?.86:1;
+      seg([fwd,0,z+.10],[fwd,0,z+.88*compact],'rgba(137,151,144,.96)',2.7);
+      poly([[fwd-.28,-.62*compact,z+.65],[fwd-.28,.62*compact,z+.65],[fwd-.28,.52*compact,z+1.25*compact],[fwd-.28,-.52*compact,z+1.25*compact]],'rgba(54,64,60,.98)','rgba(185,197,190,.78)',1.0);
+      seg([fwd-.40,-.50*compact,z+.18],[fwd-.20,-.40*compact,z+.82*compact],'rgba(145,159,151,.72)',1.35);
+      seg([fwd-.40,.50*compact,z+.18],[fwd-.20,.40*compact,z+.82*compact],'rgba(145,159,151,.72)',1.35);
+      const barrel=viic?4.4:5.3;seg([fwd-.04,0,z+.98*compact],[fwd+barrel,0,z+1.28*compact],'rgba(190,201,194,.96)',viic?2.3:2.6);
+      seg([fwd+barrel,0,z+1.28*compact],[fwd+barrel+.38,0,z+1.30*compact],'rgba(62,72,68,.98)',3.2);
     }
     return faces.length;
   }
@@ -208,6 +194,8 @@ class CanvasViewDeckGun extends CanvasViewTactical {
      Keep this renderer cheap: a handful of projected polygons per visible
      aircraft, no textures, no per-pixel work and no new animation loop. */
   aircraftVisualProfile(a){
+    const profile=typeof getAircraftProfile==='function'?getAircraftProfile(a?.aircraftProfileId):null;
+    if(profile)return{key:profile.id,span:profile.spanM,len:profile.lengthM,body:profile.engines>=4?1.85:profile.kind==='FLYING_BOAT'?1.55:.78,tail:profile.lengthM*.42,engines:profile.engines,wingY:profile.kind==='FLYING_BOAT'?.04:.07,float:profile.kind==='FLYING_BOAT'};
     const name=String(a?.name||'').toUpperCase(),kind=String(a?.kind||'').toUpperCase();
     if(name.includes('PBY')||name.includes('CATALINA'))return{key:'PBY',span:31.7,len:19.5,body:1.55,tail:8.8,engines:2,wingY:.05,float:false};
     if(name.includes('TYPE 97')||name.includes('H6K'))return{key:'H6K',span:40.0,len:25.6,body:2.0,tail:11.2,engines:4,wingY:.01,float:true};
@@ -250,7 +238,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       const s2=side*cb-u2*sb,u3=side*sb+u2*cb;
       return{E:E0+fx*f2+rx*s2,N:N0+fy*f2+ry*s2,Y:alt+u3};
     };
-    const project=q=>{const p=this.proj(cam,q.E,q.N,q.Y);return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?p:null;};
+    const project=q=>{const p=projectWorldPoint(cam,q.E,q.N,q.Y);return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?p:null;};
     const friendly=a.side==='FRIENDLY',attack=!friendly&&(a.state==='ATTACKING'||a.state==='STRAFING');
     const haze=clamp(1-rng/Math.max(1,vis),.24,1),night=clamp(1-dl,0,1);
     const base=friendly?[39,68,54]:attack?[53,45,35]:[45,52,51];
@@ -311,24 +299,24 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     for(const a of state.world.aircraft||[]){if(a.shotDown||!a.seenBySub||!a.position)continue;this.drawAircraftPseudo3D(ctx,cam,state,a,dl,t,opts);}
   }
 
-  drawDeckGun(ctx,w,h,state){
+  drawDeckGun(ctx,w,h,state,layout){
     const sub=state.playerSub,G=state.weapons.deckGun,env=state.world.environment,t=state.time.elapsedSeconds;
     const bearing=normDeg(sub.heading+(G?.trainDeg||0));
     const fov=this.portrait?62:56,cx=w/2,cy=this.portrait?h*0.46:h*0.49,r=Math.max(w,h)*0.72;
-    const cam=this.setupCam(state,fov,cx,cy,r,{heightM:5.6,bearingDeg:bearing,viewW:w,viewH:h,kind:'GUN'});
+    const cam=setupViewCamera(state,fov,cx,cy,r,{heightM:5.6,bearingDeg:bearing,viewW:w,viewH:h,kind:'GUN'});
     // The gun camera physically stands at the forward mount. setupCam's
     // generic world camera is at the submarine origin; with the gun trained
     // abeam that made a correctly simulated shell appear to emerge from the
     // boat's old straight-ahead axis. Move the world camera to the same mount
     // used by the ownship mesh so muzzle, flash and tracer share one origin.
-    const hr=degToRad(sub.heading),mountForwardM=12.0;
+    const hr=degToRad(sub.heading),mountForwardM=this.ownshipDeckGunForwardM(state);
     cam.E=(sub.position.xNm+Math.sin(hr)*mountForwardM/NM_M)*NM_M;
     cam.N=-(sub.position.yNm-Math.cos(hr)*mountForwardM/NM_M)*NM_M;
     cam.dip=Math.sqrt(2*cam.h/EARTH_R);cam.horizonY=cy+cam.f*cam.dip;cam.dHor=Math.sqrt(2*EARTH_R*cam.h);
     this.cam=cam;this.gunCam=cam;
     ctx.fillStyle='#02070a';ctx.fillRect(0,0,w,h);
     this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);
-    this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
+    this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t,env);
     this.drawTerrain3D(ctx,cam,state,env.daylight);
     this.drawBattleAtmosphereBack?.(ctx,cam,state,env.daylight,t);
     // Same world-space aircraft meshes as BRIDGE. GUN's different FOV changes
@@ -387,7 +375,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
     // On touch portrait the station selector owns the top-right and can cover a
     // fixed top-left panel once the viewport gets narrow. Use measured DOM safe
     // geometry from TouchCtrl and push the gun card below the selector.
-    const touchSafe=(typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch')?this.touchOverlaySafe:null;
+    const touchSafe=layout.shell==='touch'?this.touchOverlaySafe:null;
     const hudY=Math.max(8*k,(touchSafe?.top||0)+3*k),hudW=Math.min(270*k,w-16*k);
     ctx.fillStyle='rgba(3,13,16,.78)';this.rr(ctx,8*k,hudY,hudW,72*k,6*k);ctx.fill();
     const gun=typeof deckGunSpecForState==='function'?deckGunSpecForState(state):{shortLabel:'3-IN/50',maxRangeNm:globalThis.DECK_GUN_MAX_RANGE_NM||7.2};
@@ -431,7 +419,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
 
   drawGunSplashOne(ctx,cam,state,sp){
     const k=this.k,env=state.world.environment||{},sea=clamp(env.seaState||0,0,1),rain=clamp(env.precipitation||0,0,1);
-    const p=this.proj(cam,sp.position.xNm*NM_M,-sp.position.yNm*NM_M,0);if(!p)return;
+    const p=projectWorldPoint(cam,sp.position.xNm*NM_M,-sp.position.yNm*NM_M,0);if(!p)return;
     const a=clamp(1-sp.age/4,0,1)*(1-rain*.38),rise=Math.sin(clamp(sp.age/1.4,0,1)*Math.PI)*22*k*(1+sea*.42);
     const rangeM=state.playerSub?.position?distNm(state.playerSub.position,sp.position)*NM_M:p.d,beyondHorizon=rangeM>(cam.dHor||Infinity);
     const canClip=beyondHorizon&&typeof ctx.save==='function'&&typeof ctx.clip==='function';
@@ -457,7 +445,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
   drawGunProjectiles3D(ctx,cam,state,includeSplashes=true){
     const G=state.weapons.deckGun,k=this.k,sub=state.playerSub;
     for(const sh of G?.shells||[]){
-      const p=this.proj(cam,sh.xNm*NM_M,-sh.yNm*NM_M,sh.zM);if(!p)continue;
+      const p=projectWorldPoint(cam,sh.xNm*NM_M,-sh.yNm*NM_M,sh.zM);if(!p)continue;
       const rangeNm=distNm(sub.position,{xNm:sh.xNm,yNm:sh.yNm});
       // A 3-inch projectile is not a glowing tennis ball five miles away.
       // Keep a short readable tracer near the muzzle, then let the player watch
@@ -467,7 +455,7 @@ class CanvasViewDeckGun extends CanvasViewTactical {
       const distanceFade=clamp((2.15-rangeNm)/.75,0,1),a=clamp(1-sh.age/10,.25,1)*distanceFade;
       if(a<=.02)continue;
       ctx.fillStyle=`rgba(255,235,155,${a})`;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.75,1.55*k),0,Math.PI*2);ctx.fill();
-      if(sh.prev&&rangeNm<1.75){const q=this.proj(cam,sh.prev.xNm*NM_M,-sh.prev.yNm*NM_M,sh.prev.zM);if(q){ctx.strokeStyle=`rgba(255,210,120,${a*.34})`;ctx.lineWidth=Math.max(.7,1.05*k);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(p.x,p.y);ctx.stroke();}}
+      if(sh.prev&&rangeNm<1.75){const q=projectWorldPoint(cam,sh.prev.xNm*NM_M,-sh.prev.yNm*NM_M,sh.prev.zM);if(q){ctx.strokeStyle=`rgba(255,210,120,${a*.34})`;ctx.lineWidth=Math.max(.7,1.05*k);ctx.beginPath();ctx.moveTo(q.x,q.y);ctx.lineTo(p.x,p.y);ctx.stroke();}}
     }
     // Backward-compatible helper contract for renderer tests/tools that call
     // this method directly; drawDeckGun passes false and depth-sorts splashes.
@@ -476,3 +464,5 @@ class CanvasViewDeckGun extends CanvasViewTactical {
 
 
 }
+
+Object.assign(CanvasViewDeckGun.prototype,TacticalStation);
