@@ -4181,55 +4181,61 @@
     },
     {
       "level": 7,
-      "class": "CanvasViewSound",
-      "extends": "CanvasViewDeckGun",
+      "class": "SoundStation",
+      "kind": "object",
+      "extends": null,
       "file": "js/rendering/sound-room.js",
-      "line": 4,
-      "end": 75,
+      "line": 2,
+      "end": 73,
       "methods": [
         {
           "name": "drawSound",
-          "line": 5,
-          "end": 9,
+          "line": 3,
+          "end": 7,
           "calls": [
             {
               "method": "drawSurfaceRadarPlot",
               "kind": "direct",
-              "line": 8
+              "line": 6
             },
             {
               "method": "drawHydrophone",
               "kind": "direct",
-              "line": 8
+              "line": 6
             }
           ],
           "fields": [
             {
               "path": "drawSurfaceRadarPlot",
               "access": "read",
-              "line": 8
+              "line": 6
             },
             {
               "path": "drawHydrophone",
               "access": "read",
-              "line": 8
+              "line": 6
             }
           ]
         },
         {
           "name": "drawHydrophone",
-          "line": 11,
-          "end": 53,
+          "line": 9,
+          "end": 51,
           "calls": [
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 18
+              "line": 16
             },
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 47
+              "line": 45
+            },
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 46
             },
             {
               "method": "fnt",
@@ -4239,73 +4245,73 @@
             {
               "method": "fnt",
               "kind": "direct",
-              "line": 50
-            },
-            {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 51
+              "line": 49
             },
             {
               "object": "this.canvas",
               "method": "getBoundingClientRect",
               "kind": "optional-object",
               "unresolved": true,
-              "line": 41
+              "line": 39
             },
             {
               "object": "ownerDocument",
               "method": "getElementById",
               "kind": "optional-object",
               "unresolved": true,
-              "line": 41
+              "line": 39
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 12
+              "line": 10
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 12
+              "line": 10
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 13
+              "line": 11
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 13
+              "line": 11
             },
             {
               "path": "soundGeom",
               "access": "write",
-              "line": 14
+              "line": 12
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 18
+              "line": 16
             },
             {
               "path": "canvas",
               "access": "read",
-              "line": 41
+              "line": 39
             },
             {
               "path": "canvas",
               "access": "read",
-              "line": 41
+              "line": 39
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 47
+              "line": 45
+            },
+            {
+              "path": "fnt",
+              "access": "read",
+              "line": 46
             },
             {
               "path": "fnt",
@@ -4315,20 +4321,25 @@
             {
               "path": "fnt",
               "access": "read",
-              "line": 50
-            },
-            {
-              "path": "fnt",
-              "access": "read",
-              "line": 51
+              "line": 49
             }
           ]
         },
         {
           "name": "drawSurfaceRadarPlot",
-          "line": 55,
-          "end": 74,
+          "line": 53,
+          "end": 72,
           "calls": [
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 68
+            },
+            {
+              "method": "fnt",
+              "kind": "direct",
+              "line": 69
+            },
             {
               "method": "fnt",
               "kind": "direct",
@@ -4338,43 +4349,43 @@
               "method": "fnt",
               "kind": "direct",
               "line": 71
-            },
-            {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 72
-            },
-            {
-              "method": "fnt",
-              "kind": "direct",
-              "line": 73
             }
           ],
           "fields": [
             {
               "path": "k",
               "access": "read",
-              "line": 57
+              "line": 55
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 57
+              "line": 55
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 57
+              "line": 55
             },
             {
               "path": "portrait",
               "access": "read",
-              "line": 57
+              "line": 55
             },
             {
               "path": "fnt",
               "access": "read",
-              "line": 70
+              "line": 68
+            },
+            {
+              "path": "fnt",
+              "access": "read",
+              "line": 68
+            },
+            {
+              "path": "fnt",
+              "access": "read",
+              "line": 69
             },
             {
               "path": "fnt",
@@ -4385,16 +4396,6 @@
               "path": "fnt",
               "access": "read",
               "line": 71
-            },
-            {
-              "path": "fnt",
-              "access": "read",
-              "line": 72
-            },
-            {
-              "path": "fnt",
-              "access": "read",
-              "line": 73
             }
           ]
         }
@@ -4403,7 +4404,7 @@
     {
       "level": 8,
       "class": "CanvasView",
-      "extends": "CanvasViewSound",
+      "extends": "CanvasViewDeckGun",
       "file": "js/rendering/map.js",
       "line": 1,
       "end": 1353,

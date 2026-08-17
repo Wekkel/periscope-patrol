@@ -1,4 +1,4 @@
-class CanvasView extends CanvasViewSound {
+class CanvasView extends CanvasViewDeckGun {
   drawMap(ctx,w,h,state,layout){
     const sub=state.playerSub, map=state.map, k=this.k;
     this._mapViewport={w,h};

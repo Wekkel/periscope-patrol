@@ -1,12 +1,10 @@
-// ═══════════════════════════════════════════════════ SOUND ROOM + SURFACE RADAR
-// One lightweight instrument canvas.  PASSIVE is the default; RADAR is simply
-// another page on the same station, not a second station or render engine.
-class CanvasViewSound extends CanvasViewDeckGun {
+/* Sound station rendering and hydrophone/radar presentation. */
+const SoundStation={
   drawSound(ctx,w,h,state){
     const radar=state.tactical.soundDisplay==='RADAR';
     ctx.fillStyle='#02090b';ctx.fillRect(0,0,w,h);
     if(radar)this.drawSurfaceRadarPlot(ctx,w,h,state);else this.drawHydrophone(ctx,w,h,state);
-  }
+  },
 
   drawHydrophone(ctx,w,h,state){
     const k=this.k,T=state.tactical,S=state.world.sound||{},sig=soundSignalAt(state,T.soundBearing),cx=w/2,cy=this.portrait?h*.43:h*.49,ui=getPlayerStationPresentation(state),sensorUi=getPlayerSensorPresentation(state);
@@ -50,7 +48,7 @@ class CanvasViewSound extends CanvasViewDeckGun {
     ctx.fillStyle=sig.strength>.10?'#f5c65c':'#71988c';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(line,cx,Math.min(h-20*k,my+31*k));
     if(state.playerSub.propulsion.speedKnots>7){ctx.fillStyle='rgba(239,106,88,.86)';ctx.font=this.fnt(8.5,true);ctx.fillText('OWN SCREW NOISE MASKING CONTACTS — SLOW OR STOP TO LISTEN',cx,Math.min(h-7*k,my+47*k));}
     ctx.textAlign='left';
-  }
+  },
 
   drawSurfaceRadarPlot(ctx,w,h,state){
     const sensorUi=getPlayerSensorPresentation(state),radarUi=sensorUi.surfaceSearchRadar||{};
@@ -72,4 +70,6 @@ class CanvasViewSound extends CanvasViewDeckGun {
     else if(!usable){ctx.fillStyle='#f5c65c';ctx.font=this.fnt(11,true);ctx.textAlign='center';ctx.fillText(`${radarUi.mastLabel||'RADAR MAST'} BELOW WATER — usable to ${playerDepthDisplay(state,mastDepth,0)}`,cx,cy);ctx.textAlign='left';}
     ctx.fillStyle='rgba(166,243,184,.74)';ctx.font=this.fnt(7.5);ctx.textAlign='center';for(let n=1;n<=4;n++)ctx.fillText(`${(range*n/4).toFixed(range<7?1:0)}`,cx+3*k,cy-r*n/4+10*k);ctx.textAlign='left';
   }
-}
+};
+
+Object.assign(CanvasViewDeckGun.prototype,SoundStation);
