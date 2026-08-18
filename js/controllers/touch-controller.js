@@ -688,16 +688,10 @@ class TouchCtrl{
     if(running)this.transitRequestPending=false;
     cls('transitBar','on',running);
     for(const id of ['mTransit30','mTransit2h','mTransit8h','mTransitOpen']){const el=g(id);if(el)el.disabled=running||!!this.transitRequestPending;}
-    if(running){
-      const done=T.elapsedSeconds-(T.transitFrom||0);
-      const left=T.transitUntil-T.elapsedSeconds;
-      set('transitTxt',isFinite(left)
-        ? `⏩ TRANSIT — start ${DayNightCycle.getTimeString(T.transitFrom||0)} · ${fmtTime(T.transitUntil-(T.transitFrom||0))} planned · ${fmtTime(done)} run · ${fmtTime(left)} left · ends ${DayNightCycle.getTimeString(T.transitUntil)}`
-        : `⏩ TRANSIT — ${fmtTime(done)} run · until something happens`);
-    }
+    if(running)set('transitTxt',viewModel.time.transitText);
 
     // top bar
-    {const env=state.world.environment||{},dl=Number(env.daylight)||0,icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=Number(env.visibilityNm)||0;set('mClock',`${icon} ${DayNightCycle.getTimeString(state.time.elapsedSeconds)}`);set('mConditions',`${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis>=8?'GOOD':vis>=4?'FAIR':'POOR'} VIS`);}
+    set('mClock',viewModel.time.touchClockText);set('mConditions',viewModel.time.touchConditionsText);
     set('mMode',sub.mode.replace(/_/g,' '));
     const tsel=g('tBtnTime');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){
@@ -726,27 +720,15 @@ class TouchCtrl{
       ? `SILENT · ${viewModel.navigation.quick.actualRpm}rpm`
       : (viewModel.navigation.quick.orderedRpm===viewModel.navigation.quick.actualRpm?'':`→${viewModel.navigation.quick.orderedRpm}`));
     if(this.pad){
-      const pc=p.characteristics||{},maxKn=p.engineMode==='DIESEL'?(pc.maxSurfaceSpeedKn??18):(pc.maxSubmergedSpeedKn??8.5),
-        maxRpm=pc.normalizedMaxRpm??450,response=pc.rpmResponse??170,
-        kn=maxKn*(1-Math.exp(-clamp(p.orderedRpm,0,maxRpm)/response));
-      set('opDepthVal',playerDepthDisplay(state,sub.orderedDepthFeet,0));
-      set('opSpeedVal',`${p.orderedRpm.toFixed(0)} rpm`);
+      set('opDepthVal',viewModel.navigation.operation.depthValue);
+      set('opSpeedVal',viewModel.navigation.operation.speedRpm);
       set('opNow',this.pad==='depth'
-        ? `now ${playerDepthDisplay(state,sub.depthFeet,0)} · ${sub.verticalSpeedFps>0.05?'going down':sub.verticalSpeedFps<-0.05?'coming up':'steady'}`
-        : `now ${p.speedKnots.toFixed(1)} kn · ${p.engineMode.toLowerCase()}`);
-      const sea=sub.seabedFeet??3000;
-      set('opDepthNote',sub.bottomed
-        ? `Lying on the bottom in ${playerDepthDisplay(state,sea,0)} of ${(sub.bottomType||'').toLowerCase()}. Order revs or a shallower depth to come off her.`
-        : sub.cannotHoldDepth
-        ? 'SHE WILL NOT ANSWER THE PLANES — blow main ballast, pumps on, get way on her.'
-        : (state.world.aaManned||state.weapons.deckGun?.manned)
-        ? `${state.weapons.deckGun?.manned?'Deck-gun':'AA'} crew topside — a dive order will clear the deck automatically and wait briefly for the hatch.`
-        : sea<3000
-        ? `Fathometer ${playerDepthDisplay(state,sea,0)}, ${(sub.bottomType||'').toLowerCase()} — safe to ${playerDepthDisplay(state,Math.max(0,sea-25),0)}. Crush depth ${playerDepthDisplay(state,sub.damage.crushDepthFeet,0)}.`
-        : `Deep water. Periscope depth ${playerDepthDisplay(state,dui.scopeFeet||55,0)}. Crush depth ${playerDepthDisplay(state,sub.damage.crushDepthFeet,0)}.`);
+        ? viewModel.navigation.operation.nowDepth
+        : viewModel.navigation.operation.nowSpeed);
+      set('opDepthNote',viewModel.navigation.operation.depthNote);
       const bb=document.getElementById('opBottom');
       if(bb) bb.textContent=sub.bottomed?'⚓ Come Off the Bottom':'⚓ Lie on the Bottom';
-      set('opSpeedNote',`about ${kn.toFixed(1)} kn ordered · ${p.engineMode==='DIESEL'?'diesels — charging fastest at low revs':'battery '+p.battery.toFixed(0)+'% — flank drains it fast'}`);
+      set('opSpeedNote',viewModel.navigation.operation.orderedSpeedNote);
     }
     {const maxRpm=p.characteristics?.normalizedMaxRpm??450;document.querySelectorAll('#mRpm,#rpmInput').forEach(el=>el.max=String(maxRpm));for(const root of ['#paneHelm','#opSpeed']){const bs=[...document.querySelectorAll(`${root} [data-rpm]`)];if(bs.length){const flank=bs.reduce((a,b)=>(+b.dataset.rpm>+a.dataset.rpm?b:a));if(/flank/i.test(flank.textContent||''))flank.dataset.rpm=String(maxRpm);}}}
     qv('qHdg',viewModel.navigation.quick.heading);
@@ -838,15 +820,12 @@ class TouchCtrl{
       if(el&&Math.abs(+el.value-v)>.049)el.value=v.toFixed(1);
     }
     set('gunElevReadout',`${clamp(state.weapons.deckGun?.elevationDeg??0,0,22).toFixed(1)}°`);
-    set('hdgOrdered',fmtDeg(sub.orderedHeading));
-    set('rpmOrdered',`${p.orderedRpm.toFixed(0)} rpm`);
-    set('dptOrdered',playerDepthDisplay(state,sub.orderedDepthFeet,0));
+    set('hdgOrdered',viewModel.navigation.orders.orderedHeading);
+    set('rpmOrdered',`${viewModel.navigation.orders.orderedRpm} rpm`);
+    set('dptOrdered',viewModel.navigation.orders.orderedDepth);
     const auto=state.map.autoFollowPlot&&state.map.plottedCourse.length>0;
     cls('mAutoPilot','on',auto);
-    const wp=state.map.plottedCourse[0];
-    set('navNote',wp
-      ? `${state.map.plottedCourse.length} waypoint(s) · WP1 ${distNm(sub.position,wp).toFixed(1)}nm on ${fmtDeg(bearingBetween(sub.position,wp))} · ${auto?'autopilot steering':'autopilot off — manual helm'}`
-      : 'No waypoints. Tap open water on the map to plot one, tap a waypoint to delete it.');
+    set('navNote',viewModel.navigation.autopilotText);
     cls('mSilent','on',sub.stealth.silentRunning);
     cls('mPumps','on',sub.damage.pumpActive);
     const rp=sub.damage.repairPriority||'FLOODING';
@@ -857,7 +836,7 @@ class TouchCtrl{
       set('mAutoCrewStatus',`AUTO CREW${airCrew} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
       const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);
       set('mDcStatus',`PRIORITY ${repairPriorityLabel(rp)} · ${dc?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · DRIVE BANK OFFLINE':''}`);}
-    set('rpmNote',`${p.engineMode} · ${p.speedKnots.toFixed(1)} kn · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);
+    set('rpmNote',`${viewModel.navigation.orders.engine} · ${viewModel.navigation.quick.speed} · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);
 
     // ── panes (only refresh the visible one) ──
     if(this.pane==='paneAttack'||force){
@@ -884,12 +863,12 @@ class TouchCtrl{
 
     if(this.pane==='paneStats'){const R2=state.world.radio;if(R2)R2.unread=0;}
     if(this.pane==='paneStats'||force){
-      const ch=(a,b)=>Math.abs(a-b)>0.5;
+      const ch=(a,b)=>String(a)!==String(b);
       const row=(l,c,o,f)=>`<span class="lbl">${l}</span><span class="val ${ch(c,o)?'changed':''}">${f(c)} → ${f(o)}</span>`;
       html('mOrdersGrid',
-        row(ord.heading||'Heading',sub.heading,sub.orderedHeading,fmtDeg)+
-        row(ord.depth||'Depth',sub.depthFeet,sub.orderedDepthFeet,v=>playerDepthDisplay(state,v,0))+
-        row(ord.power||'RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
+        row(ord.heading||'Heading',viewModel.navigation.orders.heading,viewModel.navigation.orders.orderedHeading,v=>v)+
+        row(ord.depth||'Depth',viewModel.navigation.orders.depth,viewModel.navigation.orders.orderedDepth,v=>v)+
+        row(ord.power||'RPM',viewModel.navigation.orders.actualRpm,viewModel.navigation.orders.orderedRpm,v=>v)+
         `<span class="lbl">${ord.speed||'Speed'}</span><span class="val">${viewModel.vitals.speed.value}</span>`+
         `<span class="lbl">${ord.engine||'Engine'}</span><span class="val">${p.engineMode}</span>`+
         `<span class="lbl">${ord.ballast||'Ballast'}</span><span class="val">${sub.ballastState}</span>`+

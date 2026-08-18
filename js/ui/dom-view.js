@@ -25,7 +25,7 @@ class DomView{
   _renderLegacy(state,viewModel){
     const sub=state.playerSub; const p=sub.propulsion; const tdc=state.tdc;
     const ui=getPlayerStationPresentation(state);this.applyPresentation(state,ui);
-    if(this.clock) this.clock.textContent=DayNightCycle.getTimeString(state.time.elapsedSeconds);
+    if(this.clock) this.clock.textContent=viewModel.time.desktopClockText;
     if(this.mode)  this.mode.textContent=sub.mode;
     if(this.station) this.station.textContent=state.tactical.activeStation;
     if(this.inputHint){
@@ -39,7 +39,7 @@ class DomView{
       };
       this.inputHint.textContent=hints[state.tactical.activeStation]||'';
     }
-    if(this.timescale) this.timescale.textContent=state.time.timeScale===0?'PAUSED':`${state.time.timeScale}x`;
+    if(this.timescale) this.timescale.textContent=viewModel.time.scaleText;
     const rpmInput=document.getElementById('rpmInput'),maxRpm=p.characteristics?.normalizedMaxRpm??450;if(rpmInput)rpmInput.max=String(maxRpm);
     const depthMax=Math.min(600,Math.max(300,Math.floor((sub.damage.crushDepthFeet||420)-10)));for(const id of ['depthInput','mDpt']){const el=document.getElementById(id);if(el)el.max=String(depthMax);}
     const tsel=document.getElementById('timeSelect');
@@ -49,7 +49,7 @@ class DomView{
     const torpSel=document.getElementById('torpTypeSelect');if(torpSel){const keys=torpedoSpecKeysForState(state),oldKeys=[...(torpSel.options||[])].map(o=>o.value);if(keys.join('|')!==oldKeys.join('|'))torpSel.innerHTML=keys.map(k=>`<option value="${k}">${torpedoOptionLabel(k)}</option>`).join('');for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
     if(this.hArea)  this.hArea.textContent=PATROL_AREAS[state.campaign.patrolArea]?.displayName||state.campaign.patrolArea;
     if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
-    {const env=state.world.environment||{},dl=Number(env.daylight)||0,icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=Number(env.visibilityNm)||0,quality=vis>=8?'GOOD VIS':vis>=4?'FAIR VIS':'POOR VIS',el=document.getElementById('hTimeConditions');if(el)el.textContent=`${icon} ${DayNightCycle.getTimeString(state.time.elapsedSeconds)} · ${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis.toFixed(1)} NM ${quality}`;}
+    {const el=document.getElementById('hTimeConditions');if(el)el.textContent=viewModel.time.desktopConditionsText;}
     const headingExact=document.getElementById('headingNumberInput'),rpmExact=document.getElementById('rpmNumberInput'),depthExact=document.getElementById('depthNumberInput');if(headingExact&&headingExact!==document.activeElement)headingExact.value=String(Math.round(sub.orderedHeading));if(rpmExact&&rpmExact!==document.activeElement)rpmExact.value=String(Math.round(p.orderedRpm));if(depthExact&&depthExact!==document.activeElement)depthExact.value=String(Math.round(sub.orderedDepthFeet));
     document.querySelectorAll('[data-scope-zoom]').forEach(b=>b.classList.toggle('on',Number(b.dataset.scopeZoom)===Number(state.tactical.periscopeZoom)));
     document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationBridge:'BRIDGE',stationSound:'SOUND',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
@@ -107,12 +107,12 @@ class DomView{
   renderOrders(sub,state,viewModel){
     if(!this.ordersGrid) return;
     const p=sub.propulsion; const tdc=state.tdc,ui=getPlayerStationPresentation(state),o=ui.orders||{};
-    const ch=(a,b)=>Math.abs(a-b)>0.5;
+    const ch=(a,b)=>String(a)!==String(b);
     const row=(l,c,o,f)=>`<span class="lbl">${l}</span><span class="val ${ch(c,o)?'changed':''}">${f(c)} → ${f(o)}</span>`;
     this.ordersGrid.innerHTML=
-      row(o.heading||'Heading',sub.heading,sub.orderedHeading,fmtDeg)+
-      row(o.depth||'Depth',sub.depthFeet,sub.orderedDepthFeet,v=>playerDepthDisplay(state,v,0))+
-      row(o.power||'RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
+      row(o.heading||'Heading',viewModel.navigation.orders.heading,viewModel.navigation.orders.orderedHeading,v=>v)+
+      row(o.depth||'Depth',viewModel.navigation.orders.depth,viewModel.navigation.orders.orderedDepth,v=>v)+
+      row(o.power||'RPM',viewModel.navigation.orders.actualRpm,viewModel.navigation.orders.orderedRpm,v=>v)+
       `<span class="lbl">${o.speed||'Speed'}</span><span class="val">${viewModel.vitals.speed.value}</span>`+
       `<span class="lbl">${o.engine||'Engine'}</span><span class="val">${p.engineMode}</span>`+
       `<span class="lbl">${o.ballast||'Ballast'}</span><span class="val">${sub.ballastState}</span>`+
