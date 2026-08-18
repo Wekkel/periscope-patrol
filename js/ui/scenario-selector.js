@@ -27,9 +27,9 @@ class ScenarioSelector{
     this.syncFooter();
     const career=SaveSystem.getCareer();
     const el=document.getElementById('scenCareerScore');
-    if(el)el.textContent=(career.totalScore||0).toLocaleString();
+    if(el)el.textContent=(career.totals?.score||0).toLocaleString();
     const meta=document.getElementById('scenCareerMeta');
-    if(meta)meta.textContent=`${career.totalShips||0} ships · ${(career.totalTonnage||0).toLocaleString()} tons · ${career.patrolHistory?.length||0} recorded patrols`;
+    if(meta)meta.textContent=`${career.totals?.shipsSunk||0} ships · ${(career.totals?.tonnageSunk||0).toLocaleString()} tons · ${career.totals?.patrols?.total||0} patrols`;
     document.getElementById('scenarioOverlay')?.classList.add('open');
     this.renderSaveSlots();this.renderCareer();
     this.game.dispatch({type:'PAUSE_FOR_MODAL'});
@@ -85,7 +85,7 @@ class ScenarioSelector{
        below activates without maintaining a second campaign implementation. */
     if(PP_BUILD.isDev)return{unlocked:true,label:'DEV OPEN',successes:3,required:3};
     if(index<=0)return{unlocked:true,label:'AVAILABLE',successes:3,required:3};
-    const previous=defs[index-1],successes=(career.patrolHistory||[]).filter(r=>r.campaignId===previous.id&&r.outcome==='COMPLETED').length,required=3;
+    const previous=defs[index-1],successes=career.progress?.campaigns?.[previous.id]?.completed||0,required=3;
     return{unlocked:successes>=required,label:successes>=required?'UNLOCKED':`${successes}/${required} successful patrols in ${previous.displayName}`,successes,required,previous};
   }
 
@@ -158,21 +158,15 @@ class ScenarioSelector{
 
   renderCareer(){
     const c=document.getElementById('careerHistory');if(!c)return;
-    const car=SaveSystem.getCareer(),hist=[...(car.patrolHistory||[])].reverse();
-    const badges=(car.commendations||[]).map(x=>`<span class="area-diff diff-med" style="margin:2px 5px 2px 0;">★ ${x.title}</span>`).join('');
-    const rows=hist.map(r=>{
-      const ev=(r.importantEvents||[]).map(e=>`<div class="log-entry">${e.date||''} · ${e.text}</div>`).join('');
-      const opt=(r.optionalObjectives||[]).length?` · optional ${(r.optionalObjectives||[]).map(o=>o.result||(o.done?'done':'not attempted')).join(', ')}`:'';
-      return `<div class="hist-card"><h3>Patrol #${r.patrolNumber} — ${r.area} · ${r.outcome}</h3><div style="font-size:10px;color:var(--alert);margin:2px 0 4px;">${r.missionName||String(r.missionType||'CONVOY_INTERDICTION').replaceAll('_',' ')}</div>
-        <div class="hist-date">${r.startDate||''} → ${r.endDate||''}</div>
-        <div class="hist-desc">${r.shipsSunk||0} sunk · ${(r.tonnage||0).toLocaleString()}t · ${r.shipsDamaged||0} damaged · hull ${Math.round(r.hullAtEnd??100)}%<br>
-        Torpedoes ${r.torpedoesFired||0} fired / ${r.torpedoHits||0} hits / ${r.torpedoDuds||0} duds · deck gun ${r.deckGunRounds||0} rounds / ${r.deckGunHits||0} hits · aircraft kills ${r.aircraftKills||0} / evaded ${r.aircraftEvaded||0}${opt}</div>
-        ${r.replayAvailable?`<button class="career-aar-btn" data-aar-id="${r.id}" style="width:auto;margin:8px 0 0;padding:6px 9px;font-size:9.5px;border-color:var(--alert);color:var(--alert);">AFTER ACTION REPORT</button>`:`<div style="margin-top:8px;color:var(--muted);font-size:9.5px;">REPLAY NO LONGER AVAILABLE</div>`}
-        ${ev?`<div style="margin-top:7px;font-size:10.5px;color:var(--muted);">${ev}</div>`:''}</div>`;
-    }).join('');
-    c.innerHTML=`<div class="hist-card"><h3>WAR RECORD</h3><div class="hist-desc">Score ${(car.totalScore||0).toLocaleString()} · ${(car.totalTonnage||0).toLocaleString()} tons · ${car.totalShips||0} ships</div><div style="margin-top:7px;">${badges||'<span style="color:var(--dim)">No commendations yet.</span>'}</div></div>`+
-      (rows||'<div class="hist-card"><div class="hist-desc">No completed or lost patrols recorded yet.</div></div>');
-    c.querySelectorAll?.('.career-aar-btn').forEach(b=>b.addEventListener('click',()=>{const r=(car.patrolHistory||[]).find(x=>x.id===b.dataset.aarId),replay=r&&SaveSystem.loadReplay?.(r.replayId);if(r&&replay&&globalThis.aarController?.open)globalThis.aarController.open({...r,replay},{completed:false});else if(r)PresentationBridge.toast(this.state||globalThis.game?.state).warn('Replay no longer available.');}));
+    const car=SaveSystem.getCareer(),t=car.totals||{},p=t.patrols||{},torp=t.torpedoes||{},gun=t.deckGun||{},fmt=n=>Number(n||0).toLocaleString(),pct=torp.fired?`${((torp.hits/torp.fired)*100).toFixed(1)}%`:'—',avg=p.total?`${(t.tonnageSunk/p.total).toFixed(0)} t`:'—';
+    const badges=(t.commendations||[]).map(x=>`<span class="area-diff diff-med" style="margin:2px 5px 2px 0;">★ ${x.title||x.id}${x.earnedCount>1?` ×${x.earnedCount}`:''}</span>`).join('');
+    const list=(title,obj)=>{const rows=Object.entries(obj||{});return `<section class="hist-card" style="max-height:180px;overflow:auto;"><h3>${title}</h3>${rows.length?rows.map(([id,v])=>`<div class="hist-desc" style="display:flex;justify-content:space-between;gap:8px;"><span>${id.replaceAll('_',' ')}</span><span>${v.played} played · ${v.completed} completed · ${v.failed} failed</span></div>`).join(''):'<div class="hist-desc">Nothing recorded yet.</div>'}</section>`;};
+    c.innerHTML=`<section class="hist-card"><h3>WAR RECORD</h3><div class="hist-desc">${p.total||0} patrols · ${p.completed||0} completed · ${p.failed||0} failed · ${p.boatLost||0} boats lost<br>Score ${fmt(t.score)} · highest patrol ${fmt(t.highestPatrolScore)}<br>${t.firstPatrolAt||'—'} → ${t.lastPatrolAt||'—'}</div></section>`+
+      `<section class="hist-card"><h3>WEAPONS &amp; COMBAT</h3><div class="hist-desc">${fmt(t.tonnageSunk)} tons sunk · ${t.shipsSunk||0} ships · average ${avg}<br>Torpedoes ${torp.fired||0} fired · ${torp.hits||0} hits · ${torp.misses||0} misses · ${torp.duds||0} duds · hit rate ${pct}<br>Deck gun ${gun.rounds||0} rounds · ${gun.hits||0} hits · aircraft shot down ${t.aircraftShotDown||0}</div></section>`+
+      `<section class="hist-card"><h3>SERVICE</h3><div class="hist-desc">${fmt(t.patrolDurationSeconds/3600)} hours at sea · ${fmt(t.distanceNm)} nm sailed<br>Ships by type: ${Object.entries(t.shipsSunkByType||{}).map(([id,n])=>`${id.replaceAll('_',' ')} ${n}`).join(' · ')||'—'}<br>${badges||'<span style="color:var(--dim)">No commendations yet.</span>'}</div></section>`+
+      list('CAMPAIGN PROGRESS',car.progress?.campaigns)+list('MISSION PROGRESS',Object.assign({},car.progress?.missionTypes,car.progress?.missionVariants))+
+      `<section class="hist-card"><h3>LAST PATROL REPLAY</h3><div class="hist-desc">${SaveSystem.loadReplay()?'The latest patrol replay is available.':'No replay available.'}</div>${SaveSystem.loadReplay()?'<button class="career-aar-btn" style="width:auto;margin-top:8px;padding:6px 9px;font-size:9.5px;border-color:var(--alert);color:var(--alert);">VIEW LAST PATROL REPLAY</button>':''}</section>`;
+    c.querySelectorAll?.('.career-aar-btn').forEach(b=>b.addEventListener('click',()=>{const envelope=SaveSystem.loadReplayEnvelope?.();if(envelope?.replay&&globalThis.aarController?.open)globalThis.aarController.open({...envelope.record,replay:envelope.replay},{completed:false});}));
   }
 
   renderSaveSlots(){
@@ -213,9 +207,9 @@ class ScenarioSelector{
       const text=await file.text(),result=await SaveSystem.importProfile(text);
       this.renderSaveSlots();this.renderCareer();
       const career=SaveSystem.getCareer(),score=document.getElementById('scenCareerScore'),meta=document.getElementById('scenCareerMeta');
-      if(score)score.textContent=(career.totalScore||0).toLocaleString();
-      if(meta)meta.textContent=`${career.totalShips||0} ships · ${(career.totalTonnage||0).toLocaleString()} tons · ${career.patrolHistory?.length||0} recorded patrols`;
-      PresentationBridge.toast(this.game.state).ok(`Profile imported — ${result.saves} save slot${result.saves===1?'':'s'}, ${result.patrols} patrol record${result.patrols===1?'':'s'}.`);
+      if(score)score.textContent=(career.totals?.score||0).toLocaleString();
+      if(meta)meta.textContent=`${career.totals?.shipsSunk||0} ships · ${(career.totals?.tonnageSunk||0).toLocaleString()} tons · ${career.totals?.patrols?.total||0} patrols`;
+      PresentationBridge.toast(this.game.state).ok(`Profile imported — ${result.saves} save slot${result.saves===1?'':'s'}, career totals restored.`);
       // Offer the imported current patrol immediately. While it is pending,
       // SaveSystem suppresses autosave writes so the device we are importing ON
       // cannot overwrite the transferred boat before the player makes a choice.

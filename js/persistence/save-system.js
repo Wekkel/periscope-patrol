@@ -1,9 +1,9 @@
 // ═══════════════════════════════════════════════════ SAVE / LOAD SYSTEM
 const SaveSystem={
-  KEY:PP_BUILD.storageKey('ss2_save_'), CAREER:PP_BUILD.storageKey('ss2_career'), REPLAYS:PP_BUILD.storageKey('ss2_replays'), MAX:5,
+  KEY:PP_BUILD.storageKey('ss2_save_'), CAREER:PP_BUILD.storageKey('ss2_career'), REPLAY:PP_BUILD.storageKey('ss2_replay'), MAX:5,
   QUICK:PP_BUILD.storageKey('ss2_quick'),
-  MAX_REPLAYS:5, CAREER_PROFILE_MAX_BYTES:1000000, SAVE_MAX_BYTES:450000,
-  LEGACY_STORAGE_KEYS:['pp_autosave','pp_quick','pp_career','pp_save_0','pp_save_1','pp_save_2','pp_save_3','pp_save_4'],
+  CAREER_PROFILE_MAX_BYTES:1000000, SAVE_MAX_BYTES:450000,
+  LEGACY_STORAGE_KEYS:['pp_autosave','pp_quick','pp_career','pp_save_0','pp_save_1','pp_save_2','pp_save_3','pp_save_4',PP_BUILD.storageKey('ss2_replays')],
 
   /* Portable profile envelope. Keep this version independent from individual
      save-slot/fullState versions: future builds can migrate the envelope while
@@ -29,52 +29,37 @@ const SaveSystem={
   },
 
   _replayStore(){
-    try{const raw=localStorage.getItem(this.REPLAYS);const parsed=raw?JSON.parse(raw):null;return parsed&&Array.isArray(parsed.items)?parsed:{version:1,items:[]};}
+    try{const raw=localStorage.getItem(this.REPLAY);const parsed=raw?JSON.parse(raw):null;return parsed&&parsed.replay?parsed:{version:1,replay:null};}
     catch(error){throw new Error(`Replay storage is invalid: ${error?.message||error}`);}
   },
-  _writeReplayStore(store){localStorage.setItem(this.REPLAYS,JSON.stringify(store));},
-  saveReplay(replayId,patrolId,replay){
-    if(!replayId||!replay)return false;
+  _writeReplayStore(store){localStorage.setItem(this.REPLAY,JSON.stringify(store));},
+  saveReplay(patrolId,replay,record=null){
+    if(!replay)return false;
     try{
-      const store=this._replayStore();store.items=store.items.filter(x=>x.id!==replayId);
-      store.items.push({id:replayId,patrolId:patrolId||null,createdAt:new Date().toISOString(),replay:this._compactReplay(replay)});
-      store.items.sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));store.items=store.items.slice(-this.MAX_REPLAYS);this._writeReplayStore(store);return true;
+      const r=record?{id:record.id,missionName:record.missionName,missionType:record.missionType,area:record.area,outcome:record.outcome,startDate:record.startDate,endDate:record.endDate,ownBoat:record.ownBoat||{},shipsSunk:record.shipsSunk||0,tonnage:record.tonnage||0,torpedoesFired:record.torpedoesFired||0,torpedoHits:record.torpedoHits||0,torpedoDuds:record.torpedoDuds||0,deckGunRounds:record.deckGunRounds||0,deckGunHits:record.deckGunHits||0,aircraftKills:record.aircraftKills||0}:null;
+      this._writeReplayStore({version:1,replay:{id:'last',patrolId:patrolId||null,createdAt:new Date().toISOString(),record:r,replay:this._compactReplay(replay)}});return true;
     }catch(error){console.warn('Replay save failed',error);return false;}
   },
-  loadReplay(replayId){try{return this._replayStore().items.find(x=>x.id===replayId)?.replay||null;}catch(error){console.warn('Replay load failed',error);return null;}},
-  replayStorageStats(){try{const raw=localStorage.getItem(this.REPLAYS)||'';const store=this._replayStore();return{bytes:raw.length,count:store.items.length};}catch{return{bytes:0,count:0};}},
-  _syncReplayAvailability(c){const ids=new Set(this._replayStore().items.map(x=>x.id));for(const r of c?.patrolHistory||[])r.replayAvailable=ids.has(r.replayId);return c;},
-
-  _summaryRecord(record){
-    const r=record||{}, clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
-    return {version:3,id:r.id,patrolNumber:r.patrolNumber||1,area:r.area||'UNKNOWN',missionName:r.missionName||null,
-      campaignId:r.campaignId||null,warPartyId:r.warPartyId||null,theaterId:r.theaterId||null,playerFactionId:r.playerFactionId||null,
-      campaignProfileId:r.campaignProfileId||null,submarineProfileId:r.submarineProfileId||null,missionType:r.missionType||'CONVOY_INTERDICTION',
-      startDate:r.startDate||null,endDate:r.endDate||null,durationSeconds:Number(r.durationSeconds)||0,outcome:r.outcome||'UNKNOWN',
-      patrolScore:Number(r.patrolScore)||0,careerTotalScore:Number(r.careerTotalScore)||0,shipsSunk:Number(r.shipsSunk)||0,sunkShips:clone(r.sunkShips||[]),
-      tonnage:Number(r.tonnage)||0,shipsDamaged:Number(r.shipsDamaged)||0,damagedShips:clone(r.damagedShips||[]),torpedoesFired:Number(r.torpedoesFired)||0,
-      torpedoHits:Number(r.torpedoHits)||0,torpedoDuds:Number(r.torpedoDuds)||0,deckGunRounds:Number(r.deckGunRounds)||0,deckGunHits:Number(r.deckGunHits)||0,
-      aircraftKills:Number(r.aircraftKills)||0,optionalObjectives:clone(r.optionalObjectives||[]),specialOperationId:r.specialOperationId||null,harborRaid:clone(r.harborRaid||null),
-      hullAtEnd:Number(r.hullAtEnd??100),aircraftEvaded:Number(r.aircraftEvaded)||0,ownBoat:clone(r.ownBoat||{}),returnPort:r.returnPort||null,
-      replayId:r.replayId||`${r.id||'patrol'}-replay`,replayAvailable:false};
-  },
+  loadReplay(){try{return this._replayStore().replay?.replay||null;}catch(error){console.warn('Replay load failed',error);return null;}},
+  loadReplayEnvelope(){try{return this._replayStore().replay||null;}catch(error){console.warn('Replay load failed',error);return null;}},
+  replayStorageStats(){try{const raw=localStorage.getItem(this.REPLAY)||'';return{bytes:raw.length,count:this._replayStore().replay?1:0};}catch{return{bytes:0,count:0};}},
 
   _migrateCareerStorage(){
     if(this._careerStorageMigrated)return;
     this._careerStorageMigrated=true;this.cleanupLegacyStorageKeys();
     try{
       const raw=localStorage.getItem(this.CAREER);if(!raw)return;
-      const original=JSON.parse(raw),c=this._normalizeCareer(original),replayBefore=(localStorage.getItem(this.REPLAYS)||'').length;let replayCandidates=0,before=raw.length;
-      c.patrolHistory=(c.patrolHistory||[]).map(record=>{
-        const summary=this._summaryRecord(record),replay=record?.replay;
-        if(replay){replayCandidates++;if(this.saveReplay(summary.replayId,summary.id,replay))summary.replayAvailable=true;}
-        return summary;
-      });
-      const retained=this._replayStore().items.length,removed=Math.max(0,replayCandidates-retained),moved=retained;
-      this._syncReplayAvailability(c);
+      const original=JSON.parse(raw),before=raw.length;
+      if(Number(original?.version)>=4&&!Array.isArray(original?.patrolHistory)){localStorage.setItem(this.CAREER,JSON.stringify(this._normalizeCareer(original)));return;}
+      const records=Array.isArray(original?.patrolHistory)?original.patrolHistory:[],c=this._careerDefault();let replayCandidate=null;
+      for(const record of records){this._aggregateRecord(c,record);if(record?.replay)replayCandidate=record.replay;}
+      if(!records.some(record=>record?.patrolScore!==undefined)&&Number.isFinite(Number(original?.totalScore)))c.totals.score=Number(original.totalScore);
+      for(const award of original?.commendations||[]){const a=typeof award==='string'?{id:award,title:award}:{...award};if(a.id&&!c.totals.commendations.some(x=>x.id===a.id))c.totals.commendations.push({id:a.id,title:a.title||a.id,earnedCount:Number(a.earnedCount)||1,firstEarnedAt:a.earnedAt||null});}
+      const replayBefore=(localStorage.getItem(this.REPLAY)||'').length;
+      if(replayCandidate)this.saveReplay(records.at(-1)?.id||null,replayCandidate,records.at(-1)||null);
       const after=JSON.stringify(c).length;localStorage.setItem(this.CAREER,JSON.stringify(c));
-      const replayAfter=(localStorage.getItem(this.REPLAYS)||'').length;
-      console.info(`[SAVE MIGRATION] Preserved ${c.patrolHistory.length} career records; moved ${moved} replays, removed ${removed}; career bytes ${before} -> ${after}; replay bytes ${replayBefore} -> ${replayAfter}.`);
+      const replayAfter=(localStorage.getItem(this.REPLAY)||'').length;
+      console.info(`[SAVE MIGRATION] Aggregated ${records.length} career records; preserved totals and progress; ${replayCandidate?'moved 1 replay':'moved 0 replays'}; legacy records removed; career bytes ${before} -> ${after}; replay bytes ${replayBefore} -> ${replayAfter}.`);
     }catch(error){this.lastLoadError=`Career migration failed: ${error?.message||error}`;console.warn(this.lastLoadError);}
   },
 
@@ -194,19 +179,24 @@ const SaveSystem={
     return state;
   },
 
-  _careerDefault(){return{version:3,totalScore:0,totalTonnage:0,totalShips:0,patrolHistory:[],commendations:[],legacyPatrols:0};},
+  _careerDefault(){return{version:4,totals:{patrols:{total:0,completed:0,failed:0,boatLost:0},score:0,highestPatrolScore:0,tonnageSunk:0,shipsSunk:0,shipsSunkByType:{},torpedoes:{fired:0,hits:0,misses:0,duds:0},deckGun:{rounds:0,hits:0},aircraftShotDown:0,patrolDurationSeconds:0,distanceNm:0,firstPatrolAt:null,lastPatrolAt:null,commendations:[]},progress:{campaigns:{},patrols:{},missionTypes:{},missionVariants:{}}};},
+
+  _progressKey(record){return String(record?.specialOperationId||record?.missionName||record?.missionType||'UNKNOWN').trim().toUpperCase().replace(/\s+/g,'_');},
+  _bumpProgress(bucket,key,record){if(!key)return;const x=bucket[key]||(bucket[key]={played:0,completed:0,failed:0});x.played++;if(record?.outcome==='COMPLETED')x.completed++;if(record?.outcome==='LOST'||record?.outcome==='FAILED')x.failed++;},
+  _aggregateRecord(c,r){
+    const t=c.totals,p=t.patrols,outcome=String(r?.outcome||'UNKNOWN').toUpperCase();p.total++;if(outcome==='COMPLETED')p.completed++;if(outcome==='LOST')p.boatLost++;if(outcome==='FAILED'||outcome==='LOST')p.failed++;
+    t.score+=Number(r?.patrolScore||0);t.highestPatrolScore=Math.max(t.highestPatrolScore,Number(r?.patrolScore||0));t.tonnageSunk+=Number(r?.tonnage||0);t.shipsSunk+=Number(r?.shipsSunk||0);
+    for(const ship of r?.sunkShips||[]){const key=String(ship?.type||'UNKNOWN').toUpperCase();t.shipsSunkByType[key]=(t.shipsSunkByType[key]||0)+1;}
+    t.torpedoes.fired+=Number(r?.torpedoesFired||0);t.torpedoes.hits+=Number(r?.torpedoHits||0);t.torpedoes.duds+=Number(r?.torpedoDuds||0);t.torpedoes.misses+=Math.max(0,Number(r?.torpedoesFired||0)-Number(r?.torpedoHits||0)-Number(r?.torpedoDuds||0));
+    t.deckGun.rounds+=Number(r?.deckGunRounds||0);t.deckGun.hits+=Number(r?.deckGunHits||0);t.aircraftShotDown+=Number(r?.aircraftKills||0);t.patrolDurationSeconds+=Number(r?.durationSeconds||0);t.distanceNm+=Number(r?.distanceNm||0);
+    const stamp=r?.endDate||r?.startDate||null;if(stamp){if(!t.firstPatrolAt||stamp<t.firstPatrolAt)t.firstPatrolAt=stamp;if(!t.lastPatrolAt||stamp>t.lastPatrolAt)t.lastPatrolAt=stamp;}
+    this._bumpProgress(c.progress.campaigns,r?.campaignId,r);this._bumpProgress(c.progress.patrols,r?.patrolId||r?.specialOperationId||r?.missionName||r?.missionType,r);this._bumpProgress(c.progress.missionTypes,r?.missionType,r);this._bumpProgress(c.progress.missionVariants,r?.specialOperationId||r?.missionName,r);
+  },
 
   _normalizeCareer(raw){
     const c=this._careerDefault(),r=raw&&typeof raw==='object'?raw:{};
-    c.version=3;
-    c.totalScore=Number(r.totalScore)||0;
-    c.totalTonnage=Number(r.totalTonnage!==undefined?r.totalTonnage:r.tonnage)||0;
-    c.totalShips=Number(r.totalShips)||0;
-    c.legacyPatrols=Number(r.legacyPatrols!==undefined?r.legacyPatrols:r.patrols)||0;
-    c.patrolHistory=Array.isArray(r.patrolHistory)?r.patrolHistory.map(x=>JSON.parse(JSON.stringify(x))):[];
-    c.commendations=Array.isArray(r.commendations)?r.commendations.map(x=>typeof x==='string'?{id:x,title:x,earnedAt:'legacy',patrolId:null}:JSON.parse(JSON.stringify(x))):[];
-    if(c.legacyPatrols>0&&!c.commendations.some(x=>x.id==='first-war-patrol'))
-      c.commendations.push({id:'first-war-patrol',title:'First War Patrol',earnedAt:'legacy',patrolId:null});
+    c.version=4;
+    if(r.totals&&r.progress){c.totals=JSON.parse(JSON.stringify({...c.totals,...r.totals}));c.totals.patrols={...c.totals.patrols,...(r.totals.patrols||{})};c.totals.torpedoes={...c.totals.torpedoes,...(r.totals.torpedoes||{})};c.totals.deckGun={...c.totals.deckGun,...(r.totals.deckGun||{})};c.progress=JSON.parse(JSON.stringify({...c.progress,...r.progress}));}
     return c;
   },
 
@@ -216,13 +206,13 @@ const SaveSystem={
   },
 
   _award(c,id,title,record){
-    if(c.commendations.some(x=>x.id===id))return false;
-    c.commendations.push({id,title,earnedAt:record?.endDate||new Date().toISOString(),patrolId:record?.id||null});return true;
+    if(c.totals.commendations.some(x=>x.id===id))return false;
+    c.totals.commendations.push({id,title,earnedCount:1,firstEarnedAt:record?.endDate||new Date().toISOString()});return true;
   },
 
   _updateCommendations(c,r){
-    if(c.patrolHistory.length===1&&c.legacyPatrols===0)this._award(c,'first-war-patrol','First War Patrol',r);
-    if(c.totalTonnage>=50000)this._award(c,'50000-tons','50,000 tons sunk',r);
+    if(c.totals.patrols.total===1)this._award(c,'first-war-patrol','First War Patrol',r);
+    if(c.totals.tonnageSunk>=50000)this._award(c,'50000-tons','50,000 tons sunk',r);
     const campaignProfileId=r.campaignProfileId||r.historicalProfile?.campaignProfileId||DEFAULT_GAME_IDENTITY.campaignProfileId;
     const specialOp=getCampaignHarborOperationProfile(campaignProfileId);
     if(r.outcome==='COMPLETED'&&r.specialOperationId===specialOp?.id&&r.harborRaid?.attempted&&specialOp?.careerAward)
@@ -234,20 +224,13 @@ const SaveSystem={
   recordPatrol(record){
     try{
       if(!record||!record.id)return null;
-      const c=this.getCareer();
-      const old=c.patrolHistory.find(x=>x.id===record.id);if(old)return old;
-      const full=JSON.parse(JSON.stringify(record)),r=this._summaryRecord(full);if(full.replay)this.saveReplay(r.replayId,r.id,full.replay);
-      c.patrolHistory.push(r);
-      this._syncReplayAvailability(c);
-      c.totalScore=Math.max(c.totalScore||0,Number(r.careerTotalScore)||0);
-      c.totalTonnage=(c.totalTonnage||0)+(Number(r.tonnage)||0);
-      c.totalShips=(c.totalShips||0)+(Number(r.shipsSunk)||0);
-      this._updateCommendations(c,r);
+      const c=this.getCareer(),full=JSON.parse(JSON.stringify(record));
+      this._aggregateRecord(c,full);if(full.replay)this.saveReplay(full.id,full.replay,full);this._updateCommendations(c,full);
       try{localStorage.setItem(this.CAREER,JSON.stringify(c));}
       catch(first){
         throw new Error(`Career save exceeds the storage budget: ${first?.message||first}`);
       }
-      return Object.assign(JSON.parse(JSON.stringify(r)),{replay:full.replay||null});
+      return Object.assign(JSON.parse(JSON.stringify(full)),{replay:full.replay||null});
     }catch(e){console.warn('Career save failed',e);return null;}
   },
 
@@ -255,7 +238,7 @@ const SaveSystem={
   // records instead of incrementally mutating three career counters.
   updateCareer(camp){
     const c=this.getCareer();
-    c.totalScore=Math.max(c.totalScore||0,camp?.totalScore||0);
+    c.totals.score=Math.max(c.totals.score||0,camp?.totalScore||0);
     try{localStorage.setItem(this.CAREER,JSON.stringify(c));}catch(e){console.warn('Career save failed',e);}
     return c;
   },
@@ -372,7 +355,7 @@ const SaveSystem={
     // be enough to move devices even if the player forgot to press Save first.
     const autosave=this._portableResume(activeState)||this.autoRead();
     let quick=null;try{const raw=localStorage.getItem(this.QUICK);if(raw)quick=this._migrateSnapshot(JSON.parse(raw));}catch{}
-    const payload={career:this.getCareer(),replays:this._replayStore(),saves,quick:quick?.fullState?quick:null,autosave:autosave?.fullState?autosave:null};
+    const payload={career:this.getCareer(),replay:this._replayStore(),saves,quick:quick?.fullState?quick:null,autosave:autosave?.fullState?autosave:null};
     const algorithm=(globalThis.crypto?.subtle&&typeof TextEncoder!=='undefined')?'SHA-256':'FNV-1A-32';
     const value=await this._profileDigest(payload,algorithm);
     return JSON.stringify({
@@ -404,14 +387,14 @@ const SaveSystem={
     }
     if(payload.autosave!=null&&!payload.autosave?.fullState)throw new Error('Player profile contains an invalid resumable patrol.');
     if(payload.quick!=null&&!payload.quick?.fullState)throw new Error('Player profile contains an invalid quick save.');
-    return{saves,replays:payload.replays&&Array.isArray(payload.replays.items)?payload.replays:{version:1,items:[]}};
+    return{saves,replay:payload.replay&&payload.replay.replay?payload.replay:{version:1,replay:null}};
   },
 
   async importProfile(text){
     if(typeof text!=='string'||!text.trim())throw new Error('Player profile is empty.');
     if(text.length>this.PROFILE_MAX_BYTES)throw new Error('Player profile is unexpectedly large.');
     let doc;try{doc=JSON.parse(text);}catch{throw new Error('Player profile is not valid JSON.');}
-    doc=this._migrateProfile(doc);const {saves,replays}=this._validateProfilePayload(doc.payload);
+    doc=this._migrateProfile(doc);const {saves,replay}=this._validateProfilePayload(doc.payload);
     const alg=doc.integrity?.algorithm,value=String(doc.integrity?.value||'');
     if(!alg||!value)throw new Error('Player profile has no integrity checksum.');
     if(!['SHA-256','FNV-1A-32'].includes(alg))throw new Error(`Unsupported profile checksum: ${alg}.`);
@@ -425,13 +408,13 @@ const SaveSystem={
     const migratedAutosave=doc.payload.autosave?.fullState?this._migrateSnapshot(JSON.parse(JSON.stringify(doc.payload.autosave))):null;
     const migratedQuick=doc.payload.quick?.fullState?this._migrateSnapshot(JSON.parse(JSON.stringify(doc.payload.quick))):null;
 
-    const keys=[this.CAREER,this.REPLAYS,...Array.from({length:this.MAX},(_,i)=>this.KEY+i),this.QUICK,this.AUTO];
+    const keys=[this.CAREER,this.REPLAY,...Array.from({length:this.MAX},(_,i)=>this.KEY+i),this.QUICK,this.AUTO];
     const before=new Map(keys.map(k=>[k,localStorage.getItem(k)]));
     try{
       // Normalize career on entry so old career layouts remain importable while
       // full simulation states keep their original version for runtime migration.
       localStorage.setItem(this.CAREER,JSON.stringify(this._normalizeCareer(doc.payload.career)));
-      localStorage.setItem(this.REPLAYS,JSON.stringify({...replays,items:replays.items.slice(-this.MAX_REPLAYS)}));
+      localStorage.setItem(this.REPLAY,JSON.stringify(replay));
       for(let i=0;i<this.MAX;i++)localStorage.removeItem(this.KEY+i);
       for(const item of migratedSaves)localStorage.setItem(this.KEY+item.slot,JSON.stringify(item.snapshot));
       if(migratedQuick?.fullState)localStorage.setItem(this.QUICK,JSON.stringify(migratedQuick));
@@ -449,7 +432,7 @@ const SaveSystem={
     this._careerStorageMigrated=false;
     const career=this.getCareer();
     return{ok:true,formatVersion:doc.formatVersion,appVersion:doc.appVersion||null,integrityVerified:true,
-      saves:migratedSaves.length,patrols:career.patrolHistory.length,commendations:career.commendations.length,
+      saves:migratedSaves.length,patrols:career.totals.patrols.total,commendations:career.totals.commendations.length,
       stateSchemaVersion:this.STATE_SCHEMA_VERSION,resumeState:migratedAutosave?.fullState||null};
   },
 
