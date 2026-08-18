@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════ SAVE / LOAD SYSTEM
 const SaveSystem={
-  KEY:PP_BUILD.storageKey('ss2_save_'), CAREER:PP_BUILD.storageKey('ss2_career'), MAX:5,
+  KEY:PP_BUILD.storageKey('ss2_save_'), CAREER:PP_BUILD.storageKey('ss2_career'), REPLAYS:PP_BUILD.storageKey('ss2_replays'), MAX:5,
   QUICK:PP_BUILD.storageKey('ss2_quick'),
-  FULL_REPLAY_PATROLS:10,
+  MAX_REPLAYS:5, CAREER_PROFILE_MAX_BYTES:1000000, SAVE_MAX_BYTES:450000,
+  LEGACY_STORAGE_KEYS:['pp_autosave','pp_quick','pp_career','pp_save_0','pp_save_1','pp_save_2','pp_save_3','pp_save_4'],
 
   /* Portable profile envelope. Keep this version independent from individual
      save-slot/fullState versions: future builds can migrate the envelope while
@@ -16,7 +17,66 @@ const SaveSystem={
   // redesigning the backup container itself. Schema 0 means a pre-Mega save;
   // the current runtime already upgrades those through its ensure* extensions.
   STATE_SCHEMA_VERSION:4,
-  _importedResumePending:false,lastLoadError:null,
+  _importedResumePending:false,lastLoadError:null,_careerStorageMigrated:false,
+
+  cleanupLegacyStorageKeys(){
+    let removed=0,bytes=0;
+    for(const key of this.LEGACY_STORAGE_KEYS){
+      try{const value=localStorage.getItem(key);if(value!==null){bytes+=value.length;localStorage.removeItem(key);removed++;}}catch{}
+    }
+    if(removed)console.info(`[SAVE MIGRATION] Removed ${removed} legacy Periscope key(s), ${bytes} bytes.`);
+    return{removed,bytes};
+  },
+
+  _replayStore(){
+    try{const raw=localStorage.getItem(this.REPLAYS);const parsed=raw?JSON.parse(raw):null;return parsed&&Array.isArray(parsed.items)?parsed:{version:1,items:[]};}
+    catch(error){throw new Error(`Replay storage is invalid: ${error?.message||error}`);}
+  },
+  _writeReplayStore(store){localStorage.setItem(this.REPLAYS,JSON.stringify(store));},
+  saveReplay(replayId,patrolId,replay){
+    if(!replayId||!replay)return false;
+    try{
+      const store=this._replayStore();store.items=store.items.filter(x=>x.id!==replayId);
+      store.items.push({id:replayId,patrolId:patrolId||null,createdAt:new Date().toISOString(),replay:this._compactReplay(replay)});
+      store.items.sort((a,b)=>String(a.createdAt).localeCompare(String(b.createdAt)));store.items=store.items.slice(-this.MAX_REPLAYS);this._writeReplayStore(store);return true;
+    }catch(error){console.warn('Replay save failed',error);return false;}
+  },
+  loadReplay(replayId){try{return this._replayStore().items.find(x=>x.id===replayId)?.replay||null;}catch(error){console.warn('Replay load failed',error);return null;}},
+  replayStorageStats(){try{const raw=localStorage.getItem(this.REPLAYS)||'';const store=this._replayStore();return{bytes:raw.length,count:store.items.length};}catch{return{bytes:0,count:0};}},
+  _syncReplayAvailability(c){const ids=new Set(this._replayStore().items.map(x=>x.id));for(const r of c?.patrolHistory||[])r.replayAvailable=ids.has(r.replayId);return c;},
+
+  _summaryRecord(record){
+    const r=record||{}, clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
+    return {version:3,id:r.id,patrolNumber:r.patrolNumber||1,area:r.area||'UNKNOWN',missionName:r.missionName||null,
+      campaignId:r.campaignId||null,warPartyId:r.warPartyId||null,theaterId:r.theaterId||null,playerFactionId:r.playerFactionId||null,
+      campaignProfileId:r.campaignProfileId||null,submarineProfileId:r.submarineProfileId||null,missionType:r.missionType||'CONVOY_INTERDICTION',
+      startDate:r.startDate||null,endDate:r.endDate||null,durationSeconds:Number(r.durationSeconds)||0,outcome:r.outcome||'UNKNOWN',
+      patrolScore:Number(r.patrolScore)||0,careerTotalScore:Number(r.careerTotalScore)||0,shipsSunk:Number(r.shipsSunk)||0,sunkShips:clone(r.sunkShips||[]),
+      tonnage:Number(r.tonnage)||0,shipsDamaged:Number(r.shipsDamaged)||0,damagedShips:clone(r.damagedShips||[]),torpedoesFired:Number(r.torpedoesFired)||0,
+      torpedoHits:Number(r.torpedoHits)||0,torpedoDuds:Number(r.torpedoDuds)||0,deckGunRounds:Number(r.deckGunRounds)||0,deckGunHits:Number(r.deckGunHits)||0,
+      aircraftKills:Number(r.aircraftKills)||0,optionalObjectives:clone(r.optionalObjectives||[]),specialOperationId:r.specialOperationId||null,harborRaid:clone(r.harborRaid||null),
+      hullAtEnd:Number(r.hullAtEnd??100),aircraftEvaded:Number(r.aircraftEvaded)||0,ownBoat:clone(r.ownBoat||{}),returnPort:r.returnPort||null,
+      replayId:r.replayId||`${r.id||'patrol'}-replay`,replayAvailable:false};
+  },
+
+  _migrateCareerStorage(){
+    if(this._careerStorageMigrated)return;
+    this._careerStorageMigrated=true;this.cleanupLegacyStorageKeys();
+    try{
+      const raw=localStorage.getItem(this.CAREER);if(!raw)return;
+      const original=JSON.parse(raw),c=this._normalizeCareer(original),replayBefore=(localStorage.getItem(this.REPLAYS)||'').length;let replayCandidates=0,before=raw.length;
+      c.patrolHistory=(c.patrolHistory||[]).map(record=>{
+        const summary=this._summaryRecord(record),replay=record?.replay;
+        if(replay){replayCandidates++;if(this.saveReplay(summary.replayId,summary.id,replay))summary.replayAvailable=true;}
+        return summary;
+      });
+      const retained=this._replayStore().items.length,removed=Math.max(0,replayCandidates-retained),moved=retained;
+      this._syncReplayAvailability(c);
+      const after=JSON.stringify(c).length;localStorage.setItem(this.CAREER,JSON.stringify(c));
+      const replayAfter=(localStorage.getItem(this.REPLAYS)||'').length;
+      console.info(`[SAVE MIGRATION] Preserved ${c.patrolHistory.length} career records; moved ${moved} replays, removed ${removed}; career bytes ${before} -> ${after}; replay bytes ${replayBefore} -> ${replayAfter}.`);
+    }catch(error){this.lastLoadError=`Career migration failed: ${error?.message||error}`;console.warn(this.lastLoadError);}
+  },
 
   _decimateArray(a,max=120){
     if(!Array.isArray(a)||a.length<=max)return Array.isArray(a)?a:[];
@@ -27,21 +87,16 @@ const SaveSystem={
   _compactReplay(replay){
     if(!replay||replay.compacted)return replay||null;
     const compactTrack=g=>({...g,points:this._decimateArray(g.points||[],60)});
+    const allowedEvent=ev=>/CONTACT|TORPEDO|GUN|WEAPON|DAMAGE|MISSION|PATROL|HIT|SINK|AIRCRAFT|DEPTH|HARBOR/i.test(String(ev?.type||''));
     return{version:replay.version||1,compacted:true,
       route:this._decimateArray(replay.route||[],120),
-      observedTracks:(replay.observedTracks||[]).slice(0,16).map(compactTrack),
-      truthTracks:(replay.truthTracks||[]).slice(0,16).map(compactTrack),
-      events:this._decimateArray(replay.events||[],140),
+      observedTracks:(replay.observedTracks||[]).map(compactTrack),
+      truthTracks:(replay.truthTracks||[]).map(compactTrack),
+      events:this._decimateArray((replay.events||[]).filter(allowedEvent),140),
       torpedoes:(replay.torpedoes||[]).slice(-40),
       gunRounds:(replay.gunRounds||[]).slice(-60),
       enemyResponses:(replay.enemyResponses||[]).slice(-40),
       aircraftEvaded:Number(replay.aircraftEvaded)||0};
-  },
-
-  _compactOldCareerReplays(c,keepFull=this.FULL_REPLAY_PATROLS){
-    const cut=Math.max(0,(c.patrolHistory||[]).length-keepFull);
-    for(let i=0;i<cut;i++)if(c.patrolHistory[i]?.replay)c.patrolHistory[i].replay=this._compactReplay(c.patrolHistory[i].replay);
-    return c;
   },
 
   _cloneStateForStorage(state){
@@ -139,11 +194,11 @@ const SaveSystem={
     return state;
   },
 
-  _careerDefault(){return{version:2,totalScore:0,totalTonnage:0,totalShips:0,patrolHistory:[],commendations:[],legacyPatrols:0};},
+  _careerDefault(){return{version:3,totalScore:0,totalTonnage:0,totalShips:0,patrolHistory:[],commendations:[],legacyPatrols:0};},
 
   _normalizeCareer(raw){
     const c=this._careerDefault(),r=raw&&typeof raw==='object'?raw:{};
-    c.version=2;
+    c.version=3;
     c.totalScore=Number(r.totalScore)||0;
     c.totalTonnage=Number(r.totalTonnage!==undefined?r.totalTonnage:r.tonnage)||0;
     c.totalShips=Number(r.totalShips)||0;
@@ -156,7 +211,7 @@ const SaveSystem={
   },
 
   getCareer(){
-    try{const r=localStorage.getItem(this.CAREER);return this._normalizeCareer(r?JSON.parse(r):null);}
+    try{this._migrateCareerStorage();const r=localStorage.getItem(this.CAREER);return this._normalizeCareer(r?JSON.parse(r):null);}
     catch{return this._careerDefault();}
   },
 
@@ -181,29 +236,18 @@ const SaveSystem={
       if(!record||!record.id)return null;
       const c=this.getCareer();
       const old=c.patrolHistory.find(x=>x.id===record.id);if(old)return old;
-      const r=JSON.parse(JSON.stringify(record));
+      const full=JSON.parse(JSON.stringify(record)),r=this._summaryRecord(full);if(full.replay)this.saveReplay(r.replayId,r.id,full.replay);
       c.patrolHistory.push(r);
+      this._syncReplayAvailability(c);
       c.totalScore=Math.max(c.totalScore||0,Number(r.careerTotalScore)||0);
       c.totalTonnage=(c.totalTonnage||0)+(Number(r.tonnage)||0);
       c.totalShips=(c.totalShips||0)+(Number(r.shipsSunk)||0);
       this._updateCommendations(c,r);
-      this._compactOldCareerReplays(c);
       try{localStorage.setItem(this.CAREER,JSON.stringify(c));}
       catch(first){
-        // Mobile browsers often give localStorage only a few megabytes. Keep
-        // the complete recent hunts, then degrade older replay geometry before
-        // ever sacrificing the actual patrol history/log.
-        this._compactOldCareerReplays(c,3);
-        for(let i=0;i<Math.max(0,c.patrolHistory.length-3);i++){
-          const q=c.patrolHistory[i];if(q?.replay?.compacted){
-            q.replay.observedTracks=(q.replay.observedTracks||[]).slice(0,8);
-            q.replay.truthTracks=(q.replay.truthTracks||[]).slice(0,8);
-            q.replay.route=this._decimateArray(q.replay.route||[],60);
-          }
-        }
-        localStorage.setItem(this.CAREER,JSON.stringify(c));
+        throw new Error(`Career save exceeds the storage budget: ${first?.message||first}`);
       }
-      return JSON.parse(JSON.stringify(r));
+      return Object.assign(JSON.parse(JSON.stringify(r)),{replay:full.replay||null});
     }catch(e){console.warn('Career save failed',e);return null;}
   },
 
@@ -239,9 +283,10 @@ const SaveSystem={
 
   save(slot,state){
     try{
-      localStorage.setItem(this.KEY+slot,JSON.stringify(this._snapshot(state)));
+      const value=JSON.stringify(this._snapshot(state));if(value.length>this.SAVE_MAX_BYTES)throw new Error(`Save is ${value.length} bytes; limit is ${this.SAVE_MAX_BYTES}.`);
+      localStorage.setItem(this.KEY+slot,value);
       return true;
-    }catch(e){console.warn('Save failed',e);return false;}
+    }catch(e){this.lastLoadError=e?.message||String(e);console.warn('Save failed',e);if(typeof PresentationBridge!=='undefined')PresentationBridge.emit?.(state,'NOTIFY',{text:'Save failed — storage is full. Delete an old save or replay, then try again.',importance:'NUTTIG'});return false;}
   },
 
   _migrateSnapshot(snapshot){
@@ -271,8 +316,8 @@ const SaveSystem={
   },
 
   quickSave(state){
-    try{localStorage.setItem(this.QUICK,JSON.stringify(this._snapshot(state)));return true;}
-    catch(e){console.warn('Quick save failed',e);return false;}
+    try{const value=JSON.stringify(this._snapshot(state));if(value.length>this.SAVE_MAX_BYTES)throw new Error(`Save is ${value.length} bytes; limit is ${this.SAVE_MAX_BYTES}.`);localStorage.setItem(this.QUICK,value);return true;}
+    catch(e){this.lastLoadError=e?.message||String(e);console.warn('Quick save failed',e);if(typeof PresentationBridge!=='undefined')PresentationBridge.emit?.(state,'NOTIFY',{text:'Quick save failed — storage is full. Delete an old save or replay, then try again.',importance:'NUTTIG'});return false;}
   },
 
   quickLoad(){
@@ -327,7 +372,7 @@ const SaveSystem={
     // be enough to move devices even if the player forgot to press Save first.
     const autosave=this._portableResume(activeState)||this.autoRead();
     let quick=null;try{const raw=localStorage.getItem(this.QUICK);if(raw)quick=this._migrateSnapshot(JSON.parse(raw));}catch{}
-    const payload={career:this.getCareer(),saves,quick:quick?.fullState?quick:null,autosave:autosave?.fullState?autosave:null};
+    const payload={career:this.getCareer(),replays:this._replayStore(),saves,quick:quick?.fullState?quick:null,autosave:autosave?.fullState?autosave:null};
     const algorithm=(globalThis.crypto?.subtle&&typeof TextEncoder!=='undefined')?'SHA-256':'FNV-1A-32';
     const value=await this._profileDigest(payload,algorithm);
     return JSON.stringify({
@@ -359,14 +404,14 @@ const SaveSystem={
     }
     if(payload.autosave!=null&&!payload.autosave?.fullState)throw new Error('Player profile contains an invalid resumable patrol.');
     if(payload.quick!=null&&!payload.quick?.fullState)throw new Error('Player profile contains an invalid quick save.');
-    return{saves};
+    return{saves,replays:payload.replays&&Array.isArray(payload.replays.items)?payload.replays:{version:1,items:[]}};
   },
 
   async importProfile(text){
     if(typeof text!=='string'||!text.trim())throw new Error('Player profile is empty.');
     if(text.length>this.PROFILE_MAX_BYTES)throw new Error('Player profile is unexpectedly large.');
     let doc;try{doc=JSON.parse(text);}catch{throw new Error('Player profile is not valid JSON.');}
-    doc=this._migrateProfile(doc);const {saves}=this._validateProfilePayload(doc.payload);
+    doc=this._migrateProfile(doc);const {saves,replays}=this._validateProfilePayload(doc.payload);
     const alg=doc.integrity?.algorithm,value=String(doc.integrity?.value||'');
     if(!alg||!value)throw new Error('Player profile has no integrity checksum.');
     if(!['SHA-256','FNV-1A-32'].includes(alg))throw new Error(`Unsupported profile checksum: ${alg}.`);
@@ -380,12 +425,13 @@ const SaveSystem={
     const migratedAutosave=doc.payload.autosave?.fullState?this._migrateSnapshot(JSON.parse(JSON.stringify(doc.payload.autosave))):null;
     const migratedQuick=doc.payload.quick?.fullState?this._migrateSnapshot(JSON.parse(JSON.stringify(doc.payload.quick))):null;
 
-    const keys=[this.CAREER,...Array.from({length:this.MAX},(_,i)=>this.KEY+i),this.QUICK,this.AUTO];
+    const keys=[this.CAREER,this.REPLAYS,...Array.from({length:this.MAX},(_,i)=>this.KEY+i),this.QUICK,this.AUTO];
     const before=new Map(keys.map(k=>[k,localStorage.getItem(k)]));
     try{
       // Normalize career on entry so old career layouts remain importable while
       // full simulation states keep their original version for runtime migration.
       localStorage.setItem(this.CAREER,JSON.stringify(this._normalizeCareer(doc.payload.career)));
+      localStorage.setItem(this.REPLAYS,JSON.stringify({...replays,items:replays.items.slice(-this.MAX_REPLAYS)}));
       for(let i=0;i<this.MAX;i++)localStorage.removeItem(this.KEY+i);
       for(const item of migratedSaves)localStorage.setItem(this.KEY+item.slot,JSON.stringify(item.snapshot));
       if(migratedQuick?.fullState)localStorage.setItem(this.QUICK,JSON.stringify(migratedQuick));
@@ -400,6 +446,7 @@ const SaveSystem={
       throw new Error(`Import could not be stored: ${e?.message||e}`);
     }
     this._importedResumePending=!!migratedAutosave?.fullState;
+    this._careerStorageMigrated=false;
     const career=this.getCareer();
     return{ok:true,formatVersion:doc.formatVersion,appVersion:doc.appVersion||null,integrityVerified:true,
       saves:migratedSaves.length,patrols:career.patrolHistory.length,commendations:career.commendations.length,

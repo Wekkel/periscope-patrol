@@ -2,10 +2,10 @@
 // A compact patrol recorder. It stores low-frequency, grouped samples only;
 // there is no replay simulation and no render loop during the patrol.
 const AAR_VERSION=2;
-const AAR_ROUTE_SAMPLE_SEC=15;
-const AAR_TRACK_SAMPLE_SEC=30;
+const AAR_ROUTE_SAMPLE_SEC=10;
+const AAR_TRACK_SAMPLE_SEC=10;
 const AAR_MAX_ROUTE=900;
-const AAR_MAX_POINTS_PER_TRACK=480; // four hours at 30-second sampling
+const AAR_MAX_POINTS_PER_TRACK=720; // two hours at 10-second sampling
 const AAR_MAX_EVENTS=500;
 function _aarClone(v){return v==null?v:JSON.parse(JSON.stringify(v));}
 function _aarPush(a,v,max){a.push(v);if(a.length>max)a.splice(0,a.length-max);}
@@ -102,7 +102,6 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
         }
         for(const x of W.contacts||[]){
           if(!x||!x.position)continue;const known=!!W.contactTracks?.[x.id],near=distNm(sub.position,x.position)<=38,important=x.convoyId==='MAIN'||x.harborTarget;
-          if(!known&&!near&&!important)continue;
           let g=A.truthById[x.id];if(!g)g=A.truthById[x.id]={id:x.id,type:x.displayType||x.type||'SHIP',side:x.side||'ENEMY',factionId:x.factionId||null,vesselProfileId:x.vesselProfileId||null,convoyId:x.convoyId||null,trafficGroupId:x.trafficGroupId||null,points:[]};
           _aarTimelinePush(g.points,[Math.round(now),+x.position.xNm.toFixed(4),+x.position.yNm.toFixed(4),+(x.heading||0).toFixed(1),+(x.speedKnots||0).toFixed(1),x.sunk?1:0],AAR_MAX_POINTS_PER_TRACK);
         }
