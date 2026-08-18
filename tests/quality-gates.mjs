@@ -92,4 +92,14 @@ const layoutPatterns=[/dataset/i,/matchMedia/i,/innerWidth/i,/innerHeight/i,/cli
 const layoutHits=[];let layoutCalls=0;const layoutFiles=new Set();
 for(const p of all.filter(p=>{const r=rel(p);return (r.startsWith('js/rendering/')||r.startsWith('js/simulation/'))&&p.endsWith('.js');})){const src=await readFile(p,'utf8');let n=0;for(const re of layoutPatterns)n+=(src.match(new RegExp(re.source,'gi'))||[]).length;if(n){layoutCalls+=n;layoutFiles.add(p);layoutHits.push(`${rel(p)}: ${n}`);}}
 if(layoutCalls)console.warn(`layout-read warnings: ${layoutCalls} layoutlezingen in ${layoutFiles.size} bestanden`);
+/* STEP 9a: presenter methods must consume the pure HUD viewmodel. Keep the
+   check scoped to the public presenter methods so their event/input helpers
+   may still use browser geometry and arithmetic. */
+const hudVmSource=await readFile(path.join(root,'js/ui/hud-viewmodel.js'),'utf8');
+if(!/function\s+buildHudViewModel\s*\(/.test(hudVmSource))fail.push('HUD viewmodel function missing');
+for(const [file,method] of [['js/ui/dom-view.js','render'],['js/controllers/touch-controller.js','updateTouch']]){
+  const src=await readFile(path.join(root,file),'utf8'),start=src.indexOf(`\n  ${method}(`),end=src.indexOf('\n  }',start);
+  const body=start>=0&&end>start?src.slice(start,end):'';
+  if(/\.toFixed\s*\(|\bMath\./.test(body))fail.push(`HUD presenter contains formatting/calculation: ${file} ${method}`);
+}
 console.log(JSON.stringify({ok:!fail.length,root,files:all.length,bytes:values,budgets,fail},null,2));if(fail.length)process.exit(1);

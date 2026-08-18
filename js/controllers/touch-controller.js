@@ -651,7 +651,14 @@ class TouchCtrl{
   }
 
   /* ── DOM refresh (throttled by the game loop) ── */
-  updateTouch(state,force){
+  updateTouch(state,layout,force=false){
+    let vmLayout=layout;
+    if(layout&&typeof layout==='object'&&layout.device) force=!!force;
+    else if(force&&typeof force==='object'&&force.device) { vmLayout=force; force=!!layout; }
+    else { force=!!layout; vmLayout=LayoutService.get(); }
+    return this._updateTouchLegacy(state,force,buildHudViewModel(state,vmLayout));
+  }
+  _updateTouchLegacy(state,force,viewModel){
     if(!this.touch) return;
     this.setDesktopScopeControlsHidden(true);
     const g=id=>document.getElementById(id);
@@ -709,17 +716,15 @@ class TouchCtrl{
     // quick status
     const qv=(id,val,c)=>{const el=g(id);if(!el)return;if(C[id]!==val){C[id]=val;el.textContent=val;}
       const k='c'+id;const cc='qs-v'+(c?' '+c:'');if(C[k]!==cc){C[k]=cc;el.className=cc;}};
-    qv('qDepth',playerDepthDisplay(state,sub.depthFeet,0),sub.depthFeet>sub.damage.crushDepthFeet*0.8?'d':sub.inShallowWater?'w':'');
+    qv('qDepth',viewModel.navigation.quick.depth,viewModel.vitals.depth.state==='critical'?'d':viewModel.vitals.depth.state==='caution'?'w':'');
     // the ordered value under the actual one: the gap between them IS the boat
-    set('qDepthOrd',Math.abs(sub.orderedDepthFeet-sub.depthFeet)<2?'':`→${playerDepthDisplay(state,sub.orderedDepthFeet,0)}`);
+    set('qDepthOrd',viewModel.navigation.quick.orderedDepthVisible?`→${viewModel.navigation.quick.orderedDepthVisible}`:'');
     // the fathometer: the number that decides what you are allowed to do
-    {const sea=sub.seabedFeet??3000, cl=sea-sub.depthFeet;
-     qv('qKeel',sea>=3000?'deep':playerDepthDisplay(state,Math.max(0,cl),0),
-        sub.bottomed?'':cl<25?'d':cl<60?'w':'');
-     set('qBottom',sub.bottomed?'ON BOTTOM':sea>=3000?'':`${playerDepthDisplay(state,sea,0)} ${(sub.bottomType||'').toLowerCase()}`);}
-    set('qSpdOrd',sub.stealth.silentRunning
-      ? `SILENT · ${p.actualRpm.toFixed(0)}rpm`
-      : (Math.abs(p.orderedRpm-p.actualRpm)<8?'':`→${p.orderedRpm.toFixed(0)}rpm`));
+    qv('qKeel',viewModel.navigation.quick.keel,viewModel.vitals.underKeel.state==='critical'?'d':viewModel.vitals.underKeel.state==='caution'?'w':'');
+    set('qBottom',viewModel.navigation.quick.bottom);
+    set('qSpdOrd',viewModel.navigation.quick.silent
+      ? `SILENT · ${viewModel.navigation.quick.actualRpm}rpm`
+      : (viewModel.navigation.quick.orderedRpm===viewModel.navigation.quick.actualRpm?'':`→${viewModel.navigation.quick.orderedRpm}`));
     if(this.pad){
       const pc=p.characteristics||{},maxKn=p.engineMode==='DIESEL'?(pc.maxSurfaceSpeedKn??18):(pc.maxSubmergedSpeedKn??8.5),
         maxRpm=pc.normalizedMaxRpm??450,response=pc.rpmResponse??170,
@@ -744,18 +749,15 @@ class TouchCtrl{
       set('opSpeedNote',`about ${kn.toFixed(1)} kn ordered · ${p.engineMode==='DIESEL'?'diesels — charging fastest at low revs':'battery '+p.battery.toFixed(0)+'% — flank drains it fast'}`);
     }
     {const maxRpm=p.characteristics?.normalizedMaxRpm??450;document.querySelectorAll('#mRpm,#rpmInput').forEach(el=>el.max=String(maxRpm));for(const root of ['#paneHelm','#opSpeed']){const bs=[...document.querySelectorAll(`${root} [data-rpm]`)];if(bs.length){const flank=bs.reduce((a,b)=>(+b.dataset.rpm>+a.dataset.rpm?b:a));if(/flank/i.test(flank.textContent||''))flank.dataset.rpm=String(maxRpm);}}}
-    qv('qHdg',fmtDeg(sub.heading));
-    qv('qSpd',sub.stealth.silentRunning?`${p.speedKnots.toFixed(1)}kn · SILENT`:`${p.speedKnots.toFixed(1)}kn`,sub.stealth.silentRunning?'w':'');
-    {const ts=torpedoStoresStatus(state);qv('qTorp',`${ts.total}·${ts.loadShort}`,ts.total<4?'w':'');}
+    qv('qHdg',viewModel.navigation.quick.heading);
+    qv('qSpd',sub.stealth.silentRunning?`${viewModel.navigation.quick.speed} · SILENT`:viewModel.navigation.quick.speed,sub.stealth.silentRunning?'w':'');
+    qv('qTorp',viewModel.vitals.torpedoes.value,viewModel.vitals.torpedoes.state==='caution'?'w':'');
     const en=state.world.enemy;
     const thr=enemy==='UNAWARE'?'CLEAR':(en.contactHeld?'HELD':enemy==='ATTACKING'?'LOST':'SEARCH');
     qv('qThr',thr,en.contactHeld?'d':enemy!=='UNAWARE'?'w':'');
-    qv('qHull',`${sub.damage.hullIntegrity.toFixed(0)}%`,sub.damage.hullIntegrity<35?'d':sub.damage.hullIntegrity<70?'w':'');
-    qv('qFuel',`${sub.propulsion.fuel.toFixed(0)}%`,sub.propulsion.fuel<12?'d':sub.propulsion.fuel<25?'w':'');
-    {const b=p.battery??0,charging=p.engineMode==='DIESEL'&&(p.chargeRate||0)>.002&&b<99.5;
-      const bs=b>=99.5?'FULL':charging?'CHG':p.engineMode==='ELECTRIC'?'DRAIN':'HOLD';
-      qv('qBatt',`${b.toFixed(0)}%`,b<12?'d':b<25?'w':'');set('qBattState',bs);
-    }
+    qv('qHull',viewModel.navigation.quick.hull,viewModel.vitals.hull.state==='critical'?'d':viewModel.vitals.hull.state==='caution'?'w':'');
+    qv('qFuel',viewModel.navigation.quick.fuel,viewModel.vitals.fuel.state==='critical'?'d':viewModel.vitals.fuel.state==='caution'?'w':'');
+    qv('qBatt',viewModel.vitals.battery.value,viewModel.vitals.battery.state==='critical'?'d':viewModel.vitals.battery.state==='caution'?'w':'');set('qBattState',viewModel.navigation.quick.batteryState);
 
     // station buttons + contextual overlay
     document.querySelectorAll('#ovlStations button').forEach(b=>b.classList.toggle('active',b.dataset.sta===sta));
@@ -888,13 +890,13 @@ class TouchCtrl{
         row(ord.heading||'Heading',sub.heading,sub.orderedHeading,fmtDeg)+
         row(ord.depth||'Depth',sub.depthFeet,sub.orderedDepthFeet,v=>playerDepthDisplay(state,v,0))+
         row(ord.power||'RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
-        `<span class="lbl">${ord.speed||'Speed'}</span><span class="val">${p.speedKnots.toFixed(1)} kn</span>`+
+        `<span class="lbl">${ord.speed||'Speed'}</span><span class="val">${viewModel.vitals.speed.value}</span>`+
         `<span class="lbl">${ord.engine||'Engine'}</span><span class="val">${p.engineMode}</span>`+
         `<span class="lbl">${ord.ballast||'Ballast'}</span><span class="val">${sub.ballastState}</span>`+
         `<span class="lbl">${ord.silent||'Silent'}</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
         `<span class="lbl">TDC</span><span class="val">${tdc.status}</span>`+
         `<span class="lbl">Solution</span><span class="val">${sq}%</span>`+
-        `<span class="lbl">Torps</span><span class="val">${(()=>{const ts=torpedoStoresStatus(state);return `${ts.total} aboard · ${ts.reserve} reserve · ${ts.loadShort}`;})()}</span>`+
+        `<span class="lbl">Torps</span><span class="val">${viewModel.vitals.torpedoes.value}</span>`+
         `<span class="lbl">Hits / duds</span><span class="val">${W.hits.length} / ${(W.duds||[]).length}</span>`);
       const c2=state.campaign;
       const opt2=(c2.optionalObjectives||[]).map(o=>{
@@ -912,7 +914,7 @@ class TouchCtrl{
       const hc=d.hullIntegrity<30?'#ef6a58':d.hullIntegrity<60?'#f5c65c':'#6fe08f';
       html('mDamage',
         `<div class="note" style="margin:0 0 7px;">Hull shows integrity remaining; subsystem rows show damage accumulated.</div>`+
-        `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
+        `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${viewModel.vitals.hull.raw}%;background:${hc}"></div></div><span class="dmg-val">${viewModel.vitals.hull.value}</span></div>`+
         bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
         bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
         bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
@@ -929,7 +931,7 @@ class TouchCtrl{
         `<span>Shallow zone</span><strong style="color:${sub.inShallowWater?'var(--alert)':'var(--muted)'}">${sub.inShallowWater?'YES':'NO'}</strong>`+
         `<span>Keel clearance</span><strong style="color:${(sub.keelClearanceFeet??3000)<(sub.depthFeet<12?18:70)?'var(--alert)':'var(--ok)'}">${Math.max(0,Number(sub.keelClearanceFeet??0)).toFixed(0)} ft</strong>`);
       const sbw=(id,v)=>{const el=g(id);if(el&&C[id+'w']!==v){C[id+'w']=v;el.style.width=v+'%';}};
-      sbw('mBattery',Math.round(p.battery));sbw('mFuel',Math.round(p.fuel));sbw('mHull',Math.round(sub.damage.hullIntegrity));
+      sbw('mBattery',viewModel.vitals.battery.raw);sbw('mFuel',viewModel.vitals.fuel.raw);sbw('mHull',viewModel.vitals.hull.raw);
       const R=state.world.radio||{inbox:[],pending:null,copying:0};
       const copyNeed=Math.max(1,R.copyRequired||40),E=R.enigma||{};
       set('radioState',R.pending?(sub.depthFeet<42?`copying ${Math.round(R.copying/copyNeed*100)}% · ${E.keyState||'KEY SET'}`:'traffic waiting — come to antenna depth')

@@ -64,10 +64,23 @@ assert.ok(hull.movingHullIntersection(box(0,-1.02),box(0,-.999),box(0,0),box(0,0
 assert.equal(hull.movingHullIntersection(box(-2,0),box(-1.1,0),box(0,2),box(0,2.9)),null,'parallel paths should miss');
 assert.ok(hull.movingHullIntersection(box(-2,-2),box(0,0),box(2,-2),box(0,0)),'diagonal crossing should hit');
 
+const hud=await load('js/ui/hud-viewmodel.js',['buildHudViewModel'],{
+  playerDepthDisplay:(_s,v)=>`${Math.round(v)} ft`,fmtDeg:v=>`${Math.round(v)}°`,fmtTime:v=>`${Math.round(v)}s`,
+  DayNightCycle:{getTimeString:v=>`${Math.round(v)}s`},torpedoRangeInfo:()=>null,
+  torpedoStoresStatus:()=>({total:4,loadShort:'READY'})
+});
+const hudState=(overrides={})=>({playerSub:{depthFeet:0,keelClearanceFeet:120,heading:90,mode:'SURFACED',inShallowWater:false,propulsion:{battery:80,fuel:90,speedKnots:4,engineMode:'DIESEL'},damage:{hullIntegrity:100,crushDepthFeet:420,warnings:[]},stealth:{acousticSignature:.2}},tdc:{targetId:null,solutionQuality:0,status:'READY'},weapons:{tubes:[{status:'READY'}]},world:{environment:{visibilityNm:10,weather:'CLEAR',seaState:1},enemy:{alertState:'UNAWARE'},contactTracks:{},depthCharges:[]},campaign:{objectives:[],importantEvents:[],score:0,tonnageSunk:0},time:{elapsedSeconds:0,timeScale:1},map:{plottedCourse:[]},log:[],...overrides});
+const baseHud=hudState();
+const damagedHud=hudState({playerSub:{...baseHud.playerSub,depthFeet:80,keelClearanceFeet:20,damage:{...baseHud.playerSub.damage,hullIntegrity:45}}});
+for(const s of [baseHud,damagedHud,hudState({playerSub:{...baseHud.playerSub,depthFeet:80}})]){const v=hud.buildHudViewModel(s,{device:'desktop',shell:'desk'});for(const key of ['vitals','fire','mission','damage','systems','navigation','log','time'])assert.ok(v[key],`HUD viewmodel contract missing ${key}`);for(const key of ['depth','underKeel','heading','speed','torpedoes','battery','fuel','threat','hull'])assert.ok(v.vitals[key]&&'value' in v.vitals[key]&&'unit' in v.vitals[key]&&'state' in v.vitals[key]&&'actionable' in v.vitals[key],`HUD vital contract missing ${key}`);}
+assert.equal(hud.buildHudViewModel(baseHud,{}).fire.available,false);assert.match(hud.buildHudViewModel(baseHud,{}).fire.reason,/target/i);
+assert.equal(hud.buildHudViewModel(damagedHud,{}).vitals.hull.state,'caution');
+assert.equal(hud.buildHudViewModel(damagedHud,{}).vitals.underKeel.state,'critical');
+
 // Render failures must not prevent the station-navigation phase of a frame.
 let navigated=false;
 const frameWithRenderRecovery=(render,navigate)=>{try{render();}catch(_err){}finally{navigate();}};
 frameWithRenderRecovery(()=>{throw new Error('periscope display fault');},()=>{navigated=true;});
 assert.equal(navigated,true,'station navigation must survive a render failure');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, hull SAT 5, render recovery 1');
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1');

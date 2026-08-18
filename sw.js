@@ -35,6 +35,7 @@ const SHELL = [
   './periscope-patrol-apple-touch-icon-v3.png',
   './css/app.css',
   './js/core/utilities.js',
+  './js/ui/hud-viewmodel.js',
   './js/core/layout-service.js',
   './js/data/torpedo-data.js',
   './js/data/campaign-data.js',
@@ -106,9 +107,7 @@ const SHELL = [
   './js/audio/audio-director.js',
   './js/data/game-catalog.js',
   './js/data/pacific-terrain-data.js',
-  './js/data/multi-theater-campaigns.js',
-  './js/rendering/optics.js',
-  './js/rendering/world-3d.js'
+  './js/data/multi-theater-campaigns.js'
 ];
 
 const OPTIONAL_SHELL = new Set([
