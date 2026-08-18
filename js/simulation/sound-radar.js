@@ -132,18 +132,16 @@ const SoundRadarSystem={
     // Map the still-US-specific historical fit into equipment-neutral runtime
     // capabilities. Legacy aliases remain writable/readable for existing saves
     // and debugging, but new simulation/rendering code should use the generic names.
-    R.airWarningAvailable=!!fit.sd;
-    R.surfaceSearchAvailable=!!fit.sj;
-    R.surfaceSearchMastDepthFt=fit.sjRadarDepthFt;
-    R.surfaceSearchRangeNm=fit.sjRangeNm||6.8;
-    R.surfaceSearchErrorFactor=fit.sjErrorFactor||1;
-    R.surfaceSearchSweepSec=fit.sjSweepSec||SOUND_ROOM.surfaceRadarSweepSec;
-    R.fitLabel=fit.label;
-    R.surfaceSearchTracks=R.surfaceSearchTracks||R.sjTracks||{};
+    if(R.airWarningAvailable===undefined)R.airWarningAvailable=!!fit.sd;
+    if(R.surfaceSearchAvailable===undefined)R.surfaceSearchAvailable=!!fit.sj;
+    if(R.surfaceSearchMastDepthFt===undefined)R.surfaceSearchMastDepthFt=fit.sjRadarDepthFt;
+    if(R.surfaceSearchRangeNm===undefined)R.surfaceSearchRangeNm=fit.sjRangeNm||6.8;
+    if(R.surfaceSearchErrorFactor===undefined)R.surfaceSearchErrorFactor=fit.sjErrorFactor||1;
+    if(R.surfaceSearchSweepSec===undefined)R.surfaceSearchSweepSec=fit.sjSweepSec||SOUND_ROOM.surfaceRadarSweepSec;
+    R.fitLabel=R.fitLabel||fit.label;
+    R.surfaceSearchTracks=R.surfaceSearchTracks||{};
     this.state.runtime.radar.tick=Number.isFinite(this.state.runtime.radar.tick)?this.state.runtime.radar.tick:0;R.lastSweepAt=Number.isFinite(R.lastSweepAt)?R.lastSweepAt:-999;
-    R.sdAvailable=R.airWarningAvailable;R.sjAvailable=R.surfaceSearchAvailable;R.sjRadarDepthFt=R.surfaceSearchMastDepthFt;
-    R.sjRangeNm=R.surfaceSearchRangeNm;R.sjErrorFactor=R.surfaceSearchErrorFactor;R.sjSweepSec=R.surfaceSearchSweepSec;R.sjTracks=R.surfaceSearchTracks;
-    W.airThreat=W.airThreat||{};W.airThreat.airWarningOn=R.airWarningAvailable;W.airThreat.sdOn=W.airThreat.airWarningOn;
+    W.airThreat=W.airThreat||{};W.airThreat.airWarningOn=R.airWarningAvailable;
     return{S,R,fit};
   },
 
@@ -217,7 +215,7 @@ const SoundRadarSystem={
     const s=this.state,W=s.world,R=W.radar,sub=s.playerSub,now=s.time.elapsedSeconds;
     const sweepSec=R.surfaceSearchSweepSec||SOUND_ROOM.surfaceRadarSweepSec;this.state.runtime.radar.tick+=dt;if(this.state.runtime.radar.tick<sweepSec)return;this.state.runtime.radar.tick=0;
     const usable=R.surfaceSearchAvailable&&sub.depthFeet<=R.surfaceSearchMastDepthFt&&sub.mode!=='SUNK';
-    R.active=!!usable;if(!usable){R.surfaceSearchTracks={};R.sjTracks=R.surfaceSearchTracks;return;}
+    R.active=!!usable;if(!usable){R.surfaceSearchTracks={};return;}
     R.lastSweepAt=now;const seen={};
     for(const c of W.contacts||[]){
       if(c.sunk)continue;const rng=distNm(sub.position,c.position),size=c.lengthYards||400;
@@ -230,7 +228,7 @@ const SoundRadarSystem={
       if(!known){tr.typeEstimate=tr.typeEstimate==='UNKNOWN'?'SURFACE SHIP':tr.typeEstimate;tr.contactType=tr.contactType||'UNKNOWN';}
       W.contactTracks[c.id]=tr;
     }
-    R.surfaceSearchTracks=seen;R.sjTracks=R.surfaceSearchTracks;
+    R.surfaceSearchTracks=seen;
   },
 
   updateSoundRadar(dt){

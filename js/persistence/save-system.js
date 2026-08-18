@@ -15,7 +15,7 @@ const SaveSystem={
   // release can migrate old patrol states without gratuitously invalidating or
   // redesigning the backup container itself. Schema 0 means a pre-Mega save;
   // the current runtime already upgrades those through its ensure* extensions.
-  STATE_SCHEMA_VERSION:3,
+  STATE_SCHEMA_VERSION:4,
   _importedResumePending:false,lastLoadError:null,
 
   _decimateArray(a,max=120){
@@ -101,6 +101,41 @@ const SaveSystem={
     // after the coordinator is constructed, without advancing simulation time.
     try{engine.update(0);}catch(error){throw new Error(`Schema v3 migration finalization failed: ${error?.message||error}`);}
     if(typeof initRuntime==='function')initRuntime(state);
+    return state;
+  },
+
+  _migrateV4TypeAliases(state){
+    // V4 step 1: repair old vessel type aliases so gameplayType is canonical.
+    const vessels=[];const add=v=>{if(v&&typeof v==='object')vessels.push(v);};
+    for(const c of state.world?.contacts||[])add(c);
+    for(const g of state.world?.traffic?.groups||[])for(const c of g?.savedMembers||[])add(c);
+    for(const c of state.world?.traffic?.primaryGroup?.savedMembers||[])add(c);
+    for(const c of vessels){if(!c.gameplayType&&c.type)c.gameplayType=String(c.type).toUpperCase();if(!c.type&&c.gameplayType)c.type=c.gameplayType;}
+  },
+  _migrateV4ContactSources(state){
+    // V4 step 2: convert QC ECHO and SJ RADAR track labels to generic IDs.
+    const sourceMap=v=>v==='QC ECHO'?'ACTIVE_ECHO':v==='SJ RADAR'?'SURFACE_RADAR':v;
+    for(const tr of Object.values(state.world?.contactTracks||{}))for(const key of ['source','lastSensorSource','positionSource'])if(tr[key]!==undefined)tr[key]=sourceMap(tr[key]);
+  },
+  _migrateV4RadarAliases(state){
+    // V4 step 3: convert serialized sd*/sj* radar aliases to generic names.
+    const radar=state.world?.radar;if(radar){
+      if(radar.airWarningAvailable===undefined&&radar.sdAvailable!==undefined)radar.airWarningAvailable=!!radar.sdAvailable;
+      if(radar.surfaceSearchAvailable===undefined&&radar.sjAvailable!==undefined)radar.surfaceSearchAvailable=!!radar.sjAvailable;
+      if(radar.surfaceSearchMastDepthFt===undefined&&radar.sjRadarDepthFt!==undefined)radar.surfaceSearchMastDepthFt=radar.sjRadarDepthFt;
+      if(radar.surfaceSearchRangeNm===undefined&&radar.sjRangeNm!==undefined)radar.surfaceSearchRangeNm=radar.sjRangeNm;
+      if(radar.surfaceSearchErrorFactor===undefined&&radar.sjErrorFactor!==undefined)radar.surfaceSearchErrorFactor=radar.sjErrorFactor;
+      if(radar.surfaceSearchSweepSec===undefined&&radar.sjSweepSec!==undefined)radar.surfaceSearchSweepSec=radar.sjSweepSec;
+      if(radar.surfaceSearchTracks===undefined&&radar.sjTracks!==undefined)radar.surfaceSearchTracks=radar.sjTracks;
+      for(const key of ['sdAvailable','sjAvailable','sjRadarDepthFt','sjRangeNm','sjErrorFactor','sjSweepSec','sjTracks'])delete radar[key];
+    }
+    if(state.world?.airThreat?.sdOn!==undefined){if(state.world.airThreat.airWarningOn===undefined)state.world.airThreat.airWarningOn=!!state.world.airThreat.sdOn;delete state.world.airThreat.sdOn;}
+  },
+  _migrateV4(state){
+    if(!state||typeof state!=='object')throw new Error('Schema v4 migration requires a game state.');
+    this._migrateV4TypeAliases(state);
+    this._migrateV4ContactSources(state);
+    this._migrateV4RadarAliases(state);
     return state;
   },
 
@@ -225,6 +260,7 @@ const SaveSystem={
       c.campaignSchemaVersion=PP_CAMPAIGN_SCHEMA_VERSION;c.contentSchemaVersion=PP_CONTENT_SCHEMA_VERSION;snapshot.stateSchemaVersion=2;
     }
     if(snapshot.stateSchemaVersion<3){this._migrateV3(snapshot.fullState);snapshot.stateSchemaVersion=3;}
+    if(snapshot.stateSchemaVersion<4){this._migrateV4(snapshot.fullState);snapshot.stateSchemaVersion=4;}
     snapshot.fullState=this._normalizeLoadedState(snapshot.fullState);return snapshot;
   },
 

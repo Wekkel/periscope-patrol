@@ -166,7 +166,7 @@ updateAircraft(dt){
     // profile; patrol-date availability is mapped to this generic capability by
     // sound-radar.js. `sdOn` remains only as a legacy save/debug alias.
     this.ensureSoundRadarState?.();
-    air.airWarningOn=!!W.radar?.airWarningAvailable;air.sdOn=air.airWarningOn;
+    air.airWarningOn=!!W.radar?.airWarningAvailable;
 
     // ── does a patrol turn up? ──
     air.nextCheck=(air.nextCheck||0)-dt;
@@ -359,7 +359,7 @@ updateAircraft(dt){
             seen=true;how=`Bridge lookouts: ${attack?'ATTACKING ':''}AIRCRAFT bearing ${fmtDeg(airBear)}, range ${rng.toFixed(1)} nm`;
           }
         }
-        if(!seen&&surfaced&&(air.airWarningOn??air.sdOn)&&rng<18&&Math.random()<dt*0.30){
+        if(!seen&&surfaced&&air.airWarningOn&&rng<18&&Math.random()<dt*0.30){
           const airRadarName=(getPlayerSensorPresentation(this.state).airWarningRadar?.label||'AIR WARNING RADAR').toUpperCase();
           seen=true; how=`${airRadarName} — air contact, range ${rng.toFixed(0)} miles, no bearing`;
         }else if(!seen&&surfaced&&env.daylight>0.25&&rng<clamp(env.visibilityNm*0.7,4,12)&&Math.random()<dt*0.22){

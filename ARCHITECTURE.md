@@ -104,8 +104,8 @@ Files:
 - `js/simulation/weapons/deck-gun.js` — 3-inch/50 gun state, laying, firing, shell damage.
 - `js/simulation/weapons/aa-gun.js` — 20 mm AA behavior.
 - `js/simulation/radio-intel.js` — radio/ULTRA/intelligence flow.
-- `js/simulation/sensors.js` — lookout, visual/acoustic contact tracking and signatures. Electronic contact fixes use generic `ACTIVE_ECHO` / `SURFACE_RADAR` IDs; legacy `QC ECHO` / `SJ RADAR` values are normalized for old-save compatibility.
-- `js/simulation/sound-radar.js` — passive-sound/active-echo/surface-radar operation. It maps the current historical US fit data onto generic runtime capability fields while retaining legacy `sd*`/`sj*` aliases until the later campaign/equipment-by-date migration.
+- `js/simulation/sensors.js` — lookout, visual/acoustic contact tracking and signatures. Electronic contact fixes use generic `ACTIVE_ECHO` / `SURFACE_RADAR` IDs; schema-v4 migration converts legacy `QC ECHO` / `SJ RADAR` values once at load.
+- `js/simulation/sound-radar.js` — passive-sound/active-echo/surface-radar operation. It maps historical fit data onto generic runtime capability fields; serialized `sd*`/`sj*` aliases are converted by schema-v4 migration.
 - `js/simulation/ai/asw-brain.js` — shared escort search/doctrine mechanics; campaign doctrine supplies area risk, escort-count and screen-role policy.
 - `js/simulation/ai/escort-asw.js` — escort ASW sensor/prosecution behavior.
 - `js/simulation/physics-navigation.js` — transit watch, submarine movement/physics/navigation and final `SimEngine` class.
@@ -226,9 +226,9 @@ Sensor simulation must not infer equipment identity from a US-specific display s
 
 `CAMPAIGN_PROFILES` owns authored historical progression. The current `us-pacific` profile contains the broad Pacific era bands, dated radar/torpedo availability, radar performance bands, war-progression factors and the small set of area-specific multipliers that previously lived as US/Pacific conditionals inside `historical-campaign.js`. `historical-campaign.js` is now a materializer: once per patrol/date change it resolves those data into `campaign.historicalProfile`, which remains the cheap runtime object used by sensors, ASW and traffic.
 
-New code should prefer `historicalProfile.sensorCapabilities[CAPABILITY_ID]` and `availableTorpedoes`. The old `sdAvailable`, `sjAvailable`, `sjRangeNm`, `sjErrorFactor`, `sjSweepSec` and `sjRadarDepthFt` fields remain additive compatibility aliases while untouched Pacific UI/save consumers migrate. A future Atlantic campaign must author its own historical model in the catalog; do not add Type VII, Kriegsmarine or Allied date exceptions to `historical-campaign.js`.
+New code should prefer `historicalProfile.sensorCapabilities[CAPABILITY_ID]` and `availableTorpedoes`. Schema-v4 migration converts serialized radar aliases (`sdAvailable`, `sjAvailable`, `sjRangeNm`, `sjErrorFactor`, `sjSweepSec`, `sjRadarDepthFt`) to equipment-neutral runtime names before simulation begins. A future Atlantic campaign must author its own historical model in the catalog; do not add Type VII, Kriegsmarine or Allied date exceptions to `historical-campaign.js`.
 
-Legacy serialized track sources `SJ RADAR` and `QC ECHO` are accepted and normalized at read/use boundaries. Do not remove those aliases until the save-schema migration explicitly converts them.
+Legacy serialized track sources `SJ RADAR` and `QC ECHO` are converted by schema-v4 migration; simulation code uses only `SURFACE_RADAR` and `ACTIVE_ECHO`.
 
 ### Surface-vessel identity boundary
 
@@ -312,7 +312,7 @@ authored torpedo-spec trait.
 
 ### Portable profile / save compatibility boundary
 
-The portable player-profile envelope is versioned separately from career records and from serialized patrol state. `SaveSystem._migrateProfile()` translates old envelope formats; `SaveSystem.STATE_SCHEMA_VERSION` plus `_migrateSnapshot()` is the compatibility boundary for manual saves, quick saves, autosaves and transferred live patrols. The quick slot has its own storage key and shares the normal snapshot/migration path rather than masquerading as manual slot six. Pre-Mega snapshots are schema 0 and are upgraded additively by the existing `ensure*` runtime shims. A future release that makes a destructive state change must add its migration in `_migrateSnapshot()` before increasing the schema version; an older build must reject a newer schema rather than guess. This separation is intentional: adding a future subsystem must not force every historical `.ppprofile.json` backup to mirror the newest in-memory schema.
+The portable player-profile envelope is versioned separately from career records and from serialized patrol state. `SaveSystem._migrateProfile()` translates old envelope formats; `SaveSystem.STATE_SCHEMA_VERSION` plus `_migrateSnapshot()` is the compatibility boundary for manual saves, quick saves, autosaves and transferred live patrols. The quick slot has its own storage key and shares the normal snapshot/migration path rather than masquerading as manual slot six. Pre-Mega snapshots are schema 0 and are upgraded additively by versioned migration steps, including schema v4 legacy-name normalization. A future release that makes a destructive state change must add its migration in `_migrateSnapshot()` before increasing the schema version; an older build must reject a newer schema rather than guess. This separation is intentional: adding a future subsystem must not force every historical `.ppprofile.json` backup to mirror the newest in-memory schema.
 
 A profile checksum is integrity metadata only. Because the complete game and client code are public, no symmetric key embedded in JavaScript can establish trusted scores: the key and verification path would be available to the player. Do not add obfuscated client secrets as an anti-cheat mechanism. If trusted competitive state is ever required, make the authoritative signature/validation service external to the open client.
 

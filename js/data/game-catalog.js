@@ -331,7 +331,6 @@ function inferVesselProfileId(v,state=null){
 function materializeVesselIdentity(v,state=null,overrides=null){
   if(!v||typeof v!=='object')return v;const o=overrides||{},explicitProfile=getVesselProfile(o.vesselProfileId||v.vesselProfileId);
   const gameplayType=String(o.gameplayType||v.gameplayType||explicitProfile?.gameplayType||v.type||'MERCHANT').toUpperCase();
-  if(!v.type)v.type=gameplayType; // legacy compatibility: existing systems still read this field.
   v.gameplayType=gameplayType;
   if(o.factionId!==undefined)v.factionId=o.factionId;
   else if(v.factionId===undefined)v.factionId=inferVesselFactionId(v,state);

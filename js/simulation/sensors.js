@@ -7,15 +7,10 @@
 // still contain the former US-set labels; normalize them at the boundary rather
 // than requiring a destructive save migration.
 const CONTACT_FIX_SOURCE=Object.freeze({ACTIVE_ECHO:'ACTIVE_ECHO',SURFACE_RADAR:'SURFACE_RADAR'});
-function normalizeContactFixSource(source){
-  if(source==='QC ECHO')return CONTACT_FIX_SOURCE.ACTIVE_ECHO;
-  if(source==='SJ RADAR')return CONTACT_FIX_SOURCE.SURFACE_RADAR;
-  return source;
-}
-function isSurfaceRadarFixSource(source){return normalizeContactFixSource(source)===CONTACT_FIX_SOURCE.SURFACE_RADAR;}
-function isElectronicRangeFixSource(source){const s=normalizeContactFixSource(source);return s===CONTACT_FIX_SOURCE.ACTIVE_ECHO||s===CONTACT_FIX_SOURCE.SURFACE_RADAR;}
+function isSurfaceRadarFixSource(source){return source===CONTACT_FIX_SOURCE.SURFACE_RADAR;}
+function isElectronicRangeFixSource(source){return source===CONTACT_FIX_SOURCE.ACTIVE_ECHO||source===CONTACT_FIX_SOURCE.SURFACE_RADAR;}
 function contactFixSourceDisplayLabel(state,source){
-  const s=normalizeContactFixSource(source),ui=getPlayerSensorPresentation(state);
+  const s=source,ui=getPlayerSensorPresentation(state);
   if(s===CONTACT_FIX_SOURCE.ACTIVE_ECHO)return ui.activeEcho?.fixLabel||ui.activeEcho?.label||'ACTIVE ECHO';
   if(s===CONTACT_FIX_SOURCE.SURFACE_RADAR)return ui.surfaceSearchRadar?.fixLabel||ui.surfaceSearchRadar?.label||'SURFACE RADAR';
   return source;
@@ -29,7 +24,7 @@ const CONTACT_PLOT_PROFILE={
   'SOUND BEARING':{rank:2,holdSec:0,tauSec:30,maxCorrectionNmSec:0,posConf:.28,uncertaintyNm:.8},
   HYDROPHONE:{rank:1,holdSec:0,tauSec:30,maxCorrectionNmSec:.0035,posConf:.30,uncertaintyNm:.75}
 };
-function contactPlotProfile(source){return CONTACT_PLOT_PROFILE[normalizeContactFixSource(source)]||CONTACT_PLOT_PROFILE.HYDROPHONE;}
+function contactPlotProfile(source){return CONTACT_PLOT_PROFILE[source]||CONTACT_PLOT_PROFILE.HYDROPHONE;}
 function contactPlotPredicted(tr,now){
   const base=tr.plotPosition||tr.lastFixPosition;if(!base)return null;
   const at=Number.isFinite(tr.plotUpdatedAt)?tr.plotUpdatedAt:(Number.isFinite(tr.lastFixTime)?tr.lastFixTime:now);

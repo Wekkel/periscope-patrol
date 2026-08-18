@@ -329,7 +329,7 @@ const CoreSystem={
       case'TOGGLE_AIR_WARNING_RADAR':
       case'TOGGLE_SD_RADAR':{ // legacy command ID retained for old UI/save integrations
         this.sys.soundRadar.ensureSoundRadarState();const a=this.state.world.airThreat,R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),airUi=sensorUi.airWarningRadar||{};
-        a.airWarningOn=!!R?.airWarningAvailable;a.sdOn=a.airWarningOn;
+        a.airWarningOn=!!R?.airWarningAvailable;
         const managed=airUi.crewManagedLabel||airUi.label||'air-warning radar',status=airUi.statusLabel||airUi.label||'air-warning radar';
         this.notify(R?.airWarningAvailable?`${managed} is crew-managed automatically whenever it can be used.`:`No ${status} is fitted on this patrol date.`,R?.airWarningAvailable?'ok':'warn', 'NUTTIG');break;}
       case'BOTTOM_OUT':{
@@ -1229,7 +1229,7 @@ const CoreSystem={
     s.world.sound=null;s.world.radar=null;
     const hasAirWarning=!!subProfile.sensors?.airWarningRadar;
     s.world.airThreat={level:training?0:(area.environment.airThreat===undefined?0.55:area.environment.airThreat),
-      alarmedAt:-999,airWarningOn:hasAirWarning,sdOn:hasAirWarning,nextCheck:training?1e9:120};
+      alarmedAt:-999,airWarningOn:hasAirWarning,nextCheck:training?1e9:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:training?1e9:(getCampaignRadioIntelProfile(identity.campaignProfileId)?.initialBroadcastSec??300),copying:0};
     const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
     s.world.contacts=training?[]:this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});

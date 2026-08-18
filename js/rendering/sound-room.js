@@ -52,14 +52,14 @@ const SoundStation={
 
   drawSurfaceRadarPlot(ctx,w,h,state){
     const sensorUi=getPlayerSensorPresentation(state),radarUi=sensorUi.surfaceSearchRadar||{};
-    const k=this.k,R=state.world.radar||{},T=state.tactical,cx=w/2,cy=this.portrait?h*.44:h*.50,r=Math.min(w*(this.portrait?.39:.32),h*(this.portrait?.30:.40),220*k),range=R.surfaceSearchRangeNm||R.sjRangeNm||8;
+    const k=this.k,R=state.world.radar||{},T=state.tactical,cx=w/2,cy=this.portrait?h*.44:h*.50,r=Math.min(w*(this.portrait?.39:.32),h*(this.portrait?.30:.40),220*k),range=R.surfaceSearchRangeNm||8;
     ctx.fillStyle='#001109';ctx.beginPath();ctx.arc(cx,cy,r*1.04,0,Math.PI*2);ctx.fill();ctx.strokeStyle='rgba(99,220,137,.68)';ctx.lineWidth=Math.max(1,1.3*k);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
     for(let n=1;n<=4;n++){ctx.strokeStyle='rgba(81,171,111,.25)';ctx.lineWidth=k;ctx.beginPath();ctx.arc(cx,cy,r*n/4,0,Math.PI*2);ctx.stroke();}
     for(let d=0;d<360;d+=45){const a=degToRad(d);ctx.strokeStyle='rgba(81,171,111,.18)';ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(a)*r,cy-Math.cos(a)*r);ctx.stroke();}
-    const fit=R.fitLabel||'NO RADAR FIT',available=!!(R.surfaceSearchAvailable??R.sjAvailable),mastDepth=R.surfaceSearchMastDepthFt||R.sjRadarDepthFt||12,usable=available&&state.playerSub.depthFeet<=mastDepth;
+    const fit=R.fitLabel||'NO RADAR FIT',available=!!R.surfaceSearchAvailable,mastDepth=R.surfaceSearchMastDepthFt||12,usable=available&&state.playerSub.depthFeet<=mastDepth;
     if(usable){
       const sweep=degToRad((state.time.elapsedSeconds*42)%360);ctx.strokeStyle='rgba(116,255,154,.42)';ctx.lineWidth=Math.max(1,1.5*k);ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(cx+Math.sin(sweep)*r,cy-Math.cos(sweep)*r);ctx.stroke();
-      for(const b of Object.values(R.surfaceSearchTracks||R.sjTracks||{})){
+      for(const b of Object.values(R.surfaceSearchTracks||{})){
         if(b.rangeNm>range)continue;const a=degToRad(shortDelta(state.playerSub.heading,b.bearing)),rr=b.rangeNm/range*r,x=cx+Math.sin(a)*rr,y=cy-Math.cos(a)*rr;
         ctx.fillStyle=`rgba(132,255,166,${clamp(.42+(b.strength||0)*.58,.4,1)})`;ctx.beginPath();ctx.arc(x,y,Math.max(2.2*k,3),0,Math.PI*2);ctx.fill();
       }
@@ -71,4 +71,3 @@ const SoundStation={
     ctx.fillStyle='rgba(166,243,184,.74)';ctx.font=this.fnt(7.5);ctx.textAlign='center';for(let n=1;n<=4;n++)ctx.fillText(`${(range*n/4).toFixed(range<7?1:0)}`,cx+3*k,cy-r*n/4+10*k);ctx.textAlign='left';
   }
 };
-
