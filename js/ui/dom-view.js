@@ -57,16 +57,16 @@ class DomView{
     document.getElementById('mapWeatherButton')?.classList.toggle('on',!!state.map.weatherOverlay);
     const sc=document.getElementById('soundControls');if(sc)sc.classList.toggle('on',state.tactical.activeStation==='SOUND');
     const sensorUi=getPlayerSensorPresentation(state),rb=document.getElementById('soundRadar');if(rb){rb.style.display=sensorUi.surfaceSearchRadar?'':'none';rb.classList.toggle('on',state.tactical.soundDisplay==='RADAR');const sp=rb.querySelector?.('span');if(sp)sp.textContent=state.tactical.soundDisplay==='RADAR'?(sensorUi.passiveSound?.label||'Passive Sound'):(sensorUi.surfaceSearchRadar?.label||'Surface Radar');}const eb=document.getElementById('soundEcho');if(eb){eb.style.display=sensorUi.activeEcho?'':'none';if(!eb.classList.contains('confirm')){const sp=eb.querySelector?.('span');if(sp)sp.textContent=sensorUi.activeEcho?.label||'Active Echo';}}
-    const bz=bridgeZoomAmount(state),bb=document.getElementById('bridgeBino');if(bb){bb.classList.toggle('on',bz>.05);const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
-    const dg=state.weapons.deckGun,ds=document.getElementById('deckGunStatus');
-    if(ds&&dg)ds.textContent=`${dg.manned?'CREW TOPSIDE — automatic':'crew secured — enter GUN station to man automatically'} · train ${dg.trainDeg.toFixed(1)}° · elev ${dg.elevationDeg.toFixed(1)}° · ammo ${dg.ammo} · drag 3D view to aim`;
+    const bb=document.getElementById('bridgeBino');if(bb){bb.classList.toggle('on',viewModel.display.bridgeBinoText!=='Binoculars');const span=bb.querySelector?.('span');if(span)span.textContent=viewModel.display.bridgeBinoText;}
+    const ds=document.getElementById('deckGunStatus');
+    if(ds)ds.textContent=viewModel.display.deckGunStatus;
     const rp=sub.damage.repairPriority||'FLOODING';
     const ids={FLOODING:'dcFloodButton',PROPULSION:'dcPropButton',STEERING:'dcSteerButton',OPTICS_FIRE_CONTROL:'dcOpticsButton'};
     for(const [k,id] of Object.entries(ids))document.getElementById(id)?.classList.toggle('on',k===rp);
-    const dn=document.getElementById('deskDcNote');if(dn){const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);dn.textContent=`Priority ${repairPriorityLabel(rp)} · ${sub.damage.damageControlActive?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · drive bank offline':''}`;}
+    const dn=document.getElementById('deskDcNote');if(dn)dn.textContent=viewModel.damage.dcNote;
     this.renderAlerts(state);
     this.renderOrders(sub,state,viewModel);
-    {const d=sub.damage,burden=(100-d.hullIntegrity)+100*(['flooding','ballastDamage','motorDamage','electricalDamage','rudderDamage','periscopeDamage','tdcDamage','gyroDamage','pumpDamage'].reduce((n,k)=>n+(Number(d[k])||0),0));if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.getElementById('deskDamage');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}
+    {const burden=viewModel.damage.burden;if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.getElementById('deskDamage');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}
     this.renderDamage(sub,viewModel);
     this.renderGauges(sub,state,viewModel);
     if(this.batteryBar) this.batteryBar.style.width=`${viewModel.vitals.battery.raw}%`;
@@ -129,17 +129,11 @@ class DomView{
 
     // Tube status
     const te=document.getElementById('tubeStatusDisplay');
-    if(te) te.innerHTML=state.weapons.tubes.map(t=>{
-      const col=t.status==='READY'?'var(--ok)':t.status==='EMPTY'?'var(--danger)':'var(--muted)';
-      const pct=t.status==='EMPTY'?` ${Math.round(t.reloadProgress*100)}%`:'';
-      const typ=t.status==='EMPTY'?'—':torpedoShortName(t.specKey||tdc.torpedoSpecKey);
-      const tp=ui.tubes||{};return `<span style="color:${col}">${tp.prefix||'T'}${t.id}[${t.pos==='FWD'?(tp.forward||'FWD'):(tp.aft||'AFT')}] ${typ}: ${t.status.replace('LOADED_DRY','LOADED')}${pct}</span>`;
-    }).join('<br>');
+    if(te) te.innerHTML=viewModel.weapons.tubes.map(t=>`<span style="color:${t.status==='READY'?'var(--ok)':t.status==='EMPTY'?'var(--danger)':'var(--muted)'}">T${t.id}[${t.position}] ${t.type}: ${t.status}${t.reloadText?` ${t.reloadText}`:''}</span>`).join('<br>');
 
     // TDC note
     const ne=document.getElementById('tdcSolutionNote');
     if(ne){
-      const ri=torpedoRangeInfo(state,tdc.targetId);
       ne.style.color=viewModel.fire.rangeBand?(viewModel.fire.rangeBand==='IN'?'var(--ok)':viewModel.fire.rangeBand==='BORDERLINE'?'var(--alert)':'var(--danger)'):(viewModel.fire.solutionNumber>70?'var(--ok)':viewModel.fire.solutionNumber>40?'var(--alert)':'var(--danger)');
       ne.textContent=tdc.targetId
         ?`${tdc.status} — Sol:${viewModel.fire.solutionText} · ${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'} · tube ${viewModel.fire.tubeTurnText} · ${viewModel.fire.rangeText}Dud:${viewModel.fire.dudText} · ${tdc.torpedoType}`

@@ -7,6 +7,7 @@ const eslintBin=path.join(root,'node_modules','.bin',process.platform==='win32'?
 const checks=[
   ['call-graph generation',process.execPath,['tests/generate-call-graph.mjs','.']],
   ['quality gates',process.execPath,['tests/quality-gates.mjs','.']],
+  ['HUD presenter measurement',process.execPath,['tests/measure-hud-presenters.mjs']],
   ['behaviour tests',process.execPath,['tests/behaviour.mjs']],
   ['boot harness',process.execPath,['tests/boot-harness.mjs','.']],
   ['ESLint globals',process.execPath,['tests/generate-eslint-globals.mjs','.']],
