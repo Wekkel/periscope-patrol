@@ -702,7 +702,7 @@ class TouchCtrl{
       hsel.value=String(state.time.timeScale);hsel._pkLabel?.();
     }
     const torpSel=g('mTorpSel');if(torpSel){const keys=torpedoSpecKeysForState(state),oldKeys=[...(torpSel.options||[])].map(o=>o.value);if(keys.join('|')!==oldKeys.join('|'))torpSel.innerHTML=keys.map(k=>`<option value="${k}">${torpedoOptionLabel(k)}</option>`).join('');for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
-    set('mScore',state.campaign.score.toLocaleString());
+    set('mScore',viewModel.mission.scoreText);
 
     // alert strip
     html('tAlert',warn.map(w=>`<span class="${w.level}">${w.text}</span>`).join('<span style="color:#2f5f56"> ▪ </span>'));
@@ -772,10 +772,9 @@ class TouchCtrl{
     cls('oGunFire','ready',!!state.weapons.deckGun?.manned&&state.weapons.deckGun.ammo>0);
 
     // fire button + TDC chip
-    const sq=Math.round(tdc.solutionQuality*100);
-    const canFire=!!tdc.targetId&&tdc.solutionQuality>=0.25&&W.tubes.some(t=>t.status==='READY');
-    cls('btnFire','ready',canFire);
-    set('fireSol',tdc.targetId?`${sq}%`:'--');
+    const sq=Number.parseInt(viewModel.fire.solutionText,10)||0;
+    cls('btnFire','ready',viewModel.fire.available);
+    set('fireSol',tdc.targetId?viewModel.fire.solutionText:'--');
     // the periscope draws its own solution bar, so the chip is for the other stations
     const chipOn=!!tdc.targetId&&sta==='TACTICAL',chip=g('tdcChip');
     cls('tdcChip','on',chipOn);
@@ -836,21 +835,18 @@ class TouchCtrl{
       set('mAutoCrewStatus',`AUTO CREW${airCrew} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
       const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);
       set('mDcStatus',`PRIORITY ${repairPriorityLabel(rp)} · ${dc?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · DRIVE BANK OFFLINE':''}`);}
-    set('rpmNote',`${viewModel.navigation.orders.engine} · ${viewModel.navigation.quick.speed} · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);
+    set('rpmNote',`${viewModel.navigation.orders.engine} · ${viewModel.navigation.quick.speed} · noise ${viewModel.systems.noisePercentText}`);
 
     // ── panes (only refresh the visible one) ──
     if(this.pane==='paneAttack'||force){
-      const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||{};
-      const dudPct=Math.round(100*(typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(state,tdc.torpedoSpecKey,tdc.dudMode):(spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)));
       const dudSel=g('mDudSel');if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
       set('mTdcTgt',tdc.targetId||'no target');
       const note=g('mTdcNote');
       if(note){
-        const ri=torpedoRangeInfo(state,tdc.targetId);
         const txt=tdc.targetId
-          ?`${tdc.status} · solution ${sq}% · ${tdc.launchBank||'FWD'} tubes · ${tdc.launchGeometry||'--'} · tube turn ${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(1)+'°':'--'} · ${ri?`${ri.label} · range ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}gyro ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · TtI ${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'} · dud risk ${dudPct}%`
+          ?`${tdc.status} · solution ${viewModel.fire.solutionText} · ${tdc.launchBank||'FWD'} tubes · ${tdc.launchGeometry||'--'} · tube turn ${viewModel.fire.tubeTurnText} · ${viewModel.fire.rangeText}gyro ${viewModel.fire.gyroText} · AoB ${viewModel.fire.aobText} · TtI ${viewModel.fire.ttiText} · dud risk ${viewModel.fire.dudText}`
           :'No target. Lock a contact from the scope or the map, or enter a manual solution below.';
-        if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');}
+        if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=viewModel.fire.rangeBand?(viewModel.fire.rangeBand==='IN'?'var(--ok)':viewModel.fire.rangeBand==='BORDERLINE'?'var(--alert)':'var(--danger)'):(viewModel.fire.solutionNumber>70?'var(--ok)':viewModel.fire.solutionNumber>40?'var(--alert)':'var(--danger)');}
       }
       {const ts=torpedoStoresStatus(state),fwd=state.weapons.tubes.filter(t=>t.pos==='FWD').map(t=>t.id),aft=state.weapons.tubes.filter(t=>t.pos==='AFT').map(t=>t.id);set('mTorpStores',`${ts.total} aboard · ${ts.loaded} loaded (${ts.loadedText}) · ${ts.reserve} reserve · reload ${ts.loadShort} · ${ts.ready} READY`);set('mFloodFwd',`${tui.flood||'Flood'} ${tui.forward||'Fwd'} ${fwd.join('-')}`);set('mFloodAft',`${tui.flood||'Flood'} ${tui.aft||'Aft'} ${aft.join('-')}`);}
       html('mTubes',W.tubes.map(t=>{
@@ -877,38 +873,13 @@ class TouchCtrl{
         `<span class="lbl">Solution</span><span class="val">${sq}%</span>`+
         `<span class="lbl">Torps</span><span class="val">${viewModel.vitals.torpedoes.value}</span>`+
         `<span class="lbl">Hits / duds</span><span class="val">${W.hits.length} / ${(W.duds||[]).length}</span>`);
-      const c2=state.campaign;
-      const opt2=(c2.optionalObjectives||[]).map(o=>{
-        const result=o.result&&o.result!=='not_attempted'?` · ${o.result.toUpperCase()}`:'';
-        return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
-      }).join('<br>');
-      const missionProgress=typeof missionProgressText==='function'?missionProgressText(state):'';
-      html('mMission',`<strong style="color:var(--alert)">${c2.primaryMission?.title||c2.missionName||'Assigned patrol'}</strong> · ${c2.missionStatus}<br>${missionProgress?`<span style="color:var(--alert);font-size:10px;">${missionProgress}</span><br>`:''}`+
-        c2.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
-        (opt2?`<br>${opt2}`:'')+
-        `<br><span style="color:var(--dim);font-size:10px;">Tonnage ${c2.tonnageSunk.toLocaleString()}t · patrol #${c2.patrolNumber} · career ${c2.totalScore}</span>`);
-      const d=sub.damage;
-      const bar=(l,v)=>{const col=v>0.65?'#ef6a58':v>0.3?'#f5c65c':'#6fe08f';
-        return `<div class="dmg-row"><span class="dmg-lbl">${l}</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${(v*100).toFixed(0)}%;background:${col}"></div></div><span class="dmg-val">${(v*100).toFixed(0)}%</span></div>`;};
-      const hc=d.hullIntegrity<30?'#ef6a58':d.hullIntegrity<60?'#f5c65c':'#6fe08f';
-      html('mDamage',
-        `<div class="note" style="margin:0 0 7px;">Hull shows integrity remaining; subsystem rows show damage accumulated.</div>`+
-        `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${viewModel.vitals.hull.raw}%;background:${hc}"></div></div><span class="dmg-val">${viewModel.vitals.hull.value}</span></div>`+
-        bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
-        bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
-        bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
-        `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
-        `<div class="dmg-row"><span class="dmg-lbl">Air quality</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#ef6a58':d.oxygen<50?'#f5c65c':'#6fe08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`);
-      html('mGauges',
-        `<span>Contacts</span><strong>${Object.keys(state.world.contactTracks).length}</strong>`+
-        `<span>Visibility</span><strong>${state.world.environment.visibilityNm.toFixed(1)} nm</strong>`+
-        `<span>Weather</span><strong>${state.world.environment.weather||'CLEAR'}</strong>`+
-        `<span>Sea state</span><strong>${state.world.environment.seaState.toFixed(2)}</strong>`+
-        `<span>Enemy alert</span><strong>${enemy}</strong>`+
-        `<span>Depth charges</span><strong>${state.world.depthCharges.length}</strong>`+
-        `<span>Noise</span><strong>${sub.stealth.acousticSignature.toFixed(2)}</strong>`+
-        `<span>Shallow zone</span><strong style="color:${sub.inShallowWater?'var(--alert)':'var(--muted)'}">${sub.inShallowWater?'YES':'NO'}</strong>`+
-        `<span>Keel clearance</span><strong style="color:${(sub.keelClearanceFeet??3000)<(sub.depthFeet<12?18:70)?'var(--alert)':'var(--ok)'}">${Math.max(0,Number(sub.keelClearanceFeet??0)).toFixed(0)} ft</strong>`);
+      const m=viewModel.mission;
+      html('mMission',`<strong style="color:var(--alert)">${m.title}</strong> · ${m.status}<br>${m.progressText?`<span style="color:var(--alert);font-size:10px;">${m.progressText}</span><br>`:''}`+
+        m.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
+        (m.optionalObjectives.length?`<br>${m.optionalObjectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${o.result?` · ${o.result}`:''}</span>`).join('<br>')}`:'')+
+        `<br><span style="color:var(--dim);font-size:10px;">Tonnage ${m.tonnageText}t · patrol #${m.patrolNumber} · career ${m.scoreText}</span>`);
+      html('mDamage',viewModel.damage.touchHtml);
+      html('mGauges',viewModel.systems.touchHtml);
       const sbw=(id,v)=>{const el=g(id);if(el&&C[id+'w']!==v){C[id+'w']=v;el.style.width=v+'%';}};
       sbw('mBattery',viewModel.vitals.battery.raw);sbw('mFuel',viewModel.vitals.fuel.raw);sbw('mHull',viewModel.vitals.hull.raw);
       const R=state.world.radio||{inbox:[],pending:null,copying:0};
@@ -952,10 +923,10 @@ class TouchCtrl{
         `${m.type} · ${m.subject}</b>${i===0?'<span class="sig-new">LATEST</span>':''}`+
         `<span class="sig-age">${agef(now2-(m.time||now2))} ago</span><br>${m.text}</div>`).join('')
         :'<span style="color:var(--dim)">No traffic copied yet. Come shallower than 42 ft when the broadcast is up.</span>');
-      const caplog=(state.campaign.importantEvents||[]).slice().reverse();
-      html('mCaptainLog',caplog.length?caplog.map(e=>`<div class="log-entry"><b>${e.date||('T+'+fmtTime(e.t))}</b> · ${e.text}</div>`).join('')
+      const caplog=viewModel.log.captain;
+      html('mCaptainLog',caplog.length?caplog.map(e=>`<div class="log-entry"><b>${e.date}</b> · ${e.text}</div>`).join('')
         :'<span style="color:var(--dim)">No major events entered yet.</span>');
-      html('mLog',state.log.slice(0,30).map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join(''));
+      html('mLog',viewModel.log.patrol.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">${e.time} ${e.text}</div>`).join(''));
     }
   }
 }

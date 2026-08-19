@@ -48,7 +48,7 @@ class DomView{
     if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
     const torpSel=document.getElementById('torpTypeSelect');if(torpSel){const keys=torpedoSpecKeysForState(state),oldKeys=[...(torpSel.options||[])].map(o=>o.value);if(keys.join('|')!==oldKeys.join('|'))torpSel.innerHTML=keys.map(k=>`<option value="${k}">${torpedoOptionLabel(k)}</option>`).join('');for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
     if(this.hArea)  this.hArea.textContent=PATROL_AREAS[state.campaign.patrolArea]?.displayName||state.campaign.patrolArea;
-    if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
+    if(this.hScore) this.hScore.textContent=viewModel.mission.scoreText;
     {const el=document.getElementById('hTimeConditions');if(el)el.textContent=viewModel.time.desktopConditionsText;}
     const headingExact=document.getElementById('headingNumberInput'),rpmExact=document.getElementById('rpmNumberInput'),depthExact=document.getElementById('depthNumberInput');if(headingExact&&headingExact!==document.activeElement)headingExact.value=String(Math.round(sub.orderedHeading));if(rpmExact&&rpmExact!==document.activeElement)rpmExact.value=String(Math.round(p.orderedRpm));if(depthExact&&depthExact!==document.activeElement)depthExact.value=String(Math.round(sub.orderedDepthFeet));
     document.querySelectorAll('[data-scope-zoom]').forEach(b=>b.classList.toggle('on',Number(b.dataset.scopeZoom)===Number(state.tactical.periscopeZoom)));
@@ -67,18 +67,18 @@ class DomView{
     this.renderAlerts(state);
     this.renderOrders(sub,state,viewModel);
     {const d=sub.damage,burden=(100-d.hullIntegrity)+100*(['flooding','ballastDamage','motorDamage','electricalDamage','rudderDamage','periscopeDamage','tdcDamage','gyroDamage','pumpDamage'].reduce((n,k)=>n+(Number(d[k])||0),0));if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.getElementById('deskDamage');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}
-    this.renderDamage(sub);
+    this.renderDamage(sub,viewModel);
     this.renderGauges(sub,state,viewModel);
     if(this.batteryBar) this.batteryBar.style.width=`${viewModel.vitals.battery.raw}%`;
     if(this.fuelBar)    this.fuelBar.style.width=`${viewModel.vitals.fuel.raw}%`;
     if(this.hullBar)    this.hullBar.style.width=`${viewModel.vitals.hull.raw}%`;
     for(const [id,v] of [['batteryPct',viewModel.vitals.battery.value],['fuelPct',viewModel.vitals.fuel.value],['hullPct',viewModel.vitals.hull.value]]){const el=document.getElementById(id);if(el)el.textContent=v;}
     if(this.logEl){
-      const cap=(state.campaign.importantEvents||[]).slice().reverse();
+      const cap=viewModel.log.captain;
       const capHtml=cap.length?`<div style="color:var(--alert);letter-spacing:1px;margin-bottom:4px;">CAPTAIN'S LOG</div>`+
-        cap.map(e=>`<div class="log-entry"><b>${e.date||('T+'+fmtTime(e.t))}</b> · ${e.text}</div>`).join('')+
+        cap.map(e=>`<div class="log-entry"><b>${e.date}</b> · ${e.text}</div>`).join('')+
         `<div style="color:var(--dim);letter-spacing:1px;margin:8px 0 4px;">FULL PATROL LOG</div>`:'';
-      this.logEl.innerHTML=capHtml+state.log.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join('');
+      this.logEl.innerHTML=capHtml+viewModel.log.patrol.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">${e.time} ${e.text}</div>`).join('');
     }
   }
   applyPresentation(state,ui){
@@ -118,12 +118,12 @@ class DomView{
       `<span class="lbl">${o.ballast||'Ballast'}</span><span class="val">${sub.ballastState}</span>`+
       `<span class="lbl">${o.silent||'Silent'}</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
       `<span class="lbl">TDC</span><span class="val">${tdc.status}</span>`+
-      `<span class="lbl">Solution</span><span class="val">${Math.round(tdc.solutionQuality*100)}%</span>`+
+      `<span class="lbl">Solution</span><span class="val">${viewModel.fire.solutionText}</span>`+
       `<span class="lbl">Launch</span><span class="val">${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'}</span>`+
-      `<span class="lbl">Tube turn</span><span class="val">${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(1)+'°':'--'}</span>`+
-      `<span class="lbl">Gyro</span><span class="val">${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'}</span>`+
-      `<span class="lbl">AoB</span><span class="val">${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'}</span>`+
-      `<span class="lbl">TtI</span><span class="val">${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'}</span>`+
+      `<span class="lbl">Tube turn</span><span class="val">${viewModel.fire.tubeTurnText}</span>`+
+      `<span class="lbl">Gyro</span><span class="val">${viewModel.fire.gyroText}</span>`+
+      `<span class="lbl">AoB</span><span class="val">${viewModel.fire.aobText}</span>`+
+      `<span class="lbl">TtI</span><span class="val">${viewModel.fire.ttiText}</span>`+
       `<span class="lbl">Torps</span><span class="val">${viewModel.vitals.torpedoes.value}</span>`+
       `<span class="lbl">Hits/Duds</span><span class="val">${state.weapons.hits.length}/${(state.weapons.duds||[]).length}</span>`;
 
@@ -139,13 +139,10 @@ class DomView{
     // TDC note
     const ne=document.getElementById('tdcSolutionNote');
     if(ne){
-      const sq=Math.round(tdc.solutionQuality*100);
-      const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||{};
-      const dudPct=Math.round(100*(typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(state,tdc.torpedoSpecKey,tdc.dudMode):(spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)));
       const ri=torpedoRangeInfo(state,tdc.targetId);
-      ne.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');
+      ne.style.color=viewModel.fire.rangeBand?(viewModel.fire.rangeBand==='IN'?'var(--ok)':viewModel.fire.rangeBand==='BORDERLINE'?'var(--alert)':'var(--danger)'):(viewModel.fire.solutionNumber>70?'var(--ok)':viewModel.fire.solutionNumber>40?'var(--alert)':'var(--danger)');
       ne.textContent=tdc.targetId
-        ?`${tdc.status} — Sol:${sq}% · ${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'} · tube ${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(1)+'°':'--'} · ${ri?`${ri.label} · R ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}Dud:${dudPct}% · ${tdc.torpedoType}`
+        ?`${tdc.status} — Sol:${viewModel.fire.solutionText} · ${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'} · tube ${viewModel.fire.tubeTurnText} · ${viewModel.fire.rangeText}Dud:${viewModel.fire.dudText} · ${tdc.torpedoType}`
         :'No target.';
     }
 
@@ -155,45 +152,34 @@ class DomView{
         const result=o.result&&o.result!=='not_attempted'?` · ${o.result.toUpperCase()}`:'';
         return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
       }).join('<br>');
-      const pm=camp.primaryMission,progress=typeof missionProgressText==='function'?missionProgressText(state):'';
+      const pm=camp.primaryMission,progress=viewModel.mission.progressText;
       this.missionStatus.innerHTML=
-        `<strong style="color:var(--alert)">${pm?.title||camp.missionStatus}</strong> <span style="color:var(--dim);font-size:10px;">${camp.missionStatus}</span><br>`+
+        `<strong style="color:var(--alert)">${viewModel.mission.title}</strong> <span style="color:var(--dim);font-size:10px;">${viewModel.mission.status}</span><br>`+
         (progress?`<span style="color:var(--alert);font-size:10px;">${progress}</span><br>`:'')+
-        camp.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
-        (opt?`<br>${opt}`:'')+
-        `<br><span style="color:var(--muted);font-size:10px;">Tonnage: ${camp.tonnageSunk.toLocaleString()}t | #${camp.patrolNumber} | Career: ${camp.totalScore}</span>`;
+        viewModel.mission.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
+        (viewModel.mission.optionalObjectives.length?`<br>${viewModel.mission.optionalObjectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${o.result?` · ${o.result}`:''}</span>`).join('<br>')}`:'')+
+        `<br><span style="color:var(--muted);font-size:10px;">Tonnage: ${viewModel.mission.tonnageText}t | #${viewModel.mission.patrolNumber} | Career: ${viewModel.mission.scoreText}</span>`;
     }
   }
-  renderDamage(sub){
+  renderDamage(sub,viewModel){
     if(!this.damageReport) return;
-    const d=sub.damage;
-    const bar=(l,v)=>{const col=v>0.65?'#e36b5d':v>0.3?'#f0c35a':'#7be08f';
-      return `<div class="dmg-row"><span class="dmg-lbl">${l}</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${(v*100).toFixed(0)}%;background:${col}"></div></div><span class="dmg-val">${(v*100).toFixed(0)}%</span></div>`;};
-    const hc=d.hullIntegrity<30?'#e36b5d':d.hullIntegrity<60?'#f0c35a':'#7be08f';
-    this.damageReport.innerHTML=
-      `<div class="note" style="margin:0 0 7px;">Hull shows integrity remaining; subsystem rows show damage accumulated.</div>`+
-      `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
-      bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
-      bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
-      bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
-      `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
-      `<div class="dmg-row"><span class="dmg-lbl">Air quality</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#e36b5d':d.oxygen<50?'#f0c35a':'#7be08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`;
+    this.damageReport.innerHTML=viewModel.damage.desktopHtml;
   }
   renderGauges(sub,state,viewModel){
     if(!this.gaugeReadout) return;
     const v=viewModel.vitals,sys=viewModel.systems;
     this.gaugeReadout.innerHTML=
       `<span>Contacts</span><strong>${sys.contacts}</strong>`+
-      `<span>Visibility</span><strong>${hudFixed(sys.visibility,1)} nm</strong>`+
+      `<span>Visibility</span><strong>${sys.visibilityText}</strong>`+
       `<span>Weather</span><strong>${sys.weather}</strong>`+
-      `<span>Sea state</span><strong>${hudFixed(sys.seaState,2)}</strong>`+
+      `<span>Sea state</span><strong>${sys.seaStateText}</strong>`+
       `<span>Enemy alert</span><strong>${sys.alertLevel}</strong>`+
       `<span>DCs active</span><strong>${sys.activeDepthCharges}</strong>`+
-      `<span>Noise sig</span><strong>${hudFixed(sys.noise,2)}</strong>`+
+      `<span>Noise sig</span><strong>${sys.noiseText}</strong>`+
       `<span>Shallow zone</span><strong style="color:${sys.shallowZone?'var(--alert)':'var(--muted)'}">${sys.shallowZone?'YES':'NO'}</strong>`+
       `<span>Keel clearance</span><strong style="color:${v.underKeel.state==='critical'?'var(--alert)':'var(--ok)'}">${v.underKeel.value}</strong>`+
       `<span>Radar fit</span><strong>${sys.radar}</strong>`+
-      `<span>Score</span><strong>${sys.score.toLocaleString()}</strong>`+
-      `<span>Area</span><strong>${PATROL_AREAS[state.campaign.patrolArea]?.displayName||state.campaign.patrolArea}</strong>`;
+      `<span>Score</span><strong>${sys.scoreText}</strong>`+
+      `<span>Area</span><strong>${sys.areaText}</strong>`;
   }
 }
