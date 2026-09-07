@@ -9,7 +9,7 @@
    │  player can always tell you exactly what they are running.       │
    └──────────────────────────────────────────────────────────────────┘ */
 
-const VERSION = '1.0.1'; // P58 9b boot/cache repair
+const VERSION = '1.0.8'; // P57 - Just a bump
 /* ─────────────────────────────────────────────────────────────────────
    Nothing below here needs touching for a routine release.
    ───────────────────────────────────────────────────────────────────── */
@@ -35,8 +35,6 @@ const SHELL = [
   './periscope-patrol-apple-touch-icon-v3.png',
   './css/app.css',
   './js/core/utilities.js',
-  './js/ui/hud-viewmodel.js',
-  './js/core/layout-service.js',
   './js/data/torpedo-data.js',
   './js/data/campaign-data.js',
   './js/navigation/route-geometry.js',
@@ -54,10 +52,8 @@ const SHELL = [
   './js/simulation/sensors.js',
   './js/simulation/ai/escort-asw.js',
   './js/simulation/physics-navigation.js',
-  './js/simulation/transit-service.js',
   './js/rendering/world-geometry.js',
   './js/rendering/canvas-core.js',
-  './js/rendering/quality-governor.js',
   './js/rendering/tactical.js',
   './js/rendering/deck-gun-3d.js',
   './js/rendering/periscope-3d.js',
@@ -68,14 +64,12 @@ const SHELL = [
   './js/persistence/save-system.js',
   './js/ui/scenario-selector.js',
   './js/ui/toast.js',
-  './js/ui/presentation-bridge.js',
   './js/rendering/gyro-indicator.js',
   './js/simulation/day-night.js',
   './js/rendering/particles.js',
   './js/core/game.js',
   './js/controllers/touch-controller.js',
   './js/ui/dom-view.js',
-  './js/ui/hud-driver.js',
   './js/controllers/bridge-controller.js',
   './js/tutorial/tutorial.js',
   './js/core/game-loop.js',
@@ -95,7 +89,6 @@ const SHELL = [
   './js/simulation/sound-radar.js',
   './js/rendering/sound-room.js',
   './js/simulation/weather-system.js',
-  './js/simulation/system-context.js',
   './js/simulation/ship-damage.js',
   './js/simulation/mission-framework.js',
   './js/simulation/traffic-director.js',
@@ -104,10 +97,7 @@ const SHELL = [
   './js/simulation/historical-campaign.js',
   './js/simulation/battle-atmosphere.js',
   './js/rendering/battle-atmosphere.js',
-  './js/audio/audio-director.js',
-  './js/data/game-catalog.js',
-  './js/data/pacific-terrain-data.js',
-  './js/data/multi-theater-campaigns.js'
+  './js/audio/audio-director.js'
 ];
 
 const OPTIONAL_SHELL = new Set([

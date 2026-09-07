@@ -109,14 +109,14 @@
       <div class="hk-row"><span class="hk-key">3</span><span class="hk-desc">Navigation map</span></div>
       <div class="hk-row"><span class="hk-key">4</span><span class="hk-desc">Deck gun</span></div>
       <div class="hk-row"><span class="hk-key">5</span><span class="hk-desc">Surface bridge watch</span></div>
-      <div class="hk-row"><span class="hk-key">6</span><span class="hk-desc">Sound room / surface radar</span></div>
+      <div class="hk-row"><span class="hk-key">6</span><span class="hk-desc">Sound room / SJ radar</span></div>
     </div>
     <div class="hk-section">
       <div class="hk-title">Helm</div>
       <div class="hk-row"><span class="hk-key">Space</span><span class="hk-desc">Pause / resume</span></div>
       <div class="hk-row"><span class="hk-key">[ ]</span><span class="hk-desc">Ordered heading −/+ 5°</span></div>
       <div class="hk-row"><span class="hk-key">, .</span><span class="hk-desc">Ordered RPM −/+ 25</span></div>
-      <div class="hk-row"><span class="hk-key">PgUp PgDn</span><span id="hkDepthStep" class="hk-desc">Ordered depth −/+ 10 ft</span></div>
+      <div class="hk-row"><span class="hk-key">PgUp PgDn</span><span class="hk-desc">Ordered depth −/+ 10 ft</span></div>
       <div class="hk-row"><span class="hk-key">S</span><span class="hk-desc">Toggle silent running</span></div>
       <div class="hk-row"><span class="hk-key">E</span><span class="hk-desc">Emergency blow</span></div>
       <div class="hk-row"><span class="hk-key">P</span><span class="hk-desc">Toggle pumps</span></div>
@@ -142,11 +142,6 @@
       <div class="hk-row hk-audio-row"><span class="hk-desc">SFX</span><input id="audioSfxVolume" type="range" min="0" max="100" value="62"><span id="audioSfxValue" class="hk-key">62%</span></div>
       <div class="hk-row hk-audio-row"><span class="hk-desc">Music / cues</span><input id="audioMusicVolume" type="range" min="0" max="100" value="42"><span id="audioMusicValue" class="hk-key">42%</span></div>
       <div class="hk-row"><span class="hk-key">T</span><span class="hk-desc">Mute / restore audio</span></div>
-    </div>
-    <div class="hk-section desk-display-settings">
-      <div class="hk-title">Display</div>
-      <div class="hk-row hk-audio-row"><span class="hk-desc">Interface size</span><input id="uiScaleInput" type="range" min="0.85" max="1.35" step="0.05" value="1" aria-label="Desktop interface text size"><span id="uiScaleValue" class="hk-key">100%</span></div>
-      <div class="hk-row"><span class="hk-key">85–135%</span><span class="hk-desc">Desktop text size; browser zoom is not required</span></div>
     </div>
     <div class="hk-section">
       <div class="hk-title">Map</div>
@@ -284,7 +279,7 @@
 ═══════════════════════════════════════════ -->
 <div id="desktopShell">
   <header id="deskHeader" class="panel">
-    <h1 id="deskBoatTitle">Periscope Patrol — Type VIIC</h1><span class="verchip" id="appVerDesk">v—</span>
+    <h1>Periscope Patrol — USS Silversides</h1><span class="verchip" id="appVerDesk">v—</span>
     <div class="hstatus">
       <span id="hDate">1943-08-17</span>
       <span>T+<strong id="clock">00000</strong>s</span>
@@ -300,31 +295,17 @@
       </div>
       <button id="deskLayoutBtn" title="Switch to the touch layout">⇄ TOUCH UI</button>
       <button id="deskTutBtn" title="Start the training patrol">🎓 TRAINING</button>
-      <div id="deskMissionActions" aria-label="Patrol and save controls">
-        <button id="newScenarioButton">⚓ MISSIONS</button>
-        <button id="saveGameButton">💾 SAVE</button>
-        <button id="loadGameButton">↺ LOAD</button>
-      </div>
     </div>
     <div id="deskAlert" aria-live="polite"></div>
   </header>
 
-  <nav id="deskNavToolbar" class="panel" aria-label="Navigation actions">
-    <span>NAVIGATION</span>
-    <button id="clearPlotButton">Clear Plot</button>
-    <button id="plotInterceptButton">Intercept Advice</button>
-    <button id="mapWeatherButton">☁ Weather</button>
-    <button id="followPlotButton">Steer To Waypoint</button>
-    <button id="portButton">⚓ Head To Port</button>
-    <i aria-hidden="true"></i>
-    <button type="button" class="secondary" data-open-desk-cmd="helm">Manual Helm</button>
-    <button type="button" class="secondary" data-open-desk-cmd="firecontrol">TDC</button>
-    <button type="button" class="secondary" data-open-desk-cmd="weapons">Weapons</button>
-  </nav>
-
-  <!-- Floating command drawer: no longer a fixed layout column. -->
+  <!-- LEFT BRIDGE -->
   <aside id="deskBridge" class="panel">
-    <div class="desk-drawer-head"><strong>COMMAND DRAWER</strong><button type="button" id="deskDrawerClose" aria-label="Close command drawer">✕</button></div>
+    <div id="deskMissionActions" aria-label="Patrol and save controls">
+      <button id="newScenarioButton">⚓ MISSIONS</button>
+      <button id="saveGameButton">💾 QUICK SAVE</button>
+      <button id="loadGameButton">↺ QUICK LOAD</button>
+    </div>
     <nav id="deskCommandTabs" class="desk-command-tabs" aria-label="Desktop command groups">
       <button type="button" data-cmd="helm" class="active">HELM</button>
       <button type="button" data-cmd="firecontrol">TDC</button>
@@ -333,13 +314,43 @@
     <section class="desk-cmd-pane active" data-desk-cmd="helm">
     <div class="ptitle">Bridge Commands</div>
     <div class="cgroup">
-      <label><span id="deskHeadingLabel">Ordered Heading</span><strong id="orderedHeadingValue">090°</strong></label>
+      <label><span>Ordered Heading</span><strong id="orderedHeadingValue">090°</strong></label>
       <input id="headingInput" type="range" min="0" max="359" value="90"/>
       <div class="heading-order-fine" aria-label="Exact ordered heading">
         <button data-hstep="-10">−10°</button><button data-hstep="-5">−5°</button><button data-hstep="-1">−1°</button>
         <input id="headingNumberInput" type="number" min="0" max="359" step="1" value="90" inputmode="numeric" aria-label="Exact ordered heading in degrees">
         <button data-hstep="1">+1°</button><button data-hstep="5">+5°</button><button data-hstep="10">+10°</button>
       </div>
+    </div>
+    <div class="cgroup">
+      <label><span>Ordered RPM</span><strong id="rpmValue">250</strong></label>
+      <input id="rpmInput" type="range" min="0" max="450" value="250"/>
+      <div class="desk-order-presets"><button data-deskrpm="0">Stop</button><button data-deskrpm="120">Slow</button><button data-deskrpm="250">Standard</button><button data-deskrpm="450">Flank</button></div>
+      <div class="desk-order-fine"><button data-deskrstep="-25">−25</button><input id="rpmNumberInput" type="number" min="0" max="450" step="1" value="250" aria-label="Exact ordered RPM"><button data-deskrstep="25">+25</button></div>
+    </div>
+    <div class="cgroup">
+      <label><span>Ordered Depth</span><strong id="depthValue">0 ft</strong></label>
+      <input id="depthInput" type="range" min="0" max="300" value="0"/>
+      <div class="desk-order-fine"><button data-deskdstep="-10">−10</button><input id="depthNumberInput" type="number" min="0" max="300" step="1" value="0" aria-label="Exact ordered depth in feet"><button data-deskdstep="10">+10</button></div>
+    </div>
+    <div class="cgroup">
+      <button id="surfaceButton">Surface</button>
+      <button id="periscopeButton">Periscope Depth (55ft)</button>
+      <button id="diveButton">Dive (100ft)</button>
+      <button id="crashDiveButton" class="danger">⚠ Crash Dive</button>
+    </div>
+    <div class="cgroup">
+      <button id="silentButton">Toggle Silent Running</button>
+      <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
+      <button id="pumpButton">Toggle Pumps</button>
+          </div>
+    <div class="ptitle" style="margin-top:8px;">Navigation</div>
+    <div class="cgroup desk-nav-grid">
+      <button id="clearPlotButton">Clear Plot</button>
+      <button id="plotInterceptButton">Plot Intercept Advice</button>
+      <button id="mapWeatherButton">☁ Weather</button>
+      <button id="followPlotButton">Steer To Waypoint</button>
+      <button id="portButton">⚓ Head To Port</button>
     </div>
     <div class="ptitle" style="margin-top:8px;">Damage Control Priority</div>
     <div class="cgroup" id="deskRepairPriority">
@@ -397,11 +408,11 @@
       </select>
     </div>
     <div class="cgroup">
-      <div class="ptitle" id="deskFwdTubeTitle">Fwd Tubes (1-4)</div>
+      <div class="ptitle">Fwd Tubes (1-4)</div>
       <button id="floodTubeButton">Flood All Fwd Tubes</button>
       <button id="fireTubeButton" class="danger">Fire Tube 1</button>
       <button id="fireSpreadButton" class="danger">Fire Fwd Spread</button>
-      <div class="ptitle" id="deskAftTubeTitle" style="margin-top:6px;">Aft Tubes (5-6)</div>
+      <div class="ptitle" style="margin-top:6px;">Aft Tubes (5-6)</div>
       <button id="floodAftButton">Flood Aft Tubes</button>
       <button id="fireAftButton" class="danger">Fire Aft Spread</button>
       <div id="tubeStatusDisplay" class="note" style="margin-top:4px;line-height:1.8;"></div>
@@ -441,122 +452,49 @@
       <button id="soundLeft">◀ <span>Train</span></button>
       <button id="soundMark">✚ <span>Mark Bearing</span></button>
       <button id="soundRight">▶ <span>Train</span></button>
-      <button id="soundRadar">⌁ <span>Surface Radar</span></button>
-      <button id="soundEcho" class="sound-active-qc">◉ <span>Active Echo</span></button>
+      <button id="soundRadar">⌁ <span>SJ Radar</span></button>
+      <button id="soundEcho" class="sound-active-qc">◉ <span>Active QC</span></button>
     </div>
     <div id="deskScopeControls" aria-label="Periscope rotation controls">
       <button id="scopeOverlayLeft">◀ <span>Rotate</span></button>
       <button id="scopeOverlayZoom">🔍 <span>Zoom</span></button>
       <button id="scopeOverlayRight"><span>Rotate</span> ▶</button>
     </div>
-    <div id="deskEmergencyCluster" aria-label="Emergency actions">
-      <button id="crashDiveButton" class="danger">⚠ Crash Dive</button>
-      <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
-      <button id="silentButton">Silent Running</button>
-      <button id="pumpButton">Pumps</button>
-    </div>
     <div id="dayNightBar"><div id="dayNightFill"></div></div>
     <div id="dayNightLabel"></div>
     <canvas id="gyroIndicator"></canvas>
     <canvas id="mainCanvas" width="960" height="560"></canvas>
     <div id="deskInputHint" aria-live="polite"></div>
-    <button id="deskFireButton" type="button" aria-label="Fire selected torpedo solution">FIRE<span id="deskFireSol">--%</span></button>
-  </section>
-
-  <!-- Desktop follows the touch HUD contract: one permanent nine-cell strip
-       immediately below the picture.  The touch strip remains independent. -->
-  <section id="deskVitals" class="panel" aria-label="Boat vitals">
-    <div class="desk-vital actionable" id="deskVitalDepth" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
-      <span>DEPTH ⇅</span><strong id="deskVitalDepthValue">0 ft</strong><small id="deskVitalDepthOrder">→ 0 ft</small>
-      <div class="desk-vital-menu" id="deskDepthMenu" role="menu" aria-label="Depth orders">
-        <div class="desk-vital-presets"><button type="button" data-desk-vdepth="0">Surface</button><button type="button" data-desk-vdepth="55">55 ft</button><button type="button" data-desk-vdepth="100">100 ft</button><button type="button" data-desk-vdepth="200">200 ft</button></div>
-        <div class="desk-vital-step"><button type="button" data-desk-vdstep="-10">−10</button><b id="deskDepthMenuValue">0 ft</b><button type="button" data-desk-vdstep="10">+10</button></div>
-      </div>
-    </div>
-    <div class="desk-vital" id="deskVitalKeel"><span>UNDER KEEL</span><strong id="deskVitalKeelValue">—</strong><small id="deskVitalBottom">—</small></div>
-    <div class="desk-vital" id="deskVitalHeading"><span>HEADING</span><strong id="deskVitalHeadingValue">090°</strong></div>
-    <div class="desk-vital actionable" id="deskVitalSpeed" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
-      <span>SPEED ⇅</span><strong id="deskVitalSpeedValue">0.0 kn</strong><small id="deskVitalSpeedOrder">→ 0 rpm</small>
-      <div class="desk-vital-menu" id="deskSpeedMenu" role="menu" aria-label="Engine orders">
-        <div class="desk-vital-presets"><button type="button" data-desk-vrpm="0">Stop</button><button type="button" data-desk-vrpm="120">Slow</button><button type="button" data-desk-vrpm="250">Standard</button><button type="button" data-desk-vrpm="450">Flank</button></div>
-        <div class="desk-vital-step"><button type="button" data-desk-vrstep="-25">−25</button><b id="deskSpeedMenuValue">0 rpm</b><button type="button" data-desk-vrstep="25">+25</button></div>
-      </div>
-    </div>
-    <div class="desk-vital" id="deskVitalTorps"><span>TORPS</span><strong id="deskVitalTorpsValue">—</strong></div>
-    <div class="desk-vital" id="deskVitalBattery"><span>BATTERY</span><strong id="deskVitalBatteryValue">100%</strong><small id="deskVitalBatteryState">FULL</small></div>
-    <div class="desk-vital" id="deskVitalFuel"><span>FUEL</span><strong id="deskVitalFuelValue">100%</strong></div>
-    <div class="desk-vital" id="deskVitalThreat"><span>THREAT</span><strong id="deskVitalThreatValue">CLEAR</strong></div>
-    <div class="desk-vital" id="deskVitalHull"><span>HULL</span><strong id="deskVitalHullValue">100%</strong></div>
   </section>
 
   <!-- RIGHT COL -->
   <div id="deskRight">
-    <section class="desk-info-panel panel open" data-desk-panel="mission">
-      <button type="button" class="desk-info-head" aria-expanded="true"><strong>Mission</strong><span id="deskMissionSummary">Assigned patrol</span><i>⌃</i></button>
-      <div class="desk-info-body"><div id="missionStatus"></div></div>
-    </section>
-    <section class="desk-info-panel panel" data-desk-panel="intel">
-      <button type="button" class="desk-info-head" aria-expanded="false"><strong>Contacts &amp; Intel</strong><span id="deskIntelSummary">0 contacts</span><i>⌄</i></button>
-      <div class="desk-info-body">
-        <div id="deskTargetOverview" class="desk-target-overview"></div>
-        <div id="deskIntel"></div>
-      </div>
-    </section>
-    <section class="desk-info-panel panel open" data-desk-panel="fire">
-      <button type="button" class="desk-info-head" aria-expanded="true"><strong>Fire Control</strong><span id="deskFireSummary">No target</span><i>⌃</i></button>
-      <div class="desk-info-body">
-        <div id="deskTdcOverview" class="desk-info-grid"></div>
-        <div class="desk-info-subhead">Torpedo stores</div>
-        <div id="deskTorpStores" class="note"></div>
-        <div id="deskRightTubes" class="desk-tube-list"></div>
-        <div class="desk-info-subhead">Deck gun</div>
-        <div id="deskDeckGunInfo" class="note"></div>
-      </div>
-    </section>
-    <section class="desk-info-panel panel" data-desk-panel="boat">
-      <button type="button" class="desk-info-head" aria-expanded="false"><strong>Boat &amp; Crew</strong><span id="deskBoatSummary">Hull 100%</span><i>⌄</i></button>
-      <div class="desk-info-body">
-        <div id="deskCrewStatus" class="note"></div>
-        <div id="deskAaStatus" class="note"></div>
-        <div class="desk-info-subhead">Damage</div>
-        <div id="damageReport"></div>
-        <div class="desk-info-subhead">Systems</div>
-        <div id="gaugeReadout" class="readout"></div>
-        <div class="desk-resources">
-          <div class="resource-label"><span>Battery</span><strong id="batteryPct">100%</strong></div>
-          <div class="res-bar"><i id="batteryBar"></i></div>
-          <div class="resource-label"><span>Fuel</span><strong id="fuelPct">100%</strong></div>
-          <div class="res-bar"><i id="fuelBar"></i></div>
-          <div class="resource-label"><span>Hull Integrity</span><strong id="hullPct">100%</strong></div>
-          <div class="res-bar"><i id="hullBar"></i></div>
-        </div>
-        <div class="desk-info-subhead">Current vs ordered</div>
-        <div class="orders-grid" id="ordersGrid"></div>
-      </div>
-    </section>
-    <section class="desk-info-panel panel" data-desk-panel="radio">
-      <button type="button" class="desk-info-head" aria-expanded="false"><strong>Radio</strong><span id="deskRadioSummary">No signals</span><i>⌄</i></button>
-      <div class="desk-info-body">
-        <div id="deskRadioState" class="note"></div>
-        <div class="radio-actions">
-          <button id="deskRadioReportButton" type="button">Send report</button>
-          <button id="deskRadioSilenceButton" type="button">TX silence</button>
-          <button id="deskRadioPartialButton" type="button">Use partial</button>
-        </div>
-        <div id="deskRadioMessages"></div>
-      </div>
-    </section>
-  </div>
-  <footer id="deskLog" class="panel" data-log-kind="captain">
-    <div class="desk-log-head">
-      <strong>Log</strong>
-      <div class="desk-log-switch" role="group" aria-label="Select log">
-        <button type="button" class="active" data-desk-log="captain" aria-pressed="true">Captain's log</button>
-        <button type="button" data-desk-log="patrol" aria-pressed="false">Patrol log</button>
+    <div id="deskOrders" class="panel">
+      <div class="ptitle">Mission Progress</div>
+      <div id="missionStatus" style="font-size:12px;color:var(--muted);line-height:1.5;"></div>
+    </div>
+    <div id="deskDamage" class="panel">
+      <div class="ptitle">Damage Report</div>
+      <div id="damageReport"></div>
+    </div>
+    <div id="deskGauges" class="panel">
+      <div class="ptitle">Systems</div>
+      <div id="gaugeReadout" class="readout"></div>
+      <div style="margin-top:6px;">
+        <div class="resource-label"><span>Battery</span><strong id="batteryPct">100%</strong></div>
+        <div class="res-bar"><i id="batteryBar"></i></div>
+        <div class="resource-label"><span>Fuel</span><strong id="fuelPct">100%</strong></div>
+        <div class="res-bar"><i id="fuelBar"></i></div>
+        <div class="resource-label"><span>Hull Integrity</span><strong id="hullPct">100%</strong></div>
+        <div class="res-bar"><i id="hullBar"></i></div>
       </div>
     </div>
-    <div id="deskLogEntries"></div>
-  </footer>
+    <div id="deskCurrentOrders" class="panel">
+      <div class="ptitle">Current vs Ordered</div>
+      <div class="orders-grid" id="ordersGrid"></div>
+    </div>
+  </div>
+  <footer id="deskLog" class="panel"></footer>
 </div><!-- end desktopShell -->
 
 
@@ -567,7 +505,7 @@
 
   <!-- TOP BAR -->
   <div id="tTop">
-    <span class="brand" id="touchBoatTitle">Type VIIC</span><span class="verchip" id="appVerTouch">v—</span>
+    <span class="brand" id="touchBoatTitle">USS Silversides</span><span class="verchip" id="appVerTouch">v—</span>
     <div class="tstats">
       <span id="tDate">1943-08-17</span>
       <span><strong id="mMode">--</strong></span>
@@ -689,7 +627,7 @@
         </div>
         <div class="note" id="navNote"></div>
 
-        <div class="ptitle" id="touchEngineTitle" style="margin-top:14px;">Engine <span id="rpmOrdered" style="color:var(--ink)">250</span></div>
+        <div class="ptitle" style="margin-top:14px;">Engine <span id="rpmOrdered" style="color:var(--ink)">250</span></div>
         <div class="g5">
           <button data-rpm="0">Stop</button><button data-rpm="120">Slow</button>
           <button data-rpm="250">Std</button><button data-rpm="450">Flank</button>
@@ -701,7 +639,7 @@
         <input id="mRpm" type="range" min="0" max="450" value="250" class="fine"/>
         <div class="note" id="rpmNote">Diesel on the surface, battery submerged. Flank speed is loud.</div>
 
-        <div class="ptitle" id="touchDepthTitle" style="margin-top:14px;">Depth <span id="dptOrdered" style="color:var(--ink)">0 ft</span></div>
+        <div class="ptitle" style="margin-top:14px;">Depth <span id="dptOrdered" style="color:var(--ink)">0 ft</span></div>
         <div class="g4">
           <button id="mSurface">Surface</button><button id="mPeriscope">55 ft</button>
           <button id="mDive">100 ft</button><button id="mDeep">200 ft</button>
@@ -722,7 +660,7 @@
           <button id="mPumps">💧 Pumps</button>
           <select id="mTimeSel" title="Time scale" style="margin:0;grid-column:1/-1;"><option value="0">⏸ Paused</option><option value="1">1× real time</option><option value="8">8×</option><option value="16">16×</option><option value="32">32×</option><option value="skip1800">⏩ Skip 30 min</option><option value="skip7200">⏩ Skip 2 hours</option><option value="skip28800">⏩ Skip 8 hours</option><option value="skip0">⏩⏩ Until something happens</option></select>
         </div>
-        <div id="mAutoCrewStatus" class="note">AUTO CREW · air-warning radar · AA · deck-gun crew · damage-control parties</div>
+        <div id="mAutoCrewStatus" class="note">AUTO CREW · SD radar · AA · deck-gun crew · damage-control parties</div>
 
         <div class="ptitle" style="margin-top:14px;">Damage Control Priority</div>
         <div class="g2" id="mRepairPriority">
@@ -763,7 +701,7 @@
           <button id="mSendTdc" class="go">➤ Scope → TDC</button>
         </div>
 
-        <div class="ptitle" id="touchTubeTitle" style="margin-top:14px;">Tubes — tap to flood / fire</div>
+        <div class="ptitle" style="margin-top:14px;">Tubes — tap to flood / fire</div>
         <div id="mTorpStores" class="note torp-stores-note">22 aboard · 6 loaded · 16 reserve</div>
         <div class="tubes" id="mTubes"></div>
         <div class="g2">
@@ -825,11 +763,6 @@
         <div id="mGauges" class="readout"></div>
 
         <div class="ptitle" style="margin-top:12px;">Radio Room <span id="radioState" style="color:var(--muted);font-size:10px;"></span></div>
-        <div class="radio-actions" aria-label="Radio orders">
-          <button id="radioReportButton" type="button">SEND REPORT</button>
-          <button id="radioSilenceButton" type="button">TX SILENCE</button>
-          <button id="radioPartialButton" type="button">USE PARTIAL</button>
-        </div>
         <div id="mRadio" style="font-size:11.5px;color:var(--muted);line-height:1.55;"></div>
         <div class="ptitle" style="margin-top:12px;">Captain's Log</div>
         <div id="mCaptainLog" style="font-size:11px;color:var(--muted);line-height:1.55;"></div>
@@ -852,13 +785,8 @@
 </div><!-- end touchShell -->
 
 <script src="./js/core/utilities.js"></script>
-<script src="./js/ui/hud-viewmodel.js"></script>
-<script src="./js/core/layout-service.js"></script>
 <script src="./js/data/torpedo-data.js"></script>
-<script src="./js/data/game-catalog.js"></script>
 <script src="./js/data/campaign-data.js"></script>
-<script src="./js/data/pacific-terrain-data.js"></script>
-<script src="./js/data/multi-theater-campaigns.js"></script>
 <script src="./js/navigation/route-geometry.js"></script>
 <script src="./js/simulation/collision/hull-geometry.js"></script>
 <script src="./js/simulation/weapons/tdc-math.js"></script>
@@ -877,26 +805,21 @@
 <script src="./js/simulation/sensors.js"></script>
 <script src="./js/simulation/sound-radar.js"></script>
 <script src="./js/simulation/weather-system.js"></script>
-<script src="./js/simulation/system-context.js"></script>
 <script src="./js/simulation/ai/asw-brain.js"></script>
 <script src="./js/simulation/ai/escort-asw.js"></script>
 <script src="./js/simulation/collision/vessel-collision.js"></script>
 <script src="./js/simulation/damage-control.js"></script>
 <script src="./js/simulation/career-history.js"></script>
 <script src="./js/simulation/physics-navigation.js"></script>
-<script src="./js/simulation/transit-service.js"></script>
 <script src="./js/simulation/mission-framework.js"></script>
 <script src="./js/simulation/traffic-director.js"></script>
 <script src="./js/simulation/historical-campaign.js"></script>
 <script src="./js/simulation/battle-atmosphere.js"></script>
 <script src="./js/simulation/after-action-report.js"></script>
 <script src="./js/rendering/world-geometry.js"></script>
-<script src="./js/rendering/optics.js"></script>
 <script src="./js/rendering/canvas-core.js"></script>
-<script src="./js/rendering/quality-governor.js"></script>
 <script src="./js/rendering/tactical.js"></script>
 <script src="./js/rendering/deck-gun-3d.js"></script>
-<script src="./js/rendering/world-3d.js"></script>
 <script src="./js/rendering/periscope-3d.js"></script>
 <script src="./js/rendering/bridge-3d.js"></script>
 <script src="./js/rendering/sound-room.js"></script>
@@ -910,14 +833,12 @@
 <script src="./js/ui/scenario-selector.js"></script>
 <script src="./js/ui/after-action-report.js"></script>
 <script src="./js/ui/toast.js"></script>
-<script src="./js/ui/presentation-bridge.js"></script>
 <script src="./js/rendering/gyro-indicator.js"></script>
 <script src="./js/simulation/day-night.js"></script>
 <script src="./js/rendering/particles.js"></script>
 <script src="./js/core/game.js"></script>
 <script src="./js/controllers/touch-controller.js"></script>
 <script src="./js/ui/dom-view.js"></script>
-<script src="./js/ui/hud-driver.js"></script>
 <script src="./js/controllers/bridge-controller.js"></script>
 <script src="./js/tutorial/tutorial.js"></script>
 <script src="./js/core/game-loop.js"></script>

@@ -2,58 +2,14 @@
 const game=new Game();
 const canvasView=new CanvasView(document.getElementById('mainCanvas'));
 const domView=new DomView();
-const gyroIndicator=new GyroIndicator(document.getElementById('gyroIndicator'));
+const gyroIndicator=new GyroIndicator();
 const bridgeCtrl=new BridgeController(game,canvasView);
 const sceneSelector=new ScenarioSelector(game);
 const aarController=new AfterActionReport(game);
 globalThis.aarController=aarController;
 const touchCtrl=new TouchCtrl(game,canvasView);
 const tutorial=new Tutorial(game,canvasView,touchCtrl);
-const uiToast=(method,...args)=>PresentationBridge.toast(game.state)[method]?.(...args);
-globalThis.processPresentationEffects=()=>{
-  const live=game.getSnapshot();if(live.playerSub?.mode!=='SUNK')audio.updateAircraftFlyby?.(live);globalThis.audioDirector?.update?.(live);
-  const desired=game.state.runtime?.audioState||{};
-  for(const e of Object.values(desired)) audio[e.method]?.(...e.args);
-  for(const e of PresentationBridge.take(game.state)){
-    if(e.type==='impact-observed'){
-      const snap=e.payload.snapshot,p=game.state.runtime.presentation||(game.state.runtime.presentation={}),q=p.impactQueue||(p.impactQueue=[]);
-      if(e.payload.queued){if(q.length<2)q.push(snap);continue;}
-      const startImpact=s=>{const token=s.token;p.impactStartedWall=performance.now();p.impactToken=token;p.impactQueue=q;game.state.tactical.impactObservation=s;
-        setTimeout(()=>{if(game.state.tactical?.impactObservation?.token===token){const method=String(s.weapon||'').toUpperCase()==='TORPEDO'?'playTorpedoHit':'playHit';game.dispatch({type:'PLAY_AUDIO',method});}},Math.max(0,s.preImpactMs||0));
-        p.impactTimer=setTimeout(()=>{if(p.impactToken!==token)return;const next=q.shift();if(next){startImpact(next);}else{
-          /* END must see the matching observation; clearing it first leaves
-             modalPauses stuck and produces a black paused frame. */
-          game.dispatch({type:'END_IMPACT_OBSERVATION',token});
-          p.impactStartedWall=null;p.impactToken=null;p.impactTimer=null;p.impactQueue=[];
-        }},Math.max(0,s.durationMs||2350));};
-      if(!p.impactToken)game.dispatch({type:'PAUSE_FOR_MODAL'});
-      startImpact(snap);
-      continue;
-    }
-    if(e.type==='audio-delay'){setTimeout(()=>game.dispatch({type:'PLAY_AUDIO',method:e.payload.method,args:e.payload.args}),Math.max(0,e.payload.delayMs||0));continue;}
-    if(e.type==='command-delay'){setTimeout(()=>game.dispatch(e.payload.command),Math.max(0,e.payload.delayMs||0));continue;}
-    if(e.type==='audio'){audio[e.payload.method]?.(...e.payload.args);continue;}
-    if(e.type==='toast'){
-      const args=e.payload.args||[],opts=args.at(-1),importance=opts&&typeof opts==='object'?opts.importance:'NUTTIG';
-      if(e.payload.method==='clear'||e.payload.method==='dismissRole'){Toast[e.payload.method]?.(...args);continue;}
-      if(importance==='RUIS')continue;
-      const rt=game.state.runtime||(game.state.runtime={}),now=performance.now(),bucket=rt.toastBudget||(rt.toastBudget={window:now,count:0,skipped:0});
-      const inTransit=!!game.state.time?.transitUntil;
-      if(now-bucket.window>2500){bucket.window=now;bucket.count=0;if(bucket.skipped&&!inTransit){Toast.warn('Additional notifications were suppressed while the bridge was busy.');bucket.skipped=0;}else if(inTransit)bucket.skipped=0;}
-      if(importance==='NUTTIG'&&bucket.count>=3){if(inTransit)bucket.skipped=0;else bucket.skipped=(bucket.skipped||0)+1;continue;}
-      if(bucket.skipped&&!inTransit){Toast.warn('Additional notifications were suppressed while the bridge was busy.');bucket.skipped=0;}
-      if(importance!=='KRITIEK')bucket.count++;
-      Toast[e.payload.method]?.(...(opts&&typeof opts==='object'?args.slice(0,-1):args));continue;
-    }
-    if(e.type==='save'){SaveSystem[e.payload.method]?.(...e.payload.args);continue;}
-    if(e.type==='aar')aarController[e.payload.method]?.(...e.payload.args);
-    if(e.type==='ui'&&e.payload.method==='dayNight'){const [daylight,timeStr]=e.payload.args,fill=document.getElementById('dayNightFill'),label=document.getElementById('dayNightLabel');if(fill&&label){fill.style.width=`${daylight*100}%`;fill.style.background=daylight>.7?'#f0c35a':daylight>.3?'#f0a84a':'#4a6a8a';label.textContent=`${daylight>.6?'☀':daylight>.25?'🌅':'🌙'} ${timeStr}`;}}
-    if(e.type==='ui'&&e.payload.method==='resumeHide')document.getElementById('resumeBar')?.classList.remove('on');
-  }
-};
-globalThis.skipImpactObservation=()=>{const p=game.state.runtime?.presentation;if(!p?.impactToken||performance.now()-Number(p.impactStartedWall||0)<900)return false;clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{const token=p.impactToken;game.dispatch({type:'END_IMPACT_OBSERVATION',token});p.impactToken=null;p.impactQueue=[];p.impactStartedWall=null;}return true;};
-document.addEventListener('pointerdown',e=>{if(e.target?.closest?.('#toastContainer,button,a,input,select,textarea'))return;globalThis.skipImpactObservation?.();},{capture:true});
-showBriefing(game.getSnapshot().campaign.patrolArea,game.getSnapshot());
+showBriefing('Solomon Sea',game.getSnapshot());
 
 // keep the canvas backing store in sync with its box
 if(window.ResizeObserver){
@@ -63,46 +19,21 @@ if(window.ResizeObserver){
   window.addEventListener('resize',()=>canvasView.resize(),{passive:true});
 }
 
-/* PP_DEV_TEST_CONSOLE — deliberately rough, dev-only scenario controls. */
-function installDevTestConsole(){
-  if(!PP_BUILD.isDev)return;
-  const panel=document.createElement('div');panel.id='ppDevTestConsole';panel.hidden=true;
-  panel.style.cssText='position:fixed;z-index:9999;right:8px;bottom:8px;width:min(320px,calc(100vw - 16px));max-height:70vh;overflow:auto;background:#071518;color:#d8e7d2;border:1px solid #c4a24a;padding:8px;font:12px monospace;box-shadow:0 4px 18px #000b';
-  const title=document.createElement('div');title.textContent='DEV TEST CONSOLE';title.style.cssText='color:#e8c75a;margin-bottom:6px;font-weight:bold';panel.append(title);
-  const out=document.createElement('pre');out.style.cssText='white-space:pre-wrap;max-height:90px;overflow:auto;margin:6px 0;color:#8fe0a4';panel.append(out);
-  const report=(text,level='ok')=>{out.textContent=`${text}\n`+out.textContent;uiToast(level,text);};
-  const targetTemplate=()=>game.state.world.contacts.find(c=>c.side!=='FRIENDLY'&&!c.sunk)||game.state.world.contacts[0];
-  const addTargets=()=>{const n=Math.max(1,Math.min(12,Number(prompt('Targets','3'))||3)),base=targetTemplate(),sub=game.state.playerSub;if(!base){report('No target template available.','warn');return;}for(let i=0;i<n;i++){const c=JSON.parse(JSON.stringify(base));c.id=`DEV-TARGET-${Date.now()}-${i}`;c.name=`DEV TARGET ${i+1}`;c.side='ENEMY';c.sunk=false;c.stationary=true;c.speedKnots=0;c.desiredSpeed=0;c.position={xNm:sub.position.xNm+(i+1)*.12,yNm:sub.position.yNm-.28};c.damage={...(c.damage||{}),hullIntegrity:100};game.state.world.contacts.push(c);}report(`Spawned ${n} stationary targets.`);};
-  const forceAir=()=>{const sub=game.state.playerSub,a={id:`DEV-AIR-${Date.now()}`,side:'ENEMY',name:'DEV ATTACKER',kind:'BOMBER',ordnance:'BOMB',position:{xNm:sub.position.xNm,yNm:sub.position.yNm-.08},heading:0,speedKnots:150,state:'ATTACKING',bombs:1,runTimer:0,spotted:true,seenBySub:true,bornAt:game.state.time.elapsedSeconds};game.state.world.aircraft.push(a);game.engine.sys?.aircraft?.update(game.engine.ctx,.1);report('Forced aircraft attack.');};
-  const forceAaCasualty=()=>{game.engine.sys?.aaGun?.aaCasualty('DEV FORCED — AA crew casualty.');report('Forced AA casualty.');};
-  const depthCharge=()=>{const sub=game.state.playerSub,a={id:`DEV-DC-${Date.now()}`,name:'DEV AIRCRAFT',position:{...sub.position},rattled:0,attackDatum:{...sub.position,at:game.state.time.elapsedSeconds}};game.engine.sys?.aaGun?.airDepthChargeAttack(a,sub,sub.position);report('Dropped forced depth charge.');};
-  const alert=()=>{const h=game.state.world.harbor;if(!h){report('No harbor in current patrol.','warn');return;}h.alert=Math.max(0,Math.min(3,Number(prompt('Harbor alert 0–3','3'))||0));h.suspicion=Math.max(h.suspicion||0,h.alert*35);report(`Harbor alert set to ${h.alert}.`);};
-  const deck=(manned)=>{game.state.weapons.deckGun.manned=!!manned;report(manned?'Deck gun manned.':'Deck cleared.');};
-  const tubes=()=>{for(const t of game.state.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;}report('All tubes refilled dry.');};
-  const seabed=(kind)=>{const value=Math.max(0,Number(prompt(kind==='seabed'?'Seabed feet':'Keel clearance feet',kind==='seabed'?'24':'14'))||0),W=game.state.world,sub=game.state.playerSub;if(kind==='seabed'){W._devForcedSeabedFeet=value;delete W._devForcedKeelClearanceFeet;sub.seabedFeet=value;sub.keelClearanceFeet=value-sub.depthFeet;}else{W._devForcedKeelClearanceFeet=value;delete W._devForcedSeabedFeet;sub.keelClearanceFeet=value;sub.seabedFeet=sub.depthFeet+value;}report(`Forced ${kind}: ${value} ft.`);};
-  const queueImpacts=()=>{const c=targetTemplate(),sub=game.state.playerSub;if(!c){report('No target template available.','warn');return;}game.state.tactical.activeStation='MAP';for(let i=0;i<4;i++){const p={xNm:sub.position.xNm+.2+i*.03,yNm:sub.position.yNm-.2};const snap=game.engine.impactObservationSnapshot({...c,id:`DEV-IMPACT-${Date.now()}-${i}`,name:`DEV IMPACT ${i+1}`,position:p},{weapon:'TORPEDO',impactPosition:p,torpedoWakeVisible:true});game.engine.startImpactObservation(snap);}processPresentationEffects();report('Queued four impacts; fourth should be rejected.');};
-  const commands=[['SPAWN TARGETS',addTargets],['QUEUE IMPACTS 4',queueImpacts],['FORCE AIR ATTACK',forceAir],['FORCE AA CASUALTY',forceAaCasualty],['DROP DEPTH CHARGE',depthCharge],['SET HARBOR ALERT',alert],['DECK MAN',()=>deck(true)],['DECK CLEAR',()=>deck(false)],['FILL TUBES',tubes],['FORCE SEABED',()=>seabed('seabed')],['FORCE KEEL MARGIN',()=>seabed('keel')]];
-  for(const [label,fn] of commands){const b=document.createElement('button');b.textContent=label;b.style.cssText='margin:2px;padding:4px;background:#10282a;color:#d8e7d2;border:1px solid #54766e;font:11px monospace';b.addEventListener('click',()=>{try{fn();}catch(e){report(`DEV ERROR: ${e.message}`,'bad');}});panel.append(b);}
-  const close=document.createElement('button');close.textContent='×';close.style.cssText='position:absolute;right:4px;top:3px;background:none;color:#e8c75a;border:0;font-size:18px';close.onclick=()=>{panel.hidden=true;};panel.append(close);document.body.append(panel);
-  globalThis.toggleDevTestConsole=()=>{panel.hidden=!panel.hidden;if(!panel.hidden)report('Ready.');};
-}
-installDevTestConsole();
-
 // mission select / save buttons (both shells)
 ['newScenarioButton','mMissionSel'].forEach(id=>document.getElementById(id)?.addEventListener('click',()=>sceneSelector.open()));
 ['saveGameButton','mSaveGame'].forEach(id=>{
   document.getElementById(id)?.addEventListener('click',()=>{
     if(SaveSystem.quickSave(game.getSnapshot())){
-      audio.event?.('SAVE_CONFIRMED'); uiToast('ok','Quick save updated — manual slots unchanged'); buzz(15);
+      audio.event?.('SAVE_CONFIRMED'); Toast.ok('Quick save updated — manual slots unchanged'); buzz(15);
     }
   });
 });
 ['loadGameButton','mLoadGame'].forEach(id=>document.getElementById(id)?.addEventListener('click',async()=>{
   const state=SaveSystem.quickLoad();
-  if(!state){uiToast('warn',`No quick save available${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:''}.`);return;}
+  if(!state){Toast.warn(`No quick save available${SaveSystem.lastLoadError?`: ${SaveSystem.lastLoadError}`:''}.`);return;}
   if(!await DecisionDialog.confirm({title:'LOAD QUICK SAVE',message:'Unsaved progress in the current patrol will be replaced.',confirmLabel:'LOAD',danger:true}))return;
   SaveSystem.releaseImportedResume?.();SaveSystem.autoClear?.();Object.assign(game.state,state);
-  document.getElementById('scenarioOverlay')?.classList.remove('open');showBriefing(state.campaign.patrolArea,state);audio.event?.('RESUME_CONFIRMED');uiToast('ok','Quick save loaded');
+  document.getElementById('scenarioOverlay')?.classList.remove('open');showBriefing(state.campaign.patrolArea,state);audio.event?.('RESUME_CONFIRMED');Toast.ok('Quick save loaded');
 }));
 
 // torpedo run-depth slider (desktop)
@@ -120,19 +51,19 @@ document.getElementById('hotkeyClose')?.addEventListener('click',()=>hotkeyOverl
 const layoutToggle=document.getElementById('layoutToggle');
 const refreshLayoutLabel=()=>{
   if(!layoutToggle) return;
-  const cur=LayoutService.get().shell;
+  const cur=document.documentElement.dataset.lay;
   layoutToggle.textContent=cur==='touch'
     ? '⇄ Now: TOUCH layout — switch to desktop'
     : '⇄ Now: DESKTOP layout — switch to touch';
 };
 refreshLayoutLabel();
 layoutToggle?.addEventListener('click',()=>{
-  const cur=LayoutService.get().shell;
+  const cur=document.documentElement.dataset.lay;
   localStorage.setItem(PP_BUILD.storageKey('ss_ui'),cur==='touch'?'desk':'touch');
   hotkeyOverlay?.classList.remove('open');
   touchCtrl.applyLayout(true);
   refreshLayoutLabel();
-  uiToast('ok',cur==='touch'?'Desktop layout':'Touch layout — tabs at the bottom');
+  Toast.ok(cur==='touch'?'Desktop layout':'Touch layout — tabs at the bottom');
 });
 
 /* Keyboard ownership is shared by the global shell and BridgeController.
@@ -144,7 +75,7 @@ function ppKeyboardBlocked(){
   const briefing=document.getElementById('briefingOverlay');
   return !!globalThis.Picker?.open||open('aarOverlay')||open('hotkeyOverlay')||
     open('scenarioOverlay')||!!(briefing&&getComputedStyle(briefing).display!=='none')||
-    open('tSheet')||open('deskBridge')||document.getElementById('orderPad')?.classList.contains('on');
+    open('tSheet')||document.getElementById('orderPad')?.classList.contains('on');
 }
 globalThis.ppKeyboardBlocked=ppKeyboardBlocked;
 function closeTopUiLayer(){
@@ -154,7 +85,6 @@ function closeTopUiLayer(){
   if(briefing&&getComputedStyle(briefing).display!=='none'){document.getElementById('briefingDismiss')?.click();return true;}
   if(hotkeyOverlay?.classList.contains('open')){hotkeyOverlay.classList.remove('open');return true;}
   if(document.getElementById('scenarioOverlay')?.classList.contains('open')){sceneSelector.close();return true;}
-  if(document.getElementById('deskBridge')?.classList.contains('open')){closeDeskCommandPane();return true;}
   if(document.getElementById('orderPad')?.classList.contains('on')){touchCtrl.closePad?.();return true;}
   if(document.getElementById('tSheet')?.classList.contains('open')){touchCtrl.setPane('view');return true;}
   return false;
@@ -163,7 +93,6 @@ function closeTopUiLayer(){
 // global keyboard shortcuts
 window.addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
-  if(k===' '&&game.state.runtime?.presentation?.impactToken){e.preventDefault();globalThis.skipImpactObservation?.();return;}
   if(k==='escape'){
     if(closeTopUiLayer())e.preventDefault();
     return;
@@ -172,11 +101,10 @@ window.addEventListener('keydown',e=>{
   if(ppKeyboardBlocked())return;
   if(k==='m'){sceneSelector.open();return;}
   if(k==='l'){tutorial.active?tutorial.next():tutorial.start();return;}
-  if(k==='t'){const on=audio.toggle();uiToast('ok',on?'Audio ON':'Audio OFF');return;}
+  if(k==='t'){const on=audio.toggle();Toast.ok(on?'Audio ON':'Audio OFF');return;}
   if(k==='?'||k==='/'){hotkeyOverlay?.classList.toggle('open');refreshDiag();return;}
-  if(e.ctrlKey&&e.shiftKey&&k==='d'&&PP_BUILD.isDev){e.preventDefault();globalThis.toggleDevTestConsole?.();return;}
   if(k==='tab'){e.preventDefault();game.dispatch({type:'CYCLE_TIME_SCALE'});return;}
-  if(k==='f'){game.dispatch({type:'FLOOD_ALL_TUBES'});uiToast('ok','Fwd tubes flooded');}
+  if(k==='f'){game.dispatch({type:'FLOOD_ALL_TUBES'});Toast.ok('Fwd tubes flooded');}
   if(k==='g'){game.dispatch({type:'FIRE_TORPEDO',tubeId:1});}
   if(k==='v'){game.dispatch({type:'FIRE_READY_SPREAD'});}
   if(k==='c'){game.dispatch({type:'PERISCOPE_SELECT_CENTER_CONTACT'});}
@@ -188,16 +116,7 @@ window.addEventListener('keydown',e=>{
 // Audio needs a user gesture. The title identity belongs to a true app opening:
 // play it once after unlock, then let MISSION_START fade it instead of replaying
 // it every time the player starts another patrol in the same app session.
-(()=>{
-  const events=['pointerdown','touchstart','mousedown','keydown','click'];let installed=false;
-  const install=()=>{if(installed)return;installed=true;events.forEach(type=>document.addEventListener(type,unlock,{capture:true,passive:true}));};
-  const unlock=e=>{
-    Promise.resolve(audio.resumeFromGesture?.(e.type)).then(running=>{
-      if(running){events.forEach(type=>document.removeEventListener(type,unlock,true));installed=false;audio.playTitleCue?.('START');}
-    });
-  };
-  audio.setGestureUnlockRearm?.(install);install();
-})();
+document.addEventListener('pointerdown',()=>{audio.ensure();audio.playTitleCue?.('START');},{once:true});
 
 // Audio settings are profile-independent device preferences: a phone and a
 // tablet may need very different output levels. Keep them outside patrol saves.
@@ -206,21 +125,13 @@ window.addEventListener('keydown',e=>{
   const apply=()=>{q.sfx=clamp(Number(sfx?.value??q.sfx),0,100);q.music=clamp(Number(mus?.value??q.music),0,100);audio.setSfxVolume(q.sfx/100);audio.setMusicVolume(q.music/100);if(sv)sv.textContent=`${Math.round(q.sfx)}%`;if(mv)mv.textContent=`${Math.round(q.music)}%`;try{localStorage.setItem(KEY,JSON.stringify(q));}catch(_){}};
   if(sfx)sfx.value=q.sfx;if(mus)mus.value=q.music;apply();sfx?.addEventListener('input',apply,{passive:true});mus?.addEventListener('input',apply,{passive:true});})();
 
-// Text scaling is a desktop display preference, not patrol state. Keep the
-// scalar on the document root so every desktop presentation surface can use
-// one value, and namespace persistence through the existing build profile.
-(()=>{const KEY=PP_BUILD.storageKey('ss_ui_scale'),input=document.getElementById('uiScaleInput'),value=document.getElementById('uiScaleValue');
-  let scale=1;try{scale=clamp(Number(localStorage.getItem(KEY)||1),.85,1.35);}catch(_){}
-  const apply=()=>{scale=clamp(Number(input?.value??scale),.85,1.35);document.documentElement.style.setProperty('--ui-scale',String(scale));if(value)value.textContent=`${Math.round(scale*100)}%`;try{localStorage.setItem(KEY,String(scale));}catch(_){}};
-  if(input)input.value=String(scale);apply();input?.addEventListener('input',apply,{passive:true});})();
-
 // Safety net: if the page ended up in the desktop layout on a device that is
 // actually being touched, switch over. Without this a stored 'desk' preference
 // (or a mis-detected tablet) hides the tab bar and there is no way back on a
 // device with no keyboard.
 window.addEventListener('pointerdown',e=>{
   if(e.pointerType&&e.pointerType!=='touch') return;
-  if(LayoutService.get().shell!=='desk') return;
+  if(document.documentElement.dataset.lay!=='desk') return;
   if(localStorage.getItem(PP_BUILD.storageKey('ss_ui'))==='desk') return;      // explicit user choice — respect it
   /* Hybrid Windows laptops can legitimately receive a touch pointer while a
      fine mouse/trackpad remains the primary control. Do not tear down their
@@ -228,7 +139,7 @@ window.addEventListener('pointerdown',e=>{
   if(window.matchMedia?.('(pointer:fine)').matches&&window.innerWidth>=900) return;
   localStorage.setItem(PP_BUILD.storageKey('ss_ui'),'touch');
   touchCtrl.applyLayout(true);
-  uiToast('ok','Touch detected — switched to the touch layout');
+  Toast.ok('Touch detected — switched to the touch layout');
 },{capture:true});
 
 // live layout diagnostics — shown in the help overlay
@@ -237,7 +148,7 @@ function refreshDiag(){
   if(!el) return;
   const d=touchCtrl.checkLayout();
   const vv=window.visualViewport;
-  el.innerHTML=`layout <b>${LayoutService.get().shell}</b> · `+
+  el.innerHTML=`layout <b>${document.documentElement.dataset.lay}</b> · `+
     `window ${window.innerWidth}×${window.innerHeight}`+
     (vv?` · visible ${Math.round(vv.width)}×${Math.round(vv.height)}`:'')+
     ` · dpr ${(window.devicePixelRatio||1).toFixed(2)}`+
@@ -245,9 +156,7 @@ function refreshDiag(){
     ` · build ${PP_BUILD.isDev?'AD DEV':'PROD'}`+
     (d?` · tabbar bottom ${d.tabsBottom}/${d.viewport}${d.overflow>2?' ⚠ OFF SCREEN':''}`+
        (d.blockedBy?` · ⚠ covered by ${d.blockedBy}`:' · tabs clear'):'')+
-    ` · pref ${localStorage.getItem(PP_BUILD.storageKey('ss_ui'))||'auto'}`+
-    ` · audio ${audio.audioStats?.().context||'none'} · resume ${audio.audioStats?.().gestureResumeAttempts||0}×`+
-    ` (${audio.audioStats?.().lastGestureEvent||'none'})`;
+    ` · pref ${localStorage.getItem(PP_BUILD.storageKey('ss_ui'))||'auto'}`;
 }
 document.getElementById('mHelpBtn')?.addEventListener('click',()=>setTimeout(refreshDiag,60));
 document.getElementById('tutHelpBtn')?.addEventListener('click',()=>setTimeout(refreshDiag,60));
@@ -256,7 +165,7 @@ document.getElementById('tutHelpBtn')?.addEventListener('click',()=>setTimeout(r
 document.getElementById('deskLayoutBtn')?.addEventListener('click',()=>{
   localStorage.setItem(PP_BUILD.storageKey('ss_ui'),'touch');
   touchCtrl.applyLayout(true);
-  uiToast('ok','Touch layout — tabs are at the bottom of the screen');
+  Toast.ok('Touch layout — tabs are at the bottom of the screen');
 });
 document.getElementById('deskTutBtn')?.addEventListener('click',()=>tutorial.start());
 
@@ -274,13 +183,7 @@ function setDeskCommandPane(name,persist=true){
   document.querySelectorAll('#deskCommandTabs [data-cmd]').forEach(b=>b.classList.toggle('active',b.dataset.cmd===name));
   if(persist){try{localStorage.setItem(DESK_CMD_KEY,name);}catch(_){}}
 }
-const deskDrawer=document.getElementById('deskBridge');
-const openDeskCommandPane=name=>{setDeskCommandPane(name);deskDrawer?.classList.add('open');};
-const closeDeskCommandPane=()=>deskDrawer?.classList.remove('open');
 document.querySelectorAll('#deskCommandTabs [data-cmd]').forEach(b=>b.addEventListener('click',()=>setDeskCommandPane(b.dataset.cmd)));
-document.querySelectorAll('[data-open-desk-cmd]').forEach(b=>b.addEventListener('click',()=>openDeskCommandPane(b.dataset.openDeskCmd)));
-document.getElementById('deskDrawerClose')?.addEventListener('click',closeDeskCommandPane);
-document.addEventListener('pointerdown',e=>{if(deskDrawer?.classList.contains('open')&&!e.target.closest('#deskBridge')&&!e.target.closest('[data-open-desk-cmd]'))closeDeskCommandPane();},{capture:true});
 let initialDeskCmd='helm';
 try{initialDeskCmd=localStorage.getItem(DESK_CMD_KEY)||'helm';}catch(_){}
 setDeskCommandPane(initialDeskCmd,false);
@@ -290,47 +193,14 @@ const deskCmdForStation={
 };
 for(const [id,pane] of Object.entries(deskCmdForStation)){
   document.getElementById(id)?.addEventListener('click',()=>{
-    if(LayoutService.get().shell==='desk') setDeskCommandPane(pane);
+    if(document.documentElement.dataset.lay==='desk') setDeskCommandPane(pane);
   });
 }
-
-// Desktop information follows the mobile sheet pattern, adapted to the height
-// available beside the map. At most two panels share that height. Opening a
-// third closes the panel that has been open longest; closing is always manual.
-const deskInfoPanels=[...document.querySelectorAll('[data-desk-panel]')];
-let deskInfoOpenOrder=deskInfoPanels.filter(panel=>panel.classList.contains('open'));
-function setDeskInfoPanel(panel,open){
-  panel.classList.toggle('open',open);
-  const head=panel.querySelector('.desk-info-head'),chevron=head?.querySelector('i');
-  head?.setAttribute('aria-expanded',open?'true':'false');
-  if(chevron)chevron.textContent=open?'⌃':'⌄';
-}
-for(const panel of deskInfoPanels){
-  panel.querySelector('.desk-info-head')?.addEventListener('click',()=>{
-    if(panel.classList.contains('open')){
-      setDeskInfoPanel(panel,false);
-      deskInfoOpenOrder=deskInfoOpenOrder.filter(item=>item!==panel);
-      return;
-    }
-    while(deskInfoOpenOrder.length>=2)setDeskInfoPanel(deskInfoOpenOrder.shift(),false);
-    setDeskInfoPanel(panel,true);
-    deskInfoOpenOrder.push(panel);
-  });
-}
-
-// One bounded desktop log window; the switch changes only its presentation.
-const deskLog=document.getElementById('deskLog');
-document.querySelectorAll('[data-desk-log]').forEach(button=>button.addEventListener('click',()=>{
-  const kind=button.dataset.deskLog==='patrol'?'patrol':'captain';
-  if(deskLog)deskLog.dataset.logKind=kind;
-  document.querySelectorAll('[data-desk-log]').forEach(item=>{const active=item.dataset.deskLog===kind;item.classList.toggle('active',active);item.setAttribute('aria-pressed',active?'true':'false');});
-  domView.render(game.getSnapshot(),LayoutService.get());
-}));
 
 // one-off touch hint
-if(LayoutService.get().shell==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){
+if(document.documentElement.dataset.lay==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){
   setTimeout(()=>{
-    uiToast('ok','Tip: drag the compass to steer, drag the depth column to dive');
+    Toast.ok('Tip: drag the compass to steer, drag the depth column to dive');
     localStorage.setItem(PP_BUILD.storageKey('ss_hint'),'1');
   },2600);
 }
@@ -391,7 +261,7 @@ if(LayoutService.get().shell==='touch'&&!localStorage.getItem(PP_BUILD.storageKe
     if(name==='impact-framing'){
       const br=normDeg(Number(opts.bearingDeg??sub.heading)),range=clamp(Number(opts.rangeNm)||.12,.025,5),type=String(opts.type||'CARRIER').toUpperCase();
       const lengths={CARRIER:820,HEAVY_CRUISER:660,DESTROYER:350,KAIBOKAN:255,MERCHANT:440},lengthFeet=Number(opts.lengthFeet)||lengths[type]||440;
-      const pos=at(sub.position,br,range),heading=normDeg(br+90),target=materializeVesselIdentity({id:'DBG-HIT',name:`Debug ${type.replaceAll('_',' ')}`,type,displayType:type.replaceAll('_',' '),side:'ENEMY',position:pos,heading,speedKnots:10,lengthYards:lengthFeet,tonsFactor:type==='CARRIER'?26000:type==='HEAVY_CRUISER'?13000:6000,visualProfile:1,shipDamage:{flotation:.62,propulsion:.45,steering:.18,fire:.28},sunk:false,sinkingProgress:0,hitFrac:.12,hitSide:1},s);
+      const pos=at(sub.position,br,range),heading=normDeg(br+90),target={id:'DBG-HIT',name:`Debug ${type.replaceAll('_',' ')}`,type,displayType:type.replaceAll('_',' '),side:'ENEMY',position:pos,heading,speedKnots:10,lengthYards:lengthFeet,tonsFactor:type==='CARRIER'?26000:type==='HEAVY_CRUISER'?13000:6000,visualProfile:1,shipDamage:{flotation:.62,propulsion:.45,steering:.18,fire:.28},sunk:false,sinkingProgress:0,hitFrac:.12,hitSide:1};
       sub.depthFeet=55;sub.orderedDepthFeet=55;sub.mode='SUBMERGED';s.world.contacts=[target];s.tactical.activeStation='PERISCOPE';s.tactical.periscopeBearing=br;
       s.tactical.impactObservation={token:1,contactId:target.id,name:target.name,type:target.type,displayType:target.displayType,lengthYards:lengthFeet,tonsFactor:target.tonsFactor,heading,speedKnots:target.speedKnots,position:{...pos},shipDamage:{...target.shipDamage},sunk:false,sinkingProgress:0,sinkStyle:0,hitFrac:.12,hitSide:1,stationary:false,beforeShip:{heading,speedKnots:10,shipDamage:{flotation:0,propulsion:0,steering:0,fire:0},sunk:false,sinkingProgress:0,sinkStyle:0,hitFrac:0,hitSide:1},impactPosition:{...pos,zM:2.5},viewerPos:{...sub.position},viewerDepth:55,viewerHeading:sub.heading,originStation:'PERISCOPE',viewBearing:br,originFov:32,targetBearing:br,weapon:'TORPEDO',location:'MIDSHIPS',condition:'CRIPPLED',rangeNm:range,preImpactMs:1500,durationMs:9000,startedWall:performance.now()-2300,torpedoHeading:br,torpedoWakePath:[],torpedoWakeNm:.35,torpedoWakeVisible:true};
       return s;
@@ -407,7 +277,7 @@ if(LayoutService.get().shell==='touch'&&!localStorage.getItem(PP_BUILD.storageKe
       s.world.contacts=[];s.world.contactTracks={};
       for(const [id,type,bear,rng,course,kn,aff] of specs){
         const pos=at(sub.position,bear,rng),display=type.replaceAll('_',' ');
-        s.world.contacts.push(materializeVesselIdentity({id,name:`Debug ${display}`,type:type==='CARGO SHIP'?'MERCHANT':type,displayType:display,side:aff==='ENEMY'?'ENEMY':aff,position:pos,heading:course,speedKnots:kn,lengthYards:type==='DESTROYER'?350:type==='HEAVY CRUISER'?660:type==='CARRIER'?820:430,sunk:false},s));
+        s.world.contacts.push({id,name:`Debug ${display}`,type:type==='CARGO SHIP'?'MERCHANT':type,displayType:display,side:aff==='ENEMY'?'ENEMY':aff,position:pos,heading:course,speedKnots:kn,lengthYards:type==='DESTROYER'?350:type==='HEAVY CRUISER'?660:type==='CARRIER'?820:430,sunk:false});
         s.world.contactTracks[id]={id,bearing:bear,rangeEstimateNm:rng,confidence:.96,positionConfidence:.97,plotPosition:{...pos},lastFixPosition:{...pos},positionFixAt:now,lastUpdated:now,visualHullConfirmed:true,hullConfirmedAt:now,positionSource:'VISUAL',source:'VISUAL',typeEstimate:display,contactType:type,courseEstimate:course,speedEstimateKnots:kn,affiliation:aff};
       }
       s.tactical.selectedTrackId='T02';return s;
@@ -428,24 +298,24 @@ if(LayoutService.get().shell==='touch'&&!localStorage.getItem(PP_BUILD.storageKe
       if(strategy)canvasView.mapLabelStrategy=String(strategy).toUpperCase();
       if(Number.isFinite(zoom))canvasView.zoom=zoom;
       if(center)canvasView.mapCenter={...center};
-      canvasView.render(state,LayoutService.get());
+      canvasView.render(state);
       return canvasView.canvas.toDataURL('image/png');
     }finally{
       canvasView.mapLabelStrategy=old.strategy;canvasView.zoom=old.zoom;canvasView.mapCenter=old.center;canvasView.follow=old.follow;
-      canvasView.render(game.getSnapshot(),LayoutService.get());
+      canvasView.render(game.getSnapshot());
     }
   };
   const saveDataUrl=(url,name)=>{const a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();return name;};
   globalThis.PeriscopeDebug={
     labelStrategies:['GREEDY','NEAREST','WIDE','OUTWARD','LANES','HYBRID'],
-    captureCurrentDataUrl(){canvasView.render(game.getSnapshot(),LayoutService.get());return canvasView.canvas.toDataURL('image/png');},
+    captureCurrentDataUrl(){canvasView.render(game.getSnapshot());return canvasView.canvas.toDataURL('image/png');},
     downloadCurrent(filename='periscope-current.png'){return saveDataUrl(this.captureCurrentDataUrl(),filename);},
     captureScenarioDataUrl(name,opts={}){const s=makeScenario(name,opts),map=name==='map-labels'||name==='map-harbor-approach',harbor=name==='map-harbor-approach',center=harbor?{xNm:(s.playerSub.position.xNm+s.world.harbor.center.xNm)/2,yNm:(s.playerSub.position.yNm+s.world.harbor.center.yNm)/2}:{...s.playerSub.position};return capture(s,{strategy:opts.strategy||null,zoom:map?(Number(opts.zoom)||(harbor?54:72)):null,center:map?center:null});},
     downloadScenario(name,opts={}){const strategy=String(opts.strategy||'').toLowerCase(),suffix=strategy?`-${strategy}`:'';return saveDataUrl(this.captureScenarioDataUrl(name,opts),opts.filename||`periscope-${name}${suffix}.png`);},
-    build(){const scope=document.getElementById('deskScopeControls'),s=game.getSnapshot();return{channel:PP_BUILD.channel,isDev:PP_BUILD.isDev,path:location.pathname,storagePrefix:PP_BUILD.storagePrefix,touchUiContract:PP_BUILD.touchUiContract?.()||'unavailable',patrolRuntimeContext:s.world?.patrolContext||null,patrolRuntimeContextMatches:typeof patrolRuntimeContextMatches==='function'?patrolRuntimeContextMatches(s):null,desktopScopeControls:scope?{hidden:scope.hidden,ariaHidden:scope.getAttribute('aria-hidden'),display:getComputedStyle(scope).display}:null,serviceWorker:navigator.serviceWorker?.controller?.scriptURL||null};},
+    build(){const scope=document.getElementById('deskScopeControls'),s=game.getSnapshot();return{channel:PP_BUILD.channel,isDev:PP_BUILD.isDev,path:location.pathname,storagePrefix:PP_BUILD.storagePrefix,touchUiContract:PP_BUILD.touchUiContract?.()||'unavailable',desktopScopeControls:scope?{hidden:scope.hidden,ariaHidden:scope.getAttribute('aria-hidden'),display:getComputedStyle(scope).display}:null,patrolArea:s.campaign?.patrolArea||null,serviceWorker:navigator.serviceWorker?.controller?.scriptURL||null};},
     qualityBudget(samples=6){
       const s=game.getSnapshot(),counts={contacts:(s.world.contacts||[]).length,tracks:Object.keys(s.world.contactTracks||{}).length,aircraft:(s.world.aircraft||[]).length,torpedoes:(s.weapons.activeTorpedoes||[]).length,depthCharges:(s.world.depthCharges||[]).length,particles:(particles.particles||[]).length,sparks:(particles.sparks||[]).length,log:(s.log||[]).length},limits={objects:180,particles:420,sparks:120,log:100,renderAverageMs:22,audioDecodedBytes:8*1024*1024,heapBytes:180*1024*1024};
-      const total=counts.contacts+counts.tracks+counts.aircraft+counts.torpedoes+counts.depthCharges,t0=performance.now(),n=clamp(samples|0,1,20),layout=LayoutService.get();for(let i=0;i<n;i++)canvasView.render(s,layout);const renderAverageMs=(performance.now()-t0)/n,heapBytes=performance.memory?.usedJSHeapSize??null,audioDecodedBytes=audio.hybridDecodedBytes||0;
+      const total=counts.contacts+counts.tracks+counts.aircraft+counts.torpedoes+counts.depthCharges,t0=performance.now(),n=clamp(samples|0,1,20);for(let i=0;i<n;i++)canvasView.render(s);const renderAverageMs=(performance.now()-t0)/n,heapBytes=performance.memory?.usedJSHeapSize??null,audioDecodedBytes=audio.hybridDecodedBytes||0;
       const warnings=[];if(total>limits.objects)warnings.push(`objects ${total}/${limits.objects}`);if(counts.particles>limits.particles)warnings.push(`particles ${counts.particles}/${limits.particles}`);if(counts.sparks>limits.sparks)warnings.push(`sparks ${counts.sparks}/${limits.sparks}`);if(counts.log>limits.log)warnings.push(`log ${counts.log}/${limits.log}`);if(renderAverageMs>limits.renderAverageMs)warnings.push(`render ${renderAverageMs.toFixed(1)}ms/${limits.renderAverageMs}ms`);if(audioDecodedBytes>limits.audioDecodedBytes)warnings.push(`audio ${audioDecodedBytes}/${limits.audioDecodedBytes}`);if(heapBytes&&heapBytes>limits.heapBytes)warnings.push(`heap ${heapBytes}/${limits.heapBytes}`);
       return{ok:!warnings.length,counts,total,renderAverageMs,audioDecodedBytes,heapBytes,limits,warnings};
     },
