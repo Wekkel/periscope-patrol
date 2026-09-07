@@ -20,15 +20,29 @@ class BridgeController{
       this.game.dispatch({type:'SET_ACTIVE_STATION',station:s});
       const snap=this.game.getSnapshot(),actual=snap.tactical.activeStation;
       allStations.forEach(b=>b.classList.toggle('active',b===stationByName[actual]));
-      this.cv.render(snap);                 // navigation should feel immediate
+      try{this.cv.render(snap,LayoutService.get());}
+      catch(err){const key=String(err?.message||err||'unknown render error');if(this._directRenderErrorKey!==key){this._directRenderErrorKey=key;console.error('[BridgeController] immediate station render failed',err);}}
     };
     const setHeading=value=>{const heading=Math.round(normDeg(Number(value)||0));if(hi)hi.value=String(heading);const exact=document.getElementById('headingNumberInput');if(exact&&exact!==document.activeElement)exact.value=String(heading);if(hv)hv.textContent=fmtDeg(heading);this.game.dispatch({type:'SET_ORDERED_HEADING',heading});};
     hi?.addEventListener('input',()=>setHeading(hi.value));
     ri?.addEventListener('input',()=>{if(rv)rv.textContent=ri.value;this.game.dispatch({type:'SET_ENGINE_RPM',rpm:+ri.value});});
-    di?.addEventListener('input',()=>{if(dv)dv.textContent=`${di.value} ft`;this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:+di.value});});
+    di?.addEventListener('input',()=>{const s=this.game.getSnapshot();if(dv)dv.textContent=playerDepthDisplay(s,+di.value,0);this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:+di.value});});
     const btn=(id,fn)=>document.getElementById(id)?.addEventListener('click',fn);
+    const depthRead=v=>playerDepthDisplay(this.game.getSnapshot(),v,0);
     const setRpm=value=>{const max=this.game.getSnapshot().playerSub.propulsion.characteristics?.normalizedMaxRpm??450,rpm=clamp(Math.round(Number(value)||0),0,max);if(ri)ri.value=String(rpm);const exact=document.getElementById('rpmNumberInput');if(exact)exact.value=String(rpm);if(rv)rv.textContent=String(rpm);this.game.dispatch({type:'SET_ENGINE_RPM',rpm});};
-    const setDepth=value=>{const max=Number(di?.max)||300,depth=clamp(Math.round(Number(value)||0),0,max);if(di)di.value=String(depth);const exact=document.getElementById('depthNumberInput');if(exact)exact.value=String(depth);if(dv)dv.textContent=`${depth} ft`;this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:depth});};
+    const setDepth=value=>{const max=Number(di?.max)||300,depth=clamp(Math.round(Number(value)||0),0,max);if(di)di.value=String(depth);const exact=document.getElementById('depthNumberInput');if(exact)exact.value=String(depth);if(dv)dv.textContent=depthRead(depth);this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:depth});};
+    const closeVitalMenus=()=>document.querySelectorAll('#deskVitals .desk-vital.open').forEach(el=>{el.classList.remove('open');el.setAttribute('aria-expanded','false');});
+    const toggleVitalMenu=el=>{const open=!el.classList.contains('open');closeVitalMenus();if(open){el.classList.add('open');el.setAttribute('aria-expanded','true');}};
+    for(const id of ['deskVitalDepth','deskVitalSpeed']){
+      const el=document.getElementById(id);if(!el)continue;
+      el.addEventListener('click',e=>{if(e.target.closest('.desk-vital-menu'))return;toggleVitalMenu(el);});
+      el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleVitalMenu(el);}else if(e.key==='Escape')closeVitalMenus();});
+    }
+    document.addEventListener('pointerdown',e=>{if(!e.target.closest('#deskVitals'))closeVitalMenus();},{capture:true});
+    document.querySelectorAll('[data-desk-vdepth]').forEach(b=>b.addEventListener('click',()=>setDepth(b.dataset.deskVdepth)));
+    document.querySelectorAll('[data-desk-vdstep]').forEach(b=>b.addEventListener('click',()=>setDepth(this.game.getSnapshot().playerSub.orderedDepthFeet+Number(b.dataset.deskVdstep))));
+    document.querySelectorAll('[data-desk-vrpm]').forEach(b=>b.addEventListener('click',()=>setRpm(b.dataset.deskVrpm)));
+    document.querySelectorAll('[data-desk-vrstep]').forEach(b=>b.addEventListener('click',()=>setRpm(this.game.getSnapshot().playerSub.propulsion.orderedRpm+Number(b.dataset.deskVrstep))));
     document.querySelectorAll?.('[data-hstep]')?.forEach(b=>{if(!b.closest('#touchShell'))b.addEventListener('click',()=>setHeading(this.game.getSnapshot().playerSub.orderedHeading+Number(b.dataset.hstep)));});
     document.getElementById('headingNumberInput')?.addEventListener('change',e=>setHeading(e.target.value));
     document.querySelectorAll?.('[data-deskrpm]')?.forEach(b=>b.addEventListener('click',()=>setRpm(b.dataset.deskrpm)));
@@ -36,12 +50,12 @@ class BridgeController{
     document.querySelectorAll?.('[data-deskdstep]')?.forEach(b=>b.addEventListener('click',()=>setDepth(this.game.getSnapshot().playerSub.orderedDepthFeet+Number(b.dataset.deskdstep))));
     document.getElementById('rpmNumberInput')?.addEventListener('change',e=>setRpm(e.target.value));
     document.getElementById('depthNumberInput')?.addEventListener('change',e=>setDepth(e.target.value));
-    btn('surfaceButton',    ()=>{if(di){di.value=0;dv.textContent='0 ft';}this.game.dispatch({type:'SURFACE'});});
-    btn('periscopeButton',  ()=>{if(di){di.value=55;dv.textContent='55 ft';}this.game.dispatch({type:'PERISCOPE_DEPTH'});});
-    btn('diveButton',       ()=>{if(di){di.value=100;dv.textContent='100 ft';}this.game.dispatch({type:'DIVE'});});
-    btn('crashDiveButton',  ()=>{if(di){di.value=150;dv.textContent='150 ft';}this.game.dispatch({type:'CRASH_DIVE'});});
+    btn('surfaceButton',    ()=>{if(di){di.value=0;dv.textContent=depthRead(0);}this.game.dispatch({type:'SURFACE'});});
+    btn('periscopeButton',  ()=>{if(di){di.value=55;dv.textContent=depthRead(55);}this.game.dispatch({type:'PERISCOPE_DEPTH'});});
+    btn('diveButton',       ()=>{if(di){di.value=100;dv.textContent=depthRead(100);}this.game.dispatch({type:'DIVE'});});
+    btn('crashDiveButton',  ()=>{if(di){di.value=150;dv.textContent=depthRead(150);}this.game.dispatch({type:'CRASH_DIVE'});});
     btn('silentButton',     ()=>this.game.dispatch({type:'TOGGLE_SILENT_RUNNING'}));
-    btn('emergencyBlowButton',()=>{if(di){di.value=0;dv.textContent='0 ft';}this.game.dispatch({type:'EMERGENCY_BLOW'});});
+    btn('emergencyBlowButton',()=>{if(di){di.value=0;dv.textContent=depthRead(0);}this.game.dispatch({type:'EMERGENCY_BLOW'});});
     btn('pumpButton',       ()=>this.game.dispatch({type:'TOGGLE_PUMPS'}));
     btn('dcFloodButton',     ()=>this.game.dispatch({type:'SET_REPAIR_PRIORITY',priority:'FLOODING'}));
     btn('dcPropButton',      ()=>this.game.dispatch({type:'SET_REPAIR_PRIORITY',priority:'PROPULSION'}));
@@ -75,11 +89,22 @@ class BridgeController{
     btn('fireSpreadButton', ()=>this.game.dispatch({type:'FIRE_READY_SPREAD'}));
     btn('floodAftButton',   ()=>this.game.dispatch({type:'FLOOD_AFT_TUBES'}));
     btn('fireAftButton',    ()=>this.game.dispatch({type:'FIRE_AFT_SPREAD'}));
+    btn('deskFireButton',   ()=>{
+      const state=this.game.getSnapshot(),viewModel=buildHudViewModel(state,LayoutService.get());
+      if(!viewModel.fire.available){if(typeof Toast!=='undefined')Toast.warn(viewModel.fire.reason||'No firing solution is ready.');return;}
+      const bank=state.tdc?.launchBank||'FWD';
+      const tube=state.weapons.tubes.find(t=>t.pos===bank&&t.status==='READY')||state.weapons.tubes.find(t=>t.status==='READY');
+      if(tube)this.game.dispatch({type:'FIRE_TORPEDO',tubeId:tube.id});
+      else if(typeof Toast!=='undefined')Toast.warn(viewModel.fire.reason||'No torpedo tube is ready.');
+    });
     btn('clearPlotButton',  ()=>this.game.dispatch({type:'MAP_CLEAR_PLOT'}));
     btn('plotInterceptButton',()=>this.game.dispatch({type:'PLOT_INTERCEPT_ADVISORY'}));
     btn('followPlotButton', ()=>this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('mapWeatherButton',()=>this.game.dispatch({type:'TOGGLE_MAP_WEATHER'}));
     btn('portButton',       ()=>this.game.dispatch({type:'HEAD_TO_PORT'}));
+    btn('radioReportButton',()=>this.game.dispatch({type:'RADIO_AUTHORIZE_REPORT'}));
+    btn('radioSilenceButton',()=>this.game.dispatch({type:'RADIO_TOGGLE_SILENCE'}));
+    btn('radioPartialButton',()=>this.game.dispatch({type:'RADIO_ACCEPT_PARTIAL'}));
     btn('stationTactical',  ()=>setSta('TACTICAL'));
     btn('stationBridge',    ()=>setSta('BRIDGE'));
     btn('stationSound',     ()=>setSta('SOUND'));
@@ -89,7 +114,7 @@ class BridgeController{
     btn('soundLeft',       ()=>this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:-5}));
     btn('soundRight',      ()=>this.game.dispatch({type:'ROTATE_SOUND',deltaDeg:5}));
     btn('soundMark',       ()=>this.game.dispatch({type:'SOUND_MARK_BEARING'}));
-    btn('soundEcho',       ()=>this.confirmActiveQc());
+    btn('soundEcho',       ()=>this.confirmActiveEcho());
     btn('soundRadar',      ()=>this.game.dispatch({type:'TOGGLE_SOUND_DISPLAY'}));
     btn('deckGunLayButton', ()=>this.game.dispatch({type:'LAY_DECK_GUN'}));
     btn('deckGunFireButton',()=>this.game.dispatch({type:'FIRE_DECK_GUN'}));
@@ -152,18 +177,21 @@ class BridgeController{
       if(k===' '){e.preventDefault();this.game.dispatch({type:'SET_TIME_SCALE',scale:snap.time.timeScale===0?1:0});}
     });
   }
-  confirmActiveQc(){
-    const now=performance.now(),btn=document.getElementById('soundEcho');
+  confirmActiveEcho(){
+    const now=performance.now(),btn=document.getElementById('soundEcho'),state=this.game.getSnapshot();
+    const sensorUi=getPlayerSensorPresentation(state);
+    if(!sensorUi.activeEcho)return;
+    const activeEchoLabel=sensorUi.activeEcho.label||'Active Echo';
     if(now<this._qcConfirmUntil){
       this._qcConfirmUntil=0;if(this._qcConfirmTimer){clearTimeout(this._qcConfirmTimer);this._qcConfirmTimer=null;}
-      btn?.classList.remove('confirm');if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent='Active QC';}
+      btn?.classList.remove('confirm');if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent=activeEchoLabel;}
       this.game.dispatch({type:'SOUND_ECHO_RANGE'});return;
     }
     this._qcConfirmUntil=now+2800;btn?.classList.add('confirm');
     if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent='Confirm Ping';}
-    if(typeof Toast!=='undefined')Toast.warn('ACTIVE QC WILL BROADCAST YOUR POSITION — tap CONFIRM PING to transmit.');
+    if(typeof Toast!=='undefined')Toast.warn(`${activeEchoLabel.toUpperCase()} WILL BROADCAST YOUR POSITION — tap CONFIRM PING to transmit.`);
     if(this._qcConfirmTimer)clearTimeout(this._qcConfirmTimer);
-    this._qcConfirmTimer=setTimeout(()=>{this._qcConfirmUntil=0;this._qcConfirmTimer=null;btn?.classList.remove('confirm');if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent='Active QC';}},2850);
+    this._qcConfirmTimer=setTimeout(()=>{this._qcConfirmUntil=0;this._qcConfirmTimer=null;btn?.classList.remove('confirm');if(btn){const sp=btn.querySelector('span');if(sp)sp.textContent=activeEchoLabel;}},2850);
   }
 
 }

@@ -1,3 +1,4 @@
+    :root{--bp-phone:600px;--bp-tablet:1024px;}
     /* ══════════════════════════════════════════════════════════
        PERISCOPE PATROL
        ────────────────────────────────────────────────────────────────
@@ -294,6 +295,22 @@
       --r:8px;
       --mono:ui-monospace,'SFMono-Regular',Consolas,'Roboto Mono',Monaco,'Courier New',monospace;
     }
+    html[data-station-theme="km-bakelite"]{
+      --bg:#050604;--panel:#11110d;--panel2:#1a1912;--panel3:#252319;
+      --ink:#eee5ca;--muted:#aaa185;--dim:#756e5b;--line:#5d5543;--line2:#86795a;
+      --alert:#d6a84a;--ok:#9eae75;--info:#8aa8b2;
+    }
+    html[data-station-theme="km-bakelite"] body{
+      background:radial-gradient(ellipse at 50% 25%,#242118 0%,var(--bg) 72%);
+    }
+    html[data-station-theme="km-bakelite"] .panel{
+      background:linear-gradient(180deg,rgba(34,32,23,.97),rgba(10,11,8,.97));
+      box-shadow:inset 0 1px 0 rgba(225,205,145,.06),0 2px 10px rgba(0,0,0,.55);
+    }
+    html[data-station-theme="km-bakelite"] button{
+      background:linear-gradient(180deg,#302d20,#171710);border-color:var(--line);
+    }
+    html[data-station-theme="km-bakelite"] .hg-t{background:rgba(15,14,10,.88);}
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
     html,body{height:100%;width:100%;overflow:hidden;overscroll-behavior:none;}
     body{
@@ -353,13 +370,14 @@
     /* On touch the clock/time-skip control lives in the 42px top bar. Toasts
        start below it instead of covering the selector the player may need next. */
     html[data-lay="touch"] #toastContainer{top:calc(var(--sat) + 52px);}
+    html[data-dev="tablet"] #toastContainer{max-width:min(720px,calc(100vw - 32px));}
     .toast{background:rgba(9,26,31,.97);border:1px solid var(--line);border-radius:6px;padding:9px 16px;
       font-size:12.5px;line-height:1.38;letter-spacing:.35px;text-align:center;overflow-wrap:anywhere;backdrop-filter:blur(4px);
       box-shadow:0 4px 18px rgba(0,0,0,.6);
       animation:toastIn .18s ease-out,toastOut .3s ease-in var(--toast-hold,2s) forwards;}
     .toast.ok{border-color:var(--ok);color:var(--ok);}
     .toast.warn{border-color:var(--alert);color:var(--alert);}
-    .toast.bad{border-color:var(--danger);color:var(--danger);}
+    .toast.bad{border-color:#ef8f86;color:#ef8f86;}
     .action-toast{pointer-events:auto;display:flex;align-items:center;gap:10px;text-align:left;}
     .impact-action-toast{order:-20;border-width:2px;box-shadow:0 5px 22px rgba(0,0,0,.78),0 0 0 1px rgba(245,198,92,.14) inset;}
     .action-toast span{flex:1;min-width:0;}
@@ -416,6 +434,7 @@
     .scen-tab.active{color:var(--alert);background:rgba(245,198,92,.08);box-shadow:inset 0 -2px 0 var(--alert);}
     /* Five scenario tabs still have to be thumb-readable on a narrow phone.
        Shrink typography before allowing wrapping; tablet/desktop keep the full labels. */
+    /* component-fit, geen apparaatklasse: scenario-tabs hebben onder 520px te weinig breedte */
     @media(max-width:520px){
       .scen-tab{padding:11px 2px;font-size:9px;letter-spacing:.35px;}
     }
@@ -440,6 +459,13 @@
     .hist-card h3{color:var(--ink);font-size:12.5px;margin-bottom:4px;}
     .hist-card .hist-date{color:var(--alert);font-size:11px;margin-bottom:6px;}
     .hist-card .hist-desc{color:var(--muted);font-size:11px;line-height:1.5;}
+    .campaign-command{border:1px solid var(--line2);border-radius:9px;background:linear-gradient(180deg,rgba(13,34,41,.96),rgba(5,16,20,.96));padding:12px;box-shadow:inset 0 1px rgba(255,255,255,.025);}
+    .campaign-step{display:flex;gap:10px;align-items:center;margin:4px 0 9px;color:var(--alert);}.campaign-step>span{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--alert);border-radius:50%;font-size:10px;flex:0 0 auto}.campaign-step b,.campaign-step small{display:block}.campaign-step b{font-size:12px;letter-spacing:1.7px}.campaign-step small{margin-top:2px;color:var(--muted);font-size:9px;line-height:1.35;letter-spacing:.2px;font-weight:400}.campaign-step:not(:first-child){margin-top:16px}.mission-step{margin-bottom:0!important}
+    .campaign-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:7px}.campaign-choice{min-width:0;margin:0;padding:10px;text-align:left;border-color:var(--line);background:rgba(3,15,19,.82);display:flex;flex-direction:column;align-items:stretch;gap:4px}.campaign-choice strong{color:var(--ink);font-size:11px;line-height:1.3}.campaign-choice small{color:var(--muted);font-size:8.5px;line-height:1.35;min-height:2.7em}.campaign-choice em{color:var(--ok);font-size:8px;font-style:normal;letter-spacing:.55px}.campaign-index{color:var(--alert);font-size:8px;text-transform:uppercase;letter-spacing:1px}.campaign-choice.selected{border-color:var(--alert);box-shadow:inset 0 0 0 1px rgba(245,198,92,.30);background:rgba(50,42,19,.30)}.campaign-choice.locked{filter:saturate(.2);opacity:.50}.campaign-choice.locked em{color:var(--muted)}
+    .war-party-choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:7px}.war-party-choice{min-width:0;margin:0;padding:9px;text-align:left;border-color:var(--line);background:rgba(4,18,22,.86);display:grid;grid-template-columns:50px minmax(0,1fr);gap:9px;align-items:center}.war-party-choice>span{display:grid;place-items:center;align-self:stretch;border-right:1px solid var(--line);color:var(--alert);font-size:14px;letter-spacing:1px}.war-party-choice strong,.war-party-choice b,.war-party-choice small{display:block}.war-party-choice strong{color:var(--ink);font-size:11px}.war-party-choice b{color:var(--alert);font-size:8.5px;margin:2px 0}.war-party-choice small{color:var(--muted);font-size:8.5px;line-height:1.35}.war-party-choice.selected{border-color:var(--ok);box-shadow:inset 0 0 0 1px rgba(111,224,143,.25);background:rgba(16,51,42,.34)}
+    .boat-assignment{border-left:3px solid var(--ok);padding:9px 11px;background:rgba(6,27,27,.75);display:grid;grid-template-columns:1fr auto;gap:3px 10px}.boat-assignment strong{color:var(--ink);font-size:11px}.boat-assignment span{color:var(--alert);font-size:9px}.boat-assignment p{grid-column:1/-1;color:var(--muted);font-size:9px;line-height:1.4}
+    /* component-fit, geen apparaatklasse: campaign/war-party cards hebben onder 560px te weinig breedte */
+    @media(max-width:560px){.campaign-command{padding:9px}.campaign-choice-grid,.war-party-choice-grid{grid-template-columns:1fr}.campaign-choice small{min-height:0}.campaign-step small{font-size:8.5px}.boat-assignment{grid-template-columns:1fr}.boat-assignment p{grid-column:1}.boat-assignment span{grid-row:2}}
     .save-grid{padding:14px;display:flex;flex-direction:column;gap:10px;}
     .save-slot{border:1px solid var(--line);border-radius:8px;background:#061014;padding:11px 13px;
       display:flex;justify-content:space-between;align-items:center;gap:10px;}
@@ -453,6 +479,7 @@
     .profile-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;color:var(--muted);font-size:10.5px;line-height:1.45;}
     .profile-copy b{color:var(--alert);font-size:11px;letter-spacing:1px;}.profile-copy small{color:var(--dim);font-size:9px;}
     .profile-buttons{display:flex;gap:7px;flex:0 0 auto;}.profile-buttons button{width:auto;margin:0;padding:9px 11px;font-size:10px;}
+    /* component-fit, geen apparaatklasse: profile- en save-controls hebben onder 560px te weinig breedte */
     @media(max-width:560px){.profile-tools{align-items:stretch;flex-direction:column}.profile-buttons{width:100%}.profile-buttons button{flex:1;padding:10px 5px}.save-slot{align-items:flex-start;flex-direction:column}.save-slot .slot-btns{width:100%}.save-slot .slot-btns button{flex:1;padding:9px 6px}}
     .scen-footer{padding:10px 14px calc(10px + var(--sab));border-top:1px solid var(--line);
       display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;}
@@ -461,11 +488,17 @@
     /* PRIMARY MISSION uses the same in-app picker as the other touch selects.
        The native Android picker remains hidden, while this button keeps the
        same footprint and visual hierarchy as the old field. */
-    .pk > #missionTypeSelect + .pk-btn{min-width:250px;max-width:min(100%,430px);justify-content:space-between;
+    .pk > #missionTypeSelect + .pk-btn,
+    .pk > #campaignProfileSelect + .pk-btn{min-width:250px;max-width:min(100%,430px);justify-content:space-between;
       padding:10px 12px;font-size:11px;color:var(--ink);background:linear-gradient(180deg,#0d2229,#071216);
       border-color:var(--line);}
-    .pk > #missionTypeSelect + .pk-btn.open{border-color:var(--alert);color:var(--alert);box-shadow:0 0 0 1px rgba(245,198,92,.14) inset;}
-    @media(max-width:520px){.pk:has(#missionTypeSelect){width:100%;}.pk > #missionTypeSelect + .pk-btn{width:100%;min-width:0;}}
+    .pk > #missionTypeSelect + .pk-btn.open,
+    .pk > #campaignProfileSelect + .pk-btn.open{border-color:var(--alert);color:var(--alert);box-shadow:0 0 0 1px rgba(245,198,92,.14) inset;}
+    /* component-fit, geen apparaatklasse: mission-picker heeft onder 520px te weinig breedte */
+    @media(max-width:520px){
+      .pk:has(#missionTypeSelect),.pk:has(#campaignProfileSelect){width:100%;}
+      .pk > #missionTypeSelect + .pk-btn,.pk > #campaignProfileSelect + .pk-btn{width:100%;min-width:0;}
+    }
 
     #briefingOverlay{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;
       display:flex;align-items:center;justify-content:center;padding:14px;}
@@ -555,6 +588,7 @@
       #tutBody{max-height:19vh;}
     }
     html[data-lay="desk"] #coach{left:auto;right:16px;bottom:16px;width:390px;}
+    html[data-dev="tablet"] #coach{width:min(640px,calc(100vw - 32px));right:16px;left:auto;}
 
     /* ── COACH: collapsed "peek" strip ──────────────────────────────────
        On a phone held upright the card was eating the controls it was
@@ -727,6 +761,7 @@
       border-radius:16px;background:none;color:var(--muted);letter-spacing:1px;}
     #ovlStations button.active{background:linear-gradient(180deg,#3d3116,#241a09);color:var(--alert);
       box-shadow:0 0 0 1px rgba(245,198,92,.5) inset;}
+    /* component-fit, geen apparaatklasse: station-buttons hebben onder 430px te weinig breedte */
     @media(max-width:430px){
       #ovlStations button{padding:7px 9px;font-size:9.5px;letter-spacing:.7px;}
     }
@@ -751,6 +786,7 @@
     #oGunElev{position:absolute;left:50%;top:86px;width:132px;height:24px;margin:0;background:transparent;
       transform:translate(-50%,-50%) rotate(-90deg);accent-color:var(--alert);}
     #gunElevPanel .gunstep{width:50px;height:50px;font-size:16px;}
+    /* component-fit, geen apparaatklasse: gun-elevation controls hebben onder 430px te weinig breedte */
     @media(max-width:430px){
       #gunElevPanel{right:74px;bottom:84px;}
       .gun-elev-wrap{width:50px;height:154px;}
@@ -807,6 +843,7 @@
     .qs-cell.tapcell.open{background:rgba(245,198,92,.16);box-shadow:0 -2px 0 var(--alert) inset;}
 
 
+    /* component-fit, geen apparaatklasse: quick-status cells hebben onder 430px te weinig breedte */
     @media(max-width:430px){
       #tQS .qs-l{font-size:7px;letter-spacing:.35px;}
       #tQS .qs-v{font-size:11px;}
@@ -835,6 +872,7 @@
       }
       html[data-lay="touch"][data-station="TACTICAL"] #btnFire{width:78px;height:78px;}
     }
+    /* component-fit, geen apparaatklasse: portrait tactical controls hebben onder 430px te weinig breedte */
     @media (orientation:portrait) and (max-width:430px){
       html[data-lay="touch"][data-station="TACTICAL"] #ovlLeft{left:8px;gap:10px;}
       html[data-lay="touch"][data-station="TACTICAL"] #ovlRight{right:8px;bottom:112px;gap:10px;}
@@ -946,6 +984,7 @@
     .intel-age{flex:0 0 auto;font-size:9.5px;text-align:right;line-height:1.35;}
     .intel-age .fresh{color:var(--ok);} .intel-age .stale{color:var(--alert);}
     .intel-age .cold{color:var(--danger);}
+    /* component-fit, geen apparaatklasse: intel rows hebben onder 560px te weinig breedte */
     @media(max-width:560px){
       .intel-row{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:start;gap:4px 8px;}
       .intel-rng{grid-row:1 / span 2;align-self:center;}
@@ -1068,17 +1107,16 @@
       .rbtn{width:46px;height:46px;font-size:17px;}
       #btnFire{width:64px;height:64px;}
     }
-    /* Big tablets get slightly larger type */
-    @media (min-width:820px){
-      html[data-lay="touch"] .qs-v{font-size:15px;}
-      html[data-lay="touch"] .qs-l{font-size:9px;}
-      html[data-lay="touch"] #tTop{height:48px;}
-      html[data-lay="touch"] #tTop .brand{font-size:12.5px;}
-      html[data-lay="touch"] #tAlert{height:30px;font-size:12px;}
-      html[data-lay="touch"] #tSheetBody{padding:14px 16px 24px;}
-      html[data-lay="touch"] .rbtn{width:66px;height:66px;font-size:23px;}
-      html[data-lay="touch"] #btnFire{width:82px;height:82px;}
-    }
+    /* Device class comes only from LayoutService; this replaces the former
+       min-width:820px device decision for tablet and desktop shells. */
+    html[data-dev="tablet"] .qs-v,html[data-dev="desktop"] .qs-v{font-size:15px;}
+    html[data-dev="tablet"] .qs-l,html[data-dev="desktop"] .qs-l{font-size:9px;}
+    html[data-dev="tablet"] #tTop,html[data-dev="desktop"] #tTop{height:48px;}
+    html[data-dev="tablet"] #tTop .brand,html[data-dev="desktop"] #tTop .brand{font-size:12.5px;}
+    html[data-dev="tablet"] #tAlert,html[data-dev="desktop"] #tAlert{height:30px;font-size:12px;}
+    html[data-dev="tablet"] #tSheetBody,html[data-dev="desktop"] #tSheetBody{padding:14px 16px 24px;}
+    html[data-dev="tablet"] .rbtn,html[data-dev="desktop"] .rbtn{width:66px;height:66px;font-size:23px;}
+    html[data-dev="tablet"] #btnFire,html[data-dev="desktop"] #btnFire{width:82px;height:82px;}
     @media (prefers-reduced-motion:reduce){
       *{animation-duration:.01ms !important;transition-duration:.01ms !important;}
     }
@@ -1104,6 +1142,7 @@
 .aar-mini-map{margin:0 12px 10px;border:1px solid rgba(90,150,154,.14);background:#07181d;height:126px;overflow:hidden}.aar-mini-svg{width:100%;height:100%;display:block}.aar-mini-svg .grid{fill:none;stroke:rgba(125,175,176,.10);stroke-width:1}.aar-mini-svg .attack{fill:none;stroke:#73ced1;stroke-width:1.5;stroke-dasharray:6 4}.aar-mini-svg .own{fill:#f8e8a4}.aar-mini-svg .target{fill:#c46e5b}.aar-mini-svg text{fill:#72928d;font-size:6.5px;font-family:ui-monospace,Consolas,monospace;letter-spacing:.6px}.aar-mini-empty{display:flex;height:100%;align-items:center;justify-content:center;color:var(--dim);font-size:8px}.aar-no-engagement{min-height:280px;border:1px solid rgba(100,155,154,.17);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--muted)}.aar-no-engagement strong{color:var(--alert);letter-spacing:1px}
 .aar-honors{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}.aar-honor{border:1px solid rgba(245,198,92,.16);background:rgba(32,37,28,.32);padding:6px 8px;min-width:0}.aar-honor small,.aar-honor b,.aar-honor span{display:block}.aar-honor small{font-size:6.7px;color:var(--dim);letter-spacing:.8px}.aar-honor b{font-size:8.5px;color:var(--alert);margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.aar-honor span{font-size:7.5px;color:var(--ink)}
 .aar-truth{width:auto!important;min-height:28px!important;margin:0!important;padding:5px 8px!important;font-size:7.5px!important;color:var(--muted)!important}.aar-truth.active{color:#ff9b82!important;border-color:#ff8068!important}.aar-route-map{height:176px;border:1px solid rgba(90,150,154,.18);background:#06171c;margin-bottom:9px;overflow:hidden}.aar-route-map svg{width:100%;height:100%;display:block}.aar-route-map .route{fill:none;stroke:#f4dc8a;stroke-width:2}.aar-route-map .observed{fill:none;stroke:#74cfd1;stroke-width:1.2;stroke-dasharray:4 3}.aar-route-map .truth{fill:none;stroke:#ff8068;stroke-width:1;stroke-dasharray:2 3}.aar-route-map text{fill:#72928d;font:7px ui-monospace,Consolas,monospace}.aar-detail-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}.aar-detail-grid>div,.aar-weapons,.aar-lessons{border:1px solid rgba(100,155,154,.14);background:rgba(8,31,35,.62);padding:7px 8px}.aar-detail-grid small,.aar-detail-grid b{display:block}.aar-detail-grid small{font-size:6.8px;color:var(--dim)}.aar-detail-grid b{font-size:9px;color:var(--ink);margin-top:2px}.aar-weapons,.aar-lessons{margin-top:7px;font-size:8px;color:var(--muted);line-height:1.45}.aar-weapons h4,.aar-lessons h4{margin:0 0 5px;color:var(--alert);font-size:8px;letter-spacing:1px}.aar-weapon-row,.aar-lesson{padding:4px 0;border-top:1px solid rgba(100,155,154,.10)}
+.aar-aircraft-row{display:grid;grid-template-columns:minmax(118px,24%) 1fr;gap:9px;align-items:center;padding:5px 0;border-top:1px solid rgba(100,155,154,.10)}.aar-aircraft-row b,.aar-aircraft-row span,.aar-aircraft-row small{display:block}.aar-aircraft-row span{color:var(--muted)}.aar-aircraft-row small{margin-top:2px;color:var(--dim);font-size:7px}.aar-aircraft-svg{width:100%;max-width:160px;height:56px;background:rgba(3,19,23,.55);border:1px solid rgba(100,155,154,.12)}.aar-aircraft-svg .air-wing,.aar-aircraft-svg .air-body,.aar-aircraft-svg .air-tail{fill:#42676a;stroke:#8db4b0;stroke-width:1}.aar-aircraft-svg .air-detail{fill:#132b2e;stroke:#b6d0c9;stroke-width:1;fill-opacity:.9}
 .aar-log{min-height:0;overflow:auto;padding:12px 14px;background:#08181d}.aar-log h3{margin:0 0 8px;color:var(--alert);font-size:11px;letter-spacing:1.5px}.aar-log-row{padding:7px 0;border-bottom:1px solid rgba(100,150,155,.14);font-size:10px;line-height:1.35}.aar-log-row span{display:block;color:var(--dim);font-size:8px;margin-bottom:2px}.aar-log-row b{font-weight:500;color:var(--ink)}.aar-foot{padding:8px 14px;border-top:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}.aar-foot>span{font-size:7.5px;color:var(--dim);letter-spacing:.7px}.aar-foot button{width:auto;margin:0;border-color:var(--ok);color:var(--ok);padding:9px 16px}
 @media(max-width:900px){.aar-stats{grid-template-columns:repeat(4,1fr)}.aar-main{grid-template-columns:minmax(0,1fr) minmax(205px,.42fr)}.aar-card-body{grid-template-columns:1fr}.aar-damage{display:grid;grid-template-columns:repeat(2,1fr);column-gap:10px}.aar-subhead{grid-column:1/-1}.aar-ship-stage svg{width:88%}}
 @media(max-width:760px){#aarOverlay{padding:0}#aarBox{width:100vw;height:100dvh;border:0}.aar-head{padding:8px 10px 6px}.aar-head h2{font-size:15px}.aar-dates{font-size:9px}.aar-stats{grid-template-columns:repeat(4,1fr)}.aar-stat{padding:5px 6px}.aar-stat strong{font-size:7px}.aar-stat span{font-size:8.5px}.aar-main{display:block;overflow:auto}.aar-debrief{overflow:visible;border-right:0;border-bottom:1px solid var(--line);padding:8px}.aar-log{max-height:210px;padding:8px 10px}.aar-mission{padding:8px 9px}.aar-section-head small{display:none}.aar-route-map{height:140px}.aar-detail-grid{grid-template-columns:repeat(2,1fr)}.aar-ship-stage{height:128px;margin:0 8px}.aar-card-top{padding:8px 8px 3px}.aar-card-top h3{font-size:14px}.aar-difficulty{padding:6px 8px 4px;grid-template-columns:auto 1fr}.aar-badges{padding:0 8px 5px}.aar-card-body{padding:3px 8px 6px}.aar-specs{grid-template-columns:repeat(2,1fr)}.aar-mini-map{margin:0 8px 8px;height:105px}.aar-honors{grid-template-columns:1fr 1fr 1fr}.aar-foot{padding:6px 9px}.aar-foot>span{display:none}}
@@ -1128,8 +1167,9 @@
 html[data-lay="desk"] #desktopShell{
   height:100vh;height:100dvh;
   grid-template-columns:clamp(220px,18vw,270px) minmax(470px,1fr) clamp(238px,20vw,300px);
-  grid-template-rows:68px minmax(0,1fr) minmax(64px,11vh);
+  grid-template-rows:68px minmax(0,1fr) 58px minmax(54px,9vh);
   gap:5px;padding:5px;
+  overflow:hidden;
 }
 html[data-lay="desk"] #deskHeader{
   min-width:0;padding:0 10px;display:grid;
@@ -1162,6 +1202,7 @@ html[data-lay="desk"] #timeSelect + .pk-btn{
   justify-content:space-between;overflow:hidden;text-overflow:ellipsis;font-size:9px;
 }
 html[data-lay="desk"] #deskBridge{
+  grid-row:2 / 4;
   min-width:0;min-height:0;padding:7px;overflow:hidden;display:flex;flex-direction:column;
 }
 html[data-lay="desk"] #deskMissionActions{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:5px;flex:0 0 auto;}
@@ -1193,10 +1234,49 @@ html[data-lay="desk"] .desk-order-fine input[type=number]{width:100%;min-width:0
 .heading-order-fine input[type=number]{width:100%;min-width:0;padding:5px 3px;text-align:center;color:var(--ink);background:#07171b;border:1px solid var(--line);border-radius:4px;font-family:inherit;}
 .touch-heading-fine{margin:6px 0 10px;}
 .intel-plot-action{width:100%;margin-top:7px;border-color:rgba(111,224,143,.45);color:var(--ok);}
+/* component-fit, geen apparaatklasse: heading-order controls hebben onder 430px te weinig breedte */
 @media(max-width:430px){.heading-order-fine{grid-template-columns:repeat(3,1fr);}.heading-order-fine input[type=number]{grid-column:1/-1;grid-row:1;}}
 html[data-lay="desk"] .desk-nav-grid{display:grid;grid-template-columns:1fr 1fr;gap:3px;}
 html[data-lay="desk"] .desk-nav-grid button{margin:0;min-width:0;}
 html[data-lay="desk"] #deskCanvas{min-width:0;min-height:0;padding:4px;overflow:hidden;}
+html[data-lay="desk"] #deskVitals{
+  grid-column:2;grid-row:3;display:grid;grid-template-columns:repeat(9,minmax(0,1fr));
+  min-width:0;min-height:0;padding:0;overflow:visible;
+}
+html[data-lay="desk"] .desk-vital{
+  position:relative;min-width:0;display:flex;flex-direction:column;justify-content:center;
+  padding:5px 7px;border-right:1px solid var(--line2);overflow:visible;
+}
+html[data-lay="desk"] .desk-vital:last-child{border-right:0;}
+html[data-lay="desk"] .desk-vital>span{font-size:7.5px;line-height:1;color:var(--dim);letter-spacing:.75px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+html[data-lay="desk"] .desk-vital>strong{margin-top:4px;font-size:12px;line-height:1;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums;}
+html[data-lay="desk"] .desk-vital>small{margin-top:3px;font-size:7.5px;line-height:1;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+html[data-lay="desk"] .desk-vital.actionable{cursor:pointer;background:linear-gradient(180deg,rgba(19,49,54,.44),rgba(6,20,24,.28));}
+html[data-lay="desk"] .desk-vital.actionable:hover,html[data-lay="desk"] .desk-vital.actionable:focus-visible,html[data-lay="desk"] .desk-vital.actionable.open{outline:none;background:rgba(47,95,86,.28);box-shadow:inset 0 0 0 1px var(--alert);}
+html[data-lay="desk"] .desk-vital.caution>strong{color:var(--alert);}
+html[data-lay="desk"] .desk-vital.critical>strong{color:var(--danger);}
+html[data-lay="desk"] .desk-vital-menu{
+  position:absolute;display:none;z-index:40;left:0;bottom:calc(100% + 5px);width:250px;
+  padding:6px;border:1px solid var(--alert);border-radius:6px;background:rgba(6,20,24,.985);
+  box-shadow:0 8px 24px rgba(0,0,0,.68);
+}
+html[data-lay="desk"] #deskVitalSpeed .desk-vital-menu{left:auto;right:0;}
+html[data-lay="desk"] .desk-vital.open .desk-vital-menu{display:block;}
+html[data-lay="desk"] .desk-vital-presets{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;}
+html[data-lay="desk"] .desk-vital-step{display:grid;grid-template-columns:52px 1fr 52px;gap:4px;margin-top:4px;align-items:center;}
+html[data-lay="desk"] .desk-vital-menu button{min-width:0;margin:0;padding:6px 3px;font-size:8px;}
+html[data-lay="desk"] .desk-vital-step b{text-align:center;color:var(--ok);font-size:11px;font-variant-numeric:tabular-nums;}
+html[data-lay="desk"] #deskFireButton{
+  position:absolute;z-index:12;right:12px;bottom:12px;width:72px;height:72px;margin:0;padding:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;
+  border-color:#7d3b34;color:#e7aaa4;background:radial-gradient(circle at 50% 40%,#4a211d,#21100e);
+  font-size:12px;letter-spacing:1px;box-shadow:0 3px 14px rgba(0,0,0,.55);
+}
+html[data-lay="desk"] #deskFireButton span{font-size:9px;color:var(--muted);}
+html[data-lay="desk"] #deskFireButton.ready{border-color:var(--ok);color:#dbffe6;background:radial-gradient(circle at 50% 40%,#175232,#0a2216);animation:firePulse 1.6s ease-in-out infinite;}
+html[data-lay="desk"] #deskFireButton.ready span{color:var(--ok);}
+html[data-lay="desk"] #bridgeControls,html[data-lay="desk"] #soundControls{right:92px;}
+html[data-lay="touch"] #deskVitals,html[data-lay="touch"] #deskFireButton{display:none!important;}
 html[data-lay="desk"] #deskInputHint{
   position:absolute;left:10px;bottom:9px;z-index:8;max-width:calc(100% - 20px);
   padding:4px 7px;border:1px solid rgba(58,125,112,.65);border-radius:5px;
@@ -1220,7 +1300,7 @@ html[data-lay="touch"] #deskScopeControls{display:none!important;visibility:hidd
 html[data-lay="desk"] #deskScopeControls{position:absolute;z-index:9;left:50%;bottom:34px;transform:translateX(-50%);gap:5px;padding:4px;border:1px solid var(--line);border-radius:8px;background:rgba(3,17,21,.88);}
 html[data-lay="desk"][data-station="PERISCOPE"] #deskScopeControls{display:flex;}
 html[data-lay="desk"] #deskScopeControls button{width:auto;min-width:78px;margin:0;padding:8px 10px;font-size:10px;}
-html[data-lay="desk"] #deskRight{min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;gap:5px;}
+html[data-lay="desk"] #deskRight{grid-row:2 / 4;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;gap:5px;}
 html[data-lay="desk"] #deskOrders,
 html[data-lay="desk"] #deskDamage,
 html[data-lay="desk"] #deskGauges,
@@ -1228,7 +1308,7 @@ html[data-lay="desk"] #deskCurrentOrders{
   flex:0 0 auto;max-height:none;overflow:visible;padding:8px;
 }
 html[data-lay="desk"] #deskGauges{flex:0 0 auto;}
-html[data-lay="desk"] #deskLog{grid-row:3;min-width:0;min-height:0;padding:5px 9px;font-size:9.5px;line-height:1.3;}
+html[data-lay="desk"] #deskLog{grid-row:4;min-width:0;min-height:0;padding:5px 9px;font-size:9.5px;line-height:1.3;}
 .resource-label{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);}.resource-label strong{color:var(--ink);}
 #deskDamage.damage-pulse{animation:damagePulse 1.8s ease-out 2;}
 #tTabs .mob-tab.damage-pulse{animation:damagePulse 1.8s ease-out 2;color:var(--danger);}
@@ -1259,7 +1339,7 @@ html[data-lay="desk"] #deskLog{grid-row:3;min-width:0;min-height:0;padding:5px 9
    vertical room. Sacrifice log height, not controls or the tactical picture. */
 @media (max-height:760px){
   html[data-lay="desk"] #desktopShell{
-    grid-template-rows:62px minmax(0,1fr) 58px;gap:4px;padding:4px;
+    grid-template-rows:62px minmax(0,1fr) 52px 48px;gap:4px;padding:4px;
   }
   html[data-lay="desk"] #deskHeader{padding:0 8px;gap:7px;}
   html[data-lay="desk"] #deskHeader h1{font-size:11px;}
@@ -1274,7 +1354,7 @@ html[data-lay="desk"] #deskLog{grid-row:3;min-width:0;min-height:0;padding:5px 9
   html[data-lay="desk"] #deskLog{font-size:8.5px;padding:4px 7px;}
 }
 @media (max-height:620px){
-  html[data-lay="desk"] #desktopShell{grid-template-rows:56px minmax(0,1fr) 42px;}
+  html[data-lay="desk"] #desktopShell{grid-template-rows:56px minmax(0,1fr) 48px 38px;}
   html[data-lay="desk"] #deskHeader h1{max-width:220px;}
   html[data-lay="desk"] .hstatus>span{display:none!important;}
   html[data-lay="desk"] #deskLayoutBtn{display:none;}
@@ -1283,3 +1363,4 @@ html[data-lay="desk"] #deskLog{grid-row:3;min-width:0;min-height:0;padding:5px 9
 }
 html[data-lay="desk"] .desk-cmd-pane{flex:1 1 auto;}
 html[data-lay="desk"] .desk-timescale-readout{display:none;}
+.radio-actions{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.radio-actions button{min-height:34px;padding:6px 9px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);color:var(--ink);font:700 10px/1 var(--mono);letter-spacing:.05em}.radio-actions button:disabled{opacity:.38}.radio-actions button.active{border-color:var(--alert);color:var(--alert)}

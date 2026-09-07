@@ -18,9 +18,14 @@ class DomView{
     this.logEl=document.getElementById('deskLog');
     this.inputHint=document.getElementById('deskInputHint');
   }
-  render(state){
+  render(state,layout){
+    const viewModel=buildHudViewModel(state,layout);
+    return this._renderLegacy(state,viewModel);
+  }
+  _renderLegacy(state,viewModel){
     const sub=state.playerSub; const p=sub.propulsion; const tdc=state.tdc;
-    if(this.clock) this.clock.textContent=DayNightCycle.getTimeString(state.time.elapsedSeconds);
+    const ui=getPlayerStationPresentation(state);this.applyPresentation(state,ui);
+    if(this.clock) this.clock.textContent=viewModel.time.desktopClockText;
     if(this.mode)  this.mode.textContent=sub.mode;
     if(this.station) this.station.textContent=state.tactical.activeStation;
     if(this.inputHint){
@@ -34,92 +39,131 @@ class DomView{
       };
       this.inputHint.textContent=hints[state.tactical.activeStation]||'';
     }
-    if(this.timescale) this.timescale.textContent=state.time.timeScale===0?'PAUSED':`${state.time.timeScale}x`;
+    if(this.timescale) this.timescale.textContent=viewModel.time.scaleText;
+    const rpmInput=document.getElementById('rpmInput'),maxRpm=p.characteristics?.normalizedMaxRpm??450;if(rpmInput)rpmInput.max=String(maxRpm);
+    const depthMax=Math.min(600,Math.max(300,Math.floor((sub.damage.crushDepthFeet||420)-10)));for(const id of ['depthInput','mDpt']){const el=document.getElementById(id);if(el)el.max=String(depthMax);}
     const tsel=document.getElementById('timeSelect');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){tsel.value=String(state.time.timeScale);tsel._pkLabel?.();}
     const dudSel=document.getElementById('dudSelect');
     if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
-    const torpSel=document.getElementById('torpTypeSelect');if(torpSel){for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
-    if(this.hArea)  this.hArea.textContent=state.campaign.patrolArea;
-    if(this.hScore) this.hScore.textContent=state.campaign.score.toLocaleString();
-    {const env=state.world.environment||{},dl=Number(env.daylight)||0,icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=Number(env.visibilityNm)||0,quality=vis>=8?'GOOD VIS':vis>=4?'FAIR VIS':'POOR VIS',el=document.getElementById('hTimeConditions');if(el)el.textContent=`${icon} ${DayNightCycle.getTimeString(state.time.elapsedSeconds)} · ${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis.toFixed(1)} NM ${quality}`;}
+    const torpSel=document.getElementById('torpTypeSelect');if(torpSel){const keys=torpedoSpecKeysForState(state),oldKeys=[...(torpSel.options||[])].map(o=>o.value);if(keys.join('|')!==oldKeys.join('|'))torpSel.innerHTML=keys.map(k=>`<option value="${k}">${torpedoOptionLabel(k)}</option>`).join('');for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
+    if(this.hArea)  this.hArea.textContent=PATROL_AREAS[state.campaign.patrolArea]?.displayName||state.campaign.patrolArea;
+    if(this.hScore) this.hScore.textContent=viewModel.mission.scoreText;
+    {const el=document.getElementById('hTimeConditions');if(el)el.textContent=viewModel.time.desktopConditionsText;}
     const headingExact=document.getElementById('headingNumberInput'),rpmExact=document.getElementById('rpmNumberInput'),depthExact=document.getElementById('depthNumberInput');if(headingExact&&headingExact!==document.activeElement)headingExact.value=String(Math.round(sub.orderedHeading));if(rpmExact&&rpmExact!==document.activeElement)rpmExact.value=String(Math.round(p.orderedRpm));if(depthExact&&depthExact!==document.activeElement)depthExact.value=String(Math.round(sub.orderedDepthFeet));
     document.querySelectorAll('[data-scope-zoom]').forEach(b=>b.classList.toggle('on',Number(b.dataset.scopeZoom)===Number(state.tactical.periscopeZoom)));
     document.querySelectorAll('#stationTabs button').forEach(b=>{const map={stationTactical:'TACTICAL',stationBridge:'BRIDGE',stationSound:'SOUND',stationPeriscope:'PERISCOPE',stationMap:'MAP',stationDeckGun:'DECK_GUN'};b.classList.toggle('active',map[b.id]===state.tactical.activeStation);});
     const bc=document.getElementById('bridgeControls');if(bc)bc.classList.toggle('on',state.tactical.activeStation==='BRIDGE');
     document.getElementById('mapWeatherButton')?.classList.toggle('on',!!state.map.weatherOverlay);
     const sc=document.getElementById('soundControls');if(sc)sc.classList.toggle('on',state.tactical.activeStation==='SOUND');
-    const rb=document.getElementById('soundRadar');if(rb){rb.classList.toggle('on',state.tactical.soundDisplay==='RADAR');const sp=rb.querySelector?.('span');if(sp)sp.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
-    const bz=bridgeZoomAmount(state),bb=document.getElementById('bridgeBino');if(bb){bb.classList.toggle('on',bz>.05);const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
-    const dg=state.weapons.deckGun,ds=document.getElementById('deckGunStatus');
-    if(ds&&dg)ds.textContent=`${dg.manned?'CREW TOPSIDE — automatic':'crew secured — enter GUN station to man automatically'} · train ${dg.trainDeg.toFixed(1)}° · elev ${dg.elevationDeg.toFixed(1)}° · ammo ${dg.ammo} · drag 3D view to aim`;
+    const sensorUi=getPlayerSensorPresentation(state),rb=document.getElementById('soundRadar');if(rb){rb.style.display=sensorUi.surfaceSearchRadar?'':'none';rb.classList.toggle('on',state.tactical.soundDisplay==='RADAR');const sp=rb.querySelector?.('span');if(sp)sp.textContent=state.tactical.soundDisplay==='RADAR'?(sensorUi.passiveSound?.label||'Passive Sound'):(sensorUi.surfaceSearchRadar?.label||'Surface Radar');}const eb=document.getElementById('soundEcho');if(eb){eb.style.display=sensorUi.activeEcho?'':'none';if(!eb.classList.contains('confirm')){const sp=eb.querySelector?.('span');if(sp)sp.textContent=sensorUi.activeEcho?.label||'Active Echo';}}
+    const bb=document.getElementById('bridgeBino');if(bb){bb.classList.toggle('on',viewModel.display.bridgeBinoText!=='Binoculars');const span=bb.querySelector?.('span');if(span)span.textContent=viewModel.display.bridgeBinoText;}
+    const ds=document.getElementById('deckGunStatus');
+    if(ds)ds.textContent=viewModel.display.deckGunStatus;
     const rp=sub.damage.repairPriority||'FLOODING';
     const ids={FLOODING:'dcFloodButton',PROPULSION:'dcPropButton',STEERING:'dcSteerButton',OPTICS_FIRE_CONTROL:'dcOpticsButton'};
     for(const [k,id] of Object.entries(ids))document.getElementById(id)?.classList.toggle('on',k===rp);
-    const dn=document.getElementById('deskDcNote');if(dn){const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);dn.textContent=`Priority ${repairPriorityLabel(rp)} · ${sub.damage.damageControlActive?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · drive bank offline':''}`;}
+    const dn=document.getElementById('deskDcNote');if(dn)dn.textContent=viewModel.damage.dcNote;
     this.renderAlerts(state);
-    this.renderOrders(sub,state);
-    {const d=sub.damage,burden=(100-d.hullIntegrity)+100*(['flooding','ballastDamage','motorDamage','electricalDamage','rudderDamage','periscopeDamage','tdcDamage','gyroDamage','pumpDamage'].reduce((n,k)=>n+(Number(d[k])||0),0));if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.getElementById('deskDamage');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}
-    this.renderDamage(sub);
-    this.renderGauges(sub,state);
-    if(this.batteryBar) this.batteryBar.style.width=`${p.battery}%`;
-    if(this.fuelBar)    this.fuelBar.style.width=`${p.fuel}%`;
-    if(this.hullBar)    this.hullBar.style.width=`${sub.damage.hullIntegrity}%`;
-    for(const [id,v] of [['batteryPct',p.battery],['fuelPct',p.fuel],['hullPct',sub.damage.hullIntegrity]]){const el=document.getElementById(id);if(el)el.textContent=`${Number(v).toFixed(0)}%`;}
+    this.renderOrders(sub,state,viewModel);
+    {const burden=viewModel.damage.burden;if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.getElementById('deskDamage');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}
+    this.renderDamage(sub,viewModel);
+    this.renderGauges(sub,state,viewModel);
+    if(this.batteryBar) this.batteryBar.style.width=`${viewModel.vitals.battery.raw}%`;
+    if(this.fuelBar)    this.fuelBar.style.width=`${viewModel.vitals.fuel.raw}%`;
+    if(this.hullBar)    this.hullBar.style.width=`${viewModel.vitals.hull.raw}%`;
+    for(const [id,v] of [['batteryPct',viewModel.vitals.battery.value],['fuelPct',viewModel.vitals.fuel.value],['hullPct',viewModel.vitals.hull.value]]){const el=document.getElementById(id);if(el)el.textContent=v;}
+    this.renderDesktopVitals(viewModel);
     if(this.logEl){
-      const cap=(state.campaign.importantEvents||[]).slice().reverse();
+      const cap=viewModel.log.captain;
       const capHtml=cap.length?`<div style="color:var(--alert);letter-spacing:1px;margin-bottom:4px;">CAPTAIN'S LOG</div>`+
-        cap.map(e=>`<div class="log-entry"><b>${e.date||('T+'+fmtTime(e.t))}</b> · ${e.text}</div>`).join('')+
+        cap.map(e=>`<div class="log-entry"><b>${e.date}</b> · ${e.text}</div>`).join('')+
         `<div style="color:var(--dim);letter-spacing:1px;margin:8px 0 4px;">FULL PATROL LOG</div>`:'';
-      this.logEl.innerHTML=capHtml+state.log.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join('');
+      this.logEl.innerHTML=capHtml+viewModel.log.patrol.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">${e.time} ${e.text}</div>`).join('');
     }
+  }
+  renderDesktopVitals(viewModel){
+    const set=(id,value)=>{const el=document.getElementById(id);if(el&&el.textContent!==String(value))el.textContent=value;};
+    const cells=[
+      ['deskVitalDepth','deskVitalDepthValue',viewModel.vitals.depth],
+      ['deskVitalKeel','deskVitalKeelValue',viewModel.vitals.underKeel],
+      ['deskVitalHeading','deskVitalHeadingValue',viewModel.vitals.heading],
+      ['deskVitalSpeed','deskVitalSpeedValue',viewModel.vitals.speed],
+      ['deskVitalTorps','deskVitalTorpsValue',viewModel.vitals.torpedoes],
+      ['deskVitalBattery','deskVitalBatteryValue',viewModel.vitals.battery],
+      ['deskVitalFuel','deskVitalFuelValue',viewModel.vitals.fuel],
+      ['deskVitalThreat','deskVitalThreatValue',viewModel.vitals.threat],
+      ['deskVitalHull','deskVitalHullValue',viewModel.vitals.hull]
+    ];
+    for(const [cellId,valueId,vital] of cells){set(valueId,vital.value);const cell=document.getElementById(cellId);if(cell){cell.classList.toggle('caution',vital.state==='caution');cell.classList.toggle('critical',vital.state==='critical');}}
+    set('deskVitalDepthOrder',`→ ${viewModel.navigation.orders.orderedDepth}`);
+    set('deskVitalBottom',viewModel.vitals.underKeel.unit);
+    set('deskVitalSpeedOrder',`→ ${viewModel.navigation.orders.orderedRpm}`);
+    set('deskVitalBatteryState',viewModel.vitals.battery.unit.toUpperCase());
+    set('deskDepthMenuValue',viewModel.navigation.orders.orderedDepth);
+    set('deskSpeedMenuValue',viewModel.navigation.orders.orderedRpm);
+    const fire=document.getElementById('deskFireButton');
+    fire?.classList.toggle('ready',viewModel.fire.available);
+    fire?.setAttribute('aria-disabled',viewModel.fire.available?'false':'true');
+    fire?.setAttribute('title',viewModel.fire.available?'Fire selected torpedo solution':viewModel.fire.reason);
+    set('deskFireSol',viewModel.fire.solutionText);
+  }
+  applyPresentation(state,ui){
+    if(this._presentationId===ui.id)return;this._presentationId=ui.id;
+    document.documentElement.dataset.stationTheme=ui.theme||ui.id;
+    const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text;};
+    const fwd=state.weapons.tubes.filter(t=>t.pos==='FWD').map(t=>t.id),aft=state.weapons.tubes.filter(t=>t.pos==='AFT').map(t=>t.id),t=ui.tubes||{},g=ui.gauges||{},o=ui.orders||{},sub=getSubmarineProfile(state.playerSub.profileId);
+    set('deskBoatTitle',`Periscope Patrol — ${sub?.displayName||'Submarine'}`);
+    set('touchBoatTitle',sub?.displayName||'Submarine');
+    set('deskHeadingLabel',`Ordered ${o.heading||'Heading'}`);set('deskPowerLabel',`Ordered ${o.power||'RPM'}`);set('deskDepthLabel',`Ordered ${o.depth||'Depth'}`);
+    set('deskFwdTubeTitle',`${t.forwardTitle||'Fwd Tubes'} (${fwd.join('–')})`);
+    set('deskAftTubeTitle',`${t.aftTitle||'Aft Tubes'} (${aft.join('–')})`);
+    set('touchTubeTitle',`${t.roomTitle||'Tubes'} — ${t.flood||'flood'} / ${t.fire||'fire'}`);
+    const eng=document.getElementById('touchEngineTitle')?.firstChild;if(eng)eng.nodeValue=(g.power||'Engine')+' ';
+    const dep=document.getElementById('touchDepthTitle')?.firstChild;if(dep)dep.nodeValue=(g.depth||'Depth')+' ';
+    set('hkDepthStep',`Ordered ${String(g.depth||'depth').toLowerCase()} −/+ ${ui.depth?.factor<.9?'3 m':'10 ft'}`);
+    set('periscopeButton',`${g.depth||'Periscope depth'} (${playerDepthDisplay(state,ui.depth?.scopeFeet||55,0)})`);
+    set('diveButton',`${g.depth||'Dive'} (${playerDepthDisplay(state,100,0)})`);
+    const qd=document.querySelector('#qsDepth .qs-l');if(qd)qd.textContent=`${String(g.depth||'DEPTH').toUpperCase()} ⇅`;
+    const qh=document.querySelector('#qsSpeed .qs-l');if(qh)qh.textContent=`${String(g.power||'SPEED').toUpperCase()} ⇅`;
   }
   renderAlerts(state){
     const W=state.playerSub.damage.warnings||[{level:'normal',text:'SYSTEMS NOMINAL'}];
     if(this.alertEl) this.alertEl.innerHTML=W.map(w=>`<span class="${w.level}">${w.text}</span>`).join('<span style="color:#2f5f56"> ▪ </span>');
   }
-  renderOrders(sub,state){
+  renderOrders(sub,state,viewModel){
     if(!this.ordersGrid) return;
-    const p=sub.propulsion; const tdc=state.tdc;
-    const ch=(a,b)=>Math.abs(a-b)>0.5;
+    const p=sub.propulsion; const tdc=state.tdc,ui=getPlayerStationPresentation(state),o=ui.orders||{};
+    const ch=(a,b)=>String(a)!==String(b);
     const row=(l,c,o,f)=>`<span class="lbl">${l}</span><span class="val ${ch(c,o)?'changed':''}">${f(c)} → ${f(o)}</span>`;
     this.ordersGrid.innerHTML=
-      row('Heading',sub.heading,sub.orderedHeading,fmtDeg)+
-      row('Depth',sub.depthFeet,sub.orderedDepthFeet,v=>`${v.toFixed(0)}ft`)+
-      row('RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
-      `<span class="lbl">Speed</span><span class="val">${p.speedKnots.toFixed(1)} kn</span>`+
-      `<span class="lbl">Engine</span><span class="val">${p.engineMode}</span>`+
-      `<span class="lbl">Ballast</span><span class="val">${sub.ballastState}</span>`+
-      `<span class="lbl">Silent</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
+      row(o.heading||'Heading',viewModel.navigation.orders.heading,viewModel.navigation.orders.orderedHeading,v=>v)+
+      row(o.depth||'Depth',viewModel.navigation.orders.depth,viewModel.navigation.orders.orderedDepth,v=>v)+
+      row(o.power||'RPM',viewModel.navigation.orders.actualRpm,viewModel.navigation.orders.orderedRpm,v=>v)+
+      `<span class="lbl">${o.speed||'Speed'}</span><span class="val">${viewModel.vitals.speed.value}</span>`+
+      `<span class="lbl">${o.engine||'Engine'}</span><span class="val">${p.engineMode}</span>`+
+      `<span class="lbl">${o.ballast||'Ballast'}</span><span class="val">${sub.ballastState}</span>`+
+      `<span class="lbl">${o.silent||'Silent'}</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
       `<span class="lbl">TDC</span><span class="val">${tdc.status}</span>`+
-      `<span class="lbl">Solution</span><span class="val">${Math.round(tdc.solutionQuality*100)}%</span>`+
+      `<span class="lbl">Solution</span><span class="val">${viewModel.fire.solutionText}</span>`+
       `<span class="lbl">Launch</span><span class="val">${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'}</span>`+
-      `<span class="lbl">Tube turn</span><span class="val">${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(1)+'°':'--'}</span>`+
-      `<span class="lbl">Gyro</span><span class="val">${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'}</span>`+
-      `<span class="lbl">AoB</span><span class="val">${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'}</span>`+
-      `<span class="lbl">TtI</span><span class="val">${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'}</span>`+
-      `<span class="lbl">Torps</span><span class="val">${(()=>{const ts=torpedoStoresStatus(state);return `${ts.total} aboard · ${ts.reserve} reserve · ${ts.loadShort}`;})()}</span>`+
+      `<span class="lbl">Tube turn</span><span class="val">${viewModel.fire.tubeTurnText}</span>`+
+      `<span class="lbl">Gyro</span><span class="val">${viewModel.fire.gyroText}</span>`+
+      `<span class="lbl">AoB</span><span class="val">${viewModel.fire.aobText}</span>`+
+      `<span class="lbl">TtI</span><span class="val">${viewModel.fire.ttiText}</span>`+
+      `<span class="lbl">Torps</span><span class="val">${viewModel.vitals.torpedoes.value}</span>`+
       `<span class="lbl">Hits/Duds</span><span class="val">${state.weapons.hits.length}/${(state.weapons.duds||[]).length}</span>`;
 
     // Tube status
     const te=document.getElementById('tubeStatusDisplay');
-    if(te) te.innerHTML=state.weapons.tubes.map(t=>{
-      const col=t.status==='READY'?'var(--ok)':t.status==='EMPTY'?'var(--danger)':'var(--muted)';
-      const pct=t.status==='EMPTY'?` ${Math.round(t.reloadProgress*100)}%`:'';
-      const typ=t.status==='EMPTY'?'—':torpedoShortName(t.specKey||tdc.torpedoSpecKey);
-      return `<span style="color:${col}">T${t.id}[${t.pos}] ${typ}: ${t.status.replace('LOADED_DRY','LOADED')}${pct}</span>`;
-    }).join('<br>');
+    if(te) te.innerHTML=viewModel.weapons.tubes.map(t=>`<span style="color:${t.status==='READY'?'var(--ok)':t.status==='EMPTY'?'var(--danger)':'var(--muted)'}">T${t.id}[${t.position}] ${t.type}: ${t.status}${t.reloadText?` ${t.reloadText}`:''}</span>`).join('<br>');
 
     // TDC note
     const ne=document.getElementById('tdcSolutionNote');
     if(ne){
-      const sq=Math.round(tdc.solutionQuality*100);
-      const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||{};
-      const dudPct=Math.round(100*(typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(state,tdc.torpedoSpecKey,tdc.dudMode):(spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)));
-      const ri=torpedoRangeInfo(state,tdc.targetId);
-      ne.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');
+      ne.style.color=viewModel.fire.rangeBand?(viewModel.fire.rangeBand==='IN'?'var(--ok)':viewModel.fire.rangeBand==='BORDERLINE'?'var(--alert)':'var(--danger)'):(viewModel.fire.solutionNumber>70?'var(--ok)':viewModel.fire.solutionNumber>40?'var(--alert)':'var(--danger)');
       ne.textContent=tdc.targetId
-        ?`${tdc.status} — Sol:${sq}% · ${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'} · tube ${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(1)+'°':'--'} · ${ri?`${ri.label} · R ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}Dud:${dudPct}% · ${tdc.torpedoType}`
+        ?`${tdc.status} — Sol:${viewModel.fire.solutionText} · ${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'} · tube ${viewModel.fire.tubeTurnText} · ${viewModel.fire.rangeText}Dud:${viewModel.fire.dudText} · ${tdc.torpedoType}`
         :'No target.';
     }
 
@@ -129,44 +173,34 @@ class DomView{
         const result=o.result&&o.result!=='not_attempted'?` · ${o.result.toUpperCase()}`:'';
         return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
       }).join('<br>');
-      const pm=camp.primaryMission,progress=typeof missionProgressText==='function'?missionProgressText(state):'';
+      const pm=camp.primaryMission,progress=viewModel.mission.progressText;
       this.missionStatus.innerHTML=
-        `<strong style="color:var(--alert)">${pm?.title||camp.missionStatus}</strong> <span style="color:var(--dim);font-size:10px;">${camp.missionStatus}</span><br>`+
+        `<strong style="color:var(--alert)">${viewModel.mission.title}</strong> <span style="color:var(--dim);font-size:10px;">${viewModel.mission.status}</span><br>`+
         (progress?`<span style="color:var(--alert);font-size:10px;">${progress}</span><br>`:'')+
-        camp.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
-        (opt?`<br>${opt}`:'')+
-        `<br><span style="color:var(--muted);font-size:10px;">Tonnage: ${camp.tonnageSunk.toLocaleString()}t | #${camp.patrolNumber} | Career: ${camp.totalScore}</span>`;
+        viewModel.mission.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
+        (viewModel.mission.optionalObjectives.length?`<br>${viewModel.mission.optionalObjectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${o.result?` · ${o.result}`:''}</span>`).join('<br>')}`:'')+
+        `<br><span style="color:var(--muted);font-size:10px;">Tonnage: ${viewModel.mission.tonnageText}t | #${viewModel.mission.patrolNumber} | Career: ${viewModel.mission.scoreText}</span>`;
     }
   }
-  renderDamage(sub){
+  renderDamage(sub,viewModel){
     if(!this.damageReport) return;
-    const d=sub.damage;
-    const bar=(l,v)=>{const col=v>0.65?'#e36b5d':v>0.3?'#f0c35a':'#7be08f';
-      return `<div class="dmg-row"><span class="dmg-lbl">${l}</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${(v*100).toFixed(0)}%;background:${col}"></div></div><span class="dmg-val">${(v*100).toFixed(0)}%</span></div>`;};
-    const hc=d.hullIntegrity<30?'#e36b5d':d.hullIntegrity<60?'#f0c35a':'#7be08f';
-    this.damageReport.innerHTML=
-      `<div class="note" style="margin:0 0 7px;">Hull shows integrity remaining; subsystem rows show damage accumulated.</div>`+
-      `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
-      bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
-      bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
-      bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
-      `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
-      `<div class="dmg-row"><span class="dmg-lbl">Air quality</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#e36b5d':d.oxygen<50?'#f0c35a':'#7be08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`;
+    this.damageReport.innerHTML=viewModel.damage.desktopHtml;
   }
-  renderGauges(sub,state){
+  renderGauges(sub,state,viewModel){
     if(!this.gaugeReadout) return;
-    const p=sub.propulsion;
+    const v=viewModel.vitals,sys=viewModel.systems;
     this.gaugeReadout.innerHTML=
-      `<span>Contacts</span><strong>${Object.keys(state.world.contactTracks).length}</strong>`+
-      `<span>Visibility</span><strong>${state.world.environment.visibilityNm.toFixed(1)} nm</strong>`+
-      `<span>Weather</span><strong>${state.world.environment.weather||'CLEAR'}</strong>`+
-      `<span>Sea state</span><strong>${state.world.environment.seaState.toFixed(2)}</strong>`+
-      `<span>Enemy alert</span><strong>${state.world.enemy.alertState}</strong>`+
-      `<span>DCs active</span><strong>${state.world.depthCharges.length}</strong>`+
-      `<span>Noise sig</span><strong>${sub.stealth.acousticSignature.toFixed(2)}</strong>`+
-      `<span>Shallow</span><strong style="color:${sub.inShallowWater?'var(--alert)':'var(--muted)'}">${sub.inShallowWater?'YES':'NO'}</strong>`+
-      `<span>Radar fit</span><strong>${state.world.radar?.fitLabel||'—'}</strong>`+
-      `<span>Score</span><strong>${state.campaign.score.toLocaleString()}</strong>`+
-      `<span>Area</span><strong>${state.campaign.patrolArea}</strong>`;
+      `<span>Contacts</span><strong>${sys.contacts}</strong>`+
+      `<span>Visibility</span><strong>${sys.visibilityText}</strong>`+
+      `<span>Weather</span><strong>${sys.weather}</strong>`+
+      `<span>Sea state</span><strong>${sys.seaStateText}</strong>`+
+      `<span>Enemy alert</span><strong>${sys.alertLevel}</strong>`+
+      `<span>DCs active</span><strong>${sys.activeDepthCharges}</strong>`+
+      `<span>Noise sig</span><strong>${sys.noiseText}</strong>`+
+      `<span>Shallow zone</span><strong style="color:${sys.shallowZone?'var(--alert)':'var(--muted)'}">${sys.shallowZone?'YES':'NO'}</strong>`+
+      `<span>Keel clearance</span><strong style="color:${v.underKeel.state==='critical'?'var(--alert)':'var(--ok)'}">${v.underKeel.value}</strong>`+
+      `<span>Radar fit</span><strong>${sys.radar}</strong>`+
+      `<span>Score</span><strong>${sys.scoreText}</strong>`+
+      `<span>Area</span><strong>${sys.areaText}</strong>`;
   }
 }

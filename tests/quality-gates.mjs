@@ -30,7 +30,10 @@ if(timeWrites.length)fail.push(`direct automatic timeScale writes: ${timeWrites.
 for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf8');if(/(?:state|s|u)\.ui\s*=.*(?:toasts|toastSeq)|ui\.(?:toasts|toastSeq)\s*=/.test(src))fail.push(`legacy state toast queue write: ${rel(p)}`);}
 for(const [file,symbol,oldClass] of composedSystems){const src=await readFile(path.join(root,file),'utf8');if(!src.includes(`const ${symbol}=`))fail.push(`composed system missing: ${symbol}`);if(new RegExp(`class\\s+${oldClass}\\b`).test(src))fail.push(`composed class remains: ${oldClass}`);}
 for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf8');for(const [,,oldClass] of composedSystems)if(new RegExp(`extends\\s+${oldClass}\\b`).test(src))fail.push(`old composed inheritance remains: ${rel(p)} extends ${oldClass}`);}
-const renderComposition=[['js/rendering/world-3d.js','World3D','CanvasViewPeriscope'],['js/rendering/periscope-3d.js','PeriscopeStation','CanvasViewPeriscope'],['js/rendering/bridge-3d.js','BridgeStation','CanvasViewBridge'],['js/rendering/sound-room.js','SoundStation','CanvasViewSound'],['js/rendering/tactical.js','TacticalStation','CanvasViewTactical'],['js/rendering/map.js','MapStation',null]];
+const renderComposition=[['js/rendering/world-3d.js','World3D','CanvasViewPeriscope'],['js/rendering/periscope-3d.js','PeriscopeStation','CanvasViewPeriscope'],['js/rendering/bridge-3d.js','BridgeStation','CanvasViewBridge'],['js/rendering/sound-room.js','SoundStation','CanvasViewSound'],['js/rendering/tactical.js','TacticalStation','CanvasViewTactical'],['js/rendering/deck-gun-3d.js','DeckGunStation','CanvasViewDeckGun'],['js/rendering/map.js','MapStation',null],['js/rendering/battle-atmosphere.js','BattleAtmosphere',null]];
+const forbiddenInheritance=[];
+for(const p of all.filter(p=>p.endsWith('.js')&&(rel(p).startsWith('js/rendering/')||rel(p).startsWith('js/simulation/')))){const src=await readFile(p,'utf8');for(const m of src.matchAll(/^\s*class\s+[A-Za-z_$][\w$]*\s+extends\s+[A-Za-z_$][\w$]*/gm))forbiddenInheritance.push(`${rel(p)}:${src.slice(0,m.index).split('\n').length}`);}
+if(forbiddenInheritance.length)fail.push(...forbiddenInheritance.map(v=>`forbidden inheritance: ${v}`));
 for(const [file,symbol,oldClass] of renderComposition){const src=await readFile(path.join(root,file),'utf8');if(!src.includes(`const ${symbol}={`))fail.push(`render composition missing: ${symbol}`);if(oldClass&&new RegExp(`class\\s+${oldClass}\\b`).test(src))fail.push(`render class remains: ${oldClass}`);}
 const campaignCatalog=await readFile(path.join(root,'js/data/multi-theater-campaigns.js'),'utf8');
 if(/x\.specialOperationsProfile\s*=\s*null\s*;/.test(campaignCatalog))fail.push('runtime campaign profiles discard specialOperationsProfile');
@@ -51,6 +54,30 @@ for(const [name,definitions] of methodOwners){
   if(owners.length>1&&!duplicateMethodAllowlist.has(name))fail.push(`duplicate simulation method: ${name} — ${definitions.map(item=>`${item.class}@${item.file}:${item.line}`).join(', ')}`);
 }
 const strictPatterns=[/(^|[^\w.])Toast\./,/(^|[^\w.])audio\./,/(^|[^\w.])SaveSystem\./,/(^|[^\w.])globalThis\./,/(^|[^\w.])document\./,/(^|[^\w.])setTimeout\b/,/(^|[^\w.])performance\.now\b/];
+/* Step 8a runtime boundary. initRuntime is the single compatibility seam:
+   underscore-prefixed legacy state fields and simulation caches are moved
+   behind non-enumerable accessors, while storage drops the complete runtime
+   branch. Keep this contract explicit so a future refactor cannot silently
+   restore selective runtime serialization. */
+const stateSource=await readFile(path.join(root,'js/core/state.js'),'utf8');
+const saveSource=await readFile(path.join(root,'js/persistence/save-system.js'),'utf8');
+if(!/function\s+initRuntime\s*\(/.test(stateSource)||!/key\.startsWith\(['"]_['"]\)/.test(stateSource))fail.push('runtime boundary missing underscore-field migration in initRuntime');
+if(!/delete\s+s\.runtime\s*;/.test(saveSource))fail.push('storage boundary must omit the complete state.runtime branch');
+if(!/typeof initRuntime==='function'\)initRuntime\(state\)/.test(saveSource))fail.push('loaded states do not rebuild runtime through initRuntime');
+/* Runtime underscore fields must never be written back onto persistent state.
+   This is intentionally a write check (not a read check): legacy reads are
+   handled only at the migration boundary, while new writes must name the
+   runtime bucket explicitly. */
+const runtimeUnderscoreWrites=[];
+for(const p of all.filter(p=>p.endsWith('.js')&&rel(p).startsWith('js/'))){
+  const lines=(await readFile(p,'utf8')).split('\n');
+  for(let i=0;i<lines.length;i++){
+    const line=lines[i];
+    if(/(?:^|[({;,\s])(state|this\.state|s|sub|tdc|env|W|S|G)\.[A-Za-z_$][\w$]*\._[A-Za-z_$][\w$]*\s*=/.test(line)&&!line.includes('.runtime.'))
+      runtimeUnderscoreWrites.push(`${rel(p)}:${i+1}`);
+  }
+}
+if(runtimeUnderscoreWrites.length)fail.push(`underscore state writes outside state.runtime: ${runtimeUnderscoreWrites.join(', ')}`);
 const layerViolations=[];let layerCalls=0;const layerFiles=new Set();
 for(const p of all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');let fileCalls=0;for(const re of strictPatterns){const hits=src.match(new RegExp(re.source,'g'))||[];fileCalls+=hits.length;if(hits.length)layerViolations.push(`${rel(p)}: ${re}`);}if(fileCalls){layerCalls+=fileCalls;layerFiles.add(p);}}
 if(layerViolations.length){const message=`strict simulation-layer warnings: ${layerCalls} calls in ${layerFiles.size} files`;if(process.env.PP_STRICT_LAYERS==='1')fail.push(...layerViolations.map(v=>`simulation layer violation: ${v}`));else console.warn(message);}
@@ -65,4 +92,25 @@ const layoutPatterns=[/dataset/i,/matchMedia/i,/innerWidth/i,/innerHeight/i,/cli
 const layoutHits=[];let layoutCalls=0;const layoutFiles=new Set();
 for(const p of all.filter(p=>{const r=rel(p);return (r.startsWith('js/rendering/')||r.startsWith('js/simulation/'))&&p.endsWith('.js');})){const src=await readFile(p,'utf8');let n=0;for(const re of layoutPatterns)n+=(src.match(new RegExp(re.source,'gi'))||[]).length;if(n){layoutCalls+=n;layoutFiles.add(p);layoutHits.push(`${rel(p)}: ${n}`);}}
 if(layoutCalls)console.warn(`layout-read warnings: ${layoutCalls} layoutlezingen in ${layoutFiles.size} bestanden`);
+/* STEP 9a: presenter methods must consume the pure HUD viewmodel. Keep the
+   check scoped to the public presenter methods so their event/input helpers
+   may still use browser geometry and arithmetic. */
+const hudVmSource=await readFile(path.join(root,'js/ui/hud-viewmodel.js'),'utf8');
+if(!/function\s+buildHudViewModel\s*\(/.test(hudVmSource))fail.push('HUD viewmodel function missing');
+/* STEP 9b-1: desktop mirrors the permanent mobile vitals contract without
+   changing the mobile shell. Only depth and speed may expose order menus. */
+const indexSource=await readFile(path.join(root,'index.html'),'utf8');
+const cssSource=await readFile(path.join(root,'css/app.css'),'utf8');
+const deskVitals=indexSource.match(/<section id="deskVitals"[\s\S]*?<\/section>/)?.[0]||'';
+const deskVitalOrder=['deskVitalDepth','deskVitalKeel','deskVitalHeading','deskVitalSpeed','deskVitalTorps','deskVitalBattery','deskVitalFuel','deskVitalThreat','deskVitalHull'];
+let lastVital=-1;for(const id of deskVitalOrder){const at=deskVitals.indexOf(`id="${id}"`);if(at<0)fail.push(`desktop vital missing: ${id}`);else if(at<=lastVital)fail.push(`desktop vital order incorrect: ${id}`);lastVital=at;}
+const actionable=[...deskVitals.matchAll(/class="desk-vital actionable" id="([^"]+)"/g)].map(m=>m[1]);
+if(actionable.join(',')!=='deskVitalDepth,deskVitalSpeed')fail.push(`desktop actionable vitals incorrect: ${actionable.join(',')}`);
+if(!/id="deskFireButton"/.test(indexSource)||!/Toast\.warn\(viewModel\.fire\.reason/.test(await readFile(path.join(root,'js/controllers/bridge-controller.js'),'utf8')))fail.push('desktop permanent FIRE/reason route missing');
+if(!/html\[data-lay="desk"\] #desktopShell\{[\s\S]*?overflow:hidden;/.test(cssSource))fail.push('desktop page scroll is not locked');
+for(const [file,method] of [['js/ui/dom-view.js','render'],['js/controllers/touch-controller.js','updateTouch']]){
+  const src=await readFile(path.join(root,file),'utf8'),start=src.indexOf(`\n  ${method}(`),end=src.indexOf('\n  }',start);
+  const body=start>=0&&end>start?src.slice(start,end):'';
+  if(/\.toFixed\s*\(|\bMath\./.test(body))fail.push(`HUD presenter contains formatting/calculation: ${file} ${method}`);
+}
 console.log(JSON.stringify({ok:!fail.length,root,files:all.length,bytes:values,budgets,fail},null,2));if(fail.length)process.exit(1);
