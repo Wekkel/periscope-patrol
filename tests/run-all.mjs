@@ -3,7 +3,7 @@ import path from 'node:path';
 import process from 'node:process';
 
 const root=path.resolve(process.argv[2]||'.');
-const eslintBin=path.join(root,'node_modules','.bin',process.platform==='win32'?'eslint.cmd':'eslint');
+const eslintScript=path.join(root,'node_modules','eslint','bin','eslint.js');
 const checks=[
   ['call-graph generation',process.execPath,['tests/generate-call-graph.mjs','.']],
   ['quality gates',process.execPath,['tests/quality-gates.mjs','.']],
@@ -11,7 +11,7 @@ const checks=[
   ['behaviour tests',process.execPath,['tests/behaviour.mjs']],
   ['boot harness',process.execPath,['tests/boot-harness.mjs','.']],
   ['ESLint globals',process.execPath,['tests/generate-eslint-globals.mjs','.']],
-  ['ESLint no-undef',eslintBin,['.']],
+  ['ESLint no-undef',process.execPath,[eslintScript,'.']],
   ['call-order baseline',process.execPath,['tests/verify-call-graph.mjs']],
   ['call-target resolution',process.execPath,['tests/verify-call-targets.mjs','.']],
   ['render call-target resolution',process.execPath,['tests/verify-render-call-targets.mjs','.']]

@@ -1,7 +1,7 @@
 import {readdir,readFile,stat} from 'node:fs/promises';import path from 'node:path';import process from 'node:process';
 import {createHash} from 'node:crypto';
 const root=path.resolve(process.argv[2]||'.'),fail=[];async function files(dir){const out=[];for(const e of await readdir(dir,{withFileTypes:true})){if(['.git','tests','node_modules'].includes(e.name))continue;const p=path.join(dir,e.name);if(e.isDirectory())out.push(...await files(p));else out.push(p);}return out;}
-const all=await files(root),sized=await Promise.all(all.map(async p=>[p,(await stat(p)).size])),sum=filter=>sized.filter(([p])=>filter(p)).reduce((n,[,b])=>n+b,0),rel=p=>path.relative(root,p);
+const all=await files(root),sized=await Promise.all(all.map(async p=>[p,(await stat(p)).size])),sum=filter=>sized.filter(([p])=>filter(p)).reduce((n,[,b])=>n+b,0),rel=p=>path.relative(root,p).split(path.sep).join('/');
 // Verhoogd voor het hybride audio-samplepack; volledig offline geluid is een bewuste keuze.
 const budgets={repository:4_500_000,javascript:1_850_000,styles:220_000,audio:2_000_000,singleScript:145_000},values={repository:sum(()=>true),javascript:sum(p=>p.endsWith('.js')),styles:sum(p=>p.endsWith('.css')),audio:sum(p=>/\.(mp3|ogg|wav|m4a)$/i.test(p)),singleScript:Math.max(...sized.filter(([p])=>p.endsWith('.js')).map(([,b])=>b))};
 for(const [k,v] of Object.entries(values))if(v>budgets[k])fail.push(`${k} ${v} > ${budgets[k]}`);
@@ -150,10 +150,11 @@ if(!/min="0\.85"/.test(scaleInput)||!/max="1\.35"/.test(scaleInput)||!/step="0\.
 if(!/storageKey\('ss_ui_scale'\)/.test(wiringSource)||!/style\.setProperty\('--ui-scale'/.test(wiringSource)||!/:root\{[^}]*--ui-scale:1/.test(cssSource))fail.push('desktop interface scale is not persisted through --ui-scale');
 /* Mobile is the reference design for all 9b work. Pin both its shell markup and
    presenter controller so a desktop patch cannot silently alter it. */
-const touchStart=indexSource.indexOf('<div id="touchShell">'),touchNeedle='</div><!-- end touchShell -->',touchEnd=indexSource.indexOf(touchNeedle,touchStart)+touchNeedle.length;
-const touchMarkup=indexSource.slice(touchStart,touchEnd+2),sha=value=>createHash('sha256').update(value).digest('hex');
-if(touchMarkup.length!==16599||sha(touchMarkup)!=='eee6d3739c5e95c058710d4e6951d00ad2091a73f87a9e95debef5e2a7b2efb4')fail.push('mobile touch shell changed during desktop 9b work');
-if(sha(await readFile(path.join(root,'js/controllers/touch-controller.js')))!=='ce9f1e28bfadd92fb51a2e18502691cf9193ccd771e53596ca5e8e1b4e2e3700')fail.push('mobile TouchCtrl changed during desktop 9b work');
+const lf=value=>String(value).replace(/\r\n/g,'\n'),indexSourceLf=lf(indexSource);
+const touchStart=indexSourceLf.indexOf('<div id="touchShell">'),touchNeedle='</div><!-- end touchShell -->',touchEnd=indexSourceLf.indexOf(touchNeedle,touchStart)+touchNeedle.length;
+const touchMarkup=indexSourceLf.slice(touchStart,touchEnd+2),touchMarkupLf=touchMarkup,sha=value=>createHash('sha256').update(value).digest('hex');
+if(touchMarkupLf.length!==16599||sha(touchMarkupLf)!=='eee6d3739c5e95c058710d4e6951d00ad2091a73f87a9e95debef5e2a7b2efb4')fail.push('mobile touch shell changed during desktop 9b work');
+if(sha(lf(await readFile(path.join(root,'js/controllers/touch-controller.js'),'utf8')))!=='ce9f1e28bfadd92fb51a2e18502691cf9193ccd771e53596ca5e8e1b4e2e3700')fail.push('mobile TouchCtrl changed during desktop 9b work');
 for(const [file,method] of [['js/ui/dom-view.js','render'],['js/controllers/touch-controller.js','updateTouch']]){
   const src=await readFile(path.join(root,file),'utf8'),start=src.indexOf(`\n  ${method}(`),end=src.indexOf('\n  }',start);
   const body=start>=0&&end>start?src.slice(start,end):'';
