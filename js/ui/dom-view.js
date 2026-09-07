@@ -15,7 +15,7 @@ class DomView{
     this.fuelBar=document.getElementById('fuelBar');
     this.hullBar=document.getElementById('hullBar');
     this.alertEl=document.getElementById('deskAlert');
-    this.logEl=document.getElementById('deskLog');
+    this.logEl=document.getElementById('deskLogEntries');
     this.inputHint=document.getElementById('deskInputHint');
   }
   render(state,layout){
@@ -78,11 +78,9 @@ class DomView{
     this.renderDesktopVitals(viewModel);
     this.renderDesktopInfoPanels(viewModel);
     if(this.logEl){
-      const cap=viewModel.log.captain;
-      const capHtml=cap.length?`<div style="color:var(--alert);letter-spacing:1px;margin-bottom:4px;">CAPTAIN'S LOG</div>`+
-        cap.map(e=>`<div class="log-entry"><b>${e.date}</b> · ${e.text}</div>`).join('')+
-        `<div style="color:var(--dim);letter-spacing:1px;margin:8px 0 4px;">FULL PATROL LOG</div>`:'';
-      this.logEl.innerHTML=capHtml+viewModel.log.patrol.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">${e.time} ${e.text}</div>`).join('');
+      const kind=document.getElementById('deskLog')?.dataset.logKind==='patrol'?'patrol':'captain';
+      const entries=kind==='captain'?viewModel.log.captain:viewModel.log.patrol;
+      this.logEl.innerHTML=entries.length?entries.map(e=>kind==='captain'?`<div class="log-entry"><b>${e.date}</b> · ${e.text}</div>`:`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">${e.time} ${e.text}</div>`).join(''):`<div class="log-empty">No ${kind==='captain'?"captain's log":"patrol log"} entries yet.</div>`;
     }
   }
   renderDesktopVitals(viewModel){

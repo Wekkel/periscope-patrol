@@ -143,6 +143,11 @@
       <div class="hk-row hk-audio-row"><span class="hk-desc">Music / cues</span><input id="audioMusicVolume" type="range" min="0" max="100" value="42"><span id="audioMusicValue" class="hk-key">42%</span></div>
       <div class="hk-row"><span class="hk-key">T</span><span class="hk-desc">Mute / restore audio</span></div>
     </div>
+    <div class="hk-section desk-display-settings">
+      <div class="hk-title">Display</div>
+      <div class="hk-row hk-audio-row"><span class="hk-desc">Interface size</span><input id="uiScaleInput" type="range" min="0.85" max="1.35" step="0.05" value="1" aria-label="Desktop interface text size"><span id="uiScaleValue" class="hk-key">100%</span></div>
+      <div class="hk-row"><span class="hk-key">85–135%</span><span class="hk-desc">Desktop text size; browser zoom is not required</span></div>
+    </div>
     <div class="hk-section">
       <div class="hk-title">Map</div>
       <div class="hk-row"><span class="hk-key">Click</span><span class="hk-desc">Plot waypoint</span></div>
@@ -542,7 +547,16 @@
       </div>
     </section>
   </div>
-  <footer id="deskLog" class="panel"></footer>
+  <footer id="deskLog" class="panel" data-log-kind="captain">
+    <div class="desk-log-head">
+      <strong>Log</strong>
+      <div class="desk-log-switch" role="group" aria-label="Select log">
+        <button type="button" class="active" data-desk-log="captain" aria-pressed="true">Captain's log</button>
+        <button type="button" data-desk-log="patrol" aria-pressed="false">Patrol log</button>
+      </div>
+    </div>
+    <div id="deskLogEntries"></div>
+  </footer>
 </div><!-- end desktopShell -->
 
 

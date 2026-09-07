@@ -206,6 +206,14 @@ window.addEventListener('keydown',e=>{
   const apply=()=>{q.sfx=clamp(Number(sfx?.value??q.sfx),0,100);q.music=clamp(Number(mus?.value??q.music),0,100);audio.setSfxVolume(q.sfx/100);audio.setMusicVolume(q.music/100);if(sv)sv.textContent=`${Math.round(q.sfx)}%`;if(mv)mv.textContent=`${Math.round(q.music)}%`;try{localStorage.setItem(KEY,JSON.stringify(q));}catch(_){}};
   if(sfx)sfx.value=q.sfx;if(mus)mus.value=q.music;apply();sfx?.addEventListener('input',apply,{passive:true});mus?.addEventListener('input',apply,{passive:true});})();
 
+// Text scaling is a desktop display preference, not patrol state. Keep the
+// scalar on the document root so every desktop presentation surface can use
+// one value, and namespace persistence through the existing build profile.
+(()=>{const KEY=PP_BUILD.storageKey('ss_ui_scale'),input=document.getElementById('uiScaleInput'),value=document.getElementById('uiScaleValue');
+  let scale=1;try{scale=clamp(Number(localStorage.getItem(KEY)||1),.85,1.35);}catch(_){}
+  const apply=()=>{scale=clamp(Number(input?.value??scale),.85,1.35);document.documentElement.style.setProperty('--ui-scale',String(scale));if(value)value.textContent=`${Math.round(scale*100)}%`;try{localStorage.setItem(KEY,String(scale));}catch(_){}};
+  if(input)input.value=String(scale);apply();input?.addEventListener('input',apply,{passive:true});})();
+
 // Safety net: if the page ended up in the desktop layout on a device that is
 // actually being touched, switch over. Without this a stored 'desk' preference
 // (or a mis-detected tablet) hides the tab bar and there is no way back on a
@@ -309,6 +317,15 @@ for(const panel of deskInfoPanels){
     deskInfoOpenOrder.push(panel);
   });
 }
+
+// One bounded desktop log window; the switch changes only its presentation.
+const deskLog=document.getElementById('deskLog');
+document.querySelectorAll('[data-desk-log]').forEach(button=>button.addEventListener('click',()=>{
+  const kind=button.dataset.deskLog==='patrol'?'patrol':'captain';
+  if(deskLog)deskLog.dataset.logKind=kind;
+  document.querySelectorAll('[data-desk-log]').forEach(item=>{const active=item.dataset.deskLog===kind;item.classList.toggle('active',active);item.setAttribute('aria-pressed',active?'true':'false');});
+  domView.render(game.getSnapshot(),LayoutService.get());
+}));
 
 // one-off touch hint
 if(LayoutService.get().shell==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){

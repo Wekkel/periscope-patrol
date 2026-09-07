@@ -1,4 +1,5 @@
 import {readdir,readFile,stat} from 'node:fs/promises';import path from 'node:path';import process from 'node:process';
+import {createHash} from 'node:crypto';
 const root=path.resolve(process.argv[2]||'.'),fail=[];async function files(dir){const out=[];for(const e of await readdir(dir,{withFileTypes:true})){if(['.git','tests','node_modules'].includes(e.name))continue;const p=path.join(dir,e.name);if(e.isDirectory())out.push(...await files(p));else out.push(p);}return out;}
 const all=await files(root),sized=await Promise.all(all.map(async p=>[p,(await stat(p)).size])),sum=filter=>sized.filter(([p])=>filter(p)).reduce((n,[,b])=>n+b,0),rel=p=>path.relative(root,p);
 // Verhoogd voor het hybride audio-samplepack; volledig offline geluid is een bewuste keuze.
@@ -129,6 +130,21 @@ for(const id of ['deskTargetOverview','deskIntel','deskTdcOverview','deskTorpSto
 if(/role="tab"|desk-info-tabs/.test(deskRight))fail.push('desktop information column uses tabs instead of collapsible panels');
 if(!/while\(deskInfoOpenOrder\.length>=2\)setDeskInfoPanel\(deskInfoOpenOrder\.shift\(\),false\)/.test(wiringSource))fail.push('desktop information panels do not close the longest-open panel');
 if(!/\.desk-info-panel\.open\{flex:1 1 0;/.test(cssSource)||!/\.desk-info-panel\.open \.desk-info-body\{display:block;flex:1 1 auto;/.test(cssSource))fail.push('desktop information panels do not scroll within bounded open panels');
+/* STEP 9b-4: one bounded log chooses one source, and desktop type scaling is a
+   namespaced persisted display preference expressed through --ui-scale. */
+const deskLog=indexSource.match(/<footer id="deskLog"[\s\S]*?<\/footer>/)?.[0]||'';
+const logKinds=[...deskLog.matchAll(/data-desk-log="([^"]+)"/g)].map(m=>m[1]);
+if(logKinds.join(',')!=='captain,patrol'||!deskLog.includes('id="deskLogEntries"'))fail.push('desktop combined log switch is incomplete');
+if(!/grid-template-rows:68px 38px minmax\(0,1fr\) 58px clamp\(66px,7vh,78px\)/.test(cssSource)||!/#deskLogEntries\{[\s\S]*?overflow-y:auto/.test(cssSource))fail.push('desktop log is not bounded to four-to-six internally scrolling lines');
+const scaleInput=indexSource.match(/<input id="uiScaleInput"[^>]+>/)?.[0]||'';
+if(!/min="0\.85"/.test(scaleInput)||!/max="1\.35"/.test(scaleInput)||!/step="0\.05"/.test(scaleInput))fail.push('desktop interface scale range is missing or incorrect');
+if(!/storageKey\('ss_ui_scale'\)/.test(wiringSource)||!/style\.setProperty\('--ui-scale'/.test(wiringSource)||!/:root\{[^}]*--ui-scale:1/.test(cssSource))fail.push('desktop interface scale is not persisted through --ui-scale');
+/* Mobile is the reference design for all 9b work. Pin both its shell markup and
+   presenter controller so a desktop patch cannot silently alter it. */
+const touchStart=indexSource.indexOf('<div id="touchShell">'),touchNeedle='</div><!-- end touchShell -->',touchEnd=indexSource.indexOf(touchNeedle,touchStart)+touchNeedle.length;
+const touchMarkup=indexSource.slice(touchStart,touchEnd+2),sha=value=>createHash('sha256').update(value).digest('hex');
+if(touchMarkup.length!==16599||sha(touchMarkup)!=='eee6d3739c5e95c058710d4e6951d00ad2091a73f87a9e95debef5e2a7b2efb4')fail.push('mobile touch shell changed during desktop 9b work');
+if(sha(await readFile(path.join(root,'js/controllers/touch-controller.js')))!=='ce9f1e28bfadd92fb51a2e18502691cf9193ccd771e53596ca5e8e1b4e2e3700')fail.push('mobile TouchCtrl changed during desktop 9b work');
 for(const [file,method] of [['js/ui/dom-view.js','render'],['js/controllers/touch-controller.js','updateTouch']]){
   const src=await readFile(path.join(root,file),'utf8'),start=src.indexOf(`\n  ${method}(`),end=src.indexOf('\n  }',start);
   const body=start>=0&&end>start?src.slice(start,end):'';
