@@ -102,6 +102,15 @@ if(!/function\s+buildHudViewModel\s*\(/.test(hudVmSource))fail.push('HUD viewmod
    changing the mobile shell. Only depth and speed may expose order menus. */
 const indexSource=await readFile(path.join(root,'index.html'),'utf8');
 const cssSource=await readFile(path.join(root,'css/app.css'),'utf8');
+const swSource=await readFile(path.join(root,'sw.js'),'utf8');
+const gameCatalogSource=await readFile(path.join(root,'js/data/game-catalog.js'),'utf8');
+/* P58 9b boot repair: the cache revision must move with this cumulative UI
+   delivery, and the convoy catalog must be loaded and exported before the
+   engine constructs the initial game. */
+const catalogScript=indexSource.indexOf('<script src="./js/data/game-catalog.js"></script>'),engineScript=indexSource.indexOf('<script src="./js/simulation/engine-core.js"></script>');
+if(catalogScript<0||engineScript<0||catalogScript>engineScript)fail.push('primary convoy catalog does not load before engine-core');
+if(!/function\s+getPrimaryConvoyProfile\s*\(/.test(gameCatalogSource)||!/globalThis\.getPrimaryConvoyProfile=getPrimaryConvoyProfile/.test(gameCatalogSource))fail.push('primary convoy bootstrap contract is not explicitly exported');
+if(!/const VERSION = '1\.0\.1';/.test(swSource)||!/\.\/js\/data\/game-catalog\.js/.test(swSource))fail.push('P58 9b service-worker cache revision/catalog shell entry missing');
 const deskVitals=indexSource.match(/<section id="deskVitals"[\s\S]*?<\/section>/)?.[0]||'';
 const deskVitalOrder=['deskVitalDepth','deskVitalKeel','deskVitalHeading','deskVitalSpeed','deskVitalTorps','deskVitalBattery','deskVitalFuel','deskVitalThreat','deskVitalHull'];
 let lastVital=-1;for(const id of deskVitalOrder){const at=deskVitals.indexOf(`id="${id}"`);if(at<0)fail.push(`desktop vital missing: ${id}`);else if(at<=lastVital)fail.push(`desktop vital order incorrect: ${id}`);lastVital=at;}

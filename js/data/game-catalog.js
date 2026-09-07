@@ -1161,6 +1161,10 @@ function getPrimaryConvoyProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfile
      Atlantic. Unknown IDs are already rejected by the identity validator. */
   return getCampaignProfile(profileId)?.primaryConvoyProfile||null;
 }
+// Bootstrap dependency used by Game -> SimEngine.makeConvoy. Keep the global
+// contract explicit: a stale/missing catalog must be detectable before the
+// game facade is constructed, rather than surfacing later as a convoy error.
+globalThis.getPrimaryConvoyProfile=getPrimaryConvoyProfile;
 
 function getAmbientTrafficProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   /* As with primary convoys, a future campaign must author its own ambient
