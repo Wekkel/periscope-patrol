@@ -68,7 +68,7 @@ class DomView{
     document.getElementById('pumpButton')?.classList.toggle('on',!!sub.damage.pumpActive);
     this.renderAlerts(state);
     this.renderOrders(sub,state,viewModel);
-    {const burden=viewModel.damage.burden;if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.getElementById('deskDamage');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}
+    {const burden=viewModel.damage.burden;if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.querySelector('[data-desk-panel="boat"]');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}
     this.renderDamage(sub,viewModel);
     this.renderGauges(sub,state,viewModel);
     if(this.batteryBar) this.batteryBar.style.width=`${viewModel.vitals.battery.raw}%`;
@@ -76,6 +76,7 @@ class DomView{
     if(this.hullBar)    this.hullBar.style.width=`${viewModel.vitals.hull.raw}%`;
     for(const [id,v] of [['batteryPct',viewModel.vitals.battery.value],['fuelPct',viewModel.vitals.fuel.value],['hullPct',viewModel.vitals.hull.value]]){const el=document.getElementById(id);if(el)el.textContent=v;}
     this.renderDesktopVitals(viewModel);
+    this.renderDesktopInfoPanels(viewModel);
     if(this.logEl){
       const cap=viewModel.log.captain;
       const capHtml=cap.length?`<div style="color:var(--alert);letter-spacing:1px;margin-bottom:4px;">CAPTAIN'S LOG</div>`+
@@ -109,6 +110,30 @@ class DomView{
     fire?.setAttribute('aria-disabled',viewModel.fire.available?'false':'true');
     fire?.setAttribute('title',viewModel.fire.available?'Fire selected torpedo solution':viewModel.fire.reason);
     set('deskFireSol',viewModel.fire.solutionText);
+  }
+  renderDesktopInfoPanels(viewModel){
+    const set=(id,value)=>{const el=document.getElementById(id);if(el&&el.textContent!==String(value))el.textContent=value;};
+    const html=(id,value)=>{const el=document.getElementById(id);if(el&&el.innerHTML!==value)el.innerHTML=value;};
+    const t=viewModel.tdc,w=viewModel.weapons;
+    set('deskMissionSummary',viewModel.mission.summaryText);
+    set('deskIntelSummary',viewModel.systems.intelSummaryText);
+    set('deskFireSummary',t.summaryText);
+    set('deskBoatSummary',viewModel.crew.summaryText);
+    set('deskRadioSummary',viewModel.radio.summaryText);
+    html('deskTargetOverview',`<b>${t.targetLabel}</b><span>BRG ${t.bearingText}</span><span>RNG ${t.rangeText}</span><span>CRS ${t.courseText}</span><span>SPD ${t.speedText}</span><small>${t.sourceText} · ${t.modeText}</small>`);
+    html('deskIntel',viewModel.systems.intelHtml);
+    html('deskTdcOverview',`<span>Status</span><strong>${t.status}</strong><span>Target</span><strong>${t.targetLabel}</strong><span>Bearing</span><strong>${t.bearingText}</strong><span>Range</span><strong>${t.rangeText}</strong><span>Course / speed</span><strong>${t.courseText} · ${t.speedText}</strong><span>AOB / gyro</span><strong>${t.aobText} · ${t.gyroText}</strong><span>Run time</span><strong>${t.runText}</strong><span>Solution</span><strong>${t.qualityText}</strong><span>Track</span><strong>${t.sourceText} · ${t.modeText}</strong>`);
+    set('deskTorpStores',w.storesText);
+    html('deskRightTubes',w.tubes.map(tube=>`<div class="desk-tube ${tube.status==='READY'?'ready':tube.status==='EMPTY'?'empty':'loading'}"><b>T${tube.id}</b><span>${tube.position} · ${tube.type}</span><strong>${tube.status}${tube.reloadText?` ${tube.reloadText}`:''}</strong></div>`).join(''));
+    set('deskDeckGunInfo',`${w.deckGun.statusText} · train ${w.deckGun.trainText} · elev ${w.deckGun.elevationText} · ammo ${w.deckGun.ammo} · ${w.deckGun.loadStatusText} · target ${w.deckGun.targetText}`);
+    set('deskCrewStatus',viewModel.crew.statusText);
+    set('deskAaStatus',w.aa.statusText);
+    set('deskRadioState',viewModel.radio.stateText);
+    const report=document.getElementById('deskRadioReportButton'),silence=document.getElementById('deskRadioSilenceButton'),partial=document.getElementById('deskRadioPartialButton');
+    if(report){report.disabled=!viewModel.radio.reportEnabled;report.classList.toggle('active',viewModel.radio.reportAuthorized);}
+    if(silence)silence.classList.toggle('active',viewModel.radio.txSilence);
+    if(partial)partial.disabled=!viewModel.radio.partialEnabled;
+    html('deskRadioMessages',viewModel.radio.inboxHtml);
   }
   applyPresentation(state,ui){
     if(this._presentationId===ui.id)return;this._presentationId=ui.id;

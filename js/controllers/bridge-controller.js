@@ -105,6 +105,9 @@ class BridgeController{
     btn('radioReportButton',()=>this.game.dispatch({type:'RADIO_AUTHORIZE_REPORT'}));
     btn('radioSilenceButton',()=>this.game.dispatch({type:'RADIO_TOGGLE_SILENCE'}));
     btn('radioPartialButton',()=>this.game.dispatch({type:'RADIO_ACCEPT_PARTIAL'}));
+    btn('deskRadioReportButton',()=>this.game.dispatch({type:'RADIO_AUTHORIZE_REPORT'}));
+    btn('deskRadioSilenceButton',()=>this.game.dispatch({type:'RADIO_TOGGLE_SILENCE'}));
+    btn('deskRadioPartialButton',()=>this.game.dispatch({type:'RADIO_ACCEPT_PARTIAL'}));
     btn('stationTactical',  ()=>setSta('TACTICAL'));
     btn('stationBridge',    ()=>setSta('BRIDGE'));
     btn('stationSound',     ()=>setSta('SOUND'));
