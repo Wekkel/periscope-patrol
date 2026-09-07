@@ -64,6 +64,8 @@ class DomView{
     const ids={FLOODING:'dcFloodButton',PROPULSION:'dcPropButton',STEERING:'dcSteerButton',OPTICS_FIRE_CONTROL:'dcOpticsButton'};
     for(const [k,id] of Object.entries(ids))document.getElementById(id)?.classList.toggle('on',k===rp);
     const dn=document.getElementById('deskDcNote');if(dn)dn.textContent=viewModel.damage.dcNote;
+    document.getElementById('silentButton')?.classList.toggle('on',!!sub.stealth.silentRunning);
+    document.getElementById('pumpButton')?.classList.toggle('on',!!sub.damage.pumpActive);
     this.renderAlerts(state);
     this.renderOrders(sub,state,viewModel);
     {const burden=viewModel.damage.burden;if(this._damageBurden!=null&&burden>this._damageBurden+.35){const el=document.getElementById('deskDamage');el?.classList.remove('damage-pulse');void el?.offsetWidth;el?.classList.add('damage-pulse');}this._damageBurden=burden;}

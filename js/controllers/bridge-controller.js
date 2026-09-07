@@ -30,7 +30,7 @@ class BridgeController{
     const btn=(id,fn)=>document.getElementById(id)?.addEventListener('click',fn);
     const depthRead=v=>playerDepthDisplay(this.game.getSnapshot(),v,0);
     const setRpm=value=>{const max=this.game.getSnapshot().playerSub.propulsion.characteristics?.normalizedMaxRpm??450,rpm=clamp(Math.round(Number(value)||0),0,max);if(ri)ri.value=String(rpm);const exact=document.getElementById('rpmNumberInput');if(exact)exact.value=String(rpm);if(rv)rv.textContent=String(rpm);this.game.dispatch({type:'SET_ENGINE_RPM',rpm});};
-    const setDepth=value=>{const max=Number(di?.max)||300,depth=clamp(Math.round(Number(value)||0),0,max);if(di)di.value=String(depth);const exact=document.getElementById('depthNumberInput');if(exact)exact.value=String(depth);if(dv)dv.textContent=depthRead(depth);this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:depth});};
+    const setDepth=value=>{const sub=this.game.getSnapshot().playerSub,max=Number(di?.max)||Math.min(600,Math.max(300,Math.floor((sub.damage.crushDepthFeet||420)-10))),depth=clamp(Math.round(Number(value)||0),0,max);if(di)di.value=String(depth);const exact=document.getElementById('depthNumberInput');if(exact)exact.value=String(depth);if(dv)dv.textContent=depthRead(depth);this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:depth});};
     const closeVitalMenus=()=>document.querySelectorAll('#deskVitals .desk-vital.open').forEach(el=>{el.classList.remove('open');el.setAttribute('aria-expanded','false');});
     const toggleVitalMenu=el=>{const open=!el.classList.contains('open');closeVitalMenus();if(open){el.classList.add('open');el.setAttribute('aria-expanded','true');}};
     for(const id of ['deskVitalDepth','deskVitalSpeed']){

@@ -108,6 +108,16 @@ const actionable=[...deskVitals.matchAll(/class="desk-vital actionable" id="([^"
 if(actionable.join(',')!=='deskVitalDepth,deskVitalSpeed')fail.push(`desktop actionable vitals incorrect: ${actionable.join(',')}`);
 if(!/id="deskFireButton"/.test(indexSource)||!/Toast\.warn\(viewModel\.fire\.reason/.test(await readFile(path.join(root,'js/controllers/bridge-controller.js'),'utf8')))fail.push('desktop permanent FIRE/reason route missing');
 if(!/html\[data-lay="desk"\] #desktopShell\{[\s\S]*?overflow:hidden;/.test(cssSource))fail.push('desktop page scroll is not locked');
+/* STEP 9b-2: the desktop bridge is no longer a grid column. Navigation and
+   emergencies are permanent, while manual helm/TDC/weapons use a drawer. */
+const navToolbar=indexSource.match(/<nav id="deskNavToolbar"[\s\S]*?<\/nav>/)?.[0]||'';
+for(const id of ['clearPlotButton','plotInterceptButton','mapWeatherButton','followPlotButton','portButton'])if(!navToolbar.includes(`id="${id}"`))fail.push(`desktop navigation toolbar missing: ${id}`);
+const emergencyCluster=indexSource.match(/<div id="deskEmergencyCluster"[\s\S]*?<\/div>/)?.[0]||'';
+for(const id of ['crashDiveButton','emergencyBlowButton','silentButton','pumpButton'])if(!emergencyCluster.includes(`id="${id}"`))fail.push(`desktop emergency cluster missing: ${id}`);
+if(!/grid-template-columns:minmax\(620px,1fr\) clamp\(238px,20vw,300px\)/.test(cssSource))fail.push('desktop fixed left grid column remains');
+if(!/html\[data-lay="desk"\] #deskBridge\{[\s\S]*?position:absolute/.test(cssSource))fail.push('desktop command drawer is not out of layout flow');
+const topActions=indexSource.slice(indexSource.indexOf('<header id="deskHeader"'),indexSource.indexOf('</header>'));
+for(const id of ['newScenarioButton','saveGameButton','loadGameButton'])if(!topActions.includes(`id="${id}"`))fail.push(`desktop top action missing: ${id}`);
 for(const [file,method] of [['js/ui/dom-view.js','render'],['js/controllers/touch-controller.js','updateTouch']]){
   const src=await readFile(path.join(root,file),'utf8'),start=src.indexOf(`\n  ${method}(`),end=src.indexOf('\n  }',start);
   const body=start>=0&&end>start?src.slice(start,end):'';
