@@ -114,10 +114,21 @@ const navToolbar=indexSource.match(/<nav id="deskNavToolbar"[\s\S]*?<\/nav>/)?.[
 for(const id of ['clearPlotButton','plotInterceptButton','mapWeatherButton','followPlotButton','portButton'])if(!navToolbar.includes(`id="${id}"`))fail.push(`desktop navigation toolbar missing: ${id}`);
 const emergencyCluster=indexSource.match(/<div id="deskEmergencyCluster"[\s\S]*?<\/div>/)?.[0]||'';
 for(const id of ['crashDiveButton','emergencyBlowButton','silentButton','pumpButton'])if(!emergencyCluster.includes(`id="${id}"`))fail.push(`desktop emergency cluster missing: ${id}`);
-if(!/grid-template-columns:minmax\(620px,1fr\) clamp\(238px,20vw,300px\)/.test(cssSource))fail.push('desktop fixed left grid column remains');
+if(!/grid-template-columns:minmax\(620px,1fr\) clamp\(220px,18vw,260px\)/.test(cssSource))fail.push('desktop fixed left grid column remains or right information column is not narrow');
 if(!/html\[data-lay="desk"\] #deskBridge\{[\s\S]*?position:absolute/.test(cssSource))fail.push('desktop command drawer is not out of layout flow');
 const topActions=indexSource.slice(indexSource.indexOf('<header id="deskHeader"'),indexSource.indexOf('</header>'));
 for(const id of ['newScenarioButton','saveGameButton','loadGameButton'])if(!topActions.includes(`id="${id}"`))fail.push(`desktop top action missing: ${id}`);
+/* STEP 9b-3: the narrow desktop information column mirrors the richer mobile
+   readouts through five accordions. Two may be open; wiring closes the oldest
+   before a third opens. Panels, unlike the command drawer, are not tabs. */
+const deskRight=indexSource.slice(indexSource.indexOf('<div id="deskRight">'),indexSource.indexOf('<footer id="deskLog"'));
+const deskPanelKeys=[...deskRight.matchAll(/data-desk-panel="([^"]+)"/g)].map(m=>m[1]);
+if(deskPanelKeys.join(',')!=='mission,intel,fire,boat,radio')fail.push(`desktop information panels incorrect: ${deskPanelKeys.join(',')}`);
+if((deskRight.match(/class="desk-info-panel panel open"/g)||[]).length!==2)fail.push('desktop information column must start with exactly two panels open');
+for(const id of ['deskTargetOverview','deskIntel','deskTdcOverview','deskTorpStores','deskRightTubes','deskDeckGunInfo','deskCrewStatus','deskAaStatus','deskRadioState','deskRadioMessages'])if(!deskRight.includes(`id="${id}"`))fail.push(`desktop information view missing: ${id}`);
+if(/role="tab"|desk-info-tabs/.test(deskRight))fail.push('desktop information column uses tabs instead of collapsible panels');
+if(!/while\(deskInfoOpenOrder\.length>=2\)setDeskInfoPanel\(deskInfoOpenOrder\.shift\(\),false\)/.test(wiringSource))fail.push('desktop information panels do not close the longest-open panel');
+if(!/\.desk-info-panel\.open\{flex:1 1 0;/.test(cssSource)||!/\.desk-info-panel\.open \.desk-info-body\{display:block;flex:1 1 auto;/.test(cssSource))fail.push('desktop information panels do not scroll within bounded open panels');
 for(const [file,method] of [['js/ui/dom-view.js','render'],['js/controllers/touch-controller.js','updateTouch']]){
   const src=await readFile(path.join(root,file),'utf8'),start=src.indexOf(`\n  ${method}(`),end=src.indexOf('\n  }',start);
   const body=start>=0&&end>start?src.slice(start,end):'';

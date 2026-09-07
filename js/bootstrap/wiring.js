@@ -286,6 +286,30 @@ for(const [id,pane] of Object.entries(deskCmdForStation)){
   });
 }
 
+// Desktop information follows the mobile sheet pattern, adapted to the height
+// available beside the map. At most two panels share that height. Opening a
+// third closes the panel that has been open longest; closing is always manual.
+const deskInfoPanels=[...document.querySelectorAll('[data-desk-panel]')];
+let deskInfoOpenOrder=deskInfoPanels.filter(panel=>panel.classList.contains('open'));
+function setDeskInfoPanel(panel,open){
+  panel.classList.toggle('open',open);
+  const head=panel.querySelector('.desk-info-head'),chevron=head?.querySelector('i');
+  head?.setAttribute('aria-expanded',open?'true':'false');
+  if(chevron)chevron.textContent=open?'⌃':'⌄';
+}
+for(const panel of deskInfoPanels){
+  panel.querySelector('.desk-info-head')?.addEventListener('click',()=>{
+    if(panel.classList.contains('open')){
+      setDeskInfoPanel(panel,false);
+      deskInfoOpenOrder=deskInfoOpenOrder.filter(item=>item!==panel);
+      return;
+    }
+    while(deskInfoOpenOrder.length>=2)setDeskInfoPanel(deskInfoOpenOrder.shift(),false);
+    setDeskInfoPanel(panel,true);
+    deskInfoOpenOrder.push(panel);
+  });
+}
+
 // one-off touch hint
 if(LayoutService.get().shell==='touch'&&!localStorage.getItem(PP_BUILD.storageKey('ss_hint'))){
   setTimeout(()=>{

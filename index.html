@@ -486,30 +486,61 @@
 
   <!-- RIGHT COL -->
   <div id="deskRight">
-    <div id="deskOrders" class="panel">
-      <div class="ptitle">Mission Progress</div>
-      <div id="missionStatus" style="font-size:12px;color:var(--muted);line-height:1.5;"></div>
-    </div>
-    <div id="deskDamage" class="panel">
-      <div class="ptitle">Damage Report</div>
-      <div id="damageReport"></div>
-    </div>
-    <div id="deskGauges" class="panel">
-      <div class="ptitle">Systems</div>
-      <div id="gaugeReadout" class="readout"></div>
-      <div style="margin-top:6px;">
-        <div class="resource-label"><span>Battery</span><strong id="batteryPct">100%</strong></div>
-        <div class="res-bar"><i id="batteryBar"></i></div>
-        <div class="resource-label"><span>Fuel</span><strong id="fuelPct">100%</strong></div>
-        <div class="res-bar"><i id="fuelBar"></i></div>
-        <div class="resource-label"><span>Hull Integrity</span><strong id="hullPct">100%</strong></div>
-        <div class="res-bar"><i id="hullBar"></i></div>
+    <section class="desk-info-panel panel open" data-desk-panel="mission">
+      <button type="button" class="desk-info-head" aria-expanded="true"><strong>Mission</strong><span id="deskMissionSummary">Assigned patrol</span><i>⌃</i></button>
+      <div class="desk-info-body"><div id="missionStatus"></div></div>
+    </section>
+    <section class="desk-info-panel panel" data-desk-panel="intel">
+      <button type="button" class="desk-info-head" aria-expanded="false"><strong>Contacts &amp; Intel</strong><span id="deskIntelSummary">0 contacts</span><i>⌄</i></button>
+      <div class="desk-info-body">
+        <div id="deskTargetOverview" class="desk-target-overview"></div>
+        <div id="deskIntel"></div>
       </div>
-    </div>
-    <div id="deskCurrentOrders" class="panel">
-      <div class="ptitle">Current vs Ordered</div>
-      <div class="orders-grid" id="ordersGrid"></div>
-    </div>
+    </section>
+    <section class="desk-info-panel panel open" data-desk-panel="fire">
+      <button type="button" class="desk-info-head" aria-expanded="true"><strong>Fire Control</strong><span id="deskFireSummary">No target</span><i>⌃</i></button>
+      <div class="desk-info-body">
+        <div id="deskTdcOverview" class="desk-info-grid"></div>
+        <div class="desk-info-subhead">Torpedo stores</div>
+        <div id="deskTorpStores" class="note"></div>
+        <div id="deskRightTubes" class="desk-tube-list"></div>
+        <div class="desk-info-subhead">Deck gun</div>
+        <div id="deskDeckGunInfo" class="note"></div>
+      </div>
+    </section>
+    <section class="desk-info-panel panel" data-desk-panel="boat">
+      <button type="button" class="desk-info-head" aria-expanded="false"><strong>Boat &amp; Crew</strong><span id="deskBoatSummary">Hull 100%</span><i>⌄</i></button>
+      <div class="desk-info-body">
+        <div id="deskCrewStatus" class="note"></div>
+        <div id="deskAaStatus" class="note"></div>
+        <div class="desk-info-subhead">Damage</div>
+        <div id="damageReport"></div>
+        <div class="desk-info-subhead">Systems</div>
+        <div id="gaugeReadout" class="readout"></div>
+        <div class="desk-resources">
+          <div class="resource-label"><span>Battery</span><strong id="batteryPct">100%</strong></div>
+          <div class="res-bar"><i id="batteryBar"></i></div>
+          <div class="resource-label"><span>Fuel</span><strong id="fuelPct">100%</strong></div>
+          <div class="res-bar"><i id="fuelBar"></i></div>
+          <div class="resource-label"><span>Hull Integrity</span><strong id="hullPct">100%</strong></div>
+          <div class="res-bar"><i id="hullBar"></i></div>
+        </div>
+        <div class="desk-info-subhead">Current vs ordered</div>
+        <div class="orders-grid" id="ordersGrid"></div>
+      </div>
+    </section>
+    <section class="desk-info-panel panel" data-desk-panel="radio">
+      <button type="button" class="desk-info-head" aria-expanded="false"><strong>Radio</strong><span id="deskRadioSummary">No signals</span><i>⌄</i></button>
+      <div class="desk-info-body">
+        <div id="deskRadioState" class="note"></div>
+        <div class="radio-actions">
+          <button id="deskRadioReportButton" type="button">Send report</button>
+          <button id="deskRadioSilenceButton" type="button">TX silence</button>
+          <button id="deskRadioPartialButton" type="button">Use partial</button>
+        </div>
+        <div id="deskRadioMessages"></div>
+      </div>
+    </section>
   </div>
   <footer id="deskLog" class="panel"></footer>
 </div><!-- end desktopShell -->
