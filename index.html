@@ -295,17 +295,31 @@
       </div>
       <button id="deskLayoutBtn" title="Switch to the touch layout">⇄ TOUCH UI</button>
       <button id="deskTutBtn" title="Start the training patrol">🎓 TRAINING</button>
+      <div id="deskMissionActions" aria-label="Patrol and save controls">
+        <button id="newScenarioButton">⚓ MISSIONS</button>
+        <button id="saveGameButton">💾 SAVE</button>
+        <button id="loadGameButton">↺ LOAD</button>
+      </div>
     </div>
     <div id="deskAlert" aria-live="polite"></div>
   </header>
 
-  <!-- LEFT BRIDGE -->
+  <nav id="deskNavToolbar" class="panel" aria-label="Navigation actions">
+    <span>NAVIGATION</span>
+    <button id="clearPlotButton">Clear Plot</button>
+    <button id="plotInterceptButton">Intercept Advice</button>
+    <button id="mapWeatherButton">☁ Weather</button>
+    <button id="followPlotButton">Steer To Waypoint</button>
+    <button id="portButton">⚓ Head To Port</button>
+    <i aria-hidden="true"></i>
+    <button type="button" class="secondary" data-open-desk-cmd="helm">Manual Helm</button>
+    <button type="button" class="secondary" data-open-desk-cmd="firecontrol">TDC</button>
+    <button type="button" class="secondary" data-open-desk-cmd="weapons">Weapons</button>
+  </nav>
+
+  <!-- Floating command drawer: no longer a fixed layout column. -->
   <aside id="deskBridge" class="panel">
-    <div id="deskMissionActions" aria-label="Patrol and save controls">
-      <button id="newScenarioButton">⚓ MISSIONS</button>
-      <button id="saveGameButton">💾 QUICK SAVE</button>
-      <button id="loadGameButton">↺ QUICK LOAD</button>
-    </div>
+    <div class="desk-drawer-head"><strong>COMMAND DRAWER</strong><button type="button" id="deskDrawerClose" aria-label="Close command drawer">✕</button></div>
     <nav id="deskCommandTabs" class="desk-command-tabs" aria-label="Desktop command groups">
       <button type="button" data-cmd="helm" class="active">HELM</button>
       <button type="button" data-cmd="firecontrol">TDC</button>
@@ -321,36 +335,6 @@
         <input id="headingNumberInput" type="number" min="0" max="359" step="1" value="90" inputmode="numeric" aria-label="Exact ordered heading in degrees">
         <button data-hstep="1">+1°</button><button data-hstep="5">+5°</button><button data-hstep="10">+10°</button>
       </div>
-    </div>
-    <div class="cgroup">
-      <label><span id="deskPowerLabel">Ordered RPM</span><strong id="rpmValue">250</strong></label>
-      <input id="rpmInput" type="range" min="0" max="450" value="250"/>
-      <div class="desk-order-presets"><button data-deskrpm="0">Stop</button><button data-deskrpm="120">Slow</button><button data-deskrpm="250">Standard</button><button data-deskrpm="450">Flank</button></div>
-      <div class="desk-order-fine"><button data-deskrstep="-25">−25</button><input id="rpmNumberInput" type="number" min="0" max="450" step="1" value="250" aria-label="Exact ordered RPM"><button data-deskrstep="25">+25</button></div>
-    </div>
-    <div class="cgroup">
-      <label><span id="deskDepthLabel">Ordered Depth</span><strong id="depthValue">0 ft</strong></label>
-      <input id="depthInput" type="range" min="0" max="300" value="0"/>
-      <div class="desk-order-fine"><button data-deskdstep="-10">−10</button><input id="depthNumberInput" type="number" min="0" max="300" step="1" value="0" aria-label="Exact ordered depth in feet"><button data-deskdstep="10">+10</button></div>
-    </div>
-    <div class="cgroup">
-      <button id="surfaceButton">Surface</button>
-      <button id="periscopeButton">Periscope Depth (55ft)</button>
-      <button id="diveButton">Dive (100ft)</button>
-      <button id="crashDiveButton" class="danger">⚠ Crash Dive</button>
-    </div>
-    <div class="cgroup">
-      <button id="silentButton">Toggle Silent Running</button>
-      <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
-      <button id="pumpButton">Toggle Pumps</button>
-          </div>
-    <div class="ptitle" style="margin-top:8px;">Navigation</div>
-    <div class="cgroup desk-nav-grid">
-      <button id="clearPlotButton">Clear Plot</button>
-      <button id="plotInterceptButton">Plot Intercept Advice</button>
-      <button id="mapWeatherButton">☁ Weather</button>
-      <button id="followPlotButton">Steer To Waypoint</button>
-      <button id="portButton">⚓ Head To Port</button>
     </div>
     <div class="ptitle" style="margin-top:8px;">Damage Control Priority</div>
     <div class="cgroup" id="deskRepairPriority">
@@ -459,6 +443,12 @@
       <button id="scopeOverlayLeft">◀ <span>Rotate</span></button>
       <button id="scopeOverlayZoom">🔍 <span>Zoom</span></button>
       <button id="scopeOverlayRight"><span>Rotate</span> ▶</button>
+    </div>
+    <div id="deskEmergencyCluster" aria-label="Emergency actions">
+      <button id="crashDiveButton" class="danger">⚠ Crash Dive</button>
+      <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
+      <button id="silentButton">Silent Running</button>
+      <button id="pumpButton">Pumps</button>
     </div>
     <div id="dayNightBar"><div id="dayNightFill"></div></div>
     <div id="dayNightLabel"></div>

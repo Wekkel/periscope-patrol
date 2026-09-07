@@ -144,7 +144,7 @@ function ppKeyboardBlocked(){
   const briefing=document.getElementById('briefingOverlay');
   return !!globalThis.Picker?.open||open('aarOverlay')||open('hotkeyOverlay')||
     open('scenarioOverlay')||!!(briefing&&getComputedStyle(briefing).display!=='none')||
-    open('tSheet')||document.getElementById('orderPad')?.classList.contains('on');
+    open('tSheet')||open('deskBridge')||document.getElementById('orderPad')?.classList.contains('on');
 }
 globalThis.ppKeyboardBlocked=ppKeyboardBlocked;
 function closeTopUiLayer(){
@@ -154,6 +154,7 @@ function closeTopUiLayer(){
   if(briefing&&getComputedStyle(briefing).display!=='none'){document.getElementById('briefingDismiss')?.click();return true;}
   if(hotkeyOverlay?.classList.contains('open')){hotkeyOverlay.classList.remove('open');return true;}
   if(document.getElementById('scenarioOverlay')?.classList.contains('open')){sceneSelector.close();return true;}
+  if(document.getElementById('deskBridge')?.classList.contains('open')){closeDeskCommandPane();return true;}
   if(document.getElementById('orderPad')?.classList.contains('on')){touchCtrl.closePad?.();return true;}
   if(document.getElementById('tSheet')?.classList.contains('open')){touchCtrl.setPane('view');return true;}
   return false;
@@ -265,7 +266,13 @@ function setDeskCommandPane(name,persist=true){
   document.querySelectorAll('#deskCommandTabs [data-cmd]').forEach(b=>b.classList.toggle('active',b.dataset.cmd===name));
   if(persist){try{localStorage.setItem(DESK_CMD_KEY,name);}catch(_){}}
 }
+const deskDrawer=document.getElementById('deskBridge');
+const openDeskCommandPane=name=>{setDeskCommandPane(name);deskDrawer?.classList.add('open');};
+const closeDeskCommandPane=()=>deskDrawer?.classList.remove('open');
 document.querySelectorAll('#deskCommandTabs [data-cmd]').forEach(b=>b.addEventListener('click',()=>setDeskCommandPane(b.dataset.cmd)));
+document.querySelectorAll('[data-open-desk-cmd]').forEach(b=>b.addEventListener('click',()=>openDeskCommandPane(b.dataset.openDeskCmd)));
+document.getElementById('deskDrawerClose')?.addEventListener('click',closeDeskCommandPane);
+document.addEventListener('pointerdown',e=>{if(deskDrawer?.classList.contains('open')&&!e.target.closest('#deskBridge')&&!e.target.closest('[data-open-desk-cmd]'))closeDeskCommandPane();},{capture:true});
 let initialDeskCmd='helm';
 try{initialDeskCmd=localStorage.getItem(DESK_CMD_KEY)||'helm';}catch(_){}
 setDeskCommandPane(initialDeskCmd,false);
