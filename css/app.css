@@ -1,4 +1,4 @@
-    :root{--bp-phone:600px;--bp-tablet:1024px;}
+    :root{--bp-phone:600px;--bp-tablet:1024px;--ui-scale:1;}
     /* ══════════════════════════════════════════════════════════
        PERISCOPE PATROL
        ────────────────────────────────────────────────────────────────
@@ -1155,6 +1155,7 @@
 /* Phase 4 audio controls live in the existing keyboard/help sheet so mobile and
    desktop share one low-maintenance settings surface. */
 .hk-audio-row{display:grid!important;grid-template-columns:minmax(70px,1fr) minmax(110px,2fr) 46px;gap:8px;align-items:center}.hk-audio-row input[type=range]{width:100%;accent-color:var(--alert);margin:0}.hk-audio-row .hk-key{min-width:42px;text-align:right}
+html[data-lay="touch"] .desk-display-settings{display:none;}
 
 /* ═══════════════════════════════════════════════════════════════
    DESKTOP COCKPIT REFACTOR — v1.0 browser usability
@@ -1168,7 +1169,7 @@ html[data-lay="desk"] #desktopShell{
   position:relative;
   height:100vh;height:100dvh;
   grid-template-columns:minmax(620px,1fr) clamp(220px,18vw,260px);
-  grid-template-rows:68px 38px minmax(0,1fr) 58px minmax(54px,9vh);
+  grid-template-rows:68px 38px minmax(0,1fr) 58px clamp(66px,7vh,78px);
   gap:5px;padding:5px;
   overflow:hidden;
 }
@@ -1355,7 +1356,15 @@ html[data-lay="desk"] .desk-tube>b{grid-row:1/3;color:var(--muted);align-self:ce
 html[data-lay="desk"] .desk-tube.ready{border-color:rgba(111,224,143,.48);}html[data-lay="desk"] .desk-tube.ready>strong{color:var(--ok);}html[data-lay="desk"] .desk-tube.empty>strong{color:var(--danger);}
 html[data-lay="desk"] .desk-resources{margin:7px 0;}html[data-lay="desk"] #deskCrewStatus,html[data-lay="desk"] #deskAaStatus,html[data-lay="desk"] #deskDeckGunInfo,html[data-lay="desk"] #deskRadioState{font-size:8px;line-height:1.4;}
 html[data-lay="desk"] #deskIntel .intel-row{grid-template-columns:34px minmax(0,1fr);gap:5px;}html[data-lay="desk"] #deskIntel .intel-age{grid-column:2;}html[data-lay="desk"] #deskRadioMessages .log-entry{font-size:8.5px;line-height:1.35;}
-html[data-lay="desk"] #deskLog{grid-column:1 / 3;grid-row:5;min-width:0;min-height:0;padding:5px 9px;font-size:9.5px;line-height:1.3;}
+html[data-lay="desk"] #deskLog{grid-column:1 / 3;grid-row:5;min-width:0;min-height:0;padding:0;overflow:hidden;display:grid;grid-template-columns:126px minmax(0,1fr);}
+html[data-lay="desk"] .desk-log-head{min-width:0;padding:5px 6px;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:4px;justify-content:center;}
+html[data-lay="desk"] .desk-log-head>strong{color:var(--alert);font-size:calc(8px * var(--ui-scale));letter-spacing:1px;text-transform:uppercase;}
+html[data-lay="desk"] .desk-log-switch{display:grid;grid-template-columns:1fr;gap:2px;}
+html[data-lay="desk"] .desk-log-switch button{min-width:0;width:100%;min-height:0;margin:0;padding:3px 5px;border-radius:3px;color:var(--dim);font-size:calc(7px * var(--ui-scale));letter-spacing:.25px;text-align:left;}
+html[data-lay="desk"] .desk-log-switch button.active{border-color:var(--alert);color:var(--alert);background:rgba(57,45,14,.55);}
+html[data-lay="desk"] #deskLogEntries{min-width:0;min-height:0;padding:5px 8px;overflow-y:auto;overflow-x:hidden;color:var(--muted);font-size:calc(9px * var(--ui-scale));line-height:1.35;scrollbar-width:thin;}
+html[data-lay="desk"] #deskLogEntries .log-entry{min-height:1.35em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+html[data-lay="desk"] #deskLogEntries .log-empty{color:var(--dim);padding-top:4px;}
 .resource-label{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--muted);}.resource-label strong{color:var(--ink);}
 [data-desk-panel="boat"].damage-pulse{animation:damagePulse 1.8s ease-out 2;}
 #tTabs .mob-tab.damage-pulse{animation:damagePulse 1.8s ease-out 2;color:var(--danger);}
@@ -1386,7 +1395,7 @@ html[data-lay="desk"] #deskLog{grid-column:1 / 3;grid-row:5;min-width:0;min-heig
    vertical room. Sacrifice log height, not controls or the tactical picture. */
 @media (max-height:760px){
   html[data-lay="desk"] #desktopShell{
-    grid-template-rows:62px 34px minmax(0,1fr) 52px 48px;gap:4px;padding:4px;
+    grid-template-rows:62px 34px minmax(0,1fr) 52px 72px;gap:4px;padding:4px;
   }
   html[data-lay="desk"] #deskHeader{padding:0 8px;gap:7px;}
   html[data-lay="desk"] #deskHeader h1{font-size:11px;}
@@ -1396,16 +1405,33 @@ html[data-lay="desk"] #deskLog{grid-column:1 / 3;grid-row:5;min-width:0;min-heig
   html[data-lay="desk"] .ptitle{margin-bottom:6px;padding-bottom:4px;font-size:9.5px;}
   html[data-lay="desk"] button{padding:6px 7px;font-size:9px;}
   html[data-lay="desk"] .desk-info-body{padding:6px;}
-  html[data-lay="desk"] #deskLog{font-size:8.5px;padding:4px 7px;}
+  html[data-lay="desk"] #deskLogEntries{padding:4px 7px;}
 }
 @media (max-height:620px){
-  html[data-lay="desk"] #desktopShell{grid-template-rows:56px 32px minmax(0,1fr) 48px 38px;}
+  html[data-lay="desk"] #desktopShell{grid-template-rows:56px 32px minmax(0,1fr) 48px 66px;}
   html[data-lay="desk"] #deskHeader h1{max-width:220px;}
   html[data-lay="desk"] .hstatus>span{display:none!important;}
   html[data-lay="desk"] #deskLayoutBtn{display:none;}
-  html[data-lay="desk"] #deskLog .log-entry:nth-of-type(n+4){display:none;}
   html[data-lay="desk"] #deskInputHint{font-size:7.5px;padding:3px 6px;}
 }
 html[data-lay="desk"] .desk-cmd-pane{flex:1 1 auto;}
 html[data-lay="desk"] .desk-timescale-readout{display:none;}
 .radio-actions{display:flex;gap:5px;flex-wrap:wrap;margin:6px 0 8px}.radio-actions button{min-height:34px;padding:6px 9px;border:1px solid var(--line);border-radius:4px;background:var(--panel2);color:var(--ink);font:700 10px/1 var(--mono);letter-spacing:.05em}.radio-actions button:disabled{opacity:.38}.radio-actions button.active{border-color:var(--alert);color:var(--alert)}
+
+/* 9b-4 desktop type scale. Keep geometry and the touch reference layout fixed;
+   only text in the desktop command and information surfaces responds. */
+html[data-lay="desk"] #deskHeader h1{font-size:clamp(calc(11px * var(--ui-scale)),calc(1.05vw * var(--ui-scale)),calc(15px * var(--ui-scale)));}
+html[data-lay="desk"] .hstatus{font-size:calc(10.5px * var(--ui-scale));}
+html[data-lay="desk"] .hstatus>button{font-size:calc(8.5px * var(--ui-scale));}
+html[data-lay="desk"] #deskNavToolbar>span{font-size:calc(8px * var(--ui-scale));}
+html[data-lay="desk"] #deskNavToolbar button{font-size:calc(7.8px * var(--ui-scale));}
+html[data-lay="desk"] .desk-command-tabs button,html[data-lay="desk"] #stationTabs button{font-size:calc(8px * var(--ui-scale));}
+html[data-lay="desk"] .desk-vital>span,html[data-lay="desk"] .desk-vital>small{font-size:calc(7.5px * var(--ui-scale));}
+html[data-lay="desk"] .desk-vital>strong{font-size:calc(12px * var(--ui-scale));}
+html[data-lay="desk"] #deskFireButton{font-size:calc(12px * var(--ui-scale));}html[data-lay="desk"] #deskFireButton span{font-size:calc(9px * var(--ui-scale));}
+html[data-lay="desk"] .desk-info-head strong{font-size:calc(8px * var(--ui-scale));}html[data-lay="desk"] .desk-info-head span{font-size:calc(7.5px * var(--ui-scale));}
+html[data-lay="desk"] #missionStatus{font-size:calc(9.5px * var(--ui-scale));}
+html[data-lay="desk"] .desk-target-overview>b{font-size:calc(11px * var(--ui-scale));}html[data-lay="desk"] .desk-target-overview>span,html[data-lay="desk"] .desk-target-overview>small{font-size:calc(7.5px * var(--ui-scale));}
+html[data-lay="desk"] .desk-info-grid{font-size:calc(8.5px * var(--ui-scale));}html[data-lay="desk"] .desk-tube{font-size:calc(7.5px * var(--ui-scale));}
+html[data-lay="desk"] #deskCrewStatus,html[data-lay="desk"] #deskAaStatus,html[data-lay="desk"] #deskDeckGunInfo,html[data-lay="desk"] #deskRadioState{font-size:calc(8px * var(--ui-scale));}
+html[data-lay="desk"] #deskRadioMessages .log-entry{font-size:calc(8.5px * var(--ui-scale));}
