@@ -97,6 +97,17 @@ if(layoutCalls)console.warn(`layout-read warnings: ${layoutCalls} layoutlezingen
    may still use browser geometry and arithmetic. */
 const hudVmSource=await readFile(path.join(root,'js/ui/hud-viewmodel.js'),'utf8');
 if(!/function\s+buildHudViewModel\s*\(/.test(hudVmSource))fail.push('HUD viewmodel function missing');
+/* STEP 9b-1: desktop mirrors the permanent mobile vitals contract without
+   changing the mobile shell. Only depth and speed may expose order menus. */
+const indexSource=await readFile(path.join(root,'index.html'),'utf8');
+const cssSource=await readFile(path.join(root,'css/app.css'),'utf8');
+const deskVitals=indexSource.match(/<section id="deskVitals"[\s\S]*?<\/section>/)?.[0]||'';
+const deskVitalOrder=['deskVitalDepth','deskVitalKeel','deskVitalHeading','deskVitalSpeed','deskVitalTorps','deskVitalBattery','deskVitalFuel','deskVitalThreat','deskVitalHull'];
+let lastVital=-1;for(const id of deskVitalOrder){const at=deskVitals.indexOf(`id="${id}"`);if(at<0)fail.push(`desktop vital missing: ${id}`);else if(at<=lastVital)fail.push(`desktop vital order incorrect: ${id}`);lastVital=at;}
+const actionable=[...deskVitals.matchAll(/class="desk-vital actionable" id="([^"]+)"/g)].map(m=>m[1]);
+if(actionable.join(',')!=='deskVitalDepth,deskVitalSpeed')fail.push(`desktop actionable vitals incorrect: ${actionable.join(',')}`);
+if(!/id="deskFireButton"/.test(indexSource)||!/Toast\.warn\(viewModel\.fire\.reason/.test(await readFile(path.join(root,'js/controllers/bridge-controller.js'),'utf8')))fail.push('desktop permanent FIRE/reason route missing');
+if(!/html\[data-lay="desk"\] #desktopShell\{[\s\S]*?overflow:hidden;/.test(cssSource))fail.push('desktop page scroll is not locked');
 for(const [file,method] of [['js/ui/dom-view.js','render'],['js/controllers/touch-controller.js','updateTouch']]){
   const src=await readFile(path.join(root,file),'utf8'),start=src.indexOf(`\n  ${method}(`),end=src.indexOf('\n  }',start);
   const body=start>=0&&end>start?src.slice(start,end):'';

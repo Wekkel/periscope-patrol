@@ -465,6 +465,33 @@
     <canvas id="gyroIndicator"></canvas>
     <canvas id="mainCanvas" width="960" height="560"></canvas>
     <div id="deskInputHint" aria-live="polite"></div>
+    <button id="deskFireButton" type="button" aria-label="Fire selected torpedo solution">FIRE<span id="deskFireSol">--%</span></button>
+  </section>
+
+  <!-- Desktop follows the touch HUD contract: one permanent nine-cell strip
+       immediately below the picture.  The touch strip remains independent. -->
+  <section id="deskVitals" class="panel" aria-label="Boat vitals">
+    <div class="desk-vital actionable" id="deskVitalDepth" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
+      <span>DEPTH ⇅</span><strong id="deskVitalDepthValue">0 ft</strong><small id="deskVitalDepthOrder">→ 0 ft</small>
+      <div class="desk-vital-menu" id="deskDepthMenu" role="menu" aria-label="Depth orders">
+        <div class="desk-vital-presets"><button type="button" data-desk-vdepth="0">Surface</button><button type="button" data-desk-vdepth="55">55 ft</button><button type="button" data-desk-vdepth="100">100 ft</button><button type="button" data-desk-vdepth="200">200 ft</button></div>
+        <div class="desk-vital-step"><button type="button" data-desk-vdstep="-10">−10</button><b id="deskDepthMenuValue">0 ft</b><button type="button" data-desk-vdstep="10">+10</button></div>
+      </div>
+    </div>
+    <div class="desk-vital" id="deskVitalKeel"><span>UNDER KEEL</span><strong id="deskVitalKeelValue">—</strong><small id="deskVitalBottom">—</small></div>
+    <div class="desk-vital" id="deskVitalHeading"><span>HEADING</span><strong id="deskVitalHeadingValue">090°</strong></div>
+    <div class="desk-vital actionable" id="deskVitalSpeed" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
+      <span>SPEED ⇅</span><strong id="deskVitalSpeedValue">0.0 kn</strong><small id="deskVitalSpeedOrder">→ 0 rpm</small>
+      <div class="desk-vital-menu" id="deskSpeedMenu" role="menu" aria-label="Engine orders">
+        <div class="desk-vital-presets"><button type="button" data-desk-vrpm="0">Stop</button><button type="button" data-desk-vrpm="120">Slow</button><button type="button" data-desk-vrpm="250">Standard</button><button type="button" data-desk-vrpm="450">Flank</button></div>
+        <div class="desk-vital-step"><button type="button" data-desk-vrstep="-25">−25</button><b id="deskSpeedMenuValue">0 rpm</b><button type="button" data-desk-vrstep="25">+25</button></div>
+      </div>
+    </div>
+    <div class="desk-vital" id="deskVitalTorps"><span>TORPS</span><strong id="deskVitalTorpsValue">—</strong></div>
+    <div class="desk-vital" id="deskVitalBattery"><span>BATTERY</span><strong id="deskVitalBatteryValue">100%</strong><small id="deskVitalBatteryState">FULL</small></div>
+    <div class="desk-vital" id="deskVitalFuel"><span>FUEL</span><strong id="deskVitalFuelValue">100%</strong></div>
+    <div class="desk-vital" id="deskVitalThreat"><span>THREAT</span><strong id="deskVitalThreatValue">CLEAR</strong></div>
+    <div class="desk-vital" id="deskVitalHull"><span>HULL</span><strong id="deskVitalHullValue">100%</strong></div>
   </section>
 
   <!-- RIGHT COL -->

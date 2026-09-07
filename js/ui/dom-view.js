@@ -73,6 +73,7 @@ class DomView{
     if(this.fuelBar)    this.fuelBar.style.width=`${viewModel.vitals.fuel.raw}%`;
     if(this.hullBar)    this.hullBar.style.width=`${viewModel.vitals.hull.raw}%`;
     for(const [id,v] of [['batteryPct',viewModel.vitals.battery.value],['fuelPct',viewModel.vitals.fuel.value],['hullPct',viewModel.vitals.hull.value]]){const el=document.getElementById(id);if(el)el.textContent=v;}
+    this.renderDesktopVitals(viewModel);
     if(this.logEl){
       const cap=viewModel.log.captain;
       const capHtml=cap.length?`<div style="color:var(--alert);letter-spacing:1px;margin-bottom:4px;">CAPTAIN'S LOG</div>`+
@@ -80,6 +81,32 @@ class DomView{
         `<div style="color:var(--dim);letter-spacing:1px;margin:8px 0 4px;">FULL PATROL LOG</div>`:'';
       this.logEl.innerHTML=capHtml+viewModel.log.patrol.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">${e.time} ${e.text}</div>`).join('');
     }
+  }
+  renderDesktopVitals(viewModel){
+    const set=(id,value)=>{const el=document.getElementById(id);if(el&&el.textContent!==String(value))el.textContent=value;};
+    const cells=[
+      ['deskVitalDepth','deskVitalDepthValue',viewModel.vitals.depth],
+      ['deskVitalKeel','deskVitalKeelValue',viewModel.vitals.underKeel],
+      ['deskVitalHeading','deskVitalHeadingValue',viewModel.vitals.heading],
+      ['deskVitalSpeed','deskVitalSpeedValue',viewModel.vitals.speed],
+      ['deskVitalTorps','deskVitalTorpsValue',viewModel.vitals.torpedoes],
+      ['deskVitalBattery','deskVitalBatteryValue',viewModel.vitals.battery],
+      ['deskVitalFuel','deskVitalFuelValue',viewModel.vitals.fuel],
+      ['deskVitalThreat','deskVitalThreatValue',viewModel.vitals.threat],
+      ['deskVitalHull','deskVitalHullValue',viewModel.vitals.hull]
+    ];
+    for(const [cellId,valueId,vital] of cells){set(valueId,vital.value);const cell=document.getElementById(cellId);if(cell){cell.classList.toggle('caution',vital.state==='caution');cell.classList.toggle('critical',vital.state==='critical');}}
+    set('deskVitalDepthOrder',`→ ${viewModel.navigation.orders.orderedDepth}`);
+    set('deskVitalBottom',viewModel.vitals.underKeel.unit);
+    set('deskVitalSpeedOrder',`→ ${viewModel.navigation.orders.orderedRpm}`);
+    set('deskVitalBatteryState',viewModel.vitals.battery.unit.toUpperCase());
+    set('deskDepthMenuValue',viewModel.navigation.orders.orderedDepth);
+    set('deskSpeedMenuValue',viewModel.navigation.orders.orderedRpm);
+    const fire=document.getElementById('deskFireButton');
+    fire?.classList.toggle('ready',viewModel.fire.available);
+    fire?.setAttribute('aria-disabled',viewModel.fire.available?'false':'true');
+    fire?.setAttribute('title',viewModel.fire.available?'Fire selected torpedo solution':viewModel.fire.reason);
+    set('deskFireSol',viewModel.fire.solutionText);
   }
   applyPresentation(state,ui){
     if(this._presentationId===ui.id)return;this._presentationId=ui.id;
