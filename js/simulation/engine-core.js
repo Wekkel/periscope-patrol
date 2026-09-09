@@ -166,7 +166,11 @@ const CoreSystem={
     /* PP_AUTOMATIC_TIMESCALE_WRITER: all automatic resets go through here. */
     t.timeScale=1;t.transitUntil=0;t.transitOpen=false;
     t.transitReason=why;t.stopReason=why;t.stopReasonAt=t.elapsedSeconds;
-    if(wasCompressed)this.notify(`TIME COMPRESSION STOPPED — ${why}.`,'bad','KRITIEK');
+    // Colour by what actually happened, not a blanket red: reaching a
+    // waypoint or getting a shipping intercept is not an alarm, an aircraft
+    // attack is. transitStopToastKind() already encodes that; it just was
+    // never called from here before.
+    if(wasCompressed)this.notify(`TIME COMPRESSION STOPPED — ${why}.`,typeof transitStopToastKind==='function'?transitStopToastKind(why):'bad','KRITIEK');
     return wasCompressed;
   }
 ,

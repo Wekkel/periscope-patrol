@@ -30,7 +30,18 @@ class CanvasViewCore{
     dpr=Math.min(dpr, mem<=4?1.5:2);
     const BUDGET=2200000;                       // ≈2.2 MP ceiling
     if(cw*ch*dpr*dpr>BUDGET) dpr=Math.sqrt(BUDGET/(cw*ch));
-    dpr=Math.max(1,Math.round(dpr*20)/20);
+    // A floor of 1 here used to defeat the BUDGET cap outright on any large,
+    // low-DPI canvas (e.g. a maximized window on a 4K desktop monitor,
+    // devicePixelRatio 1): cw*ch alone already exceeds BUDGET, the line
+    // above asks for dpr well under 1 to compensate, and then this floor
+    // snapped it straight back up to 1 — silently rendering ~4x the
+    // intended pixel count every frame, which is what made the game feel
+    // slow specifically on large desktop screens. The backing store is
+    // free to shrink below the CSS size now (down to 0.5x); the canvas is
+    // styled width:100%/height:100% in CSS, so the browser upscales the
+    // smaller buffer to fill the same on-screen area — a little softer,
+    // but back to the ~2.2 MP/frame the quality budget was meant to cap.
+    dpr=Math.max(0.5,Math.round(dpr*20)/20);
     const bw=Math.round(cw*dpr), bh=Math.round(ch*dpr);
     const changed=(c.width!==bw||c.height!==bh);
     if(force||changed){c.width=bw;c.height=bh;}

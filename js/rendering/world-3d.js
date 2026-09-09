@@ -765,7 +765,27 @@ const World3D={
         let area=0;
         for(let i=0;i<sp.length;i++){const q=sp[(i+1)%sp.length];area+=sp[i].x*q.y-q.x*sp[i].y;}
         if(area>=0) return;
-        faces.push({sp,col:paint(rgb,sh),d:(sp[0].d+sp[2].d)/2});
+        // Depth-sort key: average all four corners, not just one diagonal.
+        // A two-corner average was a poor centroid for the tapered/raked
+        // parts (deckhouse sides, funnel ring segments) and could put a
+        // face in the wrong paint order relative to an adjoining part,
+        // reading as a chunk missing from a block.
+        let dAvg=0; for(const p of sp) dAvg+=p.d; dAvg/=sp.length;
+        faces.push({sp,col:paint(rgb,sh),d:dAvg});
+      };
+      /* Thin poles (masts/yards) used to be stroked in a separate pass
+         drawn unconditionally on top of every solid face, so a mast behind
+         a funnel or deckhouse pierced straight through it on screen — the
+         "holes in the blocks" / "funnel is half there" look. Building each
+         pole as a thin screen-space ribbon and feeding it through the same
+         faces[] depth sort as the hull/superstructure fixes that: whichever
+         is actually nearer the camera now paints over the other. */
+      const line=(p0,p1,widthPx,col)=>{
+        const a=V(p0[0],p0[1],p0[2]), b=V(p1[0],p1[1],p1[2]);
+        if(!a||!b) return;
+        const dx=b.x-a.x,dy=b.y-a.y,len=Math.hypot(dx,dy)||1;
+        const px=-dy/len*widthPx/2,py=dx/len*widthPx/2;
+        faces.push({sp:[{x:a.x+px,y:a.y+py},{x:b.x+px,y:b.y+py},{x:b.x-px,y:b.y-py},{x:a.x-px,y:a.y-py}],col,d:(a.d+b.d)/2});
       };
 
       // ── hull ──
@@ -824,6 +844,22 @@ const World3D={
         }
       }
 
+      // ── masts, booms ── (thin poles; folded into the same depth-sorted
+      // face list above so a nearer funnel/deckhouse correctly hides them
+      // instead of them piercing through on top of everything)
+      if(lod>0){
+        const mastCol=paint(pal.mast,0.85);
+        for(const m of (model.masts||[])){
+          const zc=m.z/model.len*2;
+          if(zc<pass.zMin-0.05||zc>pass.zMax+0.05) continue;
+          line([m.x||0,m.y,m.z],[m.x||0,m.y+m.h,m.z],Math.max(0.7,pxLen*0.004),mastCol);
+          if(m.yard&&lod>1){
+            const yy=m.y+m.h*0.62;
+            line([-m.yard,yy,m.z],[m.yard,yy,m.z],Math.max(0.6,pxLen*0.003),mastCol);
+          }
+        }
+      }
+
       faces.sort((a,b)=>b.d-a.d);
       ctx.lineWidth=lod>1?Math.max(0.4,pxLen*0.0016):0;
       for(const f of faces){
@@ -832,26 +868,6 @@ const World3D={
         for(let i=1;i<f.sp.length;i++) ctx.lineTo(f.sp[i].x,f.sp[i].y);
         ctx.closePath();ctx.fill();
         if(lod>1){ctx.strokeStyle='rgba(0,0,0,.30)';ctx.stroke();}
-      }
-
-      // ── masts, booms, gun barrels ── (thin, drawn after the solid work)
-      if(lod>0){
-        ctx.lineCap='round';
-        for(const m of (model.masts||[])){
-          const zc=m.z/model.len*2;
-          if(zc<pass.zMin-0.05||zc>pass.zMax+0.05) continue;
-          const a=V(m.x||0,m.y,m.z), b=V(m.x||0,m.y+m.h,m.z);
-          if(!a||!b) continue;
-          ctx.strokeStyle=paint(pal.mast,0.85);
-          ctx.lineWidth=Math.max(0.7,pxLen*0.004);
-          ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
-          if(m.yard&&lod>1){
-            const yy=m.y+m.h*0.62;
-            const l=V(-m.yard,yy,m.z), r=V(m.yard,yy,m.z);
-            if(l&&r){ctx.beginPath();ctx.moveTo(l.x,l.y);ctx.lineTo(r.x,r.y);ctx.stroke();}
-          }
-        }
-        ctx.lineCap='butt';
       }
     }
 

@@ -1237,9 +1237,16 @@ const MapStation={
   },
 
   toLocal(clientX,clientY){
-    const rect=this.canvas.getBoundingClientRect();
-    return{x:(clientX-rect.left)*(this.w/(rect.width||this.w)),
-           y:(clientY-rect.top)*(this.h/(rect.height||this.h))};
+    // Read canvas/w/h off the shared core, not off whichever station context
+    // this happens to be called through. this.canvas/this.w/this.h are only
+    // as fresh as the last time THIS context's own station was the one being
+    // drawn — fine for MAP calling its own toLocal, but pickBridgeContact/
+    // pickGunContact/pickScopeContact below reuse this same helper while a
+    // *different* station is active, where those copies can be stale. core.*
+    // is kept current every frame regardless of which station is on screen.
+    const core=this.core||this,rect=core.canvas.getBoundingClientRect();
+    return{x:(clientX-rect.left)*(core.w/(rect.width||core.w)),
+           y:(clientY-rect.top)*(core.h/(rect.height||core.h))};
   },
 
   zoomAt(factor,clientX,clientY){
@@ -1294,7 +1301,11 @@ const MapStation={
   },
 
   pickGunContact(state,clientX,clientY){
-    const p=this.toLocal(clientX,clientY),cam=this.gunCam;if(!cam)return null;
+    // this.gunCam (not this.core.gunCam) is only live while DECK_GUN is the
+    // context that most recently drew — stale/undefined otherwise, which
+    // used to make a gun-sight tap silently do nothing until the player had
+    // happened to visit DECK_GUN at least once this session.
+    const p=this.toLocal(clientX,clientY),cam=this.core?.gunCam??this.gunCam;if(!cam)return null;
     let best=null,bd=Infinity;
     for(const c of state.world.contacts){
       if(c.sunk)continue;const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
@@ -1305,7 +1316,12 @@ const MapStation={
 
   pickScopeContact(state,clientX,clientY){
     const p=this.toLocal(clientX,clientY);
-    const cam=this.cam;
+    // Same staleness issue as pickGunContact above: this.cam only reflects
+    // the periscope camera once PERISCOPE itself has drawn through this
+    // exact context. this.core.cam is refreshed every frame PERISCOPE is
+    // the active station, which is what a tap while looking through the
+    // scope should actually be tested against.
+    const cam=this.core?.cam??this.cam;
     if(!cam) return null;
     const fov=SCOPE_OPTICS[state.tactical.periscopeZoom===1?0:1].fov;
     let best=null,bd=Infinity;
@@ -1347,9 +1363,22 @@ class CanvasView{
   render(state,layout){return this.core.render(state,layout,this);} resize(force){return this.core.resize(force);}
   _syncMap(){const m=this.contexts.MAP;this.core.zoom=m.zoom;this.core.mapCenter=m.mapCenter;this.core.follow=m.follow;return m;}
   zoomAt(...a){const r=this.contexts.MAP.zoomAt(...a);this._syncMap();return r;} panBy(...a){const r=this.contexts.MAP.panBy(...a);this._syncMap();return r;} recenter(...a){const r=this.contexts.MAP.recenter(...a);this._syncMap();return r;} screenToWorldMap(...a){return this.contexts.MAP.screenToWorldMap(...a);} toLocal(...a){return this.contexts.MAP.toLocal(...a);}
-  pickTrack(...a){return this.contexts.MAP.pickTrack(...a);} pickWaypoint(...a){return this.contexts.MAP.pickWaypoint(...a);} pickBridgeContact(...a){return this.contexts.MAP.pickBridgeContact(...a);} pickGunContact(...a){return this.contexts.MAP.pickGunContact(...a);} pickScopeContact(...a){return this.contexts.MAP.pickScopeContact(...a);}
+  pickTrack(...a){return this.contexts.MAP.pickTrack(...a);} pickWaypoint(...a){return this.contexts.MAP.pickWaypoint(...a);}
+  // pickBridgeContact lives on the BRIDGE station's own object (bridge-3d.js),
+  // not on MapStation — routing it through contexts.MAP used to call a method
+  // that plain doesn't exist there ("this.contexts.MAP.pickBridgeContact is
+  // not a function"), so tapping a ship while on the bridge always threw and
+  // silently did nothing.
+  pickBridgeContact(...a){return this.contexts.BRIDGE.pickBridgeContact(...a);} pickGunContact(...a){return this.contexts.MAP.pickGunContact(...a);} pickScopeContact(...a){return this.contexts.MAP.pickScopeContact(...a);}
   revealScopeLabel(...a){return this.contexts.PERISCOPE.revealScopeLabel(...a);}
   get canvas(){return this.core.canvas;} get ctx(){return this.core.ctx;} get w(){return this.core.w;} get h(){return this.core.h;} get dpr(){return this.core.dpr;} get k(){return this.core.k;} get minZoom(){return this.core.minZoom;} get maxZoom(){return this.core.maxZoom;}
   get zoom(){return this.contexts.MAP.zoom;} set zoom(v){this.contexts.MAP.zoom=v;this.core.zoom=v;} get mapCenter(){return this.contexts.MAP.mapCenter;} set mapCenter(v){this.contexts.MAP.mapCenter=v;this.core.mapCenter=v;} get follow(){return this.contexts.MAP.follow;} set follow(v){this.contexts.MAP.follow=v;} get mapLabelStrategy(){return this.contexts.MAP.mapLabelStrategy;} set mapLabelStrategy(v){this.contexts.MAP.mapLabelStrategy=v;}
-  get tactGeom(){return this.contexts.TACTICAL.tactGeom;} get scopeGeom(){return this.contexts.PERISCOPE.scopeGeom;} get zoomPill(){return this.contexts.MAP.zoomPill;} get bridgeCam(){return this.contexts.BRIDGE.bridgeCam;} get gunCam(){return this.contexts.DECK_GUN.gunCam;} get cam(){return this.contexts.PERISCOPE.cam;} get touchSafeTactical(){return this.contexts.TACTICAL.touchSafeTactical;} set touchSafeTactical(v){this.contexts.TACTICAL.touchSafeTactical=v;} get lastImpactAge(){return this.contexts.PERISCOPE.lastImpactAge;}
+  get tactGeom(){return this.contexts.TACTICAL.tactGeom;} get scopeGeom(){return this.contexts.PERISCOPE.scopeGeom;}
+  // The periscope's own magnification pill (drawn + hit-tested in periscope-3d.js,
+  // this.zoomPill=...) lives on the PERISCOPE station context. This getter used
+  // to read it off MAP instead, which never sets that property — so cv.zoomPill
+  // was always undefined and every tap/click on the visible 1.5×/6× pill fell
+  // through to handleTap's next branch (pickScopeContact), silently selecting
+  // whatever target was nearest the crosshair instead of changing the zoom.
+  get zoomPill(){return this.contexts.PERISCOPE.zoomPill;} get bridgeCam(){return this.contexts.BRIDGE.bridgeCam;} get gunCam(){return this.contexts.DECK_GUN.gunCam;} get cam(){return this.contexts.PERISCOPE.cam;} get touchSafeTactical(){return this.contexts.TACTICAL.touchSafeTactical;} set touchSafeTactical(v){this.contexts.TACTICAL.touchSafeTactical=v;} get lastImpactAge(){return this.contexts.PERISCOPE.lastImpactAge;}
 }

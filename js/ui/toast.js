@@ -110,8 +110,24 @@ const DecisionDialog={
   }
 };
 
+/* Every automatic time-compression stop (8×/16×/32× or a "skip until…") used
+   to raise the SAME red "TIME COMPRESSION STOPPED" toast, whatever the reason
+   — a waypoint being reached looked exactly as alarming as an aircraft
+   diving on the boat. Red is supposed to mean "someone is trying to kill you
+   right now" (see the colour rules above); most of these reasons are not
+   that, so they should not read as an alarm. This was already the intent —
+   this classifier existed — but nothing actually called it, so every stop
+   still hard-coded 'bad'. Wired up in stopAutomaticTimeCompression() below. */
 function transitStopToastKind(why){
-  if(/waypoint reached|friendly port approach|shoaling water — take the conn/i.test(why)) return 'warn';
-  if(/ULTRA|intelligence intercept|new orders|new contact|battery|fuel|air is going bad/i.test(why)) return 'warn';
-  return 'bad';
+  const w=String(why||'');
+  // Something is actively attacking, closing on, or has already hurt the
+  // boat — the only tier that should still read as a red alarm.
+  if(/aircraft attack|the boat is lost|the boat has taken damage|new escort contact|escort now in sight|escort inside \d|collision risk|dangerously little water|searchlight contact|harbour defenses are stirring/i.test(w)) return 'bad';
+  // A caution worth a glance, but nobody is shooting yet.
+  if(/second air contact|air contact still active|^aircraft$|escorts are stirring|shoal(?:ing)? water|battery is low|fuel is running low|air is going bad|standing out of the patrol area/i.test(w)) return 'warn';
+  // Everything else — a waypoint reached, new orders, a sighted convoy or
+  // contact, an intelligence intercept, arriving somewhere friendly, or the
+  // captain simply taking the conn back themselves — is neutral-to-good
+  // news, not a threat, so it reads green like the rest of that news does.
+  return 'ok';
 }

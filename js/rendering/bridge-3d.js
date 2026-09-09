@@ -155,7 +155,18 @@ const BridgeStation={
   },
 
   pickBridgeContact(state,clientX,clientY){
-    const p=this.toLocal(clientX,clientY),cam=this.bridgeCam;if(!cam||!bridgeCanUse(state))return null;
+    // toLocal() lives only on MapStation's object (map.js), so it is not
+    // reachable as this.toLocal from the BRIDGE station context — calling
+    // it here used to throw every time, so tapping a contact on the bridge
+    // silently did nothing (the exception was swallowed by the event
+    // listener). Compute the local point directly off the shared core
+    // instead, same as the fixed CanvasView.toLocal does.
+    const core=this.core,rect=core.canvas.getBoundingClientRect();
+    const p={x:(clientX-rect.left)*(core.w/(rect.width||core.w)),y:(clientY-rect.top)*(core.h/(rect.height||core.h))};
+    // this.bridgeCam is likewise only fresh while BRIDGE is the context that
+    // most recently drew; this.core.bridgeCam is refreshed every frame the
+    // bridge view is on screen.
+    const cam=this.core?.bridgeCam??this.bridgeCam;if(!cam||!bridgeCanUse(state))return null;
     let best=null,bd=Infinity;
     for(const c of state.world.contacts){
       if(c.sunk&&(c.sinkingProgress??0)>=1)continue;
