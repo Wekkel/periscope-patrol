@@ -8,12 +8,13 @@ const SoundStation={
 
   drawHydrophone(ctx,w,h,state){
     const k=this.k,T=state.tactical,S=state.world.sound||{},sig=soundSignalAt(state,T.soundBearing),cx=w/2,cy=this.portrait?h*.43:h*.49,ui=getPlayerStationPresentation(state),sensorUi=getPlayerSensorPresentation(state);
+    const pal=ui.palette||{};
     const r=Math.min(w*(this.portrait?.38:.30),h*(this.portrait?.27:.36),210*k);
     this.soundGeom={cx,cy,r};
     // Bakelite receiver / bearing dial.
-    ctx.fillStyle='rgba(7,22,25,.96)';ctx.beginPath();ctx.arc(cx,cy,r*1.08,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='rgba(88,139,124,.65)';ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
-    for(let d=0;d<360;d+=10){const a=degToRad(d),maj=d%30===0,rr=r*(maj?.88:.93);ctx.strokeStyle=maj?'rgba(205,236,220,.68)':'rgba(113,153,141,.34)';ctx.lineWidth=maj?1.5*k:k;ctx.beginPath();ctx.moveTo(cx+Math.sin(a)*rr,cy-Math.cos(a)*rr);ctx.lineTo(cx+Math.sin(a)*r,cy-Math.cos(a)*r);ctx.stroke();if(maj){ctx.fillStyle='rgba(205,236,220,.72)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(d).padStart(3,'0'),cx+Math.sin(a)*r*.76,cy-Math.cos(a)*r*.76);}}
+    ctx.fillStyle=pal.faceOuter||'rgba(7,22,25,.96)';ctx.beginPath();ctx.arc(cx,cy,r*1.08,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle=pal.bezel||'rgba(88,139,124,.65)';ctx.lineWidth=Math.max(1,1.4*k);ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.stroke();
+    for(let d=0;d<360;d+=10){const a=degToRad(d),maj=d%30===0,rr=r*(maj?.88:.93);ctx.strokeStyle=maj?(pal.tickMajor||pal.ink||'rgba(205,236,220,.68)'):(pal.tickMinor||pal.muted||'rgba(113,153,141,.34)');ctx.lineWidth=maj?1.5*k:k;ctx.beginPath();ctx.moveTo(cx+Math.sin(a)*rr,cy-Math.cos(a)*rr);ctx.lineTo(cx+Math.sin(a)*r,cy-Math.cos(a)*r);ctx.stroke();if(maj){ctx.fillStyle=pal.tickMajor||pal.ink||'rgba(205,236,220,.72)';ctx.font=this.fnt(7.2,true);ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(d).padStart(3,'0'),cx+Math.sin(a)*r*.76,cy-Math.cos(a)*r*.76);}}
     // A transmitted active pulse is visible only as a short, directional wave
     // on the operator's trained bearing; it never paints a target by itself.
     if(S.qcVisual){
@@ -25,8 +26,8 @@ const SoundStation={
         ctx.restore();
       }
     }
-    const a=degToRad(T.soundBearing||0);ctx.strokeStyle='#f5c65c';ctx.lineWidth=Math.max(2,2.4*k);ctx.beginPath();ctx.moveTo(cx-Math.sin(a)*r*.12,cy+Math.cos(a)*r*.12);ctx.lineTo(cx+Math.sin(a)*r*.92,cy-Math.cos(a)*r*.92);ctx.stroke();
-    ctx.fillStyle='#f5c65c';ctx.beginPath();ctx.arc(cx,cy,4.5*k,0,Math.PI*2);ctx.fill();
+    const a=degToRad(T.soundBearing||0);ctx.strokeStyle=pal.order||'#f5c65c';ctx.lineWidth=Math.max(2,2.4*k);ctx.beginPath();ctx.moveTo(cx-Math.sin(a)*r*.12,cy+Math.cos(a)*r*.12);ctx.lineTo(cx+Math.sin(a)*r*.92,cy-Math.cos(a)*r*.92);ctx.stroke();
+    ctx.fillStyle=pal.order||'#f5c65c';ctx.beginPath();ctx.arc(cx,cy,4.5*k,0,Math.PI*2);ctx.fill();
 
     // Headphones and signal meter: intentionally simple and readable on phones.
     const hx=cx,hy=cy+r*1.24;ctx.strokeStyle='rgba(190,218,205,.72)';ctx.lineWidth=Math.max(2,2*k);ctx.beginPath();ctx.arc(hx,hy,22*k,Math.PI,Math.PI*2);ctx.stroke();ctx.strokeRect(hx-25*k,hy-2*k,7*k,15*k);ctx.strokeRect(hx+18*k,hy-2*k,7*k,15*k);
@@ -42,7 +43,7 @@ const SoundStation={
     const my=Math.min(h-54*k,hy+28*k,meterCeiling-10*k);
     ctx.strokeStyle='rgba(70,115,103,.8)';ctx.strokeRect(mx,my,meterW,10*k);ctx.fillStyle=sig.strength>.35?'#6fe08f':sig.strength>.13?'#f5c65c':'#315c54';ctx.fillRect(mx+1,my+1,(meterW-2)*clamp(sig.strength*1.8,0,1),8*k);
 
-    ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText(`${String(ui.sensors?.room||'SOUND ROOM').toUpperCase()} — ${String(sensorUi.passiveSound?.label||'PASSIVE LISTENING').toUpperCase()}`,12*k,22*k);
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle=pal.ink||'#d7f5e7';ctx.font=this.fnt(10,true);ctx.fillText(`${String(ui.sensors?.room||'SOUND ROOM').toUpperCase()} — ${String(sensorUi.passiveSound?.label||'PASSIVE LISTENING').toUpperCase()}`,12*k,22*k);
     ctx.font=this.fnt(8.4);ctx.fillStyle='rgba(205,233,220,.78)';ctx.fillText(`TRAIN ${fmtDeg(T.soundBearing)} · OWN SPEED ${state.playerSub.propulsion.speedKnots.toFixed(1)} kn · LISTEN ${Math.round(soundOwnNoiseFactor(state)*100)}%`,12*k,39*k);
     const line=sig.contact&&sig.strength>.035?`SCREWS ${sig.offsetDeg<3?'CENTRED':sig.offsetDeg<12?'BUILDING':'FAINT'} · signal ${Math.round(sig.strength*100)}%`:'NO DISTINCT SCREWS ON THIS BEARING';
     ctx.fillStyle=sig.strength>.10?'#f5c65c':'#71988c';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(line,cx,Math.min(h-20*k,my+31*k));

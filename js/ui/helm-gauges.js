@@ -60,7 +60,7 @@ class HelmGauges{
         const gap=(sub.orderedDepthFeet-sub.depthFeet)*depthFactor, fpm=sub.verticalSpeedFps*60*depthFactor, out=[];
         if(sub.bottomed) out.push(['on the bottom','ok']);
         else if(Math.abs(gap)<1.5) out.push(['steady','dim']);
-        else if(Math.abs(fpm)<3) out.push([`${Math.abs(gap).toFixed(0)} ft to go — not answering`,'alert']);
+        else if(Math.abs(fpm)<3) out.push([`${Math.abs(gap).toFixed(0)} ${depthUi.suffix||'ft'} to go — not answering`,'alert']);
         else out.push([`${fpm>0?'↓':'↑'} ${Math.abs(fpm).toFixed(0)} ${depthUi.suffix||'ft'}/min · ${Math.abs((sub.orderedDepthFeet-sub.depthFeet)/sub.verticalSpeedFps).toFixed(0)}s`,'dim']);
         const clr=(seabed-sub.depthFeet)*depthFactor;
         if(seabed<3000) out.push([`${clr.toFixed(0)} ${depthUi.suffix||'ft'} under keel`,clr<25*depthFactor?'danger':clr<60*depthFactor?'alert':'dim']);
@@ -279,13 +279,45 @@ class HelmGauges{
        actually gives us — the dial must still show its scale, or it is a
        picture of an instrument rather than an instrument. */
     const tiny=R<52, small=R<72, F=small?0.9:1;
+    this.currentGaugeFont=pal.font||ui.gaugeFont||'ui-monospace,"SF Mono",Menlo,monospace';
     v.flash=Math.max(0,v.flash-dt*2.2);
     ctx.clearRect(0,0,v.cv.width,v.cv.height);
     const bg=ctx.createRadialGradient(cx,cy-R*0.3,R*0.1,cx,cy,R);
     bg.addColorStop(0,pal.faceInner||'#0d2029'); bg.addColorStop(1,pal.faceOuter||'#050f13');
     ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill();
-    ctx.strokeStyle=pal.bezel||'#2f5f56'; ctx.lineWidth=Math.max(2,R*0.02);
+
+    // National instrument bezel and physical casing characteristics
+    const theme=ui.theme||'us-fleet';
+    ctx.strokeStyle=pal.bezel||'#2f5f56'; ctx.lineWidth=Math.max(2,R*0.024);
     ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
+    if(theme==='rm-brass'){
+      ctx.strokeStyle='rgba(232,168,56,.35)'; ctx.lineWidth=Math.max(1,R*0.012);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.97,0,7); ctx.stroke();
+    } else if(theme==='vmf-red'){
+      ctx.strokeStyle='rgba(97,114,127,.4)'; ctx.lineWidth=Math.max(1,R*0.015);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.97,0,7); ctx.stroke();
+      const rivetR=Math.max(1.8,R*0.018); ctx.fillStyle='rgba(150,160,166,.65)';
+      for(let bolt=0;bolt<4;bolt++){
+        const ba=(Math.PI/4)+bolt*(Math.PI/2);
+        ctx.beginPath(); ctx.arc(cx+Math.cos(ba)*R*0.955,cy+Math.sin(ba)*R*0.955,rivetR,0,7); ctx.fill();
+      }
+    } else if(theme==='km-bakelite'){
+      ctx.strokeStyle='rgba(134,121,90,.3)'; ctx.lineWidth=Math.max(1,R*0.012);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.975,0,7); ctx.stroke();
+      ctx.fillStyle=pal.order||'#d6a84a';
+      ctx.beginPath(); ctx.arc(cx,cy-R*0.96,Math.max(1.5,R*0.015),0,7); ctx.fill();
+    } else if(theme==='rn-admiralty'){
+      ctx.strokeStyle='rgba(107,88,62,.4)'; ctx.lineWidth=Math.max(1,R*0.014);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.97,0,7); ctx.stroke();
+    } else if(theme==='ijn-fleet'){
+      ctx.strokeStyle='rgba(125,94,80,.3)'; ctx.lineWidth=Math.max(1,R*0.012);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.975,0,7); ctx.stroke();
+      ctx.fillStyle=pal.order||'#d63a2a';
+      ctx.beginPath(); ctx.arc(cx,cy-R*0.96,Math.max(1.5,R*0.015),0,7); ctx.fill();
+    } else {
+      ctx.strokeStyle='rgba(58,125,112,.3)'; ctx.lineWidth=Math.max(1,R*0.012);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.975,0,7); ctx.stroke();
+    }
 
     const rOut=R*0.90, rIn=R*0.70, A=val=>degToRad(this.v2a(G,val));
     const arc=(v0,v1,r0,r1)=>{ctx.beginPath();ctx.arc(cx,cy,r1,A(v0),A(v1));
@@ -351,21 +383,21 @@ class HelmGauges{
         const r=-C.response*Math.log(1-(k/C.ms)*NORM);
         if(!isFinite(r)||r>C.maxRpm) continue;
         const a=A(r);
-        ctx.strokeStyle='rgba(143,179,168,.55)';ctx.lineWidth=Math.max(1,R*0.007);
+        ctx.strokeStyle=pal.muted?(pal.muted+'8c'):'rgba(143,179,168,.55)';ctx.lineWidth=Math.max(1,R*0.007);
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*rIn*0.62,cy+Math.sin(a)*rIn*0.62);
         ctx.lineTo(cx+Math.cos(a)*rIn*0.72,cy+Math.sin(a)*rIn*0.72);ctx.stroke();
-        if(!tiny&&k%4===0){ctx.fillStyle='rgba(143,179,168,.75)';ctx.font=this.fnt(R*0.062);
+        if(!tiny&&k%4===0){ctx.fillStyle=pal.muted?(pal.muted+'bf'):'rgba(143,179,168,.75)';ctx.font=this.fnt(R*0.062);
           ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(String(k),cx+Math.cos(a)*rIn*0.54,cy+Math.sin(a)*rIn*0.54);}
       }
       for(const [r,name] of G.bells){
         const a=A(r);
-        ctx.strokeStyle='rgba(223,238,232,.75)';ctx.lineWidth=Math.max(1.6,R*0.013);
+        ctx.strokeStyle=pal.ink?(pal.ink+'bf'):'rgba(223,238,232,.75)';ctx.lineWidth=Math.max(1.6,R*0.013);
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*rOut,cy+Math.sin(a)*rOut);
         ctx.lineTo(cx+Math.cos(a)*(rOut-R*0.10),cy+Math.sin(a)*(rOut-R*0.10));ctx.stroke();
-        if(!tiny){ctx.fillStyle='rgba(223,238,232,.8)';ctx.font=this.fnt(R*0.068);
+        if(!tiny){ctx.fillStyle=pal.ink?(pal.ink+'cc'):'rgba(223,238,232,.8)';ctx.font=this.fnt(R*0.068);
           ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(name,cx+Math.cos(a)*(rOut-R*0.185),cy+Math.sin(a)*(rOut-R*0.185));}
       }
@@ -375,14 +407,14 @@ class HelmGauges{
     for(let val=0;val<=top+1e-6;val+=st){
       const a=A(val), isM=Math.abs(val%maj)<1e-6, len=isM?R*0.115:R*0.055;
       ctx.strokeStyle=(G.key==='depth'&&val>=G.ctx.test)?'rgba(239,106,88,.9)'
-        :isM?'rgba(223,238,232,.85)':'rgba(143,179,168,.42)';
+        :isM?(pal.tickMajor||pal.ink||'rgba(223,238,232,.85)'):(pal.tickMinor||pal.muted||'rgba(143,179,168,.42)');
       ctx.lineWidth=isM?Math.max(1.6,R*0.012):Math.max(1,R*0.006);
       ctx.beginPath();
       ctx.moveTo(cx+Math.cos(a)*rOut,cy+Math.sin(a)*rOut);
       ctx.lineTo(cx+Math.cos(a)*(rOut-len),cy+Math.sin(a)*(rOut-len));ctx.stroke();
       if(isM&&G.key!=='power'&&!tiny){
         const rr=rOut-len-R*0.085;
-        ctx.fillStyle='rgba(223,238,232,.78)';ctx.font=this.fnt(R*0.085*F);
+        ctx.fillStyle=pal.tickMajor||pal.ink||'rgba(223,238,232,.78)';ctx.font=this.fnt(R*0.085*F);
         ctx.textAlign='center';ctx.textBaseline='middle';
         const t=G.wrap?(val===0?'N':val===90?'E':val===180?'S':val===270?'W':String(val)):String(Math.round(val));
         ctx.fillText(t,cx+Math.cos(a)*rr,cy+Math.sin(a)*rr);
@@ -390,7 +422,7 @@ class HelmGauges{
     }
 
     if(!small){
-      ctx.fillStyle='rgba(92,125,116,.9)';ctx.font=this.fnt(R*0.072);
+      ctx.fillStyle=pal.dim||pal.muted||'rgba(92,125,116,.9)';ctx.font=this.fnt(R*0.072);
       ctx.textAlign='center';ctx.textBaseline='middle';
       const lx=G.wrap?cx:cx-R*0.45, ly=G.wrap?cy-R*0.44:cy-R*0.45;
       ctx.fillText(G.legend[0],lx,ly);ctx.fillText(G.legend[1],lx,ly+R*0.10);
@@ -414,18 +446,18 @@ class HelmGauges{
      ctx.moveTo(rOut*0.93,0);ctx.lineTo(rOut*0.74,-R*0.055);
      ctx.lineTo(-R*0.16,-R*0.026);ctx.lineTo(-R*0.16,R*0.026);
      ctx.lineTo(rOut*0.74,R*0.055);ctx.closePath();ctx.fill();ctx.restore();}
-    ctx.fillStyle='#0a1a20';ctx.beginPath();ctx.arc(cx,cy,R*0.085,0,7);ctx.fill();
-    ctx.strokeStyle='rgba(143,179,168,.5)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=pal.faceOuter||'#0a1a20';ctx.beginPath();ctx.arc(cx,cy,R*0.085,0,7);ctx.fill();
+    ctx.strokeStyle=pal.bezel||'rgba(143,179,168,.5)';ctx.lineWidth=1.5;ctx.stroke();
 
     const low=v.pointer&&v.pointer.y>cy, ty=low?cy-R*0.30:cy+R*0.30;
     ctx.textAlign='center';ctx.textBaseline='alphabetic';
     ctx.fillStyle=G.danger?'#ef6a58':(pal.ink||'#dfeee8');
     ctx.font=this.fnt(R*0.30*F,true);
     ctx.fillText(G.big,cx,ty);
-    ctx.font=this.fnt(R*0.095*F);ctx.fillStyle='rgba(143,179,168,.85)';
+    ctx.font=this.fnt(R*0.095*F);ctx.fillStyle=pal.muted||'rgba(143,179,168,.85)';
     ctx.fillText(G.key==='power'?(ui.gauges?.speed||'KNOTS'):G.unit,cx,ty+R*0.11);
     if(!tiny){
-      const cols={dim:'rgba(143,179,168,.9)',alert:'#f5c65c',danger:'#ef6a58',ok:'#6fe08f'};
+      const cols={dim:pal.muted||'rgba(143,179,168,.9)',alert:pal.order||'#f5c65c',danger:'#ef6a58',ok:pal.ok||'#6fe08f'};
       ctx.font=this.fnt(Math.max(8.5,R*0.082));
       // a small dial gets the one line that matters most; a big one gets all
       const lines=small?G.lines.slice(0,1):G.lines;
@@ -439,7 +471,7 @@ class HelmGauges{
       ctx.beginPath();ctx.arc(cx,cy,R*0.955,a-0.06,a+0.06);ctx.stroke();
     }
   }
-  fnt(px,bold){ return `${bold?'bold ':''}${Math.round(px)}px ui-monospace,"SF Mono",Menlo,monospace`; }
+  fnt(px,bold){ return `${bold?'bold ':''}${Math.round(px)}px ${this.currentGaugeFont||'ui-monospace,"SF Mono",Menlo,monospace'}`; }
 
   /* ── THE VALUE YOU ARE SETTING ─────────────────────────────────────
      It used to be drawn on the dial a short way above the touch point,

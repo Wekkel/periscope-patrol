@@ -71,7 +71,7 @@ const FACTION_PROFILES=Object.freeze({
 const STATION_PRESENTATION_PROFILES=Object.freeze({
   'us-fleet-submarine':Object.freeze({
     id:'us-fleet-submarine',theme:'us-fleet',language:'en-US',
-    palette:Object.freeze({faceInner:'#0d2029',faceOuter:'#050f13',bezel:'#2f5f56',ink:'#dfeee8',muted:'#8fb3a8',order:'#f5c65c'}),
+    palette:Object.freeze({faceInner:'#0d2029',faceOuter:'#050f13',bezel:'#2f5f56',ink:'#dfeee8',muted:'#8fb3a8',dim:'#4f7168',order:'#f5c65c',ok:'#6fe08f',tickMajor:'#dfeee8',tickMinor:'#8fb3a8',font:'ui-monospace,"SF Mono",Menlo,monospace'}),
     depth:Object.freeze({factor:1,suffix:'ft',unit:'FEET',fine:'FINE',deep:'DEEP',scopeFeet:55,detentsDisplay:Object.freeze([0,55,100,150,200,250])}),
     gauges:Object.freeze({course:'Course',depth:'Depth',power:'Power',courseLegends:Object.freeze(['GYRO','REPEATER']),powerSurface:'DIESEL',powerSubmerged:'BATTERY',rpm:'RPM',speed:'KNOTS'}),
     orders:Object.freeze({heading:'Heading',depth:'Depth',power:'RPM',speed:'Speed',engine:'Engine',ballast:'Ballast',silent:'Silent',alarm:'ALARM'}),
@@ -82,7 +82,7 @@ const STATION_PRESENTATION_PROFILES=Object.freeze({
   }),
   'km-type-vii':Object.freeze({
     id:'km-type-vii',theme:'km-bakelite',language:'de-DE',
-    palette:Object.freeze({faceInner:'#171712',faceOuter:'#070806',bezel:'#5d5543',ink:'#e7e0c7',muted:'#aaa185',order:'#d6a84a'}),
+    palette:Object.freeze({faceInner:'#171712',faceOuter:'#070806',bezel:'#5d5543',ink:'#eee5ca',muted:'#aaa185',dim:'#756e5b',order:'#d6a84a',ok:'#9eae75',tickMajor:'#eee5ca',tickMinor:'#aaa185',font:'ui-monospace,"SF Mono",Menlo,monospace'}),
     depth:Object.freeze({factor:.3048,suffix:'m',unit:'METER',fine:'FEIN',deep:'TIEF',scopeFeet:55,detentsDisplay:Object.freeze([0,20,40,60,80,100,120,140])}),
     gauges:Object.freeze({course:'Kurs',depth:'Tiefe',power:'Fahrt',courseLegends:Object.freeze(['KREISEL','KOMPASS']),powerSurface:'DIESEL',powerSubmerged:'E-MOTOR',rpm:'U/MIN',speed:'KNOTEN'}),
     orders:Object.freeze({heading:'Kurs',depth:'Tiefe',power:'U/min',speed:'Fahrt',engine:'Maschine',ballast:'Tauchzellen',silent:'Schleichfahrt',alarm:'ALARM'}),

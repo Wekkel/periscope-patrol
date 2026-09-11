@@ -64,6 +64,13 @@ export function createSmokeScenario(profile = DEVICE_PROFILES.DESKTOP_STANDARD) 
       await ctx.assertVisible('#touchShell', 'Touch shell must be visible on touch profile');
       await ctx.assertHidden('#desktopShell', 'Desktop shell must be hidden on touch profile');
     }
+
+    // Dismiss briefing overlay if present so it doesn't intercept pointer events
+    const briefing = await ctx.page.$('#briefingOverlay');
+    if (briefing && await briefing.isVisible()) {
+      await ctx.tap('#briefingDismiss');
+      await ctx.assertHidden('#briefingOverlay', 'Briefing overlay must close upon acknowledgment');
+    }
   });
 
   // Step 2: Propulsion & Helm Order Assertion
@@ -125,11 +132,18 @@ export function createSmokeScenario(profile = DEVICE_PROFILES.DESKTOP_STANDARD) 
 const currentFile = fileURLToPath(import.meta.url);
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(currentFile)) {
   const args = process.argv.slice(2);
-  const scenarioArg = args.find(a => a.startsWith('--scenario='))?.split('=')[1] || 'smoke';
-  const iterArg = args.find(a => a.startsWith('--iterations='))?.split('=')[1];
+  const getArg = (name) => {
+    const eq = args.find(a => a.startsWith(`--${name}=`))?.split('=')[1];
+    if (eq) return eq;
+    const idx = args.indexOf(`--${name}`);
+    if (idx !== -1 && idx + 1 < args.length) return args[idx + 1];
+    return null;
+  };
+  const scenarioArg = getArg('scenario') || 'smoke';
+  const iterArg = getArg('iterations');
   const iterations = iterArg ? parseInt(iterArg, 10) : 3;
-  const devArg = args.find(a => a.startsWith('--device='))?.split('=')[1];
-  const isAll = args.includes('--all-devices') || devArg === 'all';
+  const devArg = getArg('device') || getArg('profile');
+  const isAll = args.includes('--all-devices') || devArg === 'all' || devArg === 'ALL';
   const targetProfiles = isAll
     ? Object.keys(DEVICE_PROFILES)
     : [devArg || 'DESKTOP_STANDARD'];

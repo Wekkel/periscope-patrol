@@ -294,11 +294,37 @@
       --sar:env(safe-area-inset-right,0px);
       --r:8px;
       --mono:ui-monospace,'SFMono-Regular',Consolas,'Roboto Mono',Monaco,'Courier New',monospace;
+      --gauge-bezel:#2f5f56; --gauge-face-in:#0d2029; --gauge-face-out:#050f13; --gauge-needle:#f5c65c;
+      --gauge-font:var(--mono);
     }
+    /* US Navy — Fleet Submarine (Gato class) */
+    html[data-station-theme="us-fleet"]{
+      --bg:#04090b;--panel:#0a191e;--panel2:#0f272e;--panel3:#16323a;
+      --ink:#dff7ea;--muted:#82a89a;--dim:#4f7168;--line:#26564f;--line2:#3a7d70;
+      --alert:#f5c65c;--danger:#ef6a58;--ok:#6fe08f;--info:#54b6ff;
+      --gauge-bezel:#2f5f56;--gauge-face-in:#0d2029;--gauge-face-out:#050f13;--gauge-needle:#f5c65c;
+      --gauge-font:var(--mono);
+    }
+    html[data-station-theme="us-fleet"] body{
+      background:radial-gradient(ellipse at 50% 25%,#0d2429 0%,var(--bg) 70%);
+    }
+    html[data-station-theme="us-fleet"] .panel{
+      background:linear-gradient(180deg,rgba(18,46,53,.96),rgba(7,20,24,.96));
+      box-shadow:inset 0 1px 0 rgba(120,220,180,.06),0 2px 10px rgba(0,0,0,.45);
+    }
+    html[data-station-theme="us-fleet"] button{
+      background:linear-gradient(180deg,#14343c,#0d242a);border-color:var(--line);
+    }
+    html[data-station-theme="us-fleet"] .hg-t{background:rgba(4,12,15,.8);border-color:var(--line2);color:var(--muted);}
+    html[data-station-theme="us-fleet"] #hgChip{background:rgba(6,18,22,.97);border-color:var(--alert);}
+
+    /* Kriegsmarine — Type VII (U-Boot-Waffe) */
     html[data-station-theme="km-bakelite"]{
       --bg:#050604;--panel:#11110d;--panel2:#1a1912;--panel3:#252319;
       --ink:#eee5ca;--muted:#aaa185;--dim:#756e5b;--line:#5d5543;--line2:#86795a;
-      --alert:#d6a84a;--ok:#9eae75;--info:#8aa8b2;
+      --alert:#d6a84a;--danger:#e05347;--ok:#9eae75;--info:#8aa8b2;
+      --gauge-bezel:#5d5543;--gauge-face-in:#171712;--gauge-face-out:#070806;--gauge-needle:#d6a84a;
+      --gauge-font:var(--mono);
     }
     html[data-station-theme="km-bakelite"] body{
       background:radial-gradient(ellipse at 50% 25%,#242118 0%,var(--bg) 72%);
@@ -310,7 +336,92 @@
     html[data-station-theme="km-bakelite"] button{
       background:linear-gradient(180deg,#302d20,#171710);border-color:var(--line);
     }
-    html[data-station-theme="km-bakelite"] .hg-t{background:rgba(15,14,10,.88);}
+    html[data-station-theme="km-bakelite"] .hg-t{background:rgba(15,14,10,.88);border-color:var(--line2);color:var(--muted);}
+    html[data-station-theme="km-bakelite"] #hgChip{background:rgba(17,17,13,.98);border-color:var(--alert);}
+
+    /* Royal Navy — Admiralty Submarine Service (T/U class) */
+    html[data-station-theme="rn-admiralty"]{
+      --bg:#04070a;--panel:#0b131b;--panel2:#101c26;--panel3:#172736;
+      --ink:#e4e9ee;--muted:#8f9fad;--dim:#586877;--line:#3b4d5e;--line2:#576f87;
+      --alert:#e5b158;--danger:#de564b;--ok:#68b894;--info:#52a5d4;
+      --gauge-bezel:#6b583e;--gauge-face-in:#121922;--gauge-face-out:#080d14;--gauge-needle:#e5b158;
+      --gauge-font:var(--mono);
+    }
+    html[data-station-theme="rn-admiralty"] body{
+      background:radial-gradient(ellipse at 50% 25%,#152535 0%,var(--bg) 72%);
+    }
+    html[data-station-theme="rn-admiralty"] .panel{
+      background:linear-gradient(180deg,rgba(18,31,43,.97),rgba(9,15,22,.97));
+      box-shadow:inset 0 1px 0 rgba(160,200,230,.06),0 2px 10px rgba(0,0,0,.55);
+    }
+    html[data-station-theme="rn-admiralty"] button{
+      background:linear-gradient(180deg,#1c2d3d,#0f1a24);border-color:var(--line);
+    }
+    html[data-station-theme="rn-admiralty"] .hg-t{background:rgba(11,19,27,.88);border-color:var(--line2);color:var(--muted);}
+    html[data-station-theme="rn-admiralty"] #hgChip{background:rgba(11,19,27,.98);border-color:var(--alert);}
+
+    /* Imperial Japanese Navy — Sensuikan (I-15 class) */
+    html[data-station-theme="ijn-fleet"]{
+      --bg:#060404;--panel:#130e0e;--panel2:#1d1515;--panel3:#271c1c;
+      --ink:#f3ede0;--muted:#aa9d88;--dim:#706452;--line:#544139;--line2:#7d5e50;
+      --alert:#d63a2a;--danger:#e0342b;--ok:#8fae6a;--info:#6b9bb8;
+      --gauge-bezel:#54483b;--gauge-face-in:#161412;--gauge-face-out:#080706;--gauge-needle:#d63a2a;
+      --gauge-font:var(--mono);
+    }
+    html[data-station-theme="ijn-fleet"] body{
+      background:radial-gradient(ellipse at 50% 25%,#261816 0%,var(--bg) 72%);
+    }
+    html[data-station-theme="ijn-fleet"] .panel{
+      background:linear-gradient(180deg,rgba(32,23,22,.97),rgba(13,9,9,.97));
+      box-shadow:inset 0 1px 0 rgba(240,200,160,.06),0 2px 10px rgba(0,0,0,.55);
+    }
+    html[data-station-theme="ijn-fleet"] button{
+      background:linear-gradient(180deg,#2e1e1d,#160e0d);border-color:var(--line);
+    }
+    html[data-station-theme="ijn-fleet"] .hg-t{background:rgba(19,14,14,.88);border-color:var(--line2);color:var(--muted);}
+    html[data-station-theme="ijn-fleet"] #hgChip{background:rgba(19,14,14,.98);border-color:var(--alert);}
+
+    /* Regia Marina — Sommergibili (Marcello class) */
+    html[data-station-theme="rm-brass"]{
+      --bg:#070503;--panel:#15100a;--panel2:#1f1810;--panel3:#2a2016;
+      --ink:#f6eedb;--muted:#b8a685;--dim:#7a6b52;--line:#695233;--line2:#8f7044;
+      --alert:#e8a838;--danger:#de563b;--ok:#83a76a;--info:#5ea8b5;
+      --gauge-bezel:#8c6d3b;--gauge-face-in:#1c1813;--gauge-face-out:#0a0907;--gauge-needle:#e8a838;
+      --gauge-font:var(--mono);
+    }
+    html[data-station-theme="rm-brass"] body{
+      background:radial-gradient(ellipse at 50% 25%,#2b2014 0%,var(--bg) 72%);
+    }
+    html[data-station-theme="rm-brass"] .panel{
+      background:linear-gradient(180deg,rgba(34,26,18,.97),rgba(14,10,7,.97));
+      box-shadow:inset 0 1px 0 rgba(240,210,140,.06),0 2px 10px rgba(0,0,0,.55);
+    }
+    html[data-station-theme="rm-brass"] button{
+      background:linear-gradient(180deg,#312415,#171109);border-color:var(--line);
+    }
+    html[data-station-theme="rm-brass"] .hg-t{background:rgba(21,16,10,.88);border-color:var(--line2);color:var(--muted);}
+    html[data-station-theme="rm-brass"] #hgChip{background:rgba(21,16,10,.98);border-color:var(--alert);}
+
+    /* Voyenno-Morskoy Flot — Podvodnaya Lodka (S class) */
+    html[data-station-theme="vmf-red"]{
+      --bg:#050607;--panel:#0f1215;--panel2:#161a1e;--panel3:#1f252b;
+      --ink:#e8edef;--muted:#96a0a6;--dim:#606a70;--line:#455059;--line2:#61727f;
+      --alert:#de3333;--danger:#eb2d2d;--ok:#6eb875;--info:#579bbd;
+      --gauge-bezel:#4e5559;--gauge-face-in:#151719;--gauge-face-out:#08090a;--gauge-needle:#de3333;
+      --gauge-font:var(--mono);
+    }
+    html[data-station-theme="vmf-red"] body{
+      background:radial-gradient(ellipse at 50% 25%,#1c2329 0%,var(--bg) 72%);
+    }
+    html[data-station-theme="vmf-red"] .panel{
+      background:linear-gradient(180deg,rgba(25,31,37,.97),rgba(10,12,14,.97));
+      box-shadow:inset 0 1px 0 rgba(200,220,230,.06),0 2px 10px rgba(0,0,0,.55);
+    }
+    html[data-station-theme="vmf-red"] button{
+      background:linear-gradient(180deg,#242c34,#12161a);border-color:var(--line);
+    }
+    html[data-station-theme="vmf-red"] .hg-t{background:rgba(15,18,21,.88);border-color:var(--line2);color:var(--muted);}
+    html[data-station-theme="vmf-red"] #hgChip{background:rgba(15,18,21,.98);border-color:var(--alert);}
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
     html,body{height:100%;width:100%;overflow:hidden;overscroll-behavior:none;}
     body{

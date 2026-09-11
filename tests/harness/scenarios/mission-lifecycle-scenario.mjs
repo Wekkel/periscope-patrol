@@ -32,6 +32,12 @@ export function createMissionLifecycleScenario(profile = DEVICE_PROFILES.DESKTOP
     await ctx.assertVisible('#briefingOverlay', 'Briefing overlay must appear at mission start');
     await ctx.tap('#briefingDismiss');
     await ctx.assertHidden('#briefingOverlay', 'Briefing overlay must close upon acknowledgment');
+
+    // Assert station theme attribute is set
+    if (ctx.page) {
+      const theme = await ctx.page.evaluate(() => document.documentElement.dataset.stationTheme);
+      ctx.assert(!!theme, 'Document root must have data-station-theme attribute set');
+    }
   }, async (ctx) => {
     const snap = await ctx.getSnapshot();
     ctx.assert(snap.battery >= 90, 'Battery must be near full charge');

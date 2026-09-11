@@ -42,6 +42,11 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 ### 3. Marine-specifiek bedieningskarakter (6 Nationaliteiten)
 * **Doel**: Amerikaanse, Duitse, Britse, Japanse, Italiaanse en Sovjetboten krijgen herkenbare instrumentvormen, typografie, kleurgebruik, terminologie en korte commandobevestigingen.
 * **Randvoorwaarde**: Zonder zes afzonderlijke parallelle UI-codebases te onderhouden; modulaire datagedreven styling, SVG-instrumentwijzers en gelokaliseerde order-vocabulaires over één gedeelde kern.
+* **Fases**:
+  * [x] **Fase 3.1: Visuele Thema- & Typografie-Architectuur** (Design Tokens per natie in CSS, complete `palette` specificaties in game data, procedurele fysieke bezels met klinknagels/messing/bakeliet op het Canvas, automatische metrische vs imperiale diepteschaling en tactical depth ladder, harmonisatie met GyroIndicator en SoundStation) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.45/10)**
+  * [ ] **Fase 3.2: Maritieme Terminologie & Meertalige Orders** (Historische scheepsposten, officiersrollen en order-vocabulaire in `STATION_PRESENTATION_PROFILES`, torpedokamer en buizenpresentatie, roer- en machinebevelen)
+  * [ ] **Fase 3.3: Nationale Akoestiek & Bedieningsfeedback** (Land-specifieke akoestische accenten bij telegraafbediening, ventielknoppen en roerorders, Sound Room terminologie)
+  * [ ] **Fase 3.4: Teststraat Integratie, Cross-Device Verificatie & Evaluatie** (Uitbreiding scenario-runner en behaviour tests, toetsing op contrast en responsiveness over alle 6 marines, formele eindevaluatie)
 
 ### 4. Fysiek geloofwaardige havens, fjorden en corridors
 * **Doel**: Toegang tot havens en ankerplaatsen moet natuurlijk ontstaan uit kustlijnen, eilanden, ondieptes, mijnenvelden, anti-onderzeebootnetten, patrouillerende zoeklichten en kustbatterijen—niet uit zichtbare kunstmatige rechthoeken of willekeurige verboden zones.

@@ -24,10 +24,38 @@ function getDisposition(observerFactionId,targetFactionId,date,campaignId,missio
 
 const _station=(id,base,patch)=>_mtFreeze(Object.assign(_mtClone(base),{id},patch));
 const MULTI_STATION_PRESENTATION_PROFILES={
-  'ijn-fleet-sub':_station('ijn-fleet-sub',STATION_PRESENTATION_PROFILES['us-fleet-submarine'],{theme:'ijn-fleet',language:'ja-JP',roles:{captain:'Kanchō',executive:'Fukuchō',engineer:'Kikanchō',radio:'Tsūshinin'},sensors:{room:'Hydrophone Room',operator:'hydrophone operator'},tubes:{prefix:'Tube ',forward:'BOW',aft:'STERN',forwardTitle:'Bow Tubes',aftTitle:'Stern Tubes',flood:'Flood',fire:'Fire',roomTitle:'Torpedoes'}}),
-  'rn-submarine':_station('rn-submarine',STATION_PRESENTATION_PROFILES['us-fleet-submarine'],{theme:'rn-admiralty',language:'en-GB',roles:{captain:'Captain',executive:'First Lieutenant',engineer:'Engineer Officer',radio:'Wireless Operator'},sensors:{room:'Asdic Compartment',operator:'ASDIC operator'}}),
-  'rm-submarine':_station('rm-submarine',STATION_PRESENTATION_PROFILES['km-type-vii'],{theme:'rm-brass',language:'it-IT',roles:{captain:'Comandante',executive:'Ufficiale in seconda',engineer:'Direttore di macchina',radio:'Radiotelegrafista'},sensors:{room:'Camera idrofonica',operator:'operatore idrofonico'}}),
-  'vmf-submarine':_station('vmf-submarine',STATION_PRESENTATION_PROFILES['km-type-vii'],{theme:'vmf-red',language:'ru-RU',roles:{captain:'Commander',executive:'Executive Officer',engineer:'Chief Engineer',radio:'Radio Operator'},sensors:{room:'Hydroacoustic Post',operator:'hydroacoustic operator'}})
+  'ijn-fleet-sub':_station('ijn-fleet-sub',STATION_PRESENTATION_PROFILES['us-fleet-submarine'],{
+    theme:'ijn-fleet',language:'ja-JP',
+    palette:{faceInner:'#161412',faceOuter:'#080706',bezel:'#54483b',ink:'#f0ebd8',muted:'#a69a84',dim:'#706452',order:'#d63a2a',ok:'#8fae6a',tickMajor:'#f0ebd8',tickMinor:'#a69a84',font:'ui-monospace,"SF Mono",Menlo,monospace'},
+    depth:{factor:.3048,suffix:'m',unit:'METER',fine:'SEN',deep:'SHIN',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
+    roles:{captain:'Kanchō',executive:'Fukuchō',engineer:'Kikanchō',radio:'Tsūshinin'},
+    sensors:{room:'Hydrophone Room',operator:'hydrophone operator'},
+    tubes:{prefix:'Tube ',forward:'BOW',aft:'STERN',forwardTitle:'Bow Tubes',aftTitle:'Stern Tubes',flood:'Flood',fire:'Fire',roomTitle:'Torpedoes'}
+  }),
+  'rn-submarine':_station('rn-submarine',STATION_PRESENTATION_PROFILES['us-fleet-submarine'],{
+    theme:'rn-admiralty',language:'en-GB',
+    palette:{faceInner:'#121922',faceOuter:'#080d14',bezel:'#6b583e',ink:'#e2e7ec',muted:'#8e9eab',dim:'#586877',order:'#e5b158',ok:'#68b894',tickMajor:'#e2e7ec',tickMinor:'#8e9eab',font:'ui-monospace,"SF Mono",Menlo,monospace'},
+    depth:{factor:1,suffix:'ft',unit:'FEET',fine:'SHALLOW',deep:'DEEP',scopeFeet:55,detentsDisplay:[0,55,100,150,200,250]},
+    roles:{captain:'Captain',executive:'First Lieutenant',engineer:'Engineer Officer',radio:'Wireless Operator'},
+    sensors:{room:'Asdic Compartment',operator:'ASDIC operator'},
+    tubes:{prefix:'Tube ',forward:'BOW',aft:'STERN',forwardTitle:'Bow Tubes',aftTitle:'Stern Tubes',flood:'Flood',fire:'Fire',roomTitle:'Torpedoes'}
+  }),
+  'rm-submarine':_station('rm-submarine',STATION_PRESENTATION_PROFILES['km-type-vii'],{
+    theme:'rm-brass',language:'it-IT',
+    palette:{faceInner:'#1c1813',faceOuter:'#0a0907',bezel:'#8c6d3b',ink:'#f4ecd8',muted:'#b5a482',dim:'#7a6b52',order:'#e8a838',ok:'#83a76a',tickMajor:'#f4ecd8',tickMinor:'#b5a482',font:'ui-monospace,"SF Mono",Menlo,monospace'},
+    depth:{factor:.3048,suffix:'m',unit:'METRI',fine:'FINE',deep:'PROF',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
+    roles:{captain:'Comandante',executive:'Ufficiale in seconda',engineer:'Direttore di macchina',radio:'Radiotelegrafista'},
+    sensors:{room:'Camera idrofonica',operator:'operatore idrofonico'},
+    tubes:{prefix:'Tubi ',forward:'PRUA',aft:'POPPA',forwardTitle:'Tubi di prora',aftTitle:'Tubi di poppa',flood:'Allagamento',fire:'Lancio',roomTitle:'Camera di lancio'}
+  }),
+  'vmf-submarine':_station('vmf-submarine',STATION_PRESENTATION_PROFILES['km-type-vii'],{
+    theme:'vmf-red',language:'ru-RU',
+    palette:{faceInner:'#151719',faceOuter:'#08090a',bezel:'#4e5559',ink:'#e6ebed',muted:'#959fa5',dim:'#606a70',order:'#de3333',ok:'#6eb875',tickMajor:'#e6ebed',tickMinor:'#959fa5',font:'ui-monospace,"SF Mono",Menlo,monospace'},
+    depth:{factor:.3048,suffix:'m',unit:'METERS',fine:'MALAYA',deep:'GLUBINA',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
+    roles:{captain:'Commander',executive:'Executive Officer',engineer:'Chief Engineer',radio:'Radio Operator'},
+    sensors:{room:'Hydroacoustic Post',operator:'hydroacoustic operator'},
+    tubes:{prefix:'Apparat ',forward:'NOS',aft:'KORMA',forwardTitle:'Nosovye apparaty',aftTitle:'Kormovye apparaty',flood:'Zapolnenie',fire:'Pusk',roomTitle:'Torpedny otsek'}
+  })
 };
 _mtFreeze(MULTI_STATION_PRESENTATION_PROFILES);
 

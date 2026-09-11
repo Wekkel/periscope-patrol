@@ -110,4 +110,41 @@ assert.ok(!selectableIds.includes('mediterranean-war'),'Mediterranean war must N
 assert.ok(!selectableIds.includes('baltic-war'),'Baltic war must NOT be playable yet (PLANNED)');
 assert.ok(!selectableIds.includes('indian-ocean-war'),'Indian Ocean war must NOT be playable yet (PLANNED)');
 
-console.log('All campaign, mission profile, and historical scenario checks passed successfully!');
+// 7. Validate 6 National Station Presentation Profiles & Themes
+console.log('[TEST] Validating 6 national station presentation profiles, palettes, and depth units...');
+const nationalProfiles = [
+  { id: 'us-fleet-submarine', theme: 'us-fleet', unit: 'FEET', suffix: 'ft', factor: 1 },
+  { id: 'km-type-vii', theme: 'km-bakelite', unit: 'METER', suffix: 'm', factor: 0.3048 },
+  { id: 'rn-submarine', theme: 'rn-admiralty', unit: 'FEET', suffix: 'ft', factor: 1 },
+  { id: 'ijn-fleet-sub', theme: 'ijn-fleet', unit: 'METER', suffix: 'm', factor: 0.3048 },
+  { id: 'rm-submarine', theme: 'rm-brass', unit: 'METRI', suffix: 'm', factor: 0.3048 },
+  { id: 'vmf-submarine', theme: 'vmf-red', unit: 'METERS', suffix: 'm', factor: 0.3048 }
+];
+
+for (const spec of nationalProfiles) {
+  const profile = evalCtx(`getStationPresentation(${JSON.stringify(spec.id)})`);
+  assert.ok(profile, `Station presentation profile ${spec.id} must exist`);
+  assert.equal(profile.theme, spec.theme, `Theme mismatch for ${spec.id}`);
+  assert.equal(profile.depth?.unit, spec.unit, `Unit mismatch for ${spec.id}`);
+  assert.equal(profile.depth?.suffix, spec.suffix, `Depth suffix mismatch for ${spec.id}`);
+  assert.equal(profile.depth?.factor, spec.factor, `Depth factor mismatch for ${spec.id}`);
+
+  // Validate palette tokens
+  const pal = profile.palette;
+  assert.ok(pal, `Palette missing for ${spec.id}`);
+  for (const token of ['faceInner', 'faceOuter', 'bezel', 'ink', 'muted', 'dim', 'order', 'ok']) {
+    assert.ok(pal[token], `Palette token ${token} missing for ${spec.id}`);
+    assert.match(pal[token], /^#[0-9a-fA-F]{6}$/, `Invalid hex color for ${spec.id}.${token}: ${pal[token]}`);
+  }
+
+  // Validate formatting via playerDepthDisplay
+  const mockState = { playerSub: { profileId: 'gato-silversides', presentation: profile } };
+  const formatted = evalCtx(`playerDepthDisplay(${JSON.stringify(mockState)}, 100, 0)`);
+  if (spec.factor === 1) {
+    assert.equal(formatted, '100 ft', `Depth display mismatch for ${spec.id}`);
+  } else {
+    assert.equal(formatted, '30 m', `Depth display mismatch for ${spec.id}`);
+  }
+}
+
+console.log('All campaign, mission profile, historical scenario, and national station presentation checks passed successfully!');
