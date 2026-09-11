@@ -66,7 +66,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
   * Rookkolommen, vlammen en realistisch zinkgedrag
 * **Fases**:
   * [x] **Fase 5.1: Scheepsherkenningshandboek & Silhouet-Klassificatie** (23 historische scheepsklassen ONI-208 / Werft-Erkennungsdienst, standaard composietcodes M-F / FLUSH-4F / M-F-M / etc., masthoogte stadimeter fysica R = H / (6076 * tan theta), TDC kinematische koppeling met schaalvervalsing bij misidentificatie en +18% kwaliteitsbonus bij bevestiging, interactieve manual UI met SVG vector-silhouetten en torpedodiepte advies) — **GOEDGEKEURD (Harry: 9.88/10, Henry: 9.55/10)**
-  * [ ] **Fase 5.2: Compartimentale Schadelocaties & Hydrodynamische Trim** (Treffer-zones boeg/midscheeps/schroef/roer, dynamische slagzij/list en trim voorover/achterover, progressieve waterinlaat en snelheidsverlies)
+  * [x] **Fase 5.2: Compartimentale Schadelocaties & Hydrodynamische Trim** (5 rompcompartimenten BOW/FORWARD_HOLD/MIDSHIPS/AFTER_HOLD/STERN, asymmetrische slagzij/list hitSide ±1, langsscheepse trim down-by-head/stern, schroefopduiking propeller emergence & cavitatie-vertraging, 3D hull rotatie roll/pitch/waterlijndaling vóór het zinken, attitude weergave in periscoop HUD) — **GOEDGEKEURD (Harry: 9.48/10, Henry: 9.60/10)**
   * [ ] **Fase 5.3: Visuele Schade-effecten & Realistisch Zinkgedrag** (Rookpluimen, vlammen, ketelontploffingen, zinktrajecten per scheepstype en waterverplaatsing)
   * [ ] **Fase 5.4: Teststraat Integratie, Grognard Identificatie & Evaluatie** (Deterministische aanvalsscenario's met herkenningsflow, dekking en formele evaluaties)
 

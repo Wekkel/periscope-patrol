@@ -25,6 +25,10 @@ function ensureShipDamage(c){
   D.fireRate=Number.isFinite(D.fireRate)?D.fireRate:0;  // + grows, - is being contained
   D.trim=clamp(Number(D.trim)||0,-1,1);                 // + down by bow, - down by stern
   D.list=clamp(Number(D.list)||0,-1,1);
+  if(!D.compartments||typeof D.compartments!=='object'){
+    D.compartments={bow:0,forwardHold:0,midships:0,afterHold:0,stern:0};
+  }
+  D.hitSide=Number.isFinite(D.hitSide)?(D.hitSide>=0?1:-1):null;
   D.hitCount=Math.max(0,Number(D.hitCount)||0);
   D.lastHitAt=Number.isFinite(D.lastHitAt)?D.lastHitAt:-999;
   D.lastHitLocation=D.lastHitLocation||null;
@@ -76,11 +80,17 @@ function shipDamageCondition(c){
 function shipDamageSpeedFactor(c){
   const D=ensureShipDamage(c);if(!D)return 1;
   if(c.sunk||D.abandoned)return 0;
-  return clamp((1-D.propulsion*.88)*(1-D.flotation*.35)*(1-D.fire*.10),.04,1);
+  const base=(1-D.propulsion*.88)*(1-D.flotation*.35)*(1-D.fire*.10);
+  const bowDrag=clamp(Math.max(0,D.trim-.25)*.35,0,.30);
+  const sternEmergence=clamp(Math.max(0,-D.trim-.25)*.45,0,.40);
+  const listDrag=clamp(Math.abs(D.list)*.18,0,.22);
+  return clamp(base*(1-bowDrag)*(1-sternEmergence)*(1-listDrag),.02,1);
 }
 function shipDamageTurnFactor(c){
   const D=ensureShipDamage(c);if(!D)return 1;
-  return clamp(1-D.steering*.82,.10,1);
+  const trimPenalty=clamp(Math.abs(D.trim)*.22,0,.30);
+  const listPenalty=clamp(Math.abs(D.list)*.18,0,.25);
+  return clamp((1-D.steering*.82)*(1-trimPenalty)*(1-listPenalty),.06,1);
 }
 function shipIsStraggler(c){
   if(!c||c.sunk||c.harborTarget||isSurfaceCombatant(c)||c.convoyId!=='MAIN')return false;
@@ -88,10 +98,30 @@ function shipIsStraggler(c){
   return !!c.convoyNaturalStraggler||D.abandoned||D.propulsion>.55||D.flotation>.68||D.fire>.72||(c.speedKnots||0)<base*.58;
 }
 function shipTorpedoHitLocation(hitFrac){
-  if(hitFrac>.24)return 'BOW';
-  if(hitFrac<-.32)return 'STERN';
-  if(hitFrac<-.07)return 'ENGINE ROOM';
+  if(hitFrac>.28)return 'BOW';
+  if(hitFrac>.08)return 'FORWARD_HOLD';
+  if(hitFrac<-.35)return 'STERN';
+  if(hitFrac<-.12)return 'AFTER_HOLD';
   return 'MIDSHIPS';
+}
+function shipAttitude(c){
+  const D=ensureShipDamage(c);
+  if(!D)return {rollRad:0,pitchRad:0,draftOffsetM:0,listDeg:0,trimFt:0,listText:'EVEN KEEL',trimText:'EVEN KEEL',conditionSummary:'INTACT'};
+  const maxRollRad=0.436; // ~25 deg
+  const rollRad=clamp(D.list*maxRollRad,-maxRollRad,maxRollRad);
+  const listDegVal=Math.round((rollRad*180)/Math.PI);
+  const listText=Math.abs(listDegVal)<2?'EVEN KEEL':`LIST ${Math.abs(listDegVal)}° ${listDegVal>0?'STBD':'PORT'}`;
+
+  const maxPitchRad=0.209; // ~12 deg
+  const pitchRad=clamp(-D.trim*maxPitchRad,-maxPitchRad,maxPitchRad);
+  const lenFt=(c.lengthYards||400)*3;
+  const trimFtVal=Math.round(D.trim*(lenFt*0.04));
+  const trimText=Math.abs(D.trim)<0.10?'EVEN KEEL':D.trim>0?`TRIM ${Math.abs(trimFtVal)}FT HEAD`:`TRIM ${Math.abs(trimFtVal)}FT STERN`;
+
+  const baseDraftM=(c.dimensions?.draftFt?c.dimensions.draftFt*0.3048:(c.lengthYards||400)*0.02);
+  const draftOffsetM=clamp(D.flotation*baseDraftM*0.75,0,baseDraftM*1.5);
+  const conditionSummary=listText==='EVEN KEEL'&&trimText==='EVEN KEEL'?'EVEN KEEL':`${listText} · ${trimText}`;
+  return {rollRad,pitchRad,draftOffsetM,listDeg:listDegVal,trimFt:trimFtVal,listText,trimText,conditionSummary};
 }
 function shipDamageSummary(c){
   const D=ensureShipDamage(c);if(!D)return '';
@@ -128,14 +158,24 @@ function applyTorpedoShipDamage(engine,c,impact){
   const variance=.90+_shipHash01(`${c.id}:${impact.torpedoId||D.hitCount}:${location}`)*.20;
   const p=clamp(warhead/292,.72,1.08)*size*angle*variance;
   let f=0,prop=0,steer=0,fire=0,flood=0,trim=0;
-  if(location==='ENGINE ROOM'){
-    f=.25;prop=.78;steer=.08;fire=.34;flood=.00010;trim=-.10;
+  if(location==='ENGINE ROOM'||location==='MIDSHIPS'){
+    f=.68;prop=.76;steer=.14;fire=.36;flood=.00036;trim=.02;
+    D.compartments.midships=clamp((D.compartments.midships||0)+.85*p,0,1);
   }else if(location==='BOW'){
-    f=.54;prop=.12;steer=.03;fire=.08;flood=.00028;trim=.72;
+    f=.52;prop=.10;steer=.04;fire=.08;flood=.00030;trim=.74;
+    D.compartments.bow=clamp((D.compartments.bow||0)+.75*p,0,1);
+  }else if(location==='FORWARD_HOLD'){
+    f=.60;prop=.18;steer=.06;fire=.18;flood=.00032;trim=.42;
+    D.compartments.forwardHold=clamp((D.compartments.forwardHold||0)+.70*p,0,1);
+  }else if(location==='AFTER_HOLD'){
+    f=.56;prop=.38;steer=.22;fire=.14;flood=.00026;trim=-.38;
+    D.compartments.afterHold=clamp((D.compartments.afterHold||0)+.68*p,0,1);
   }else if(location==='STERN'){
-    f=.34;prop=.38;steer=.73;fire=.10;flood=.00016;trim=-.48;
+    f=.40;prop=.82;steer=.85;fire=.12;flood=.00022;trim=-.72;
+    D.compartments.stern=clamp((D.compartments.stern||0)+.80*p,0,1);
   }else{
-    f=.69;prop=.29;steer=.10;fire=.27;flood=.00034;trim=.05;
+    f=.60;prop=.30;steer=.10;fire=.20;flood=.00030;trim=.05;
+    D.compartments.midships=clamp((D.compartments.midships||0)+.60*p,0,1);
   }
   if(c.type==='TANKER')fire*=1.28;
   if(isSurfaceCombatant(c)){f*=1.06;prop*=.95;}
@@ -143,8 +183,10 @@ function applyTorpedoShipDamage(engine,c,impact){
   _shipSetDamage(c,D,'steering',steer*p);_shipSetDamage(c,D,'fire',fire*p);
   D.floodRate=Math.max(D.floodRate,flood*p);
   D.fireRate=Math.max(D.fireRate,(D.fire>.28?.00008:.00002)*p);
+  const hitSide=impact.hitSide!==undefined?(impact.hitSide>=0?1:-1):1;
+  D.hitSide=hitSide;
   D.trim=clamp(D.trim+trim*p,-1,1);
-  D.list=clamp(D.list+(impact.hitSide||1)*(.12+.18*f*p),-1,1);
+  D.list=clamp(D.list+hitSide*(.14+.20*f*p),-1,1);
   D.hitCount++;D.lastHitAt=now;D.lastHitLocation=location;D.lastHitFrac=impact.hitFrac;
   D.lastWeapon='TORPEDO';D.lastWeaponId=impact.torpedoId||null;D.lastAttackerSide='PLAYER';D.lastAttackerId='PLAYER_SUB';
   if(D.steering>.62&&Math.abs(D.rudderBiasDeg)<1){
@@ -276,6 +318,12 @@ function updateShipDamage(engine,c,dt){
       else D.fire=clamp(D.fire-(.000045-Math.min(.000035,D.fireRate))*dt,0,1);
       if(D.fire>.72){D.propulsion=clamp(D.propulsion+dt*.000020*D.fire,0,1);D.flotation=clamp(D.flotation+dt*.000009*D.fire,0,1);}
     }
+  }
+  if(dt>0&&D.compartments){
+    const targetTrim=clamp((D.compartments.bow*.85+D.compartments.forwardHold*.45)-(D.compartments.stern*.80+D.compartments.afterHold*.40),-1,1);
+    if(Math.abs(targetTrim)>.05)D.trim+=clamp(targetTrim-D.trim,-dt*.004,dt*.004);
+    const targetList=clamp((D.hitSide||(D.list>=0?1:-1))*(D.compartments.midships*.42+D.compartments.forwardHold*.25+D.compartments.afterHold*.25+D.compartments.bow*.12+D.compartments.stern*.12),-1,1);
+    if(Math.abs(targetList)>.05)D.list+=clamp(targetList-D.list,-dt*.003,dt*.003);
   }
   if(D.flotation>.70){
     const targetTrim=D.lastHitLocation==='BOW'?.9:D.lastHitLocation==='STERN'?-.72:D.trim;

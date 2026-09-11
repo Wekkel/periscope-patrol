@@ -720,5 +720,96 @@ assert.ok(vmRes.tdc.identification, 'TDC viewmodel carries identification object
 assert.equal(vmRes.tdc.identification.classId, 'town-destroyer');
 assert.equal(vmRes.tdc.identification.mastheadFt, 72);
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4');
+// ═══════════════════════════════════════════════════ 13. COMPARTMENTAL SHIP DAMAGE, LIST & TRIM
+const shipDmg = await load('js/simulation/ship-damage.js', [
+  'ensureShipDamage', 'shipDamageSeverity', 'shipDamageCondition',
+  'shipDamageSpeedFactor', 'shipDamageTurnFactor', 'shipTorpedoHitLocation',
+  'shipAttitude', 'applyTorpedoShipDamage', 'updateShipDamage'
+], {
+  clamp,
+  radToDeg,
+  degToRad,
+  isSurfaceCombatant: () => false
+});
+
+// Test 1: 5-Compartment hit location resolution
+assert.equal(shipDmg.shipTorpedoHitLocation(0.40), 'BOW');
+assert.equal(shipDmg.shipTorpedoHitLocation(0.20), 'FORWARD_HOLD');
+assert.equal(shipDmg.shipTorpedoHitLocation(0.00), 'MIDSHIPS');
+assert.equal(shipDmg.shipTorpedoHitLocation(-0.25), 'AFTER_HOLD');
+assert.equal(shipDmg.shipTorpedoHitLocation(-0.45), 'STERN');
+
+// Test 2: Bow hit induces forward trim (down by head) and asymmetric listing
+const testShip1 = {
+  id: 'C_FREIGHTER_1',
+  name: 'SS Empire Rowan',
+  type: 'MERCHANT',
+  lengthYards: 430,
+  speedKnots: 10,
+  baseSpeed: 10
+};
+const dummyEngine = {
+  state: { time: { elapsedSeconds: 100 }, weapons: {}, campaign: { score: 0, tonnageSunk: 0 } },
+  log() {},
+  notify() {}
+};
+
+// Torpedo hit on Starboard Bow
+shipDmg.applyTorpedoShipDamage(dummyEngine, testShip1, {
+  hitFrac: 0.35,
+  hitSide: 1, // Starboard
+  warheadKg: 300,
+  incidence: 80,
+  torpedoId: 'TORP_1'
+});
+const D1 = testShip1.shipDamage;
+assert.ok(D1.compartments.bow > 0.5, 'Bow compartment registered severe flooding');
+assert.ok(D1.trim > 0.4, 'Ship develops positive trim (down by head)');
+assert.ok(D1.list > 0.1, 'Ship develops positive list (heeling to starboard)');
+const att1 = shipDmg.shipAttitude(testShip1);
+assert.ok(att1.listDeg > 0, 'Attitude reflects starboard list');
+assert.ok(att1.listText.includes('STBD'), 'List text indicates STBD');
+assert.ok(att1.trimText.includes('HEAD'), 'Trim text indicates DOWN BY HEAD');
+
+// Test 3: Stern hit induces aft trim (down by stern) and rudder damage / speed loss
+const testShip2 = {
+  id: 'C_DESTROYER_1',
+  name: 'HMS Harvester',
+  type: 'DESTROYER',
+  lengthYards: 320,
+  speedKnots: 30,
+  baseSpeed: 30
+};
+// Torpedo hit on Port Stern
+shipDmg.applyTorpedoShipDamage(dummyEngine, testShip2, {
+  hitFrac: -0.42,
+  hitSide: -1, // Port
+  warheadKg: 280,
+  incidence: 90,
+  torpedoId: 'TORP_2'
+});
+const D2 = testShip2.shipDamage;
+assert.ok(D2.compartments.stern > 0.5, 'Stern compartment registered severe damage');
+assert.ok(D2.trim < -0.4, 'Ship develops negative trim (down by stern)');
+assert.ok(D2.list < -0.1, 'Ship develops negative list (heeling to port)');
+assert.ok(D2.steering > 0.6, 'Steering severely degraded on stern hit');
+
+const att2 = shipDmg.shipAttitude(testShip2);
+assert.ok(att2.listDeg < 0, 'Attitude reflects port list');
+assert.ok(att2.listText.includes('PORT'), 'List text indicates PORT');
+assert.ok(att2.trimText.includes('STERN'), 'Trim text indicates DOWN BY STERN');
+
+// Test 4: Hydrodynamic speed and turn factors under trim/emergence
+const spdFactor1 = shipDmg.shipDamageSpeedFactor(testShip1);
+assert.ok(spdFactor1 < 0.75, 'Speed is degraded by bow flooding and form drag');
+const spdFactor2 = shipDmg.shipDamageSpeedFactor(testShip2);
+assert.ok(spdFactor2 < 0.35, 'Speed is crippled by stern strike and propeller emergence');
+const turnFactor2 = shipDmg.shipDamageTurnFactor(testShip2);
+assert.ok(turnFactor2 < 0.40, 'Turn rate is severely hindered by stern damage and trim');
+
+// Progressive time update evolves list and trim
+shipDmg.updateShipDamage(dummyEngine, testShip1, 20.0);
+assert.ok(testShip1.shipDamage.flotation >= D1.flotation, 'Flotation decreases over time via flooding');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4');
 

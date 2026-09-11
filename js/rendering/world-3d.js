@@ -718,25 +718,31 @@ const World3D={
 
     for(const pass of passes){
       const sink=pass.sink;
+      let dmgCp=1, dmgSp=0, dmgCr0=1, dmgSr0=0, dmgDropM=0, hasDamageAttitude=false;
+      let heelCr=1, heelSr=0, hasHeel=false;
+      if(!sink){
+        const SD=c.shipDamage;
+        if(SD){
+          const att=typeof shipAttitude==='function'?shipAttitude(c):null;
+          const pitch=att?att.pitchRad:(-clamp(SD.trim||0,-1,1)*.18);
+          dmgCp=Math.cos(pitch); dmgSp=Math.sin(pitch);
+          const roll=att?att.rollRad:(clamp(SD.list||0,-1,1)*.32);
+          dmgCr0=Math.cos(roll); dmgSr0=Math.sin(roll);
+          dmgDropM=att?(att.draftOffsetM*.85):(model.fb*S*clamp((SD.flotation||0)*.65,0,.85));
+          hasDamageAttitude=true;
+        }
+        const heel=clamp((c.turnRateDegSec||0)*(c.speedKnots||0)*.0019,-.075,.075);
+        if(Math.abs(heel)>.001){heelCr=Math.cos(heel); heelSr=Math.sin(heel); hasHeel=true;}
+      }
       const V=(lx,ly,lz)=>{
         let x=lx*S,y=ly*S,z=lz*S;
-        if(!sink&&!c.stationary){
-          // Patch 5: a flooded bow/stern and list are visible in the same hull
-          // geometry the player is looking at. These are visual transforms only;
-          // the collision waterplane remains deterministic and cheap.
-          const SD=c.shipDamage;
-          if(SD){
-            const flotation=clamp(SD.flotation||0,0,1);
-            const pitch=-clamp(SD.trim||0,-1,1)*.075,cp=Math.cos(pitch),sp=Math.sin(pitch),nz=z*cp-y*sp,ny=z*sp+y*cp;z=nz;y=ny;
-            const roll=clamp(SD.list||0,-1,1)*.12,cr0=Math.cos(roll),sr0=Math.sin(roll),nx0=x*cr0-y*sr0;y=x*sr0+y*cr0;x=nx0;
-            y-=model.fb*S*clamp(flotation*.46,0,.50);
+        if(!sink){
+          if(hasDamageAttitude){
+            const nz=z*dmgCp-y*dmgSp,ny=z*dmgSp+y*dmgCp;z=nz;y=ny;
+            const nx0=x*dmgCr0-y*dmgSr0;y=x*dmgSr0+y*dmgCr0;x=nx0;
+            y-=dmgDropM;
           }
-          // A ship under helm develops a small, stable heel instead of
-          // remaining perfectly upright while its bow swings on the chart.
-          // This is visual only; collision hulls remain on the simulated
-          // waterplane and therefore stay deterministic/cheap.
-          const heel=clamp((c.turnRateDegSec||0)*(c.speedKnots||0)*.0019,-.075,.075);
-          if(Math.abs(heel)>.001){const cr=Math.cos(heel),sr=Math.sin(heel),nx=x*cr-y*sr;y=x*sr+y*cr;x=nx;}
+          if(hasHeel){const nx=x*heelCr-y*heelSr;y=x*heelSr+y*heelCr;x=nx;}
         }
         if(sink){
           const p=sink.pitchP??sink.p, pv=sink.pivot*S;

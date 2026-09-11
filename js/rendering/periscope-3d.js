@@ -365,6 +365,12 @@ const PeriscopeStation={
       const mastTxt=tr?.identifiedMastheadFt?` · MAST ${tr.identifiedMastheadFt}FT`:'';
       const rtxt=ri?`R ${ri.rangeNm.toFixed(1)} NM${mastTxt} · INTERCEPT ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} NM`:`${tdc.torpedoType}${mastTxt}`;
       ctx.fillText(rtxt,tx,by+Math.round(22*k));
+      const targetContact=(state.world?.contacts||[]).find(q=>q.id===tdc.targetId);
+      const targetAtt=targetContact&&typeof shipAttitude==='function'?shipAttitude(targetContact):null;
+      if(targetAtt&&targetAtt.conditionSummary!=='INTACT'&&targetAtt.conditionSummary!=='EVEN KEEL'){
+        ctx.fillStyle='#e3a857';ctx.font=this.fnt(touch?7.6:8.5,true);ctx.textAlign='right';
+        ctx.fillText(targetAtt.conditionSummary,tright,by+Math.round(22*k));ctx.textAlign='left';
+      }
       ctx.fillStyle='#82a89a';ctx.font=this.fnt(touch?7.2:8);
       const tti=tdc.timeToImpactSec?`${tdc.timeToImpactSec.toFixed(0)}s`:'--';
       const depthAdvice=tr?.recommendedTorpedoDepthFt?` · OPT DEPTH ${tr.recommendedTorpedoDepthFt}FT`:'';
