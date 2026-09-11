@@ -154,7 +154,7 @@ const SUBMARINE_PROFILES=Object.freeze({
         pumpPctPerHour:1.0,electricalDamageLoadFactor:.35,emptySpeedFactor:.05,emptyRpmFactor:.1
       })
     }),
-    audio:Object.freeze({key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1}),
+    audio:Object.freeze({key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1,telegraphPitch:1.0,telegraphTone:'CHADBURN',hydrophoneBandwidth:'WIDE'}),
     damage:Object.freeze({crushDepthFeet:420})
   }),
 
@@ -209,7 +209,7 @@ const SUBMARINE_PROFILES=Object.freeze({
         pumpPctPerHour:1.0,electricalDamageLoadFactor:.35,emptySpeedFactor:.05,emptyRpmFactor:.1
       })
     }),
-    audio:Object.freeze({key:'TYPE_VII',electricPitch:1.08,dieselPitch:1.13,dieselLevel:.92,hullMass:.88,commandPitch:1.08}),
+    audio:Object.freeze({key:'TYPE_VII',electricPitch:1.08,dieselPitch:1.13,dieselLevel:.92,hullMass:.88,commandPitch:1.08,telegraphPitch:1.32,telegraphTone:'GONG',hydrophoneBandwidth:'NARROW_GHG'}),
     damage:Object.freeze({
       constructionDepthFeet:328,pressureDockTestDepthFeet:344,
       crushDepthFeet:500,crushDepthProvisional:true

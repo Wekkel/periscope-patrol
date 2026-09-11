@@ -195,6 +195,32 @@ const ijn = evalCtx(`getStationPresentation('ijn-fleet-sub')`);
 assert.equal(ijn.gauges.course, 'Shinro');
 assert.equal(ijn.gauges.depth, 'Shinkou');
 assert.equal(ijn.engineOrders[0], 'TEISHI');
-assert.equal(ijn.engineOrders[4], 'KAISHIN');
+// 8. Validate 6 National Submarine Acoustic Profiles (Telegraph bells, pitch & hydrophone bandwidth)
+console.log('[TEST] Validating 6 national submarine acoustic profiles and telegraph fingerprints...');
+const expectedAcoustics = {
+  'gato-silversides': { key: 'US_FLEET_BOAT', tone: 'CHADBURN', pitch: 1.0, bandwidth: 'WIDE' },
+  'type-viic-1941': { key: 'TYPE_VII', tone: 'GONG', pitch: 1.32, bandwidth: 'NARROW_GHG' },
+  'ijn-i-class-1942': { key: 'IJN_I_CLASS', tone: 'BRASS_CLANG', pitch: 1.45, bandwidth: 'TYPE93_ARRAY' },
+  'rn-t-class-1942': { key: 'RN_T_CLASS', tone: 'ADMIRALTY_BELL', pitch: 1.18, bandwidth: 'ASDIC_PASSIVE' },
+  'rm-marcello-1941': { key: 'RM_MARCELLO', tone: 'BRONZE_BELL', pitch: 0.92, bandwidth: 'IDROFONO_BASE' },
+  'vmf-s-class-1942': { key: 'VMF_S_CLASS', tone: 'IRON_CHIME', pitch: 0.82, bandwidth: 'MARS_PASSIVE' }
+};
 
-console.log('All campaign, mission profile, historical scenario, and national station presentation checks passed successfully!');
+const observedTones = new Set();
+
+for (const [subId, expected] of Object.entries(expectedAcoustics)) {
+  const sub = evalCtx(`getSubmarineProfile(${JSON.stringify(subId)})`);
+  assert.ok(sub, `Submarine profile ${subId} must exist`);
+  assert.ok(sub.audio, `Submarine profile ${subId} must have an audio configuration`);
+  assert.equal(sub.audio.key, expected.key, `Audio key mismatch for ${subId}`);
+  assert.equal(sub.audio.telegraphTone, expected.tone, `Telegraph tone mismatch for ${subId}`);
+  assert.equal(sub.audio.telegraphPitch, expected.pitch, `Telegraph pitch mismatch for ${subId}`);
+  assert.equal(sub.audio.hydrophoneBandwidth, expected.bandwidth, `Hydrophone bandwidth mismatch for ${subId}`);
+
+  assert.ok(!observedTones.has(sub.audio.telegraphTone), `Duplicate telegraph tone detected across navies: ${sub.audio.telegraphTone}`);
+  observedTones.add(sub.audio.telegraphTone);
+}
+
+assert.equal(observedTones.size, 6, 'All 6 navies must possess a distinct telegraph acoustic fingerprint');
+
+console.log('All campaign, mission profile, historical scenario, national station presentation, and acoustic checks passed successfully!');

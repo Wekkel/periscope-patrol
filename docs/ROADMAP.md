@@ -45,7 +45,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 * **Fases**:
   * [x] **Fase 3.1: Visuele Thema- & Typografie-Architectuur** (Design Tokens per natie in CSS, complete `palette` specificaties in game data, procedurele fysieke bezels met klinknagels/messing/bakeliet op het Canvas, automatische metrische vs imperiale diepteschaling en tactical depth ladder, harmonisatie met GyroIndicator en SoundStation) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.45/10)**
   * [x] **Fase 3.2: Maritieme Terminologie & Meertalige Orders** (Historische scheepsposten, officiersrollen en order-vocabulaire in `STATION_PRESENTATION_PROFILES`, torpedokamer en buizenpresentatie, roer- en machinebevelen over alle 6 vloten, dynamische presets en metrische stappen) — **GOEDGEKEURD (Harry: 9.8/10, Henry: 9.78/10)**
-  * [ ] **Fase 3.3: Nationale Akoestiek & Bedieningsfeedback** (Land-specifieke akoestische accenten bij telegraafbediening, ventielknoppen en roerorders, Sound Room terminologie)
+  * [x] **Fase 3.3: Nationale Akoestiek & Bedieningsfeedback** (Land-specifieke telegraafresonanties en belslagen over alle 6 marines, roerorder/helm kliks, hydrofoon bandbreedtefilters per vloot GHG/ASDIC/WIDE/Type93/Idrofono/Mars, debounce-bescherming, zero sample memory overhead) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.15/10)**
   * [ ] **Fase 3.4: Teststraat Integratie, Cross-Device Verificatie & Evaluatie** (Uitbreiding scenario-runner en behaviour tests, toetsing op contrast en responsiveness over alle 6 marines, formele eindevaluatie)
 
 ### 4. Fysiek geloofwaardige havens, fjorden en corridors

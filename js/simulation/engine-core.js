@@ -298,15 +298,23 @@ const CoreSystem={
       case'END_IMPACT_OBSERVATION': {const obs=this.state.tactical?.impactObservation;if(!obs||obs.token!==cmd.token)break;this.state.tactical.impactObservation=null;this.resumeFromModal();break;}
       case'PLAY_AUDIO': PresentationBridge.audio(this.state)[cmd.method]?.(...(cmd.args||[])); break;
       case'APPEND_LOG': this.log(cmd.message,cmd.level||'info'); break;
-      case'SET_ORDERED_HEADING':
-        sub.orderedHeading=normDeg(cmd.heading);
+      case'SET_ORDERED_HEADING':{
+        const prevHdg=sub.orderedHeading,newHdg=normDeg(cmd.heading);
+        if(Math.abs(shortDelta(prevHdg,newHdg))>=1&&cmd.auto!==true){
+          PresentationBridge.audio(this.state).playHelmOrder(newHdg);
+        }
+        sub.orderedHeading=newHdg;
         if(cmd.auto!==true&&this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length){
           this.state.map.autoFollowPlot=false;
           this.log('Helm taken manually — autopilot disengaged.','warn');
         }
-        break;
+        break;}
       case'SET_ENGINE_RPM':{
-        const maxRpm=sub.propulsion?.characteristics?.normalizedMaxRpm??450,rpm=clamp(cmd.rpm,0,maxRpm);sub.propulsion.orderedRpm=rpm;
+        const maxRpm=sub.propulsion?.characteristics?.normalizedMaxRpm??450,rpm=clamp(cmd.rpm,0,maxRpm);
+        if(sub.propulsion.orderedRpm!==rpm){
+          PresentationBridge.audio(this.state).playTelegraph(rpm);
+        }
+        sub.propulsion.orderedRpm=rpm;
         /* Commands are still processed while the simulation is paused. Until
            now an ALL STOP issued in that state left the last integrated 13 kn
            speed and screw-noise value frozen on screen indefinitely. A paused

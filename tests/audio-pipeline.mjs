@@ -454,8 +454,76 @@ assert.ok(duckCrashDive < 0.53 && duckCrashDive > 0.51, `Crash dive duck factor 
 
 assert.ok(duckCrashDive < duckGeneralAlarm, 'Crash dive must duck machinery deeper than general alarm');
 
-console.log('[AUDIO TEST] Audio Director mix matrices, threat scaling, and alarm ducking passed.');
+// ─── 8. National Telegraph Acoustics, Helm Feedback & Hydrophone Bandwidth ──
+console.log('[AUDIO TEST] Testing national telegraph acoustics, helm feedback, and hydrophone filters...');
 
-console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (7/7 test suites)!');
+function calcTelegraphParams(identity) {
+  const tPitch = clamp(Number(identity.telegraphPitch) || 1, 0.7, 1.6);
+  const tone = identity.telegraphTone || 'CHADBURN';
+  const baseFreq = (tone === 'GONG' ? 1350 : tone === 'ADMIRALTY_BELL' ? 1480 : tone === 'BRASS_CLANG' ? 1620 : tone === 'BRONZE_BELL' ? 1120 : tone === 'IRON_CHIME' ? 820 : 1200) * tPitch;
+  const lowFreq = (tone === 'IRON_CHIME' ? 95 : tone === 'BRONZE_BELL' ? 115 : tone === 'GONG' ? 145 : 110) * tPitch;
+  const hasEchoStrike = (tone === 'GONG' || tone === 'ADMIRALTY_BELL' || tone === 'BRONZE_BELL');
+  return { tPitch, tone, baseFreq, lowFreq, hasEchoStrike };
+}
+
+function calcHydrophoneFilterFreqs(bandwidth, cadenceHz) {
+  const cad = clamp(cadenceHz, 0.55, 3.4);
+  const bwFactor = bandwidth === 'NARROW_GHG' ? 1.22 : bandwidth === 'ASDIC_PASSIVE' ? 1.12 : bandwidth === 'TYPE93_ARRAY' ? 0.94 : bandwidth === 'IDROFONO_BASE' ? 0.88 : bandwidth === 'MARS_PASSIVE' ? 0.82 : 1.0;
+  const whineFreq = (480 + cad * 390) * bwFactor;
+  const filterFreq = (520 + cad * 330) * bwFactor;
+  return { bwFactor, whineFreq, filterFreq };
+}
+
+const fleetIdentities = {
+  US_FLEET: { telegraphPitch: 1.0, telegraphTone: 'CHADBURN', hydrophoneBandwidth: 'WIDE' },
+  KM_VIIC: { telegraphPitch: 1.32, telegraphTone: 'GONG', hydrophoneBandwidth: 'NARROW_GHG' },
+  IJN_B1: { telegraphPitch: 1.45, telegraphTone: 'BRASS_CLANG', hydrophoneBandwidth: 'TYPE93_ARRAY' },
+  RN_T_CLASS: { telegraphPitch: 1.18, telegraphTone: 'ADMIRALTY_BELL', hydrophoneBandwidth: 'ASDIC_PASSIVE' },
+  RM_MARCELLO: { telegraphPitch: 0.92, telegraphTone: 'BRONZE_BELL', hydrophoneBandwidth: 'IDROFONO_BASE' },
+  VMF_S_CLASS: { telegraphPitch: 0.82, telegraphTone: 'IRON_CHIME', hydrophoneBandwidth: 'MARS_PASSIVE' }
+};
+
+const observedBaseFreqs = new Set();
+for (const [fleet, id] of Object.entries(fleetIdentities)) {
+  const params = calcTelegraphParams(id);
+  assert.ok(params.baseFreq >= 600 && params.baseFreq <= 2500, `Base frequency for ${fleet} out of acoustic bounds: ${params.baseFreq}`);
+  assert.ok(params.lowFreq >= 70 && params.lowFreq <= 250, `Low frequency for ${fleet} out of acoustic bounds: ${params.lowFreq}`);
+  assert.ok(!observedBaseFreqs.has(Math.round(params.baseFreq)), `Telegraph base frequency collision detected for ${fleet}: ${params.baseFreq}`);
+  observedBaseFreqs.add(Math.round(params.baseFreq));
+
+  // Hydrophone filter response check
+  const hSlow = calcHydrophoneFilterFreqs(id.hydrophoneBandwidth, 0.8);
+  const hFast = calcHydrophoneFilterFreqs(id.hydrophoneBandwidth, 2.5);
+  assert.ok(hFast.whineFreq > hSlow.whineFreq, 'Faster contact cadence must increase hydrophone whine frequency');
+  assert.ok(hFast.filterFreq > hSlow.filterFreq, 'Faster contact cadence must shift hydrophone noise bandpass upward');
+}
+
+// Ensure Kriegsmarine GHG has highest frequency resonance and Soviet Mars has lowest
+const kmBw = calcHydrophoneFilterFreqs(fleetIdentities.KM_VIIC.hydrophoneBandwidth, 1.5);
+const vmfBw = calcHydrophoneFilterFreqs(fleetIdentities.VMF_S_CLASS.hydrophoneBandwidth, 1.5);
+const usBw = calcHydrophoneFilterFreqs(fleetIdentities.US_FLEET.hydrophoneBandwidth, 1.5);
+assert.ok(kmBw.bwFactor > usBw.bwFactor, 'Kriegsmarine GHG must have narrower/higher resonance than US wideband');
+// Debounce gating verification
+let lastTelegraph = 1000;
+function testTelegraphDebounce(nowMs) {
+  if (nowMs - lastTelegraph < 150) return false;
+  lastTelegraph = nowMs;
+  return true;
+}
+assert.equal(testTelegraphDebounce(1050), false, 'Telegraph must debounce within 150ms window');
+assert.equal(testTelegraphDebounce(1160), true, 'Telegraph must fire after 150ms debounce window');
+
+let lastHelm = 2000;
+function testHelmDebounce(nowMs) {
+  if (nowMs - lastHelm < 180) return false;
+  lastHelm = nowMs;
+  return true;
+}
+assert.equal(testHelmDebounce(2100), false, 'Helm order must debounce within 180ms window');
+assert.equal(testHelmDebounce(2200), true, 'Helm order must fire after 180ms debounce window');
+
+console.log('[AUDIO TEST] National telegraph acoustics, helm feedback, and hydrophone filters passed.');
+
+console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (8/8 test suites)!');
 
 

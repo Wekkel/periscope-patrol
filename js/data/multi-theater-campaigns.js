@@ -87,6 +87,13 @@ function _sub(id,name,className,factionId,theaterId,presentationId,torpedoSpecKe
   const guns={japan:{label:'14 cm/40 deck gun',shortLabel:'14 CM',muzzleVelocityMS:700},britain:{label:'4-inch deck gun',shortLabel:'4-IN',muzzleVelocityMS:716},italy:{label:'100 mm deck gun',shortLabel:'100 MM',muzzleVelocityMS:840},soviet:{label:'100 mm deck gun',shortLabel:'100 MM',muzzleVelocityMS:800}};
   if(guns[factionId])Object.assign(x.weapons.deckGun,guns[factionId]);
   if(factionId==='japan')x.sensors={passiveSound:{capabilityId:'PASSIVE_SOUND',label:'Hydrophones'},activeEcho:{capabilityId:'ACTIVE_ECHO',label:'Active echo-ranging',shortLabel:'ECHO',fixLabel:'ECHO FIX'}};
+  const nationalAudios={
+    japan:{key:'IJN_I_CLASS',electricPitch:1.04,dieselPitch:0.95,dieselLevel:1.05,hullMass:1.20,commandPitch:1.12,telegraphPitch:1.45,telegraphTone:'BRASS_CLANG',hydrophoneBandwidth:'TYPE93_ARRAY'},
+    britain:{key:'RN_T_CLASS',electricPitch:0.96,dieselPitch:1.05,dieselLevel:0.95,hullMass:1.10,commandPitch:1.02,telegraphPitch:1.18,telegraphTone:'ADMIRALTY_BELL',hydrophoneBandwidth:'ASDIC_PASSIVE'},
+    italy:{key:'RM_MARCELLO',electricPitch:1.00,dieselPitch:1.08,dieselLevel:0.94,hullMass:0.95,commandPitch:1.05,telegraphPitch:0.92,telegraphTone:'BRONZE_BELL',hydrophoneBandwidth:'IDROFONO_BASE'},
+    soviet:{key:'VMF_S_CLASS',electricPitch:1.12,dieselPitch:1.18,dieselLevel:1.02,hullMass:0.90,commandPitch:0.95,telegraphPitch:0.82,telegraphTone:'IRON_CHIME',hydrophoneBandwidth:'MARS_PASSIVE'}
+  };
+  if(nationalAudios[factionId])x.audio=Object.assign({},x.audio,nationalAudios[factionId]);
   return _mtFreeze(x);
 }
 const MULTI_SUBMARINE_PROFILES=_mtFreeze({

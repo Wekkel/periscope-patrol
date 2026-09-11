@@ -7,7 +7,7 @@ class AudioEngine{
     this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;this.lastRadio=0;
     this.titleStartPlayed=false;this.titleCueGain=null;
     this.battleNoiseSource=null;this.seaGain=null;this.windGain=null;this.rainGain=null;this.harborGain=null;this.harborOsc=null;this.harborOscGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;this.escortMachinery=null;
-    this.soundIdentity={key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1};
+    this.soundIdentity={key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1,telegraphPitch:1.0,telegraphTone:'CHADBURN',hydrophoneBandwidth:'WIDE'};
     this.speakerMode=false;this.speakerFilter=null;
     /* Hybrid sample house. Standardized WW2 audio library with procedural fallback.
        Decoded buffers and simultaneous voices are explicitly bounded for G88. */
@@ -389,11 +389,18 @@ class AudioEngine{
   }
 
   _soundProfile(state=null){
-    const id=String(state?.playerSub?.profileId||'').toLowerCase(),fallback=id.includes('type-vii')
-      ?{key:'TYPE_VII',electricPitch:1.08,dieselPitch:1.13,dieselLevel:.92,hullMass:.88,commandPitch:1.08}
-      :{key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1};
-    if(typeof getSubmarineProfile==='function')try{return{...fallback,...(getSubmarineProfile(state?.playerSub?.profileId)?.audio||{})};}catch(_){}
+    const pid=state?.playerSub?.profileId||state?.profileId||(typeof state==='string'?state:'');
+    const id=String(pid||'').toLowerCase(),fallback=id.includes('type-vii')
+      ?{key:'TYPE_VII',electricPitch:1.08,dieselPitch:1.13,dieselLevel:.92,hullMass:.88,commandPitch:1.08,telegraphPitch:1.32,telegraphTone:'GONG',hydrophoneBandwidth:'NARROW_GHG'}
+      :{key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1,telegraphPitch:1.0,telegraphTone:'CHADBURN',hydrophoneBandwidth:'WIDE'};
+    if(typeof getSubmarineProfile==='function')try{const sub=getSubmarineProfile(pid);if(sub?.audio)return{...fallback,...sub.audio};}catch(_){}
     return fallback;
+  }
+
+  setSubmarineProfile(profileOrState){
+    const identity=profileOrState?.audio?{...this._soundProfile(null),...profileOrState.audio}:this._soundProfile(profileOrState);
+    if(identity)this.soundIdentity=identity;
+    return this.soundIdentity;
   }
 
   setAmbient(depthFt,silent,propulsion=null,soundProfile=null){
@@ -1040,6 +1047,25 @@ class AudioEngine{
   playSurface(){this.ensure();this._noise(.58,72,'sine',.10,null,0,'machinery');setTimeout(()=>this._filteredNoise(.48,.065,{type:'lowpass',freq:520,q:.45,attack:.08},null,0,'world'),180);}
   playMissionComplete(){return this.event('MISSION_COMPLETE');}
 
+  playTelegraph(rpm=null){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    const now=Date.now();if(now-(this.lastTelegraph||0)<150)return;this.lastTelegraph=now;
+    const identity=this.soundIdentity||{},tPitch=clamp(Number(identity.telegraphPitch)||1,.7,1.6),tone=identity.telegraphTone||'CHADBURN';
+    const baseFreq=(tone==='GONG'?1350:tone==='ADMIRALTY_BELL'?1480:tone==='BRASS_CLANG'?1620:tone==='BRONZE_BELL'?1120:tone==='IRON_CHIME'?820:1200)*tPitch;
+    const lowFreq=(tone==='IRON_CHIME'?95:tone==='BRONZE_BELL'?115:tone==='GONG'?145:110)*tPitch;
+    this._metalClack(.65,lowFreq,baseFreq,'command');
+    if(tone==='GONG'||tone==='ADMIRALTY_BELL'||tone==='BRONZE_BELL'){
+      setTimeout(()=>{if(this.ctx)this._metalClack(.40,lowFreq*1.10,baseFreq*1.06,'command');},70);
+    }
+  }
+
+  playHelmOrder(heading=null){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    const now=Date.now();if(now-(this.lastHelmOrder||0)<180)return;this.lastHelmOrder=now;
+    const identity=this.soundIdentity||{},tPitch=clamp(Number(identity.telegraphPitch)||1,.7,1.6);
+    this._metalClack(.20,110*tPitch,640*tPitch,'command');
+  }
+
   /* SOUND room monitor: deliberately small and continuously parameterised.
      The contact model already supplies strength/cadence, so audio never invents
      a hidden target. Slow cadence is heavy machinery; fast cadence adds the
@@ -1055,10 +1081,12 @@ class AudioEngine{
       carrier.start();whine.start();lfo.start();ns.start(0,Math.random()*1.4);this.hydroCarrier=carrier;this.hydroGain=gain;this.hydroWhine=whine;this.hydroWhineGain=wg;this.hydroLfo=lfo;this.hydroMod=mod;this.hydroNoiseSource=ns;this.hydroNoiseFilter=nf;this.hydroNoiseGain=ng;
     }
     const now=this.ctx.currentTime,cad=clamp(cadenceHz,.55,3.4),centre=1-clamp(Math.abs(offsetDeg||0)/18,0,.85),fast=clamp((cad-.9)/2.5,0,1),level=s*centre;
+    const bw=this.soundIdentity?.hydrophoneBandwidth||'WIDE';
+    const bwFactor=bw==='NARROW_GHG'?1.22:bw==='ASDIC_PASSIVE'?1.12:bw==='TYPE93_ARRAY'?0.94:bw==='IDROFONO_BASE'?0.88:bw==='MARS_PASSIVE'?0.82:1.0;
     this.hydroCarrier.frequency.setTargetAtTime(42+cad*18,now,.10);
     this.hydroLfo.frequency.setTargetAtTime(cad,now,.08);
-    this.hydroWhine.frequency.setTargetAtTime(480+cad*390,now,.12);
-    this.hydroNoiseFilter.frequency.setTargetAtTime(520+cad*330,now,.15);
+    this.hydroWhine.frequency.setTargetAtTime((480+cad*390)*bwFactor,now,.12);
+    this.hydroNoiseFilter.frequency.setTargetAtTime((520+cad*330)*bwFactor,now,.15);
     this.hydroGain.gain.setTargetAtTime(.0025+level*.025,now,.12);
     this.hydroMod.gain.setTargetAtTime(.0015+level*.0045,now,.10);
     this.hydroWhineGain.gain.setTargetAtTime(level*(.0015+fast*.024),now,.15);
