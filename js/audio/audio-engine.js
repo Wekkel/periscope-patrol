@@ -197,7 +197,8 @@ class AudioEngine{
       'SONAR_PING','GENERAL_ALARM','TORPEDO_LAUNCH','TUBE_FILL',
       'TORPEDO_HIT','DECK_GUN_SHOT','DECK_GUN_IMPACT','DEPTH_CHARGE',
       'DIESEL_MACHINERY','ELECTRIC_MOTOR','SEA_AMBIENCE','SURFACED_WEATHER','CAVITATION',
-      'TORPEDO_RUN','HYDROPHONE_CONTACT'
+      'TORPEDO_RUN','HYDROPHONE_CONTACT','BRIEFING_START','OBJECTIVE_COMPLETE',
+      'OBJECTIVE_FAILED','RETURN_TO_BASE','AAR_CAREER','MUSIC_HISTORIC','MUSIC_RETURN'
     ]){
       this._loadHybrid(key).catch(()=>{});
     }
@@ -339,8 +340,20 @@ class AudioEngine{
 
   duck(priority=80,durationMs=550){
     const p=clamp((Number(priority)||0)/100,0,1),factor=clamp(1-p*.52,.42,.92);
-    this.duckFactor=Math.min(this.duckFactor||1,factor);this.duckUntil=Math.max(this.duckUntil||0,performance.now()+Math.max(80,durationMs));
-    if(this.ctx){const now=this.ctx.currentTime;for(const name of ['world','machinery'])this._bus(name)?.gain.setTargetAtTime((this.mixTargets[name]??1)*this.duckFactor,now,.025);}
+    this.duckFactor=Math.min(this.duckFactor||1,factor);
+    const ms=Math.max(80,durationMs);
+    this.duckUntil=Math.max(this.duckUntil||0,performance.now()+ms);
+    if(this.ctx){
+      const now=this.ctx.currentTime;
+      for(const name of ['world','machinery'])this._bus(name)?.gain.setTargetAtTime((this.mixTargets[name]??1)*this.duckFactor,now,.025);
+      setTimeout(()=>{
+        if(performance.now()>=this.duckUntil&&this.ctx){
+          this.duckFactor=1;
+          const rNow=this.ctx.currentTime;
+          for(const name of ['world','machinery'])this._bus(name)?.gain.setTargetAtTime(this.mixTargets[name]??1,rNow,.28);
+        }
+      },ms+15);
+    }
   }
 
   _ensureNoiseBuffer(){
@@ -661,11 +674,14 @@ class AudioEngine{
     setTimeout(()=>this._metalClack(.12,96*pitch,980*pitch,'system'),315);
   }
   playBattleStations(){
-    this.ensure();if(Date.now()-this.lastBattleStations<40000)return;this.lastBattleStations=Date.now();if(this._tryHybrid('GENERAL_ALARM'))return;if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
+    this.ensure();if(Date.now()-this.lastBattleStations<40000)return;this.lastBattleStations=Date.now();
+    this.duck(86,1200);
+    if(this._tryHybrid('GENERAL_ALARM',{volume:0.95}))return;
+    if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
     // Short electro-mechanical klaxon: an inharmonic motor/body pair, uneven
     // rise and a little housing rattle. No clean two-note computer beep.
     this._filteredNoise(.78,.045,{type:'bandpass',freq:310,q:2.1,attack:.018},null,0,'command');
-    for(const [f0,f1,v] of [[151,166,.052],[287,271,.019]]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.setValueAtTime(f0,now);o.frequency.linearRampToValueAtTime(f1,now+.53);g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(v,now+.055);g.gain.setValueAtTime(v*.82,now+.34);g.gain.exponentialRampToValueAtTime(.001,now+.76);o.connect(g);g.connect(this._bus('command'));o.start();o.stop(now+.80);}this.duck(82,820);
+    for(const [f0,f1,v] of [[151,166,.052],[287,271,.019]]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sawtooth';o.frequency.setValueAtTime(f0,now);o.frequency.linearRampToValueAtTime(f1,now+.53);g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(v,now+.055);g.gain.setValueAtTime(v*.82,now+.34);g.gain.exponentialRampToValueAtTime(.001,now+.76);o.connect(g);g.connect(this._bus('command'));o.start();o.stop(now+.80);}
   }
 
   stopTitleCue(fade=.24){
@@ -680,6 +696,7 @@ class AudioEngine{
     if(kind==='START')this.titleStartPlayed=true;
     if(kind==='START'&&this._tryHybrid('MUSIC_HISTORIC'))return true;
     if(kind==='COMPLETE'&&this._tryHybrid('MUSIC_RETURN'))return true;
+    if(kind==='FAIL'&&this._tryHybrid('MUSIC_FAIL'))return true;
     this.stopTitleCue(.06);const ctx=this.ctx,now=ctx.currentTime,dur=kind==='COMPLETE'?4.2:5.4,cue=ctx.createGain();cue.gain.value=1;cue.connect(this.musicGain);this.titleCueGain=cue;
     // Short original low-brass identity only; no melody and no external assets.
     // Procedural brass is intentionally used sparingly because natural brass
@@ -690,7 +707,8 @@ class AudioEngine{
   }
 
   playASWAlarm(soft=false){
-    if(this._tryHybrid('GENERAL_ALARM',{volume:soft?.55:1}))return;
+    this.duck(soft?72:86,soft?850:1200);
+    if(this._tryHybrid('GENERAL_ALARM',{volume:soft?.55:.95}))return;
     this.playBattleStations();
   }
 
@@ -702,19 +720,21 @@ class AudioEngine{
       case'WAYPOINT_REACHED':return this.playWaypoint();
       case'RADIO_MESSAGE':return this.playRadioMessage();
       case'HARBOR_REACHED':if(this._tryHybrid('RETURN_TO_BASE'))return true;return this.playUiConfirm(.42);
-      case'MISSION_START':this.stopTitleCue(.28);return this._tryHybrid('BRIEFING_START');
+      case'MISSION_START':this.stopTitleCue(.28);if(this._tryHybrid('BRIEFING_START'))return true;return this.playTitleCue('START');
       case'PRIMARY_OBJECTIVE_COMPLETE':if(this._tryHybrid('OBJECTIVE_COMPLETE'))return true;return this.playUiConfirm(.46);
       case'MISSION_FAILED':if(this._tryHybrid('OBJECTIVE_FAILED'))return true;return this._metalClack(.34,78,390,'mission');
       case'PATROL_COMPLETE':case'MISSION_COMPLETE':if(this._tryHybrid('MUSIC_RETURN'))return true;return this.playTitleCue('COMPLETE');
       case'AIRCRAFT_SPOTTED':case'SUB_DETECTED':case'SEARCHLIGHT_CONTACT':return this.playBattleStations();
+      case'AIR_ATTACK_TENSION':return this._tryHybrid('AIR_ATTACK_TENSION');
       case'AIRCRAFT_ATTACK':{
         this.playBattleStations();
+        this._tryHybrid('AIR_ATTACK_TENSION');
         this._tryHybrid('AIRCRAFT_ATTACK',{volume:.85,bearingDeg:opts.bearingDeg??null,ownHeading:opts.ownHeading??0});
         return true;
       }
       case'DEPTH_CHARGE_SPLASH':return this.playDepthChargeSplash(opts.distanceFactor??.5,opts.bearingDeg??null,opts.ownHeading??0);
       case'AIR_BOMB':return this.playAirBomb(opts.distanceFactor??.3,opts.bearingDeg??null,opts.ownHeading??0);
-      case'AAR_CAREER':return this._tryHybrid('AAR_CAREER');
+      case'AAR_CAREER':if(this._tryHybrid('AAR_CAREER'))return true;return this.playTitleCue('COMPLETE');
       default:return this.playUiConfirm(.18);
     }
   }
@@ -1008,7 +1028,11 @@ class AudioEngine{
   }
 
   playCrashDive(){
-    this.ensure();this.playBattleStations();this._filteredNoise(.55,.095,{type:'lowpass',freq:360,q:.45,attack:.018},null,0,'command');
+    this.ensure();
+    this.duck(92,1600);
+    this.playBattleStations();
+    this._filteredNoise(.75,.12,{type:'lowpass',freq:360,q:.45,attack:.018},null,0,'command');
+    setTimeout(()=>this._filteredNoise(1.2,.10,{type:'bandpass',freq:540,q:.85,attack:.04},null,0,'system'),140);
   }
 
   playAlarm(){return this.playBattleStations();}

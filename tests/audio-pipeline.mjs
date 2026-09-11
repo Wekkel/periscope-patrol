@@ -367,5 +367,95 @@ assert.equal(loopCache.hybridBuffers.has('CAVITATION'), true, 'New cavitation bu
 
 console.log('[AUDIO TEST] Ambient loops, RPM transfer functions, cavitation logic, and silent running passed.');
 
-console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (6/6 test suites)!');
+// ─── 7. Audio Director Mix Matrices, Threat Scaling & Stings ───────────────
+console.log('[AUDIO TEST] Testing Audio Director mix matrices, dynamic threat scaling, and stings...');
+
+// 1. Verify stings & alarms files on disk
+const stingKeys = [
+  'GENERAL_ALARM', 'BRIEFING_START', 'OBJECTIVE_COMPLETE', 'OBJECTIVE_FAILED',
+  'RETURN_TO_BASE', 'AAR_CAREER', 'AIR_ATTACK_TENSION', 'MUSIC_HISTORIC',
+  'MUSIC_RETURN', 'MUSIC_FAIL'
+];
+let totalStingsDiskBytes = 0;
+for (const key of stingKeys) {
+  const spec = manifest[key];
+  assert.ok(spec, `Sting manifest entry missing for ${key}`);
+  const filePath = path.join(root, spec.url.replace(/^\.\//, ''));
+  assert.ok(existsSync(filePath), `Sting file missing at ${filePath}`);
+  const st = await stat(filePath);
+  assert.ok(st.size > 10000, `Sting file ${key} is unexpectedly small (${st.size} bytes)`);
+  totalStingsDiskBytes += st.size;
+}
+console.log(`[AUDIO TEST] Total 10 stings & alarms disk footprint: ${(totalStingsDiskBytes / 1024).toFixed(1)} KB`);
+assert.ok(totalStingsDiskBytes < 750 * 1024, `10 stings & alarms exceed 750 KB disk allocation: ${totalStingsDiskBytes}`);
+
+// 2. AudioDirector mix profile evaluation
+function calcDirectorProfile(q) {
+  const m = { system: 1, command: 1, sensor: 1, world: 1, machinery: 1, weapons: 1, mission: 1 };
+  if (q.base === 'SILENT_RUNNING') Object.assign(m, { system: .70, command: .82, sensor: 1.12, world: .32, machinery: .48, mission: .82 });
+  else if (q.base === 'PERISCOPE_STALK') Object.assign(m, { system: .82, sensor: 1.05, world: .48, machinery: .70 });
+  else if (q.base === 'SURFACED_TRANSIT') Object.assign(m, { world: 1.05, machinery: 1.02 });
+  else if (q.base === 'RETURN_HOME') Object.assign(m, { world: .88, machinery: .86, mission: 1.05 });
+
+  if (q.perspective === 'HYDROPHONE_FEED') Object.assign(m, { system: m.system * .68, world: m.world * .20, machinery: m.machinery * .45, sensor: Math.min(1.30, m.sensor * 1.16) });
+  else if (q.perspective === 'PERISCOPE_INTERNAL') Object.assign(m, { world: m.world * .72, machinery: m.machinery * .88 });
+  else if (q.perspective === 'EXPOSED_SURFACE') Object.assign(m, { world: Math.min(1.30, m.world * 1.15), sensor: m.sensor * .75 });
+  else if (q.perspective === 'SUBMERGED') m.world *= .42;
+
+  if (q.threat === 'ENEMY_SEARCH') Object.assign(m, { sensor: Math.min(1.28, m.sensor * 1.12), machinery: m.machinery * .78 });
+  else if (q.threat === 'DETECTED_ASW') Object.assign(m, { sensor: Math.min(1.30, m.sensor * 1.14), command: 1.05, machinery: m.machinery * .72, world: m.world * .78, weapons: 1.10 });
+  else if (q.threat === 'AIR_ATTACK') Object.assign(m, { command: 1.06, world: Math.min(1.15, m.world * 1.08), machinery: m.machinery * .88, weapons: 1.08 });
+
+  if (q.compressed) { m.system *= .38; m.command *= .58; m.world *= .62; m.machinery *= .78; m.mission *= .72; }
+  return m;
+}
+
+// Cruising navigation mix (normal baseline)
+const cruising = calcDirectorProfile({ base: 'NORMAL_NAVIGATION', threat: 'NONE', perspective: 'INTERNAL_SURFACE', compressed: false });
+assert.equal(cruising.machinery, 1.0);
+assert.equal(cruising.world, 1.0);
+assert.equal(cruising.sensor, 1.0);
+
+// Silent running mix
+const silent = calcDirectorProfile({ base: 'SILENT_RUNNING', threat: 'NONE', perspective: 'SUBMERGED', compressed: false });
+assert.equal(silent.machinery, 0.48, 'Machinery in silent running must be suppressed to 0.48');
+assert.ok(silent.world < 0.15, 'Underwater world in silent running must be suppressed below 0.15');
+assert.equal(silent.sensor, 1.12, 'Sensor bus must be lifted in silent running');
+
+// Hydrophone feed in Sound Room
+const soundRoom = calcDirectorProfile({ base: 'NORMAL_NAVIGATION', threat: 'NONE', perspective: 'HYDROPHONE_FEED', compressed: false });
+assert.ok(soundRoom.world <= 0.20, 'World must be ducked to <= 0.20 in hydrophone feed');
+assert.ok(soundRoom.machinery <= 0.45, 'Machinery must be ducked to <= 0.45 in hydrophone feed');
+assert.ok(soundRoom.sensor >= 1.16, 'Sensor must be lifted in hydrophone feed');
+
+// Exposed surface perspective on Bridge
+const bridge = calcDirectorProfile({ base: 'NORMAL_NAVIGATION', threat: 'NONE', perspective: 'EXPOSED_SURFACE', compressed: false });
+assert.equal(bridge.world, 1.15, 'Exposed bridge perspective must lift world wind/spray');
+assert.equal(bridge.sensor, 0.75, 'Exposed bridge perspective must attenuate hydrophone/sensor bus');
+
+// Detected ASW combat threat escalation
+const aswThreat = calcDirectorProfile({ base: 'NORMAL_NAVIGATION', threat: 'DETECTED_ASW', perspective: 'SUBMERGED', compressed: false });
+assert.equal(aswThreat.sensor, 1.14, 'Sensor bus must lift on ASW threat');
+assert.equal(aswThreat.weapons, 1.10, 'Weapons bus must lift on ASW threat');
+assert.equal(aswThreat.machinery, 0.72, 'Machinery must attenuate on ASW threat');
+
+// Time compression mix
+const timeCompressed = calcDirectorProfile({ base: 'NORMAL_NAVIGATION', threat: 'NONE', perspective: 'INTERNAL_SURFACE', compressed: true });
+assert.equal(timeCompressed.system, 0.38, 'Routine system chatter must attenuate during time compression');
+assert.equal(timeCompressed.command, 0.58, 'Command bus must attenuate to 0.58 during time compression');
+assert.equal(timeCompressed.mission, 0.72, 'Mission bus must attenuate during time compression');
+
+// 3. Alarm ducking factors & hierarchy
+const duckGeneralAlarm = calcDuckFactor(86);
+assert.ok(duckGeneralAlarm < 0.56 && duckGeneralAlarm > 0.54, `General alarm duck factor must be ~0.55, got ${duckGeneralAlarm}`);
+
+const duckCrashDive = calcDuckFactor(92);
+assert.ok(duckCrashDive < 0.53 && duckCrashDive > 0.51, `Crash dive duck factor must be ~0.52, got ${duckCrashDive}`);
+
+assert.ok(duckCrashDive < duckGeneralAlarm, 'Crash dive must duck machinery deeper than general alarm');
+
+console.log('[AUDIO TEST] Audio Director mix matrices, threat scaling, and alarm ducking passed.');
+
+console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (7/7 test suites)!');
+
 

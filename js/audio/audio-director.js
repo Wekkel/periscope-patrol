@@ -35,8 +35,9 @@ class AudioDirector{
     else if(q.base==='SURFACED_TRANSIT')Object.assign(m,{world:1.05,machinery:1.02});
     else if(q.base==='RETURN_HOME')Object.assign(m,{world:.88,machinery:.86,mission:1.05});
 
-    if(q.perspective==='HYDROPHONE_FEED')Object.assign(m,{system:m.system*.68,world:m.world*.22,machinery:m.machinery*.48,sensor:Math.min(1.28,m.sensor*1.16)});
+    if(q.perspective==='HYDROPHONE_FEED')Object.assign(m,{system:m.system*.68,world:m.world*.20,machinery:m.machinery*.45,sensor:Math.min(1.30,m.sensor*1.16)});
     else if(q.perspective==='PERISCOPE_INTERNAL')Object.assign(m,{world:m.world*.72,machinery:m.machinery*.88});
+    else if(q.perspective==='EXPOSED_SURFACE')Object.assign(m,{world:Math.min(1.30,m.world*1.15),sensor:m.sensor*.75});
     else if(q.perspective==='SUBMERGED')m.world*=.42;
 
     if(q.threat==='ENEMY_SEARCH')Object.assign(m,{sensor:Math.min(1.28,m.sensor*1.12),machinery:m.machinery*.78});
