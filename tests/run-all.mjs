@@ -22,7 +22,8 @@ const checks=[
   ['call-target resolution',process.execPath,['tests/verify-call-targets.mjs','.']],
   ['render call-target resolution',process.execPath,['tests/verify-render-call-targets.mjs','.']],
   ['browser & device test harness (lifecycle)',process.execPath,['tests/harness/mission-harness.mjs','--scenario=lifecycle','--device=DESKTOP_STANDARD']],
-  ['browser & device test harness (national stations)',process.execPath,['tests/harness/mission-harness.mjs','--scenario=national-stations','--device=DESKTOP_STANDARD']]
+  ['browser & device test harness (national stations)',process.execPath,['tests/harness/mission-harness.mjs','--scenario=national-stations','--device=DESKTOP_STANDARD']],
+  ['browser & device test harness (ship recognition)',process.execPath,['tests/harness/mission-harness.mjs','--scenario=ship-recognition','--device=DESKTOP_STANDARD']]
 ];
 
 for(const [label,command,args] of checks){

@@ -917,6 +917,138 @@ assert.ok(ps.particles.some(p => p.type === 'steam'), 'Particle system generates
 assert.ok(ps.particles.some(p => p.type === 'oil_smoke'), 'Particle system generates dense oil smoke puffs');
 assert.ok(ps.particles.some(p => p.type === 'fire_burst'), 'Particle system generates fire burst puffs');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4');
+// ═══════════════════════════════════════════════════ 15. GROGNARD IDENTIFICATION & CROSS-SYSTEM INTEGRATION
 
+// Test 1: Misidentification straf — stadimeter schaalfout proportioneel aan masthoogte-ratio
+// Gebruik recData en physNav die al geladen zijn door Section 12
+const simStateMis = {
+  playerSub: { position: { xNm: 0, yNm: 0 }, heading: 0, depthFeet: 55, damage: { periscopeDamage: 0 } },
+  tactical: { activeStation: 'PERISCOPE', periscopeBearing: 0, periscopeZoom: 1, selectedTrackId: 'T_MIS' },
+  tdc: { targetId: 'T_MIS', solutionQuality: 0.50, trackSource: 'SCOPE', rangeNm: 3.0, bearing: 0, dudMode: 'none' },
+  world: {
+    contacts: [{ id: 'T_MIS', name: 'Texaco Oslo', type: 'TANKER', vesselProfileId: 'atlantic-tanker', modelKey: 'ATLANTIC_TANKER', position: { xNm: 0, yNm: -3.0 }, heading: 90, speedKnots: 6, lengthYards: 160 }],
+    contactTracks: { T_MIS: { id: 'T_MIS', bearing: 0, rangeEstimateNm: 3.0, courseEstimate: 90, speedEstimateKnots: 6, confidence: 0.9, visualHullConfirmed: true } }
+  },
+  time: { elapsedSeconds: 0 },
+  log: []
+};
+const engMis = { state: simStateMis, log(msg,lv) { simStateMis.log.push({msg,lv}); }, confirmScopeVisualContact() {}, updateTdc() {} };
+const physNavMis = new physNav.SimEngine(simStateMis, { dispatch() {} });
+physNavMis.state = simStateMis;
+physNavMis.log = engMis.log;
+physNavMis.updateTdc = () => {};
 
+// Correct identification first (atlantic-tanker masthead 72 ft)
+const correctIdRes = physNavMis.identifyContactClass('T_MIS', 'atlantic-tanker');
+assert.equal(correctIdRes.success, true, 'Correct identification of tanker must succeed');
+assert.equal(correctIdRes.isCorrect, true, 'Tanker inferred as atlantic-tanker must be CORRECT');
+const qualityAfterCorrect = simStateMis.tdc.solutionQuality;
+assert.ok(qualityAfterCorrect >= 0.65, `TDC quality must be boosted after correct ID (got ${qualityAfterCorrect})`);
+
+// Now misidentify as a Flower corvette (masthead 62 ft instead of 72 ft)
+physNavMis.identifyContactClass('T_MIS', 'flower-corvette');
+assert.equal(simStateMis.world.contactTracks.T_MIS.identificationStatus, 'MISIDENTIFIED', 'Misidentification must set MISIDENTIFIED status');
+assert.equal(simStateMis.world.contactTracks.T_MIS.identifiedMastheadFt, 62, 'Misidentified masthead must be 62 ft (Flower corvette)');
+
+// Stadimeter scaling error: apparent range = true range * (wrong mast / true mast) = 2.0 * (62/79)
+physNavMis.sendScopeToTdc();
+const apparentRangeMis = simStateMis.tdc.rangeNm;
+approx(apparentRangeMis, 2.0 * (62 / 79), 0.05);
+assert.ok(apparentRangeMis < 2.0, `Misidentifying a smaller mast understates the range (${apparentRangeMis.toFixed(3)} NM < 2.0 NM)`);
+
+// Test 2: recommendedTorpedoDepthFt over het volledige draft-bereik
+// Flower corvette draft 14.2 ft — impact detonation: ~50-65% = ~7-10 ft -> rounded to 5 ft increments
+const depthFlowerImpact = recData.recommendedTorpedoDepthFt(14.2, false);
+assert.ok(depthFlowerImpact >= 5 && depthFlowerImpact <= 15, `Flower corvette impact depth must be 5-15 ft (got ${depthFlowerImpact})`);
+
+// Flower corvette magnetic: draft + 2 ft = 16.2 ft, rounded to nearest 5 = 15 ft
+const depthFlowerMag = recData.recommendedTorpedoDepthFt(14.2, true);
+assert.equal(depthFlowerMag, 15, 'Flower corvette magnetic depth recommendation must be 15 ft');
+
+// Town-class destroyer draft 10.5 ft — impact
+const depthTownImpact = recData.recommendedTorpedoDepthFt(10.5, false);
+assert.ok(depthTownImpact >= 5 && depthTownImpact <= 10, `Town-class impact depth must be 5-10 ft (got ${depthTownImpact})`);
+
+// Large cruiser draft 28 ft — impact: ~55% = 15.4 ft -> 15 ft
+const depthCruiserImpact = recData.recommendedTorpedoDepthFt(28, false);
+assert.ok(depthCruiserImpact >= 10 && depthCruiserImpact <= 20, `Cruiser impact depth must be 10-20 ft (got ${depthCruiserImpact})`);
+
+// Large cruiser magnetic: 28 + 2 = 30 ft -> rounded to 30 ft
+const depthCruiserMag = recData.recommendedTorpedoDepthFt(28, true);
+assert.equal(depthCruiserMag, 30, 'Cruiser magnetic depth must be 30 ft');
+
+// Test 3: Grognard combinatietest — torpedo hit → compartiment schade → zinktraject coherentie
+// Gebruik een fresh vrachtvaarder om het volledige causale pad te testen
+const grognardShip = {
+  id: 'C_GROGNARD_1',
+  name: 'SS Fort Stikine',
+  type: 'CARGO',
+  displayType: 'CARGO VESSEL',
+  lengthYards: 425,  // lang genoeg voor BREAK_MIDSHIPS
+  speedKnots: 9,
+  baseSpeed: 9,
+  position: { xNm: 1.0, yNm: 1.0 }
+};
+const grognardEngine = {
+  state: { time: { elapsedSeconds: 0 }, weapons: {}, campaign: { score: 0, tonnageSunk: 0 }, world: { contactTracks: {} } },
+  log() {},
+  notify() {}
+};
+
+// Midships torpedo hit
+shipDmg.applyTorpedoShipDamage(grognardEngine, grognardShip, {
+  hitFrac: 0.02,          // midships
+  hitSide: 1,
+  warheadKg: 340,
+  incidence: 85,
+  torpedoId: 'TORP_G1'
+});
+const Dg = grognardShip.shipDamage;
+assert.ok(Dg.compartments.midships > 0.30, 'Midships compartment must be heavily damaged by midships hit');
+assert.ok(Dg.propulsion > 0.50, 'Midships hit must severely damage propulsion');
+
+// Force founderings and resolve trajectory
+Dg.flotation = 1.0;
+shipDmg.beginShipSinking(grognardEngine, grognardShip, 'FLOODING');
+assert.equal(grognardShip.sunk, true, 'Ship must transition to sunk after beginShipSinking');
+assert.ok(grognardShip.sinkTrajectory, 'sinkTrajectory must be assigned by beginShipSinking');
+// Long cargo + midships compartment damage -> should resolve BREAK_MIDSHIPS or SETTLE_LIST (not PLUNGE/CAPSIZE)
+assert.ok(
+  grognardShip.sinkTrajectory === 'BREAK_MIDSHIPS' || grognardShip.sinkTrajectory === 'SETTLE_LIST',
+  `Long cargo with midships damage must sink as BREAK_MIDSHIPS or SETTLE_LIST (got ${grognardShip.sinkTrajectory})`
+);
+assert.ok(Number.isFinite(grognardShip.sinkStyle), 'sinkStyle must be a finite integer');
+assert.ok(grognardShip.sinkStyle >= 0 && grognardShip.sinkStyle <= 4, `sinkStyle must be 0-4 (got ${grognardShip.sinkStyle})`);
+
+// Test 4: inferShipClassFromContact — exhaustieve fallback naar atlantic-freighter
+const unknownContact = { type: 'MERCHANT', vesselProfileId: 'unknown-vessel', modelKey: 'UNKNOWN' };
+const fallbackClass = recData.inferShipClassFromContact(unknownContact);
+assert.equal(fallbackClass.id, 'atlantic-freighter', 'Unknown MERCHANT contact must fall back to atlantic-freighter');
+
+// Null / undefined contact must return null without throwing
+const nullClass = recData.inferShipClassFromContact(null);
+assert.equal(nullClass, null, 'null contact must return null from inferShipClassFromContact');
+
+// Type-based routing: TANKER → atlantic-tanker
+const tankerContact = { type: 'TANKER', vesselProfileId: 'unknown', modelKey: 'UNKNOWN' };
+const tankerInferred = recData.inferShipClassFromContact(tankerContact);
+assert.equal(tankerInferred.id, 'atlantic-tanker', 'TANKER type must infer atlantic-tanker');
+
+// DESTROYER fallback
+const destroyerContact = { type: 'DESTROYER', vesselProfileId: 'unknown-dd', modelKey: 'UNKNOWN_DD' };
+const destroyerInferred = recData.inferShipClassFromContact(destroyerContact);
+assert.ok(destroyerInferred !== null, 'DESTROYER type must always infer a class');
+assert.ok(['ijn-fubuki-destroyer','town-destroyer','fletcher-destroyer'].includes(destroyerInferred.id),
+  `DESTROYER must infer a known destroyer class (got ${destroyerInferred.id})`);
+
+// Test 5: Alle catalogus-klassen hebben een aanbevolen torpedodiepte > 0
+// (Integration check: recognition data is consistent with torpedo attack system)
+const allCats = recData.getAllRecognitionClasses();
+for (const cls of allCats) {
+  const depth = recData.recommendedTorpedoDepthFt(cls.dimensions.draftFt, false);
+  assert.ok(depth > 0 && depth <= 40, `Class ${cls.id} impact depth must be 1-40 ft (got ${depth})`);
+  const depthMag = recData.recommendedTorpedoDepthFt(cls.dimensions.draftFt, true);
+  assert.ok(depthMag > 0 && depthMag <= 45, `Class ${cls.id} magnetic depth must be 1-45 ft (got ${depthMag})`);
+}
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5');

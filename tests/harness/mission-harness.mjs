@@ -10,6 +10,7 @@ import {ScenarioContext, ScenarioRunner} from './scenario-runner.mjs';
 import {createMissionLifecycleScenario} from './scenarios/mission-lifecycle-scenario.mjs';
 import {createEnduranceScenario} from './scenarios/endurance-scenario.mjs';
 import {createNationalStationsScenario} from './scenarios/national-stations-scenario.mjs';
+import {createShipRecognitionScenario} from './scenarios/ship-recognition-scenario.mjs';
 
 export async function runMissionScenario({
   scenario,
@@ -160,6 +161,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(currentFil
       scenario = createMissionLifecycleScenario(profile);
     } else if (scenarioArg === 'national-stations' || scenarioArg === 'national') {
       scenario = createNationalStationsScenario(profile);
+    } else if (scenarioArg === 'ship-recognition' || scenarioArg === 'recognition') {
+      scenario = createShipRecognitionScenario(profile);
     } else if (scenarioArg === 'endurance') {
       scenario = createEnduranceScenario(profile, { iterations });
     } else {
