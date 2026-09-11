@@ -243,4 +243,80 @@ const initialSuspicion = harness4.H.suspicion;
 harborModule.HarborSystem.updateHarbor.call(harness4.mockContext, 10.0);
 assert.ok(harness4.H.suspicion > initialSuspicion, 'Optical lookouts must build suspicion against surfaced hulls during daytime');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4');
+// 9. 2.5D Harbor Architecture & Blackout Rendering Tests
+const battleAtm = await load('js/rendering/battle-atmosphere.js', ['BattleAtmosphere'], {
+  projectWorldPoint: () => ({ x: 320, y: 240, d: 600 }),
+  NM_M: 1852,
+  degToRad, radToDeg, normDeg, shortDelta, knotsNmSec, clamp, distNm, lerp, bearingBetween,
+  weatherAtPosition: () => ({ searchlightFactor: 1 })
+});
+
+const createAtmosphereHarness = (harborAlert = 0, daylight = 0.1) => {
+  const fills = [];
+  const strokes = [];
+  const gradients = [];
+  const ellipses = [];
+  const ctx = {
+    fillStyle: '',
+    strokeStyle: '',
+    lineWidth: 1,
+    fillRect(x, y, w, h) { fills.push({ style: this.fillStyle, x, y, w, h }); },
+    strokeRect(x, y, w, h) { strokes.push({ style: this.strokeStyle, x, y, w, h }); },
+    beginPath() {},
+    closePath() {},
+    moveTo() {},
+    lineTo() {},
+    stroke() { strokes.push({ style: this.strokeStyle }); },
+    fill() { fills.push({ style: this.fillStyle }); },
+    arc(x, y, r) { fills.push({ style: this.fillStyle, x, y, r, type: 'arc' }); },
+    ellipse(x, y, rx, ry) { ellipses.push({ style: this.fillStyle, x, y, rx, ry }); },
+    createLinearGradient(x0, y0, x1, y1) {
+      const stops = [];
+      const g = {
+        addColorStop(offset, color) { stops.push({ offset, color }); },
+        stops, x0, y0, x1, y1
+      };
+      gradients.push(g);
+      return g;
+    },
+    save() {},
+    restore() {},
+    fills,
+    strokes,
+    gradients,
+    ellipses
+  };
+  const cam = { f: 1200 };
+  const state = {
+    playerSub: { position: { xNm: 0, yNm: 0 } },
+    world: {
+      harbor: { alert: harborAlert },
+      portScenes: [{
+        known: true,
+        heading: 0,
+        position: { xNm: 1, yNm: 1 },
+        features: [
+          { kind: 'pier', alongNm: 0, lateralNm: 0.1, heightM: 2, sizeM: 80 },
+          { kind: 'warehouse', alongNm: 0.1, lateralNm: 0.1, heightM: 8, sizeM: 30 },
+          { kind: 'tank', alongNm: 0.2, lateralNm: 0.1, heightM: 10, sizeM: 25 },
+          { kind: 'crane', alongNm: 0.3, lateralNm: 0.1, heightM: 18, sizeM: 15 }
+        ]
+      }]
+    }
+  };
+  return { ctx, cam, state, dl: daylight };
+};
+
+// Test 2.5D normal night: dock lanterns rendered on warehouse
+const harnessNormal = createAtmosphereHarness(0, 0.1);
+battleAtm.BattleAtmosphere.drawPortScenes3D.call({ k: 1, lowSpec: false, battlePoint: battleAtm.BattleAtmosphere.battlePoint }, harnessNormal.ctx, harnessNormal.cam, harnessNormal.state, harnessNormal.dl);
+assert.ok(harnessNormal.ctx.fills.some(f => String(f.style).includes('255,185,75')), 'Dock lanterns must be illuminated at night during peace/normal alert');
+assert.ok(harnessNormal.ctx.gradients.length > 0, 'Cylindrical oil tanks must use directional linear gradient');
+assert.ok(harnessNormal.ctx.ellipses.length > 0, 'Oil tanks must render 2.5D dome caps with ellipse');
+
+// Test 2.5D blackout under harbor alarm: dock lanterns must be extinguished
+const harnessBlackout = createAtmosphereHarness(2, 0.1);
+battleAtm.BattleAtmosphere.drawPortScenes3D.call({ k: 1, lowSpec: false, battlePoint: battleAtm.BattleAtmosphere.battlePoint }, harnessBlackout.ctx, harnessBlackout.cam, harnessBlackout.state, harnessBlackout.dl);
+assert.ok(!harnessBlackout.ctx.fills.some(f => String(f.style).includes('255,185,75')), 'Dock lanterns must be extinguished during harbor alarm (blackout discipline)');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2');

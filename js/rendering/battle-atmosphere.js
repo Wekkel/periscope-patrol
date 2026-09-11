@@ -9,13 +9,78 @@ const BattleAtmosphere={
     },
 
     drawPortScenes3D(ctx,cam,state,dl){
-      const own=state.playerSub.position,k=this.k,maxFeatures=this.lowSpec?12:24;let drawn=0;
+      const own=state.playerSub.position,k=this.k,maxFeatures=this.lowSpec?12:28;let drawn=0;
+      const H=state.world.harbor,blackout=(H?.alert||0)>=2;
       for(const scene of state.world.portScenes||[]){if(!scene.known||distNm(own,scene.position)>10)continue;const a=degToRad(scene.heading||0),sin=Math.sin(a),cos=Math.cos(a);
         for(const f of scene.features||[]){if(drawn++>=maxFeatures)return;const q={xNm:scene.position.xNm+sin*f.alongNm+cos*f.lateralNm,yNm:scene.position.yNm-cos*f.alongNm+sin*f.lateralNm},p=this.battlePoint(cam,q,0);if(!p)continue;
           const scale=cam.f/Math.max(120,p.d),height=Math.max(1.5,(f.heightM||5)*scale),width=Math.max(1.5,(f.sizeM||12)*scale);
-          if(f.kind==='crane'){ctx.strokeStyle=`rgba(145,145,130,${.38+.34*dl})`;ctx.lineWidth=Math.max(1,k);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x,p.y-height);ctx.lineTo(p.x+width*.65,p.y-height);ctx.stroke();}
-          else if(f.kind==='pier'){ctx.strokeStyle='rgba(112,105,84,.58)';ctx.lineWidth=Math.max(1.5,2*k);ctx.beginPath();ctx.moveTo(p.x-width*.45,p.y);ctx.lineTo(p.x+width*.45,p.y);ctx.stroke();}
-          else{ctx.fillStyle=f.kind==='tank'?`rgba(154,158,145,${.30+.40*dl})`:`rgba(116,111,94,${.38+.42*dl})`;ctx.fillRect(p.x-width*.45,p.y-height,width*.9,height);}
+          if(f.kind==='pier'){
+            // 2.5D Stone & Timber Wharf Wall
+            const wharfTop=Math.max(1.5,2.2*k),wharfDrop=Math.max(2,3.5*k);
+            ctx.fillStyle=`rgba(92,88,80,${.42+.38*dl})`;
+            ctx.fillRect(p.x-width*.5,p.y-wharfTop,width,wharfTop+wharfDrop);
+            // Waterline contact shadow
+            ctx.fillStyle=`rgba(18,22,26,${.45+.30*dl})`;
+            ctx.fillRect(p.x-width*.5,p.y+wharfDrop*.75,width,Math.max(1,1.5*k));
+            // Wooden pilings / fender posts
+            ctx.strokeStyle=`rgba(55,50,42,${.50+.35*dl})`;ctx.lineWidth=Math.max(1,1.2*k);
+            const pilings=Math.max(2,Math.min(6,Math.floor(width/(12*k))));
+            ctx.beginPath();
+            for(let i=0;i<=pilings;i++){
+              const px=p.x-width*.48+(width*.96)*(i/pilings);
+              ctx.moveTo(px,p.y-wharfTop-1.5*k);ctx.lineTo(px,p.y+wharfDrop+1.5*k);
+            }
+            ctx.stroke();
+          }else if(f.kind==='warehouse'){
+            // 2.5D Warehouse with Pitched Roof (Zadeldak)
+            const wallH=height*.64;
+            // Wall body
+            ctx.fillStyle=`rgba(112,96,78,${.38+.44*dl})`;
+            ctx.fillRect(p.x-width*.48,p.y-wallH,width*.96,wallH);
+            // Triangular gable and pitched roof
+            ctx.fillStyle=`rgba(86,76,66,${.44+.42*dl})`;
+            ctx.beginPath();ctx.moveTo(p.x-width*.5,p.y-wallH);ctx.lineTo(p.x,p.y-height);ctx.lineTo(p.x+width*.5,p.y-wallH);ctx.closePath();ctx.fill();
+            // Cargo loading door
+            ctx.fillStyle=`rgba(38,34,30,${.45+.35*dl})`;
+            ctx.fillRect(p.x-width*.12,p.y-wallH*.58,width*.24,wallH*.58);
+            // Nighttime dock lantern (extinguished under blackout/alert >= 2)
+            if(dl<.28&&!blackout&&scale>.018){
+              ctx.fillStyle='rgba(255,185,75,.85)';ctx.fillRect(p.x-k,p.y-wallH*.72-k,2*k,2*k);
+              ctx.fillStyle='rgba(255,180,50,.18)';ctx.beginPath();ctx.arc(p.x,p.y-wallH*.72,Math.max(2.5,4*k),0,Math.PI*2);ctx.fill();
+            }
+          }else if(f.kind==='tank'){
+            // 2.5D Cylindrical Oil Storage Tank with directional shading
+            const tankH=height*.85,roofH=height*.15,tankW=width*.84;
+            const g=ctx.createLinearGradient(p.x-tankW*.5,0,p.x+tankW*.5,0);
+            g.addColorStop(0,`rgba(162,168,158,${.34+.46*dl})`);
+            g.addColorStop(.5,`rgba(138,144,134,${.32+.42*dl})`);
+            g.addColorStop(1,`rgba(92,96,90,${.30+.40*dl})`);
+            ctx.fillStyle=g;
+            ctx.fillRect(p.x-tankW*.5,p.y-tankH,tankW,tankH);
+            // Low-profile dome cap
+            ctx.fillStyle=`rgba(148,154,144,${.36+.44*dl})`;
+            ctx.beginPath();ctx.ellipse(p.x,p.y-tankH,tankW*.5,Math.max(1,roofH),0,Math.PI,0);ctx.fill();
+            // Vertical ladder / service conduit
+            ctx.strokeStyle=`rgba(68,72,66,${.35+.35*dl})`;ctx.lineWidth=Math.max(1,k*.85);
+            ctx.beginPath();ctx.moveTo(p.x+tankW*.32,p.y);ctx.lineTo(p.x+tankW*.32,p.y-tankH);ctx.stroke();
+          }else if(f.kind==='crane'){
+            // 2.5D Gantry Truss Crane
+            ctx.strokeStyle=`rgba(138,140,132,${.40+.38*dl})`;ctx.lineWidth=Math.max(1,k);
+            ctx.beginPath();
+            // A-frame portal legs
+            ctx.moveTo(p.x-width*.32,p.y);ctx.lineTo(p.x-width*.14,p.y-height*.42);
+            ctx.moveTo(p.x+width*.32,p.y);ctx.lineTo(p.x+width*.14,p.y-height*.42);
+            // Portal crossbeam
+            ctx.moveTo(p.x-width*.22,p.y-height*.42);ctx.lineTo(p.x+width*.22,p.y-height*.42);
+            // Angled boom / jib
+            ctx.moveTo(p.x,p.y-height*.42);ctx.lineTo(p.x+width*.58,p.y-height);
+            // Cable down from boom tip
+            ctx.moveTo(p.x+width*.58,p.y-height);ctx.lineTo(p.x+width*.58,p.y-height*.38);
+            ctx.stroke();
+            // Cab body
+            ctx.fillStyle=`rgba(85,88,82,${.44+.40*dl})`;
+            ctx.fillRect(p.x-width*.10,p.y-height*.58,width*.20,height*.16);
+          }
         }
       }
     },

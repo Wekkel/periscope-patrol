@@ -615,10 +615,31 @@ const MapStation={
 
   drawMapPortScenes(ctx,scenes,w2s){
     const K=this.k;for(const scene of scenes){if(!scene.known)continue;const c=w2s(scene.position.xNm,scene.position.yNm),a=degToRad(scene.heading||0),sin=Math.sin(a),cos=Math.cos(a);
-      ctx.save();ctx.strokeStyle=scene.side==='FRIENDLY'?'rgba(111,224,143,.38)':'rgba(227,107,93,.38)';ctx.fillStyle='rgba(205,215,190,.30)';ctx.lineWidth=Math.max(1,K);
-      for(const f of scene.features||[]){const x=c.x+(sin*f.alongNm+cos*f.lateralNm)*this.zoom,y=c.y+(-cos*f.alongNm+sin*f.lateralNm)*this.zoom;
-        if(f.kind==='pier'){ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(x,y);ctx.stroke();}
-        else{const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));ctx.fillRect(x-s*.5,y-s*.35,s,s*.7);}}
+      ctx.save();
+      const strokeColor=scene.side==='FRIENDLY'?'rgba(111,224,143,.45)':'rgba(227,107,93,.45)';
+      ctx.strokeStyle=strokeColor;
+      for(const f of scene.features||[]){
+        const x=c.x+(sin*f.alongNm+cos*f.lateralNm)*this.zoom,y=c.y+(-cos*f.alongNm+sin*f.lateralNm)*this.zoom;
+        if(f.kind==='pier'){
+          ctx.lineWidth=Math.max(1.5,2.2*K);
+          ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(x,y);ctx.stroke();
+        }else if(f.kind==='tank'){
+          const r=Math.max(1.5,Math.min(5,(f.sizeM||12)/16*K));
+          ctx.fillStyle='rgba(165,170,160,.38)';ctx.lineWidth=Math.max(1,K);
+          ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+        }else if(f.kind==='warehouse'){
+          const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));
+          ctx.fillStyle='rgba(180,165,145,.36)';ctx.lineWidth=Math.max(1,K);
+          ctx.fillRect(x-s*.6,y-s*.35,s*1.2,s*.7);ctx.strokeRect(x-s*.6,y-s*.35,s*1.2,s*.7);
+        }else if(f.kind==='crane'){
+          const s=Math.max(2,Math.min(6,(f.sizeM||14)/12*K));
+          ctx.lineWidth=Math.max(1,K);
+          ctx.beginPath();ctx.moveTo(x-s*.5,y);ctx.lineTo(x+s*.5,y);ctx.moveTo(x,y);ctx.lineTo(x+s*.4,y-s*.6);ctx.stroke();
+        }else{
+          const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));
+          ctx.fillStyle='rgba(205,215,190,.30)';ctx.fillRect(x-s*.5,y-s*.35,s,s*.7);
+        }
+      }
       ctx.restore();
     }
   },
