@@ -2,7 +2,8 @@
   "scripts": {
     "lint:undef": "node tests/generate-eslint-globals.mjs . && eslint .",
     "callgraph": "node tests/generate-call-graph.mjs .",
-    "test": "node tests/run-all.mjs"
+    "test": "node tests/run-all.mjs",
+    "test:endurance": "node tests/harness/mission-harness.mjs --scenario=endurance"
   },
   "devDependencies": {
     "eslint": "^10.8.1",

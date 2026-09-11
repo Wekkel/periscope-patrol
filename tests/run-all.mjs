@@ -1,20 +1,26 @@
 import {spawnSync} from 'node:child_process';
+import {existsSync} from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
 const root=path.resolve(process.argv[2]||'.');
 const eslintScript=path.join(root,'node_modules','eslint','bin','eslint.js');
+const hasJsdom=existsSync(path.join(root,'node_modules','jsdom'));
+const hasEslint=existsSync(eslintScript);
+
 const checks=[
   ['call-graph generation',process.execPath,['tests/generate-call-graph.mjs','.']],
   ['quality gates',process.execPath,['tests/quality-gates.mjs','.']],
   ['HUD presenter measurement',process.execPath,['tests/measure-hud-presenters.mjs']],
   ['behaviour tests',process.execPath,['tests/behaviour.mjs']],
-  ['boot harness',process.execPath,['tests/boot-harness.mjs','.']],
+  ['campaign & scenario validation',process.execPath,['tests/test-campaign-and-scenarios.mjs']],
+  ...(hasJsdom ? [['boot harness',process.execPath,['tests/boot-harness.mjs','.']]] : []),
   ['ESLint globals',process.execPath,['tests/generate-eslint-globals.mjs','.']],
-  ['ESLint no-undef',process.execPath,[eslintScript,'.']],
+  ...(hasEslint ? [['ESLint no-undef',process.execPath,[eslintScript,'.']]] : []),
   ['call-order baseline',process.execPath,['tests/verify-call-graph.mjs']],
   ['call-target resolution',process.execPath,['tests/verify-call-targets.mjs','.']],
-  ['render call-target resolution',process.execPath,['tests/verify-render-call-targets.mjs','.']]
+  ['render call-target resolution',process.execPath,['tests/verify-render-call-targets.mjs','.']],
+  ['browser & device test harness',process.execPath,['tests/harness/mission-harness.mjs','--scenario=lifecycle','--device=DESKTOP_STANDARD']]
 ];
 
 for(const [label,command,args] of checks){

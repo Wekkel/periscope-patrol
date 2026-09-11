@@ -60,7 +60,7 @@ const AAGunSystem={
       a.rattled =clamp((a.rattled||0)+eff*dt*0.055,0,1);
       if(!a.underFire){a.underFire=true;this.log(`20 mm opening up on ${a.name}!`,'warn');}
       if(!this._aaSnd||this.state.time.elapsedSeconds-this._aaSnd>1.6){
-        this._aaSnd=this.state.time.elapsedSeconds; PresentationBridge.audio(this.state).playDeckGun?.(0.5);
+        this._aaSnd=this.state.time.elapsedSeconds; PresentationBridge.audio(this.state).playAABurst?.(0.7);
       }
       // she has had enough and sheers off
       if(a.state!=='DEPARTING'&&Math.random()<clamp(a.aaDamage-0.10,0,1)*0.085*dt){

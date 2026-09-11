@@ -1093,7 +1093,7 @@ const ATLANTIC_1941_GAME_IDENTITY=Object.freeze({
 function getCampaignProfile(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
   // Omitted ID means the current default; an explicit unknown ID is an authoring
   // or save-compatibility error and must never masquerade as the Pacific campaign.
-  return (typeof MULTI_CAMPAIGN_PROFILES!=='undefined'&&MULTI_CAMPAIGN_PROFILES[profileId])||CAMPAIGN_PROFILES[profileId]||null;
+  return CAMPAIGN_PROFILES[profileId]||(typeof MULTI_CAMPAIGN_PROFILES!=='undefined'&&MULTI_CAMPAIGN_PROFILES[profileId])||null;
 }
 
 function getCampaignLoadBoundary(profileId){return CAMPAIGN_LOAD_BOUNDARIES[profileId]||(typeof MULTI_CAMPAIGN_LOAD_BOUNDARIES!=='undefined'&&MULTI_CAMPAIGN_LOAD_BOUNDARIES[profileId])||null;}
@@ -1122,7 +1122,7 @@ function verticalSliceReadiness(profileId){
   return Object.freeze({ready:missing.length===0,missing:Object.freeze([...new Set(missing)])});
 }
 function getSelectableCampaignProfiles(){
-  const all=Object.values({...CAMPAIGN_PROFILES,...(typeof MULTI_CAMPAIGN_PROFILES!=='undefined'?MULTI_CAMPAIGN_PROFILES:{})});
+  const all=Object.values({...(typeof MULTI_CAMPAIGN_PROFILES!=='undefined'?MULTI_CAMPAIGN_PROFILES:{}),...CAMPAIGN_PROFILES});
   return Object.freeze(all.filter(c=>c.id===DEFAULT_GAME_IDENTITY.campaignProfileId||(c.devSelectable&&verticalSliceReadiness(c.id).ready)));
 }
 

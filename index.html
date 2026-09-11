@@ -141,6 +141,7 @@
       <div class="hk-title">Audio</div>
       <div class="hk-row hk-audio-row"><span class="hk-desc">SFX</span><input id="audioSfxVolume" type="range" min="0" max="100" value="62"><span id="audioSfxValue" class="hk-key">62%</span></div>
       <div class="hk-row hk-audio-row"><span class="hk-desc">Music / cues</span><input id="audioMusicVolume" type="range" min="0" max="100" value="42"><span id="audioMusicValue" class="hk-key">42%</span></div>
+      <div class="hk-row hk-audio-row"><span class="hk-desc">Output</span><button id="audioSpeakerToggle" class="hk-key" style="cursor:pointer;background:none;border:1px solid var(--line);color:var(--text);font-size:11px;padding:2px 8px;font-family:inherit;">🎧 Headphones (Full Bass)</button></div>
       <div class="hk-row"><span class="hk-key">T</span><span class="hk-desc">Mute / restore audio</span></div>
     </div>
     <div class="hk-section desk-display-settings">
@@ -449,6 +450,10 @@
       <button id="scopeOverlayZoom">🔍 <span>Zoom</span></button>
       <button id="scopeOverlayRight"><span>Rotate</span> ▶</button>
     </div>
+    <div id="deskGunControls" aria-label="Deck gun controls">
+      <button id="deskGunLay" type="button">🎯 <span>Lay Target</span></button>
+      <button id="deskGunFire" type="button" class="danger">💥 <span>Fire Gun</span></button>
+    </div>
     <div id="deskEmergencyCluster" aria-label="Emergency actions">
       <button id="crashDiveButton" class="danger">⚠ Crash Dive</button>
       <button id="emergencyBlowButton" class="danger">⚠ Emergency Blow</button>
@@ -474,7 +479,13 @@
       </div>
     </div>
     <div class="desk-vital" id="deskVitalKeel"><span>UNDER KEEL</span><strong id="deskVitalKeelValue">—</strong><small id="deskVitalBottom">—</small></div>
-    <div class="desk-vital" id="deskVitalHeading"><span>HEADING</span><strong id="deskVitalHeadingValue">090°</strong></div>
+    <div class="desk-vital actionable" id="deskVitalHeading" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
+      <span>HEADING ⇅</span><strong id="deskVitalHeadingValue">090°</strong><small id="deskVitalHeadingOrder">→ 090°</small>
+      <div class="desk-vital-menu" id="deskHeadingMenu" role="menu" aria-label="Heading orders">
+        <div class="desk-vital-presets"><button type="button" data-desk-vhdg="0">N 000°</button><button type="button" data-desk-vhdg="90">E 090°</button><button type="button" data-desk-vhdg="180">S 180°</button><button type="button" data-desk-vhdg="270">W 270°</button></div>
+        <div class="desk-vital-step hdg"><button type="button" data-desk-vhstep="-10">−10°</button><button type="button" data-desk-vhstep="-1">−1°</button><b id="deskHeadingMenuValue">090°</b><button type="button" data-desk-vhstep="1">+1°</button><button type="button" data-desk-vhstep="10">+10°</button></div>
+      </div>
+    </div>
     <div class="desk-vital actionable" id="deskVitalSpeed" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
       <span>SPEED ⇅</span><strong id="deskVitalSpeedValue">0.0 kn</strong><small id="deskVitalSpeedOrder">→ 0 rpm</small>
       <div class="desk-vital-menu" id="deskSpeedMenu" role="menu" aria-label="Engine orders">
@@ -482,7 +493,12 @@
         <div class="desk-vital-step"><button type="button" data-desk-vrstep="-25">−25</button><b id="deskSpeedMenuValue">0 rpm</b><button type="button" data-desk-vrstep="25">+25</button></div>
       </div>
     </div>
-    <div class="desk-vital" id="deskVitalTorps"><span>TORPS</span><strong id="deskVitalTorpsValue">—</strong></div>
+    <div class="desk-vital actionable" id="deskVitalTorps" tabindex="0" role="button" aria-haspopup="true" aria-expanded="false">
+      <span>TORPS ⇅</span><strong id="deskVitalTorpsValue">—</strong><small id="deskVitalTorpsOrder">—</small>
+      <div class="desk-vital-menu" id="deskTorpsMenu" role="menu" aria-label="Torpedo orders">
+        <div class="desk-vital-presets"><button type="button" id="deskVitalFloodFwd">Flood Fwd</button><button type="button" id="deskVitalFloodAft">Flood Aft</button><button type="button" id="deskVitalSpreadFwd" class="danger">Fwd Spread</button><button type="button" id="deskVitalSpreadAft" class="danger">Aft Spread</button></div>
+      </div>
+    </div>
     <div class="desk-vital" id="deskVitalBattery"><span>BATTERY</span><strong id="deskVitalBatteryValue">100%</strong><small id="deskVitalBatteryState">FULL</small></div>
     <div class="desk-vital" id="deskVitalFuel"><span>FUEL</span><strong id="deskVitalFuelValue">100%</strong></div>
     <div class="desk-vital" id="deskVitalThreat"><span>THREAT</span><strong id="deskVitalThreatValue">CLEAR</strong></div>
@@ -509,8 +525,16 @@
         <div class="desk-info-subhead">Torpedo stores</div>
         <div id="deskTorpStores" class="note"></div>
         <div id="deskRightTubes" class="desk-tube-list"></div>
+        <div id="deskRightTubeActions" class="desk-nav-grid" style="margin-top:5px;">
+          <button type="button" id="deskRightFloodFwd">Flood Fwd</button>
+          <button type="button" id="deskRightSpreadFwd" class="danger">Fwd Spread</button>
+        </div>
         <div class="desk-info-subhead">Deck gun</div>
         <div id="deskDeckGunInfo" class="note"></div>
+        <div id="deskRightGunActions" class="desk-nav-grid" style="margin-top:5px;">
+          <button type="button" id="deskRightGunLay">🎯 Lay Gun</button>
+          <button type="button" id="deskRightGunFire" class="danger">💥 Fire Gun</button>
+        </div>
       </div>
     </section>
     <section class="desk-info-panel panel" data-desk-panel="boat">

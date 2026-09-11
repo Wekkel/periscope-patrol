@@ -124,10 +124,13 @@ const DeckGunSystem={
   segmentShipGunHit(a,b,c){
     const hit=HullGeometry.segmentHullIntersection(a,b,shipHull(c));
     if(!hit)return null;
-    const z=a.zM+(b.zM-a.zM)*hit.u;
+    let z=a.zM+(b.zM-a.zM)*hit.u;
     const tall=/CARRIER/i.test(c.displayType||'')?32:/CRUISER/i.test(c.displayType||'')?24:isSurfaceCombatant(c)?15:c.type==='TANKER'?22:19;
     if(z<-1||z>tall)return null;
-    return{...hit,z};
+    const frac=clamp((hit.along||0)/(hit.lenNm||1),-.5,.5),mid=Math.max(0,1-Math.abs(frac)*2.2);
+    const swell=(Math.sin((c.position?.xNm||0)*5+(a.xNm||0)*11)+Math.cos((c.position?.yNm||0)*7))*0.95;
+    const variedZ=clamp(Math.max(.8,z)+swell+(mid>0.15?mid*3.2:0),1.2,tall);
+    return{...hit,z:variedZ};
   },
 
   deckGunFallText(pos,bearing){
@@ -157,11 +160,12 @@ const DeckGunSystem={
     // outward from the point the player had just struck.
     const hr=degToRad(c.heading||0),fx=Math.sin(hr),fy=-Math.cos(hr),sx=Math.cos(hr),sy=Math.sin(hr);
     const impactPos={xNm:c.position.xNm+fx*(hit.along||0)+sx*(hit.lateral||0),yNm:c.position.yNm+fy*(hit.along||0)+sy*(hit.lateral||0)};
-    const impactZ=Math.max(.2,hit.z||3.5),now=this.state.time.elapsedSeconds;
+    const impactZ=Math.max(.8,hit.z||3.2),now=this.state.time.elapsedSeconds;
     this.aar.gunFinish(shell,'HIT',impactPos,c,dmg.material);
     G.impactFlash={position:{...impactPos},zM:impactZ,startedAt:now,until:now+0.72,power:.72};
     this.state.weapons.explosions.push({position:{...impactPos},zM:impactZ,ageSec:0,maxAgeSec:5,label:'GUN HIT'});
-    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);PresentationBridge.audio(this.state).playDeckGunImpact?.(clamp(distNm(this.state.playerSub.position,impactPos)/deckGunSpecForState(this.state).maxRangeNm,0,1));
+    const brg=bearingBetween(this.state.playerSub.position,impactPos);
+    particles.spawnExplosion(impactPos.xNm,impactPos.yNm,0.38,false);PresentationBridge.audio(this.state).playDeckGunImpact?.(clamp(distNm(this.state.playerSub.position,impactPos)/deckGunSpecForState(this.state).maxRangeNm,0,1),brg,this.state.playerSub.heading);
     this.sys.escorts.alert('SHIP_HIT',{...c.position},1);
     updateShipDamage(this,c,0);
     const condition=shipDamageCondition(c);
@@ -204,7 +208,8 @@ const DeckGunSystem={
         const f=clamp(prev.zM/(prev.zM-sh.zM||1),0,1),pos={xNm:prev.xNm+(sh.xNm-prev.xNm)*f,yNm:prev.yNm+(sh.yNm-prev.yNm)*f};
         G.splashes.push({position:pos,age:0});G.lastFall={text:this.sys.deckGun.deckGunFallText(pos,sh.bearing),until:this.state.time.elapsedSeconds+3.5};
         this.aar.gunFinish(sh,'SPLASH',pos,null,null);
-        PresentationBridge.audio(this.state).playShellSplash?.(clamp(distNm(sub.position,pos)/deckGunSpecForState(this.state).maxRangeNm,0,1));
+        const brg=bearingBetween(sub.position,pos);
+        PresentationBridge.audio(this.state).playShellSplash?.(clamp(distNm(sub.position,pos)/deckGunSpecForState(this.state).maxRangeNm,0,1),brg,sub.heading);
         continue;
       }
       alive.push(sh);

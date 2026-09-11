@@ -72,11 +72,14 @@ class CanvasViewCore{
     // an empty queue between two presentation ticks.
     const impactQueue=state.runtime?.presentation?.impactQueue;
     if(!state.tactical?.impactObservation&&(!Array.isArray(impactQueue)||impactQueue.length===0)&&((state.time?.modalPauses||0)>0)){
-      state.time.modalPauses=0;
-      state.time.timeScale=Number(state.time.preModalScale)>0?Number(state.time.preModalScale):1;
-      state.runtime.presentation.impactToken=null;
-      state.runtime.presentation.impactStartedWall=null;
-      state.runtime.presentation.impactQueue=[];
+      if(typeof globalThis.game?.dispatch==='function'){
+        while((state.time?.modalPauses||0)>0)globalThis.game.dispatch({type:'RESUME_FROM_MODAL'});
+      }
+      if(state.runtime?.presentation){
+        state.runtime.presentation.impactToken=null;
+        state.runtime.presentation.impactStartedWall=null;
+        state.runtime.presentation.impactQueue=[];
+      }
     }
     const ctx=this.ctx,w=this.w,h=this.h,station=state?.tactical?.activeStation||'TACTICAL';
     if(!registry||typeof registry.drawStation!=='function')throw new Error('CanvasView registry is required');
@@ -231,17 +234,16 @@ class CanvasViewCore{
     // sheet of reflected light.
     const ey=Math.min(h,p.y+Math.max(92*k,(h-p.y)*.90));
     if(ey>p.y+8*k){
-      const dy=ey-p.y,endX=w/2,rg=ctx.createLinearGradient(p.x,p.y,endX,ey);
-      rg.addColorStop(0,`rgba(255,226,158,${a*.135})`);
-      rg.addColorStop(.30,`rgba(255,174,88,${a*.064})`);
-      rg.addColorStop(.66,`rgba(255,132,54,${a*.021})`);
+      const dy=ey-p.y,endX=lerp(p.x,w/2,0.35),rg=ctx.createLinearGradient(p.x,p.y,endX,ey);
+      rg.addColorStop(0,`rgba(255,226,158,${a*.145})`);
+      rg.addColorStop(.30,`rgba(255,174,88,${a*.070})`);
+      rg.addColorStop(.66,`rgba(255,132,54,${a*.024})`);
       rg.addColorStop(1,'rgba(255,118,42,0)');
       for(const pass of [
-        // Start wide at the strike point and flare rapidly. The previous narrow
-        // apex read as a directional beam/torpedo trail instead of reflected light.
-        {near:Math.max(34*k,rr*.48),half:clamp(dy*.78,108*k,w*.66),alpha:.42},
-        {near:Math.max(50*k,rr*.68),half:clamp(dy*1.04,148*k,w*.84),alpha:.19},
-        {near:Math.max(68*k,rr*.88),half:Math.max(w*.98,dy*1.30),alpha:.065}
+        // Tightly focused apex right at the strike point (p.x, p.y) flaring down across the water
+        {near:clamp(rr*.08,3*k,12*k),half:clamp(dy*.72,96*k,w*.60),alpha:.45},
+        {near:clamp(rr*.14,5*k,18*k),half:clamp(dy*.98,136*k,w*.78),alpha:.22},
+        {near:clamp(rr*.22,8*k,26*k),half:Math.max(w*.92,dy*1.24),alpha:.075}
       ]){
         ctx.globalAlpha=pass.alpha;ctx.fillStyle=rg;ctx.beginPath();
         ctx.moveTo(p.x-pass.near,p.y);ctx.lineTo(endX-pass.half,ey);ctx.lineTo(endX+pass.half,ey);ctx.lineTo(p.x+pass.near,p.y);ctx.closePath();ctx.fill();

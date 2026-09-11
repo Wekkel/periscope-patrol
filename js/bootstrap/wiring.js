@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════ BOOTSTRAP
 const game=new Game();
+globalThis.game=game;
 const canvasView=new CanvasView(document.getElementById('mainCanvas'));
 const domView=new DomView();
+globalThis.domView=domView;
 const gyroIndicator=new GyroIndicator(document.getElementById('gyroIndicator'));
-const bridgeCtrl=new BridgeController(game,canvasView);
+const bridgeCtrl=new BridgeController(game,canvasView,domView);
 const sceneSelector=new ScenarioSelector(game);
 const aarController=new AfterActionReport(game);
 globalThis.aarController=aarController;
@@ -193,7 +195,7 @@ window.addEventListener('keydown',e=>{
   const install=()=>{if(installed)return;installed=true;events.forEach(type=>document.addEventListener(type,unlock,{capture:true,passive:true}));};
   const unlock=e=>{
     Promise.resolve(audio.resumeFromGesture?.(e.type)).then(running=>{
-      if(running){events.forEach(type=>document.removeEventListener(type,unlock,true));installed=false;audio.playTitleCue?.('START');}
+      if(running){events.forEach(type=>document.removeEventListener(type,unlock,true));installed=false;audio.preloadCoreSamples?.();audio.playTitleCue?.('START');}
     });
   };
   audio.setGestureUnlockRearm?.(install);install();
@@ -201,18 +203,56 @@ window.addEventListener('keydown',e=>{
 
 // Audio settings are profile-independent device preferences: a phone and a
 // tablet may need very different output levels. Keep them outside patrol saves.
-(()=>{const KEY=PP_BUILD.storageKey('periscope_audio_v1'),sfx=document.getElementById('audioSfxVolume'),mus=document.getElementById('audioMusicVolume'),sv=document.getElementById('audioSfxValue'),mv=document.getElementById('audioMusicValue');
-  let q={sfx:62,music:42};try{q={...q,...JSON.parse(localStorage.getItem(KEY)||'{}')};}catch(_){}
-  const apply=()=>{q.sfx=clamp(Number(sfx?.value??q.sfx),0,100);q.music=clamp(Number(mus?.value??q.music),0,100);audio.setSfxVolume(q.sfx/100);audio.setMusicVolume(q.music/100);if(sv)sv.textContent=`${Math.round(q.sfx)}%`;if(mv)mv.textContent=`${Math.round(q.music)}%`;try{localStorage.setItem(KEY,JSON.stringify(q));}catch(_){}};
-  if(sfx)sfx.value=q.sfx;if(mus)mus.value=q.music;apply();sfx?.addEventListener('input',apply,{passive:true});mus?.addEventListener('input',apply,{passive:true});})();
+(()=>{const KEY=PP_BUILD.storageKey('periscope_audio_v1'),sfx=document.getElementById('audioSfxVolume'),mus=document.getElementById('audioMusicVolume'),sv=document.getElementById('audioSfxValue'),mv=document.getElementById('audioMusicValue'),spk=document.getElementById('audioSpeakerToggle');
+  let q={sfx:62,music:42,speakerMode:false};try{q={...q,...JSON.parse(localStorage.getItem(KEY)||'{}')};}catch(_){}
+  const updateSpeakerBtn=()=>{if(spk)spk.textContent=q.speakerMode?'🔊 Mobile Speaker (Filter <65Hz)':'🎧 Headphones (Full Bass)';};
+  const apply=()=>{
+    q.sfx=clamp(Number(sfx?.value??q.sfx),0,100);
+    q.music=clamp(Number(mus?.value??q.music),0,100);
+    audio.setSfxVolume(q.sfx/100);
+    audio.setMusicVolume(q.music/100);
+    audio.setSpeakerMode(!!q.speakerMode);
+    if(sv)sv.textContent=`${Math.round(q.sfx)}%`;
+    if(mv)mv.textContent=`${Math.round(q.music)}%`;
+    updateSpeakerBtn();
+    try{localStorage.setItem(KEY,JSON.stringify(q));}catch(_){}
+  };
+  if(sfx)sfx.value=q.sfx;if(mus)mus.value=q.music;apply();
+  sfx?.addEventListener('input',apply,{passive:true});
+  mus?.addEventListener('input',apply,{passive:true});
+  spk?.addEventListener('click',()=>{q.speakerMode=!q.speakerMode;apply();});
+})();
 
 // Text scaling is a desktop display preference, not patrol state. Keep the
 // scalar on the document root so every desktop presentation surface can use
 // one value, and namespace persistence through the existing build profile.
 (()=>{const KEY=PP_BUILD.storageKey('ss_ui_scale'),input=document.getElementById('uiScaleInput'),value=document.getElementById('uiScaleValue');
-  let scale=1;try{scale=clamp(Number(localStorage.getItem(KEY)||1),.85,1.35);}catch(_){}
-  const apply=()=>{scale=clamp(Number(input?.value??scale),.85,1.35);document.documentElement.style.setProperty('--ui-scale',String(scale));if(value)value.textContent=`${Math.round(scale*100)}%`;try{localStorage.setItem(KEY,String(scale));}catch(_){}};
-  if(input)input.value=String(scale);apply();input?.addEventListener('input',apply,{passive:true});})();
+  let userScale=1;try{userScale=clamp(Number(localStorage.getItem(KEY)||1),.85,1.35);}catch(_){}
+  const getAutoScale=()=>{
+    if(typeof window==='undefined')return 1;
+    const w=window.innerWidth||1920,h=window.innerHeight||1080;
+    // Base 1080p or lower: 1.0 (no scaling). 1440p: ~1.15. 4K: 1.30.
+    return clamp(Math.min(w/1920,h/1080),1,1.30);
+  };
+  const apply=()=>{
+    userScale=clamp(Number(input?.value??userScale),.85,1.35);
+    const autoScale=getAutoScale();
+    const effective=Math.round(userScale*autoScale*100)/100;
+    document.documentElement.style.setProperty('--ui-scale',String(effective));
+    if(value){
+      value.textContent=autoScale>1.02?`${Math.round(userScale*100)}% (Auto ${Math.round(effective*100)}%)`:`${Math.round(userScale*100)}%`;
+    }
+    try{localStorage.setItem(KEY,String(userScale));}catch(_){}
+  };
+  if(input)input.value=String(userScale);apply();
+  input?.addEventListener('input',apply,{passive:true});
+  let resizeTimer=null;
+  window.addEventListener('resize',()=>{
+    if(typeof LayoutService!=='undefined'&&LayoutService.get?.().shell!=='desk')return;
+    clearTimeout(resizeTimer);
+    resizeTimer=setTimeout(apply,120);
+  },{passive:true});
+})();
 
 // Safety net: if the page ended up in the desktop layout on a device that is
 // actually being touched, switch over. Without this a stored 'desk' preference

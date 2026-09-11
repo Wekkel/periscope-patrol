@@ -56,6 +56,26 @@ class DomView{
     const bc=document.getElementById('bridgeControls');if(bc)bc.classList.toggle('on',state.tactical.activeStation==='BRIDGE');
     document.getElementById('mapWeatherButton')?.classList.toggle('on',!!state.map.weatherOverlay);
     const sc=document.getElementById('soundControls');if(sc)sc.classList.toggle('on',state.tactical.activeStation==='SOUND');
+    const isGun=state.tactical.activeStation==='DECK_GUN';
+    const gyro=document.getElementById('gyroIndicator');
+    if(gyro){
+      const showGyro=state.tactical.activeStation==='PERISCOPE'||state.tactical.activeStation==='TACTICAL';
+      gyro.classList.toggle('off',!showGyro);
+    }
+    const gc=document.getElementById('deskGunControls');
+    if(gc){
+      gc.classList.toggle('on',isGun);
+      const gun=state.weapons?.deckGun;
+      const canLay=!!gun?.manned&&!!state.tactical?.selectedTrackId;
+      const layBtn=document.getElementById('deskGunLay');
+      if(layBtn){layBtn.disabled=!canLay;layBtn.title=!gun?.manned?'Deck gun crew not topside':!state.tactical?.selectedTrackId?'No target selected':'Lay to target';}
+      const canFire=!!gun?.manned&&(gun.ammo>0)&&(state.time.elapsedSeconds-(gun.lastFireAt||-999)>=(gun.reloadSeconds||4));
+      const fireBtn=document.getElementById('deskGunFire');
+      if(fireBtn){fireBtn.disabled=!canFire;fireBtn.title=!gun?.manned?'Deck gun crew not topside':gun.ammo<=0?'No 3-in ammunition':!canFire?'Reloading...':'Fire deck gun';}
+    }
+    const rightLay=document.getElementById('deskRightGunLay'),rightFire=document.getElementById('deskRightGunFire');
+    if(rightLay){const gun=state.weapons?.deckGun;rightLay.disabled=!gun?.manned||!state.tactical?.selectedTrackId;}
+    if(rightFire){const gun=state.weapons?.deckGun;rightFire.disabled=!gun?.manned||(gun.ammo<=0)||(state.time.elapsedSeconds-(gun.lastFireAt||-999)<(gun.reloadSeconds||4));}
     const sensorUi=getPlayerSensorPresentation(state),rb=document.getElementById('soundRadar');if(rb){rb.style.display=sensorUi.surfaceSearchRadar?'':'none';rb.classList.toggle('on',state.tactical.soundDisplay==='RADAR');const sp=rb.querySelector?.('span');if(sp)sp.textContent=state.tactical.soundDisplay==='RADAR'?(sensorUi.passiveSound?.label||'Passive Sound'):(sensorUi.surfaceSearchRadar?.label||'Surface Radar');}const eb=document.getElementById('soundEcho');if(eb){eb.style.display=sensorUi.activeEcho?'':'none';if(!eb.classList.contains('confirm')){const sp=eb.querySelector?.('span');if(sp)sp.textContent=sensorUi.activeEcho?.label||'Active Echo';}}
     const bb=document.getElementById('bridgeBino');if(bb){bb.classList.toggle('on',viewModel.display.bridgeBinoText!=='Binoculars');const span=bb.querySelector?.('span');if(span)span.textContent=viewModel.display.bridgeBinoText;}
     const ds=document.getElementById('deckGunStatus');
@@ -75,15 +95,15 @@ class DomView{
     if(this.fuelBar)    this.fuelBar.style.width=`${viewModel.vitals.fuel.raw}%`;
     if(this.hullBar)    this.hullBar.style.width=`${viewModel.vitals.hull.raw}%`;
     for(const [id,v] of [['batteryPct',viewModel.vitals.battery.value],['fuelPct',viewModel.vitals.fuel.value],['hullPct',viewModel.vitals.hull.value]]){const el=document.getElementById(id);if(el)el.textContent=v;}
-    this.renderDesktopVitals(viewModel);
-    this.renderDesktopInfoPanels(viewModel);
+    this.renderDesktopVitals(viewModel,state);
+    this.renderDesktopInfoPanels(viewModel,state);
     if(this.logEl){
       const kind=document.getElementById('deskLog')?.dataset.logKind==='patrol'?'patrol':'captain';
       const entries=kind==='captain'?viewModel.log.captain:viewModel.log.patrol;
       this.logEl.innerHTML=entries.length?entries.map(e=>kind==='captain'?`<div class="log-entry"><b>${e.date}</b> · ${e.text}</div>`:`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">${e.time} ${e.text}</div>`).join(''):`<div class="log-empty">No ${kind==='captain'?"captain's log":"patrol log"} entries yet.</div>`;
     }
   }
-  renderDesktopVitals(viewModel){
+  renderDesktopVitals(viewModel,state){
     const set=(id,value)=>{const el=document.getElementById(id);if(el&&el.textContent!==String(value))el.textContent=value;};
     const cells=[
       ['deskVitalDepth','deskVitalDepthValue',viewModel.vitals.depth],
@@ -99,17 +119,24 @@ class DomView{
     for(const [cellId,valueId,vital] of cells){set(valueId,vital.value);const cell=document.getElementById(cellId);if(cell){cell.classList.toggle('caution',vital.state==='caution');cell.classList.toggle('critical',vital.state==='critical');}}
     set('deskVitalDepthOrder',`→ ${viewModel.navigation.orders.orderedDepth}`);
     set('deskVitalBottom',viewModel.vitals.underKeel.unit);
+    set('deskVitalHeadingOrder',`→ ${viewModel.navigation.orders.orderedHeading}`);
     set('deskVitalSpeedOrder',`→ ${viewModel.navigation.orders.orderedRpm}`);
     set('deskVitalBatteryState',viewModel.vitals.battery.unit.toUpperCase());
     set('deskDepthMenuValue',viewModel.navigation.orders.orderedDepth);
+    set('deskHeadingMenuValue',viewModel.navigation.orders.orderedHeading);
     set('deskSpeedMenuValue',viewModel.navigation.orders.orderedRpm);
+    const readyTorps=viewModel.weapons?.tubes?.filter(t=>t.status==='READY').length||0;
+    set('deskVitalTorpsOrder',`${readyTorps} READY`);
     const fire=document.getElementById('deskFireButton');
-    fire?.classList.toggle('ready',viewModel.fire.available);
-    fire?.setAttribute('aria-disabled',viewModel.fire.available?'false':'true');
-    fire?.setAttribute('title',viewModel.fire.available?'Fire selected torpedo solution':viewModel.fire.reason);
+    if(fire){
+      fire.style.display = (state?.tactical?.activeStation==='DECK_GUN') ? 'none' : '';
+      fire.classList.toggle('ready',viewModel.fire.available);
+      fire.setAttribute('aria-disabled',viewModel.fire.available?'false':'true');
+      fire.setAttribute('title',viewModel.fire.available?'Fire selected torpedo solution':viewModel.fire.reason);
+    }
     set('deskFireSol',viewModel.fire.solutionText);
   }
-  renderDesktopInfoPanels(viewModel){
+  renderDesktopInfoPanels(viewModel,state){
     const set=(id,value)=>{const el=document.getElementById(id);if(el&&el.textContent!==String(value))el.textContent=value;};
     const html=(id,value)=>{const el=document.getElementById(id);if(el&&el.innerHTML!==value)el.innerHTML=value;};
     const t=viewModel.tdc,w=viewModel.weapons;
@@ -122,7 +149,20 @@ class DomView{
     html('deskIntel',viewModel.systems.intelHtml);
     html('deskTdcOverview',`<span>Status</span><strong>${t.status}</strong><span>Target</span><strong>${t.targetLabel}</strong><span>Bearing</span><strong>${t.bearingText}</strong><span>Range</span><strong>${t.rangeText}</strong><span>Course / speed</span><strong>${t.courseText} · ${t.speedText}</strong><span>AOB / gyro</span><strong>${t.aobText} · ${t.gyroText}</strong><span>Run time</span><strong>${t.runText}</strong><span>Solution</span><strong>${t.qualityText}</strong><span>Track</span><strong>${t.sourceText} · ${t.modeText}</strong>`);
     set('deskTorpStores',w.storesText);
-    html('deskRightTubes',w.tubes.map(tube=>`<div class="desk-tube ${tube.status==='READY'?'ready':tube.status==='EMPTY'?'empty':'loading'}"><b>T${tube.id}</b><span>${tube.position} · ${tube.type}</span><strong>${tube.status}${tube.reloadText?` ${tube.reloadText}`:''}</strong></div>`).join(''));
+    html('deskRightTubes',w.tubes.map(tube=>`<div class="desk-tube ${tube.status==='READY'?'ready':tube.status==='EMPTY'?'empty':'loading'}" data-tube-id="${tube.id}" title="${tube.status==='LOADED_DRY'?'Click to flood':tube.status==='READY'?'Click to fire':tube.status}"><b>T${tube.id}</b><span>${tube.position} · ${tube.type}</span><strong>${tube.status}${tube.reloadText?` ${tube.reloadText}`:''}</strong></div>`).join(''));
+    const rawTubes=state?.weapons?.tubes||[];
+    const fwdDry=rawTubes.filter(tb=>tb.pos==='FWD'&&tb.status==='LOADED_DRY').length;
+    const aftDry=rawTubes.filter(tb=>tb.pos==='AFT'&&tb.status==='LOADED_DRY').length;
+    const fwdReady=rawTubes.filter(tb=>tb.pos==='FWD'&&tb.status==='READY').length;
+    const aftReady=rawTubes.filter(tb=>tb.pos==='AFT'&&tb.status==='READY').length;
+    const canFire=!!viewModel.fire?.available;
+    const setBtn=(id,dis,title)=>{const b=document.getElementById(id);if(b){b.disabled=dis;if(title)b.title=title;}};
+    setBtn('deskVitalFloodFwd',fwdDry===0,fwdDry===0?'No loaded dry forward tubes':'Flood forward tubes');
+    setBtn('deskRightFloodFwd',fwdDry===0,fwdDry===0?'No loaded dry forward tubes':'Flood forward tubes');
+    setBtn('deskVitalFloodAft',aftDry===0,aftDry===0?'No loaded dry aft tubes':'Flood aft tubes');
+    setBtn('deskVitalSpreadFwd',fwdReady===0||!canFire,fwdReady===0?'No ready forward tubes':!canFire?(viewModel.fire?.reason||'No firing solution'):'Fire forward torpedo spread');
+    setBtn('deskRightSpreadFwd',fwdReady===0||!canFire,fwdReady===0?'No ready forward tubes':!canFire?(viewModel.fire?.reason||'No firing solution'):'Fire forward torpedo spread');
+    setBtn('deskVitalSpreadAft',aftReady===0||!canFire,aftReady===0?'No ready aft tubes':!canFire?(viewModel.fire?.reason||'No firing solution'):'Fire aft torpedo spread');
     set('deskDeckGunInfo',`${w.deckGun.statusText} · train ${w.deckGun.trainText} · elev ${w.deckGun.elevationText} · ammo ${w.deckGun.ammo} · ${w.deckGun.loadStatusText} · target ${w.deckGun.targetText}`);
     set('deskCrewStatus',viewModel.crew.statusText);
     set('deskAaStatus',w.aa.statusText);

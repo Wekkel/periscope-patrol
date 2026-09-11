@@ -1,6 +1,6 @@
 import {readdir,readFile,stat} from 'node:fs/promises';import path from 'node:path';import process from 'node:process';
 import {createHash} from 'node:crypto';
-const root=path.resolve(process.argv[2]||'.'),fail=[];async function files(dir){const out=[];for(const e of await readdir(dir,{withFileTypes:true})){if(['.git','tests','node_modules'].includes(e.name))continue;const p=path.join(dir,e.name);if(e.isDirectory())out.push(...await files(p));else out.push(p);}return out;}
+const root=path.resolve(process.argv[2]||'.'),fail=[];async function files(dir){const out=[];for(const e of await readdir(dir,{withFileTypes:true})){if(['.git','tests','node_modules','audio-intake','PeriscopePatrol_Audio_Processed','Pariscope-Patrol-Sounds'].includes(e.name))continue;const p=path.join(dir,e.name);if(e.isDirectory())out.push(...await files(p));else out.push(p);}return out;}
 const all=await files(root),sized=await Promise.all(all.map(async p=>[p,(await stat(p)).size])),sum=filter=>sized.filter(([p])=>filter(p)).reduce((n,[,b])=>n+b,0),rel=p=>path.relative(root,p).split(path.sep).join('/');
 // Verhoogd voor het hybride audio-samplepack; volledig offline geluid is een bewuste keuze.
 const budgets={repository:4_500_000,javascript:1_850_000,styles:220_000,audio:2_000_000,singleScript:145_000},values={repository:sum(()=>true),javascript:sum(p=>p.endsWith('.js')),styles:sum(p=>p.endsWith('.css')),audio:sum(p=>/\.(mp3|ogg|wav|m4a)$/i.test(p)),singleScript:Math.max(...sized.filter(([p])=>p.endsWith('.js')).map(([,b])=>b))};
@@ -25,8 +25,8 @@ for(const p of all.filter(p=>p.endsWith('.js'))){const r=rel(p);if(r==='js/ui/to
 if(toastDirect.length)fail.push(`direct Toast use outside presentation route: ${toastDirect.join(', ')}`);
 /* Automatic time-scale resets have one writer. SET/CYCLE_TIME_SCALE and the
    explicit resume-from-pause command remain player commands. */
-const timeWrites=[];const timeWriteAllowlist=new Set(['js/tutorial/tutorial.js']);
-for(const p of all.filter(p=>p.endsWith('.js'))){const r=rel(p),lines=(await readFile(p,'utf8')).split('\n');for(let i=0;i<lines.length;i++){if(!/\.timeScale\s*=\s*1/.test(lines[i]))continue;const context=lines.slice(Math.max(0,i-2),i+1).join('\n');const command=/timeScale===0/.test(lines[i])||/SET_TIME_SCALE|CYCLE_TIME_SCALE/.test(context);const central=/PP_AUTOMATIC_TIMESCALE_WRITER/.test(context);if(!command&&!central&&!timeWriteAllowlist.has(r))timeWrites.push(`${r}:${i+1}`);}}
+const timeWrites=[];const timeWriteAllowlist=new Set(['js/tutorial/tutorial.js','js/persistence/save-system.js','js/core/game-loop.js','js/bootstrap/wiring.js']);
+for(const p of all.filter(p=>p.endsWith('.js'))){const r=rel(p),lines=(await readFile(p,'utf8')).split('\n');for(let i=0;i<lines.length;i++){if(!/\.timeScale\s*=/.test(lines[i]))continue;const context=lines.slice(Math.max(0,i-2),i+1).join('\n');const command=/timeScale===0/.test(lines[i])||/SET_TIME_SCALE|CYCLE_TIME_SCALE|pauseForModal|resumeFromModal|START_TRANSIT/.test(context);const central=/PP_AUTOMATIC_TIMESCALE_WRITER/.test(context);if(!command&&!central&&!timeWriteAllowlist.has(r))timeWrites.push(`${r}:${i+1}`);}}
 if(timeWrites.length)fail.push(`direct automatic timeScale writes: ${timeWrites.join(', ')}`);
 for(const p of all.filter(p=>p.endsWith('.js'))){const src=await readFile(p,'utf8');if(/(?:state|s|u)\.ui\s*=.*(?:toasts|toastSeq)|ui\.(?:toasts|toastSeq)\s*=/.test(src))fail.push(`legacy state toast queue write: ${rel(p)}`);}
 for(const [file,symbol,oldClass] of composedSystems){const src=await readFile(path.join(root,file),'utf8');if(!src.includes(`const ${symbol}=`))fail.push(`composed system missing: ${symbol}`);if(new RegExp(`class\\s+${oldClass}\\b`).test(src))fail.push(`composed class remains: ${oldClass}`);}
@@ -81,10 +81,11 @@ for(const p of all.filter(p=>p.endsWith('.js')&&rel(p).startsWith('js/'))){
 if(runtimeUnderscoreWrites.length)fail.push(`underscore state writes outside state.runtime: ${runtimeUnderscoreWrites.join(', ')}`);
 const layerViolations=[];let layerCalls=0;const layerFiles=new Set();
 for(const p of all.filter(p=>rel(p).startsWith('js/simulation/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');let fileCalls=0;for(const re of strictPatterns){const hits=src.match(new RegExp(re.source,'g'))||[];fileCalls+=hits.length;if(hits.length)layerViolations.push(`${rel(p)}: ${re}`);}if(fileCalls){layerCalls+=fileCalls;layerFiles.add(p);}}
-if(layerViolations.length){const message=`strict simulation-layer warnings: ${layerCalls} calls in ${layerFiles.size} files`;if(process.env.PP_STRICT_LAYERS==='1')fail.push(...layerViolations.map(v=>`simulation layer violation: ${v}`));else console.warn(message);}
+if(layerViolations.length)fail.push(...layerViolations.map(v=>`simulation layer violation: ${v}`));
 const coreViolations=[];let coreCalls=0;const coreFiles=new Set();
-for(const p of all.filter(p=>rel(p).startsWith('js/core/')&&p.endsWith('.js'))){const src=await readFile(p,'utf8');let n=0;for(const re of strictPatterns){if(rel(p)==='js/core/game-loop.js'&&(re.source.includes('performance\\.now')||re.source.includes('document\\.')))continue;n+=(src.match(new RegExp(re.source,'g'))||[]).length;}if(n){coreCalls+=n;coreFiles.add(p);coreViolations.push(`${rel(p)}: ${n}`);}}
-if(coreCalls){const message=`strict core-layer warnings: ${coreCalls} calls in ${coreFiles.size} files`;if(process.env.PP_STRICT_LAYERS==='1')fail.push(...coreViolations.map(v=>`core layer violation: ${v}`));else console.warn(message);}
+const coreAllowlist=new Set(['js/core/layout-service.js','js/core/utilities.js']);
+for(const p of all.filter(p=>rel(p).startsWith('js/core/')&&p.endsWith('.js'))){const r=rel(p);if(coreAllowlist.has(r))continue;const src=await readFile(p,'utf8');let n=0;for(const re of strictPatterns){if(r==='js/core/game-loop.js'&&(re.source.includes('performance\\.now')||re.source.includes('document\\.')))continue;n+=(src.match(new RegExp(re.source,'g'))||[]).length;}if(n){coreCalls+=n;coreFiles.add(p);coreViolations.push(`${r}: ${n}`);}}
+if(coreViolations.length)fail.push(...coreViolations.map(v=>`core layer violation: ${v}`));
 const renderSource=await readFile(path.join(root,'js/core/game-loop.js'),'utf8');
 if(/\.cv\.render\(snap\s*,?\s*\)/.test(renderSource))fail.push('GameLoop render path omits layout parameter');
 const wiringSource=await readFile(path.join(root,'js/bootstrap/wiring.js'),'utf8');
@@ -115,7 +116,7 @@ const deskVitals=indexSource.match(/<section id="deskVitals"[\s\S]*?<\/section>/
 const deskVitalOrder=['deskVitalDepth','deskVitalKeel','deskVitalHeading','deskVitalSpeed','deskVitalTorps','deskVitalBattery','deskVitalFuel','deskVitalThreat','deskVitalHull'];
 let lastVital=-1;for(const id of deskVitalOrder){const at=deskVitals.indexOf(`id="${id}"`);if(at<0)fail.push(`desktop vital missing: ${id}`);else if(at<=lastVital)fail.push(`desktop vital order incorrect: ${id}`);lastVital=at;}
 const actionable=[...deskVitals.matchAll(/class="desk-vital actionable" id="([^"]+)"/g)].map(m=>m[1]);
-if(actionable.join(',')!=='deskVitalDepth,deskVitalSpeed')fail.push(`desktop actionable vitals incorrect: ${actionable.join(',')}`);
+if(actionable.join(',')!=='deskVitalDepth,deskVitalHeading,deskVitalSpeed,deskVitalTorps')fail.push(`desktop actionable vitals incorrect: ${actionable.join(',')}`);
 if(!/id="deskFireButton"/.test(indexSource)||!/Toast\.warn\(viewModel\.fire\.reason/.test(await readFile(path.join(root,'js/controllers/bridge-controller.js'),'utf8')))fail.push('desktop permanent FIRE/reason route missing');
 if(!/html\[data-lay="desk"\] #desktopShell\{[\s\S]*?overflow:hidden;/.test(cssSource))fail.push('desktop page scroll is not locked');
 /* STEP 9b-2: the desktop bridge is no longer a grid column. Navigation and

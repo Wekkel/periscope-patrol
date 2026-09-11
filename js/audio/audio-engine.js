@@ -8,10 +8,41 @@ class AudioEngine{
     this.titleStartPlayed=false;this.titleCueGain=null;
     this.battleNoiseSource=null;this.seaGain=null;this.windGain=null;this.rainGain=null;this.harborGain=null;this.harborOsc=null;this.harborOscGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;this.escortMachinery=null;
     this.soundIdentity={key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1};
-    /* Hybrid sample house. URL stays null until a produced, licensed sample is
-       supplied; every slot then falls through to the existing WebAudio recipe.
+    this.speakerMode=false;this.speakerFilter=null;
+    /* Hybrid sample house. Standardized WW2 audio library with procedural fallback.
        Decoded buffers and simultaneous voices are explicitly bounded for G88. */
-    this.hybridManifest={SONAR_PING:{url:null,bus:'sensor'},GENERAL_ALARM:{url:null,bus:'command'},DECK_GUN_SHOT:{url:null,bus:'weapons'},DECK_GUN_IMPACT:{url:null,bus:'weapons'},TORPEDO_LAUNCH:{url:null,bus:'weapons'},TUBE_FILL:{url:null,bus:'system'},TORPEDO_HIT:{url:null,bus:'weapons'}};
+    this.hybridManifest={
+      SONAR_PING:{url:'./audio/sfx/sonar_ping_01.ogg',bus:'sensor'},
+      GENERAL_ALARM:{url:'./audio/sfx/general_alarm_01.ogg',bus:'command'},
+      DECK_GUN_SHOT:{url:'./audio/sfx/deck_gun_shot_01.ogg',bus:'weapons'},
+      DECK_GUN_IMPACT:{url:'./audio/sfx/deck_gun_impact_01.ogg',bus:'weapons'},
+      TORPEDO_LAUNCH:{url:'./audio/sfx/torpedo_launch_01.ogg',bus:'weapons'},
+      TUBE_FILL:{url:'./audio/sfx/torpedo_tube_fill_01.ogg',bus:'system'},
+      TORPEDO_HIT:{url:'./audio/sfx/torpedo_impact_01.ogg',bus:'weapons'},
+      TORPEDO_DUD:{url:'./audio/sfx/torpedo_dud_01.ogg',bus:'weapons'},
+      DEPTH_CHARGE:{url:'./audio/sfx/depth_charge_near_01.ogg',bus:'weapons'},
+      HYDROPHONE_CONTACT:{url:'./audio/sfx/hydrophone_contact_01.ogg',bus:'sensor'},
+      RADIO_INTELLIGENCE:{url:'./audio/sfx/radio_intelligence_01.ogg',bus:'command'},
+      HULL_CREAK:{url:'./audio/sfx/hull_pressure_creaks_01.ogg',bus:'machinery'},
+      TORPEDO_RUN:{url:'./audio/sfx/torpedo_run_01.ogg',bus:'sensor'},
+      AIRCRAFT_ATTACK:{url:'./audio/sfx/aircraft_overflight_attack_01.ogg',bus:'world'},
+      AIRCRAFT_PATROL:{url:'./audio/sfx/aircraft_overflight_patrol_01.ogg',bus:'world'},
+      AIRCRAFT_RECON:{url:'./audio/sfx/aircraft_overflight_recon_01.ogg',bus:'world'},
+      CAVITATION:{url:'./audio/loops/cavitation_01.ogg',bus:'sensor'},
+      DIESEL_MACHINERY:{url:'./audio/loops/diesel_machinery_01.ogg',bus:'machinery'},
+      ELECTRIC_MOTOR:{url:'./audio/loops/electric_motor_01.ogg',bus:'machinery'},
+      SEA_AMBIENCE:{url:'./audio/loops/sea_ambience_01.ogg',bus:'world'},
+      SURFACED_WEATHER:{url:'./audio/loops/surfaced_weather_01.ogg',bus:'world'},
+      AAR_CAREER:{url:'./audio/stings/aar_career_01.ogg',bus:'mission'},
+      AIR_ATTACK_TENSION:{url:'./audio/stings/air_attack_tension_01.ogg',bus:'mission'},
+      BRIEFING_START:{url:'./audio/stings/briefing_start_01.ogg',bus:'mission'},
+      MUSIC_FAIL:{url:'./audio/stings/music_fail_01.ogg',bus:'mission'},
+      MUSIC_HISTORIC:{url:'./audio/stings/music_historic_01.ogg',bus:'mission'},
+      MUSIC_RETURN:{url:'./audio/stings/music_return_01.ogg',bus:'mission'},
+      OBJECTIVE_COMPLETE:{url:'./audio/stings/objective_complete_01.ogg',bus:'mission'},
+      OBJECTIVE_FAILED:{url:'./audio/stings/objective_failed_01.ogg',bus:'mission'},
+      RETURN_TO_BASE:{url:'./audio/stings/return_to_base_01.ogg',bus:'mission'}
+    };
     this.hybridBuffers=new Map();this.hybridLoading=new Map();this.hybridVoices=[];this.hybridDecodedBytes=0;this.hybridBudgetBytes=8*1024*1024;this.hybridMaxVoices=6;
     // Aircraft fly-by is a deliberately tiny procedural engine. Only the nearest
     // visible aircraft in BRIDGE/GUN gets voices; this avoids turning ambient
@@ -30,11 +61,18 @@ class AudioEngine{
       // emits semantic events; the AudioDirector changes these buses without
       // ever changing physics, AI, detection or simulation timing.
       for(const name of ['system','command','sensor','world','machinery','weapons','mission']){const g=ctx.createGain();g.gain.value=1;g.connect(this.masterGain);this.busNodes[name]=g;}
+      // Output highpass filter: 10Hz for headphones (unfiltered deep sub-bass),
+      // 65Hz for mobile speakers (protects tiny speakers and clarifies punch).
+      this.speakerFilter=ctx.createBiquadFilter();
+      this.speakerFilter.type='highpass';
+      this.speakerFilter.frequency.value=this.speakerMode?65:10;
+      this.speakerFilter.Q.value=0.707;
       // A mild limiter is a safety rail for stacked combat transients, not a
       // loudness maximizer. Distance and dynamic range must remain audible.
       this.outputLimiter=ctx.createDynamicsCompressor();
       this.outputLimiter.threshold.value=-5;this.outputLimiter.knee.value=3;this.outputLimiter.ratio.value=6;this.outputLimiter.attack.value=.003;this.outputLimiter.release.value=.18;
-      this.masterGain.connect(this.outputLimiter);this.musicGain.connect(this.outputLimiter);this.outputLimiter.connect(ctx.destination);
+      this.masterGain.connect(this.speakerFilter);this.musicGain.connect(this.speakerFilter);
+      this.speakerFilter.connect(this.outputLimiter);this.outputLimiter.connect(ctx.destination);
       this._ensureNoiseBuffer();this.initialized=true;this.startAmbient();
       document.addEventListener('visibilitychange',()=>{
         if(!this.ctx)return;
@@ -87,20 +125,46 @@ class AudioEngine{
     if(this.hybridLoading.has(id))return this.hybridLoading.get(id);
     const task=fetch(spec.url).then(r=>{if(!r.ok)throw new Error(`${r.status} ${spec.url}`);return r.arrayBuffer();}).then(b=>this.ctx.decodeAudioData(b)).then(buffer=>{
       const bytes=buffer.length*buffer.numberOfChannels*4;if(bytes>this.hybridBudgetBytes||this.hybridDecodedBytes+bytes>this.hybridBudgetBytes)throw new Error('hybrid audio buffer budget exceeded');
+      // Anti-click zero-crossing taper: smooth 8ms Hann taper eliminates initial non-zero sample clicks
+      const taperLen=Math.min(Math.floor(buffer.sampleRate*0.008),buffer.length);
+      for(let ch=0;ch<buffer.numberOfChannels;ch++){
+        const d=buffer.getChannelData(ch);
+        for(let i=0;i<taperLen;i++)d[i]*=0.5*(1-Math.cos((Math.PI*i)/taperLen));
+      }
       this.hybridBuffers.set(id,buffer);this.hybridDecodedBytes+=bytes;return buffer;
     }).catch(e=>{console.warn(`Hybrid audio ${id} unavailable; procedural fallback retained.`,e);return null;}).finally(()=>this.hybridLoading.delete(id));
     this.hybridLoading.set(id,task);return task;
   }
 
-  _tryHybrid(id,{volume=1,rate=1}={}){
+  preloadCoreSamples(){
+    for(const key of ['SONAR_PING','GENERAL_ALARM','TORPEDO_LAUNCH','TUBE_FILL','TORPEDO_HIT','DECK_GUN_SHOT','DECK_GUN_IMPACT','DEPTH_CHARGE']){
+      this._loadHybrid(key).catch(()=>{});
+    }
+  }
+
+  setSpeakerMode(enabled){
+    this.speakerMode=!!enabled;
+    if(this.speakerFilter&&this.ctx){
+      const freq=this.speakerMode?65:10;
+      this.speakerFilter.frequency.setTargetAtTime(freq,this.ctx.currentTime,0.05);
+    }
+    return this.speakerMode;
+  }
+
+  _tryHybrid(id,{volume=1,rate=1,bearingDeg=null,ownHeading=0,loop=false}={}){
     const spec=this.hybridManifest[id],buffer=this.hybridBuffers.get(id);if(!spec?.url)return false;
     if(!buffer){this._loadHybrid(id);return false;}
     while(this.hybridVoices.length>=this.hybridMaxVoices){const old=this.hybridVoices.shift();try{old.stop();}catch(_){}}
-    const source=this.ctx.createBufferSource(),gain=this.ctx.createGain();source.buffer=buffer;source.playbackRate.value=clamp(rate,.5,2);gain.gain.value=clamp(volume,0,1.5);source.connect(gain);gain.connect(this._bus(spec.bus));
+    const now=this.ctx.currentTime,source=this.ctx.createBufferSource(),gain=this.ctx.createGain();
+    source.buffer=buffer;source.loop=!!loop;source.playbackRate.value=clamp(rate,.5,2);
+    const targetGain=clamp(volume,0,2.0);
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.linearRampToValueAtTime(targetGain,now+.004);
+    source.connect(gain);this._route(gain,bearingDeg,ownHeading,spec.bus);
     source.onended=()=>{this.hybridVoices=this.hybridVoices.filter(x=>x!==source);};this.hybridVoices.push(source);source.start();return true;
   }
 
-  hybridStatus(){return{slots:Object.fromEntries(Object.entries(this.hybridManifest).map(([id,s])=>[id,{configured:!!s.url,ready:this.hybridBuffers.has(id),bus:s.bus}])),decodedBytes:this.hybridDecodedBytes,budgetBytes:this.hybridBudgetBytes,voices:this.hybridVoices.length,maxVoices:this.hybridMaxVoices};}
+  hybridStatus(){return{slots:Object.fromEntries(Object.entries(this.hybridManifest).map(([id,s])=>[id,{configured:!!s.url,ready:this.hybridBuffers.has(id),bus:s.bus}])),decodedBytes:this.hybridDecodedBytes,budgetBytes:this.hybridBudgetBytes,voices:this.hybridVoices.length,maxVoices:this.hybridMaxVoices,speakerMode:this.speakerMode};}
 
   applyMixProfile(profile={}){
     if(!this.ctx)return;const now=this.ctx.currentTime,wall=performance.now(),duck=wall<this.duckUntil?this.duckFactor:1;
@@ -222,6 +286,7 @@ class AudioEngine{
     this.ensure();if(Date.now()-this.lastDC<210)return;this.lastDC=Date.now();if(!this.ctx||!this.enabled)return;
     const ctx=this.ctx,now=ctx.currentTime,near=clamp(1-(Number(dist)||0),0,1),far=near<.18,mid=!far&&near<.58;
     const scale=far?.42:mid?.68:.96,bodyDur=far?.84:mid?1.04:1.24;this.duck(near>.7?98:mid?90:80,near>.7?900:620);
+    if(this._tryHybrid('DEPTH_CHARGE',{volume:scale,rate:far?.88:(mid?.94:1)}))return;
     // Pressure-first design: short dark broadband WHUMP excites broad low-Q
     // water/steel resonances. Avoid clean low oscillators here: they read as a
     // synth bass note instead of an underwater explosion.
@@ -237,15 +302,21 @@ class AudioEngine{
     this._filteredNoise(glow,glowVol,{type:'lowpass',freq:215,q:.42,attack:.12},null,0,'weapons');
   }
 
-  playDepthChargeSplash(distanceFactor=.5){
-    this.ensure();const v=clamp(.17*(1-clamp(distanceFactor,0,1)*.58),.045,.17);
-    // Three physical layers: the thin surface slap, displaced-water body and
-    // an irregular bubble wash. Keeping them broadband avoids the old digital
-    // click while remaining much lighter than the later detonation.
-    this._filteredNoise(.075,v*.88,{type:'highpass',freq:1450,q:.34,attack:.001},null,0,'weapons');
-    this._filteredNoise(.32,v,{type:'bandpass',freq:820,q:.38,attack:.006},null,0,'weapons');
-    this._filteredNoise(.52,v*.40,{type:'lowpass',freq:190,q:.42,attack:.012},null,0,'weapons');
-    setTimeout(()=>this._filteredNoise(.26,v*.24,{type:'bandpass',freq:1280,q:.30,attack:.025},null,0,'weapons'),95);
+  playDepthChargeSplash(distanceFactor=.5,bearingDeg=null,ownHeading=0){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    const ctx=this.ctx,now=ctx.currentTime;
+    const d=clamp(Number(distanceFactor)||0,0,1),v=clamp(.40*(1-d*.60),.08,.40);
+    // 1. Hydrodynamic cavity water entry 'thloomp/ploemp': pitch sweep 175 Hz -> 68 Hz
+    const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+    o.type='sine';o.frequency.setValueAtTime(175,now);o.frequency.exponentialRampToValueAtTime(68,now+.22);
+    f.type='lowpass';f.frequency.setValueAtTime(260,now);
+    g.gain.setValueAtTime(0.0001,now);g.gain.linearRampToValueAtTime(v*.72,now+.006);g.gain.exponentialRampToValueAtTime(0.0001,now+.26);
+    o.connect(f);f.connect(g);this._route(g,bearingDeg,ownHeading,'weapons');
+    o.start(now);o.stop(now+.28);
+    // 2. Muffled water mass turbulence / cavitation displacement (no harsh highpass clicks)
+    this._filteredNoise(.42,v*.85,{type:'lowpass',freq:240,q:.7,attack:.008},bearingDeg,ownHeading,'weapons');
+    // 3. Low resonant underwater surge tail (115 Hz)
+    this._filteredNoise(.58,v*.40,{type:'bandpass',freq:115,q:1.4,attack:.018},bearingDeg,ownHeading,'weapons');
   }
 
   playHit(){
@@ -259,13 +330,14 @@ class AudioEngine{
   }
 
   playTorpedoHit(){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    this.duck(100,1900);
     if(this._tryHybrid('TORPEDO_HIT'))return;
-    this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
+    const ctx=this.ctx,now=ctx.currentTime;
     // A Mk14-sized warhead striking a steel hull is deliberately NOT a short,
     // dry bang. The first pressure face is broad and dark; a turbulent water/
     // hull body follows for almost three seconds, with inharmonic low-Q steel
     // resonances and a low tail that remains audible on small mobile speakers.
-    this.duck(100,1900);
     this._filteredNoise(.095,.98,{type:'lowpass',freq:1050,q:.28,attack:.0004},null,0,'weapons');
     this._filteredNoise(.24,.82,{type:'lowpass',freq:185,q:.34,attack:.0007},null,0,'weapons');
     this._filteredNoise(.48,.38,{type:'bandpass',freq:980,q:.38,attack:.002},null,0,'weapons');
@@ -275,12 +347,26 @@ class AudioEngine{
     setTimeout(()=>this._filteredNoise(.90,.055,{type:'bandpass',freq:118,q:.82,attack:.015},null,0,'weapons'),165);
   }
 
-  playDud(){this.ensure();this._noise(.22,105,'sine',.18,null,0,'weapons');setTimeout(()=>this._metalClack(.22,88,310,'weapons'),70);}
+  playDud(){if(this._tryHybrid('TORPEDO_DUD'))return;this.ensure();this._noise(.22,105,'sine',.18,null,0,'weapons');setTimeout(()=>this._metalClack(.22,88,310,'weapons'),70);}
 
   playDeckGun(power=1){
     if(this._tryHybrid('DECK_GUN_SHOT',{volume:power}))return;
     this.ensure();const v=clamp(power,.2,1);this.duck(86,320);this._noise(.055,72,'sawtooth',.55*v,null,0,'weapons');
     setTimeout(()=>this._white(.18,.42*v,null,0,'weapons'),18);setTimeout(()=>this._noise(.42,36,'sine',.30*v,null,0,'weapons'),45);
+  }
+
+  playAABurst(strength=.7,bearingDeg=null,ownHeading=0){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    const v=clamp(strength,.15,1.0);
+    this.duck(60,260);
+    for(let i=0;i<4;i++){
+      setTimeout(()=>{
+        if(!this.ctx||!this.enabled)return;
+        this._filteredNoise(.042,.52*v,{type:'bandpass',freq:1150,q:.65,attack:.0005},bearingDeg,ownHeading,'weapons');
+        this._metalClack(.32*v,180,920,'weapons');
+        this._filteredNoise(.068,.42*v,{type:'lowpass',freq:280,q:.55,attack:.001},bearingDeg,ownHeading,'weapons');
+      },i*125);
+    }
   }
 
   _sonarConfig(index=this.sonarVariant,own=false){
@@ -313,7 +399,13 @@ class AudioEngine{
   }
 
   playSonarPing(bearingDeg=null,ownHeading=0,variant=this.sonarVariant,levelScale=1){
-    this.ensure();if(Date.now()-this.lastPing<700)return;this.lastPing=Date.now();if(!this._tryHybrid('SONAR_PING',{volume:levelScale}))this._playSelfDecaySonar(bearingDeg,ownHeading,variant,false,levelScale);
+    this.ensure();if(Date.now()-this.lastPing<700)return;this.lastPing=Date.now();
+    this.lastEnemyPingAt=performance.now();this.duck(78,520);
+    const v=clamp(Number(levelScale)||0,0,1.2);
+    // Projector transient slap (gives the ping a sharp, resonant strike on the hull)
+    this._filteredNoise(.04,.05*v,{type:'bandpass',freq:850,q:1.4,attack:.0005},bearingDeg,ownHeading,'sensor');
+    // Hybrid sample boosted to compensate for its low RMS recording level
+    if(!this._tryHybrid('SONAR_PING',{volume:v*1.75,bearingDeg,ownHeading}))this._playSelfDecaySonar(bearingDeg,ownHeading,variant,false,v);
     const ping=document.getElementById('sonarPing');if(ping){ping.classList.remove('ping');void ping.offsetWidth;ping.classList.add('ping');}
   }
 
@@ -351,6 +443,7 @@ class AudioEngine{
   playWaypoint(){this.ensure();this._metalClack(.24,92,620,'system');}
   playRadioMessage(){
     this.ensure();if(Date.now()-this.lastRadio<550)return;this.lastRadio=Date.now();
+    if(this._tryHybrid('RADIO_INTELLIGENCE'))return;
     const pitch=clamp(Number(this.soundIdentity?.commandPitch)||1,.85,1.2);
     this._metalClack(.18,100*pitch,1280*pitch,'system');
     // Brief keying/operator activity: an acknowledgement of a copied signal,
@@ -359,7 +452,7 @@ class AudioEngine{
     setTimeout(()=>this._metalClack(.12,96*pitch,980*pitch,'system'),315);
   }
   playBattleStations(){
-    this.ensure();if(Date.now()-this.lastBattleStations<1800)return;this.lastBattleStations=Date.now();if(this._tryHybrid('GENERAL_ALARM'))return;if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
+    this.ensure();if(Date.now()-this.lastBattleStations<40000)return;this.lastBattleStations=Date.now();if(this._tryHybrid('GENERAL_ALARM'))return;if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
     // Short electro-mechanical klaxon: an inharmonic motor/body pair, uneven
     // rise and a little housing rattle. No clean two-note computer beep.
     this._filteredNoise(.78,.045,{type:'bandpass',freq:310,q:2.1,attack:.018},null,0,'command');
@@ -376,6 +469,8 @@ class AudioEngine{
     this.ensure();if(!this.ctx||!this.enabled||this.musicVolume<=0)return false;
     if(kind==='START'&&this.titleStartPlayed)return false;
     if(kind==='START')this.titleStartPlayed=true;
+    if(kind==='START'&&this._tryHybrid('MUSIC_HISTORIC'))return true;
+    if(kind==='COMPLETE'&&this._tryHybrid('MUSIC_RETURN'))return true;
     this.stopTitleCue(.06);const ctx=this.ctx,now=ctx.currentTime,dur=kind==='COMPLETE'?4.2:5.4,cue=ctx.createGain();cue.gain.value=1;cue.connect(this.musicGain);this.titleCueGain=cue;
     // Short original low-brass identity only; no melody and no external assets.
     // Procedural brass is intentionally used sparingly because natural brass
@@ -385,6 +480,11 @@ class AudioEngine{
     setTimeout(()=>{if(this.titleCueGain===cue)this.titleCueGain=null;},(dur+.15)*1000);return true;
   }
 
+  playASWAlarm(soft=false){
+    if(this._tryHybrid('GENERAL_ALARM',{volume:soft?.55:1}))return;
+    this.playBattleStations();
+  }
+
   event(type,opts={}){
     this.ensure();
     const key=String(type||'').toUpperCase();
@@ -392,14 +492,20 @@ class AudioEngine{
       case'SAVE_CONFIRMED':case'RESUME_CONFIRMED':case'TUTORIAL_STEP':return this.playUiConfirm(.22);
       case'WAYPOINT_REACHED':return this.playWaypoint();
       case'RADIO_MESSAGE':return this.playRadioMessage();
-      case'HARBOR_REACHED':return this.playUiConfirm(.42);
-      case'MISSION_START':return this.stopTitleCue(.28);
-      case'PRIMARY_OBJECTIVE_COMPLETE':return this.playUiConfirm(.46);
-      case'MISSION_FAILED':return this._metalClack(.34,78,390,'mission');
-      case'PATROL_COMPLETE':case'MISSION_COMPLETE':return this.playTitleCue('COMPLETE');
-      case'AIRCRAFT_SPOTTED':case'AIRCRAFT_ATTACK':case'SUB_DETECTED':case'SEARCHLIGHT_CONTACT':return this.playBattleStations();
-      case'DEPTH_CHARGE_SPLASH':return this.playDepthChargeSplash(opts.distanceFactor??.5);
+      case'HARBOR_REACHED':if(this._tryHybrid('RETURN_TO_BASE'))return true;return this.playUiConfirm(.42);
+      case'MISSION_START':this.stopTitleCue(.28);return this._tryHybrid('BRIEFING_START');
+      case'PRIMARY_OBJECTIVE_COMPLETE':if(this._tryHybrid('OBJECTIVE_COMPLETE'))return true;return this.playUiConfirm(.46);
+      case'MISSION_FAILED':if(this._tryHybrid('OBJECTIVE_FAILED'))return true;return this._metalClack(.34,78,390,'mission');
+      case'PATROL_COMPLETE':case'MISSION_COMPLETE':if(this._tryHybrid('MUSIC_RETURN'))return true;return this.playTitleCue('COMPLETE');
+      case'AIRCRAFT_SPOTTED':case'SUB_DETECTED':case'SEARCHLIGHT_CONTACT':return this.playBattleStations();
+      case'AIRCRAFT_ATTACK':{
+        this.playBattleStations();
+        this._tryHybrid('AIRCRAFT_ATTACK',{volume:.85,bearingDeg:opts.bearingDeg??null,ownHeading:opts.ownHeading??0});
+        return true;
+      }
+      case'DEPTH_CHARGE_SPLASH':return this.playDepthChargeSplash(opts.distanceFactor??.5,opts.bearingDeg??null,opts.ownHeading??0);
       case'AIR_BOMB':return this.playAirBomb(opts.distanceFactor??.3);
+      case'AAR_CAREER':return this._tryHybrid('AAR_CAREER');
       default:return this.playUiConfirm(.18);
     }
   }
@@ -409,12 +515,15 @@ class AudioEngine{
     if(key==='SONAR')return this.playSonarPing(opts.bearing??null,opts.heading??0,opts.variant??this.sonarVariant);
     if(key==='OWN_SONAR')return this._playSelfDecaySonar(null,0,opts.variant??this.sonarVariant,true);
     if(key==='DEPTH_FAR')return this.playDepthCharge(.92);if(key==='DEPTH_MEDIUM')return this.playDepthCharge(.55);if(key==='DEPTH_NEAR')return this.playDepthCharge(.05);if(key==='DEPTH_SPLASH')return this.playDepthChargeSplash(.25);
+    if(key==='GUN_IMPACT')return this.playDeckGunImpact(opts.distanceFactor??.3);if(key==='SHELL_SPLASH')return this.playShellSplash(opts.distanceFactor??.3);
+    if(key==='AA_BURST')return this.playAABurst(opts.strength??.7,opts.bearingDeg??null,opts.ownHeading??0);
     if(key==='TUBE_FLOOD')return this.playTubeFlood();if(key==='TUBE_READY')return this.playTubeReady();if(key==='TDC')return this.playTdcSolution();if(key==='STATION')return this.playStationSwitch();
     if(key==='SCOPE_EXTEND')return this.playPeriscopeMove('extend');if(key==='SCOPE_RETRACT')return this.playPeriscopeMove('retract');if(key==='MINE')return this.playMineStrike();if(key==='AIR_BOMB')return this.playAirBomb(.3);if(key==='TORPEDO_HIT')return this.playTorpedoHit();if(key==='TITLE')return this.playTitleCue('START');if(key==='BATTLE_STATIONS')return this.playBattleStations();
+    if(this.hybridManifest[key])return this._tryHybrid(key,opts);
     throw new Error(`Unknown audio review sound: ${name}`);
   }
 
-  audioStats(){return{initialized:this.initialized,context:this.ctx?.state||'none',enabled:this.enabled,gestureResumeAttempts:this.gestureResumeAttempts,lastGestureEvent:this.lastGestureEvent,sonarVariant:this.sonarVariant,sfxVolume:this.sfxVolume,musicVolume:this.musicVolume,sampleRate:this.ctx?.sampleRate||null,sharedNoiseBufferSeconds:this.noiseBuffer?this.noiseBuffer.length/this.noiseBuffer.sampleRate:0,busMix:{...this.mixTargets},hybrid:this.hybridStatus(),duckUntilMs:Math.max(0,(this.duckUntil||0)-performance.now()),lastEnemyPingAgeMs:this.lastEnemyPingAt?performance.now()-this.lastEnemyPingAt:null,nearbyEscort:this.escortMachinery?{id:this.escortMachinery.id,rangeNm:this.escortMachinery.rangeNm}:null};}
+  audioStats(){return{initialized:this.initialized,context:this.ctx?.state||'none',enabled:this.enabled,speakerMode:this.speakerMode,gestureResumeAttempts:this.gestureResumeAttempts,lastGestureEvent:this.lastGestureEvent,sonarVariant:this.sonarVariant,sfxVolume:this.sfxVolume,musicVolume:this.musicVolume,sampleRate:this.ctx?.sampleRate||null,sharedNoiseBufferSeconds:this.noiseBuffer?this.noiseBuffer.length/this.noiseBuffer.sampleRate:0,busMix:{...this.mixTargets},hybrid:this.hybridStatus(),duckUntilMs:Math.max(0,(this.duckUntil||0)-performance.now()),lastEnemyPingAgeMs:this.lastEnemyPingAt?performance.now()-this.lastEnemyPingAt:null,nearbyEscort:this.escortMachinery?{id:this.escortMachinery.id,rangeNm:this.escortMachinery.rangeNm}:null};}
 
   playDistantGunfire(bearingDeg=null,ownHeading=0,strength=.5){
     this.ensure();const v=clamp(strength,.08,.8);this._noise(.055,64,'sawtooth',.26*v,bearingDeg,ownHeading,'weapons');
@@ -425,18 +534,29 @@ class AudioEngine{
     this.ensure();this._white(.34,.18,bearingDeg,ownHeading,'weapons');setTimeout(()=>this._noise(.22,190,'sine',.08,bearingDeg,ownHeading,'weapons'),30);
   }
 
-  playShellSplash(distanceFactor=.5){this.ensure();const v=clamp(.28*(1-distanceFactor*.65),.05,.28);this._white(.32,v,null,0,'weapons');setTimeout(()=>this._noise(.5,52,'sine',v*.55,null,0,'weapons'),20);}
-  playShellImpact(bearingDeg=null,ownHeading=0,power=1){this.ensure();const v=clamp(power,.2,1);this.duck(88,420);this._noise(.08,52,'sawtooth',.55*v,bearingDeg,ownHeading,'weapons');setTimeout(()=>this._white(.8,.38*v,bearingDeg,ownHeading,'weapons'),20);}
-  playDeckGunImpact(distanceFactor=.5){
-    if(this._tryHybrid('DECK_GUN_IMPACT',{volume:1-distanceFactor*.55}))return;
+  playShellSplash(distanceFactor=.5,bearingDeg=null,ownHeading=0){
     this.ensure();if(!this.ctx||!this.enabled)return;
-    // Fall-of-shot is deliberately range-scaled. A distant hit is a small dark
-    // crack/thump, not the same close explosion merely played at full volume.
-    const d=clamp(Number(distanceFactor)||0,0,1),v=clamp(.34*(1-d*.76),.055,.34);
-    this._filteredNoise(.055,.42*v,{type:'bandpass',freq:420,q:.48,attack:.001},null,0,'weapons');
-    this._filteredNoise(.46,.78*v,{type:'lowpass',freq:170,q:.55,attack:.004},null,0,'weapons');
+    const d=clamp(Number(distanceFactor)||0,0,1),v=clamp(.45*(1-d*.62),.09,.45);
+    this.duck(70,380);
+    if(this._tryHybrid('DECK_GUN_IMPACT',{volume:clamp((1-d*.55)*1.1,0.35,1.15),rate:1.15,bearingDeg,ownHeading}))return;
+    this._filteredNoise(.45,v*.85,{type:'lowpass',freq:260,q:.6,attack:.005},bearingDeg,ownHeading,'weapons');
+    this._filteredNoise(.32,v*.65,{type:'bandpass',freq:480,q:.5,attack:.008},bearingDeg,ownHeading,'weapons');
+    this._filteredNoise(.68,v*.40,{type:'bandpass',freq:820,q:.4,attack:.025},bearingDeg,ownHeading,'weapons');
+    this._noise(.38,65,'sine',v*.45,bearingDeg,ownHeading,'weapons');
   }
-  playCreak(){this.ensure();this._noise(.55,86,'sine',.09,null,0,'machinery');setTimeout(()=>this._noise(.7,54,'sine',.055,null,0,'machinery'),180);}
+  playShellImpact(bearingDeg=null,ownHeading=0,power=1){this.ensure();const v=clamp(power,.2,1);this.duck(88,420);this._noise(.08,52,'sawtooth',.55*v,bearingDeg,ownHeading,'weapons');setTimeout(()=>this._white(.8,.38*v,bearingDeg,ownHeading,'weapons'),20);}
+  playDeckGunImpact(distanceFactor=.5,bearingDeg=null,ownHeading=0){
+    this.ensure();if(!this.ctx||!this.enabled)return;
+    this.duck(82,520);
+    const d=clamp(Number(distanceFactor)||0,0,1),v=clamp(.52*(1-d*.65),.12,.52);
+    this._filteredNoise(.045,clamp(.35*(1-d*.5),.10,.35),{type:'highpass',freq:1100,q:.4,attack:.0005},bearingDeg,ownHeading,'weapons');
+    this._metalClack(clamp(1-d*.5,.3,1.0),125,780,'weapons');
+    if(this._tryHybrid('DECK_GUN_IMPACT',{volume:clamp((1.2-d*.55)*1.35,0.45,1.5),rate:.96,bearingDeg,ownHeading}))return;
+    this._filteredNoise(.065,.65*v,{type:'bandpass',freq:620,q:.65,attack:.001},bearingDeg,ownHeading,'weapons');
+    this._filteredNoise(.55,.98*v,{type:'lowpass',freq:220,q:.5,attack:.003},bearingDeg,ownHeading,'weapons');
+    this._noise(.35,180,'sawtooth',.35*v,bearingDeg,ownHeading,'weapons');
+  }
+  playCreak(){if(this._tryHybrid('HULL_CREAK'))return;this.ensure();this._noise(.55,86,'sine',.09,null,0,'machinery');setTimeout(()=>this._noise(.7,54,'sine',.055,null,0,'machinery'),180);}
 
   _ensureBattleLoops(){
     if(!this.ctx||this.battleNoiseSource)return;
@@ -573,7 +693,9 @@ class AudioEngine{
     // smoothly. This avoids dozens of WebAudio parameter writes per render frame.
     if(now-this.airFlybyLastUpdate<.085)return;this.airFlybyLastUpdate=now;
     const sub=state.playerSub,sta=state.tactical?.activeStation||'TACTICAL';
-    const stationOK=(sta==='BRIDGE'||sta==='DECK_GUN')&&(sub.depthFeet||0)<10;
+    const surfaced=(sub.depthFeet||0)<12;
+    const hasAttacker=(state.world?.aircraft||[]).some(a=>!a.shotDown&&a.seenBySub&&(a.state==='ATTACKING'||a.state==='STRAFING'));
+    const stationOK=surfaced&&((sta==='BRIDGE'||sta==='DECK_GUN')||hasAttacker);
     let best=null,bestR=Infinity;
     if(stationOK){for(const a of state.world?.aircraft||[]){
       if(a.shotDown||!a.seenBySub||a.state==='DEPARTING'||!a.position)continue;

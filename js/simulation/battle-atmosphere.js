@@ -85,7 +85,7 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       }else{
         A.splashes.push({id:`SP-${ev.id}`,position:{...ev.impactPosition},at:now,until:now+4,size:1.0,kind:'COASTAL'});if(A.splashes.length>BATTLE_MAX_SPLASHES)A.splashes.shift();
         const close=miss<.12;if(close)PresentationBridge.audio(this.state).playShellPass?.(bearingBetween(sub.position,ev.origin),sub.heading);
-        PresentationBridge.audio(this.state).playShellSplash?.(clamp(miss/.3,0,1));
+        PresentationBridge.audio(this.state).playShellSplash?.(clamp(miss/.3,0,1),bearingBetween(sub.position,ev.impactPosition),sub.heading);
         const H=s.world.harbor;if(H){const lit=now<(H.searchlightContactUntil||-1);H.batteryCorrection=lit?clamp((H.batteryCorrection||1)*.76,.34,1):clamp((H.batteryCorrection||1)*.96,.7,1.15);}
       }
     },

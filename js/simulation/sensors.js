@@ -101,7 +101,7 @@ const SensorsSystem={
       reach*=clamp(env.visibilityNm/12,.35,1.35)*(1-sea*.40)*enemyVisualFactor;if(rng>reach)continue;
       const p=clamp(1-rng/reach,0,1)*dt*.55*enemyVisualFactor;if(Math.random()<p){anySeen=true;if(!nearestSeen||rng<nearestSeen.r)nearestSeen={esc,r:rng,what};}
     }
-    const now=this.state.time.elapsedSeconds;if(anySeen)e.visualHoldUntil=now+25;
+    const now=this.state.time.elapsedSeconds,wasSeen=now<(e.visualHoldUntil||0);if(anySeen)e.visualHoldUntil=now+25;
     e.visualOnSub=now<(e.visualHoldUntil||0)&&sub.depthFeet<30;e.periscopeSighted=now<(e.visualHoldUntil||0)&&sub.depthFeet>=30;
     if(anySeen){
       const {esc,r,what}=nearestSeen,hull=sub.depthFeet<30,err=hull?.02:.055;this.sys.enemyAI.markEscortAlerted(esc);
@@ -115,7 +115,7 @@ const SensorsSystem={
         const A=this.sys.aswBrain.ensureASWState();if(A){A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:err,source:'VISUAL'};A.datumAt=now;A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;this.sys.aswBrain.assignASWRoles(esc.id,true);}
         this.log(`${esc.name} lookouts sighted a ${what} at ${(r*2025).toFixed(0)} yards.`);
       }
-      PresentationBridge.audio(this.state).event?.('SUB_DETECTED');
+      if(!wasSeen)PresentationBridge.audio(this.state).event?.('SUB_DETECTED');
     }
     if(day<.25&&e.alertState==='ATTACKING'&&e.visualOnSub&&this.state.time.elapsedSeconds>(e.starShellUntil||0)+70&&Math.random()<dt*.06){
       e.starShellUntil=this.state.time.elapsedSeconds+45;this.log('STAR SHELL — the sea around you is lit up like day.','bad');

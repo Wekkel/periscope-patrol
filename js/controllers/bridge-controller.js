@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════ DESKTOP CONTROLLER
 class BridgeController{
-  constructor(game,cv){this.game=game;this.cv=cv;this._qcConfirmUntil=0;this._qcConfirmTimer=null;this.bind();}
+  constructor(game,cv,dv){this.game=game;this.cv=cv;this.dv=dv||(typeof domView!=='undefined'?domView:globalThis.domView);this._qcConfirmUntil=0;this._qcConfirmTimer=null;this.bind();}
   bind(){
     const hi=document.getElementById('headingInput');
     const ri=document.getElementById('rpmInput');
@@ -20,7 +20,10 @@ class BridgeController{
       this.game.dispatch({type:'SET_ACTIVE_STATION',station:s});
       const snap=this.game.getSnapshot(),actual=snap.tactical.activeStation;
       allStations.forEach(b=>b.classList.toggle('active',b===stationByName[actual]));
-      try{this.cv.render(snap,LayoutService.get());}
+      const layout=LayoutService.get();
+      const view=this.dv||globalThis.domView||(typeof domView!=='undefined'?domView:null);
+      view?.render(snap,layout);
+      try{this.cv.render(snap,layout);}
       catch(err){const key=String(err?.message||err||'unknown render error');if(this._directRenderErrorKey!==key){this._directRenderErrorKey=key;console.error('[BridgeController] immediate station render failed',err);}}
     };
     const setHeading=value=>{const heading=Math.round(normDeg(Number(value)||0));if(hi)hi.value=String(heading);const exact=document.getElementById('headingNumberInput');if(exact&&exact!==document.activeElement)exact.value=String(heading);if(hv)hv.textContent=fmtDeg(heading);this.game.dispatch({type:'SET_ORDERED_HEADING',heading});};
@@ -33,7 +36,7 @@ class BridgeController{
     const setDepth=value=>{const sub=this.game.getSnapshot().playerSub,max=Number(di?.max)||Math.min(600,Math.max(300,Math.floor((sub.damage.crushDepthFeet||420)-10))),depth=clamp(Math.round(Number(value)||0),0,max);if(di)di.value=String(depth);const exact=document.getElementById('depthNumberInput');if(exact)exact.value=String(depth);if(dv)dv.textContent=depthRead(depth);this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:depth});};
     const closeVitalMenus=()=>document.querySelectorAll('#deskVitals .desk-vital.open').forEach(el=>{el.classList.remove('open');el.setAttribute('aria-expanded','false');});
     const toggleVitalMenu=el=>{const open=!el.classList.contains('open');closeVitalMenus();if(open){el.classList.add('open');el.setAttribute('aria-expanded','true');}};
-    for(const id of ['deskVitalDepth','deskVitalSpeed']){
+    for(const id of ['deskVitalDepth','deskVitalHeading','deskVitalSpeed','deskVitalTorps']){
       const el=document.getElementById(id);if(!el)continue;
       el.addEventListener('click',e=>{if(e.target.closest('.desk-vital-menu'))return;toggleVitalMenu(el);});
       el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggleVitalMenu(el);}else if(e.key==='Escape')closeVitalMenus();});
@@ -43,6 +46,29 @@ class BridgeController{
     document.querySelectorAll('[data-desk-vdstep]').forEach(b=>b.addEventListener('click',()=>setDepth(this.game.getSnapshot().playerSub.orderedDepthFeet+Number(b.dataset.deskVdstep))));
     document.querySelectorAll('[data-desk-vrpm]').forEach(b=>b.addEventListener('click',()=>setRpm(b.dataset.deskVrpm)));
     document.querySelectorAll('[data-desk-vrstep]').forEach(b=>b.addEventListener('click',()=>setRpm(this.game.getSnapshot().playerSub.propulsion.orderedRpm+Number(b.dataset.deskVrstep))));
+    document.querySelectorAll('[data-desk-vhdg]').forEach(b=>b.addEventListener('click',()=>setHeading(b.dataset.deskVhdg)));
+    document.querySelectorAll('[data-desk-vhstep]').forEach(b=>b.addEventListener('click',()=>setHeading(this.game.getSnapshot().playerSub.orderedHeading+Number(b.dataset.deskVhstep))));
+    btn('deskVitalFloodFwd', ()=>this.game.dispatch({type:'FLOOD_ALL_TUBES'}));
+    btn('deskVitalFloodAft', ()=>this.game.dispatch({type:'FLOOD_AFT_TUBES'}));
+    btn('deskVitalSpreadFwd',()=>this.game.dispatch({type:'FIRE_READY_SPREAD'}));
+    btn('deskVitalSpreadAft',()=>this.game.dispatch({type:'FIRE_AFT_SPREAD'}));
+    btn('deskRightFloodFwd', ()=>this.game.dispatch({type:'FLOOD_ALL_TUBES'}));
+    btn('deskRightSpreadFwd',()=>this.game.dispatch({type:'FIRE_READY_SPREAD'}));
+    btn('deskRightGunLay',   ()=>this.game.dispatch({type:'LAY_DECK_GUN'}));
+    btn('deskRightGunFire',  ()=>this.game.dispatch({type:'FIRE_DECK_GUN'}));
+    btn('deskGunLay',        ()=>this.game.dispatch({type:'LAY_DECK_GUN'}));
+    btn('deskGunFire',       ()=>this.game.dispatch({type:'FIRE_DECK_GUN'}));
+    document.getElementById('deskRightTubes')?.addEventListener('click',e=>{
+      const tubeEl=e.target.closest('.desk-tube');if(!tubeEl)return;
+      const tubeId=Number(tubeEl.dataset.tubeId),state=this.game.getSnapshot();
+      const tube=state.weapons?.tubes?.find(t=>t.id===tubeId);if(!tube)return;
+      if(tube.status==='LOADED_DRY')this.game.dispatch({type:'FLOOD_TUBE',tubeId});
+      else if(tube.status==='READY'){
+        const vm=buildHudViewModel(state,LayoutService.get());
+        if(!vm.fire.available){if(typeof Toast!=='undefined')Toast.warn(vm.fire.reason||'No firing solution is ready.');return;}
+        this.game.dispatch({type:'FIRE_TORPEDO',tubeId});
+      }
+    });
     document.querySelectorAll?.('[data-hstep]')?.forEach(b=>{if(!b.closest('#touchShell'))b.addEventListener('click',()=>setHeading(this.game.getSnapshot().playerSub.orderedHeading+Number(b.dataset.hstep)));});
     document.getElementById('headingNumberInput')?.addEventListener('change',e=>setHeading(e.target.value));
     document.querySelectorAll?.('[data-deskrpm]')?.forEach(b=>b.addEventListener('click',()=>setRpm(b.dataset.deskrpm)));

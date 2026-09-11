@@ -482,7 +482,14 @@ const CoreSystem={
       case'TDC_SEND_SCOPE_OBSERVATION': this.sendScopeToTdc(); break;
       case'FLOOD_TUBE': this.sys.torpedoes.floodTube(cmd.tubeId); break;
       case'FIRE_TORPEDO': this.sys.torpedoes.fireTorpedo(cmd.tubeId); break;
-      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.sys.torpedoes.floodTube(t.id,false); this.log('Forward tubes flooded and ready.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
+      case'FLOOD_ALL_TUBES': {
+        const fwdDry=this.state.weapons.tubes.filter(t=>t.pos==='FWD'&&t.status==='LOADED_DRY');
+        if(!fwdDry.length){this.log('No loaded dry forward tubes available to flood.','warn');break;}
+        for(const t of fwdDry) this.sys.torpedoes.floodTube(t.id,false);
+        this.log(`${fwdDry.length} forward tube(s) flooded and ready.`);
+        PresentationBridge.audio(this.state).playTubeFlood?.();
+        PresentationBridge.delayedAudio(this.state,680,'playTubeReady');
+        break;}
       case'FIRE_READY_SPREAD': this.sys.torpedoes.fireSpread(); break;
       case'SET_TORPEDO_TYPE':{
         const spec=TORPEDO_SPECS[cmd.specKey];
@@ -515,9 +522,14 @@ const CoreSystem={
         this.updateTdc(true);PresentationBridge.audio(this.state).playTdcSolution?.();
         this.log(`TDC manual: B${fmtDeg(tdc.bearing)} R${tdc.rangeNm.toFixed(1)}nm C${fmtDeg(tdc.targetCourse)} S${tdc.targetSpeedKnots}kn → ${tdc.status} sol${Math.round(tdc.solutionQuality*100)}%`);
         break;}
-      case'FLOOD_AFT_TUBES':
-        for(const t of this.state.weapons.tubes.filter(t=>t.pos==='AFT')) this.sys.torpedoes.floodTube(t.id,false);
-        this.log('Aft tubes flooded.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
+      case'FLOOD_AFT_TUBES': {
+        const aftDry=this.state.weapons.tubes.filter(t=>t.pos==='AFT'&&t.status==='LOADED_DRY');
+        if(!aftDry.length){this.log('No loaded dry aft tubes available to flood.','warn');break;}
+        for(const t of aftDry) this.sys.torpedoes.floodTube(t.id,false);
+        this.log(`${aftDry.length} aft tube(s) flooded and ready.`);
+        PresentationBridge.audio(this.state).playTubeFlood?.();
+        PresentationBridge.delayedAudio(this.state,680,'playTubeReady');
+        break;}
       case'FIRE_AFT_SPREAD': this.sys.torpedoes.fireSpreadByPos('AFT'); break;
       case'MAP_ADD_WAYPOINT':{
         const target=this.clampToArea({xNm:cmd.xNm,yNm:cmd.yNm}),plot=this.state.map.plottedCourse;
@@ -1294,6 +1306,16 @@ const CoreSystem={
       this._lastWaypointRouteReason='endpoint-invalid';
       return null;
     }
+    // Direct water line check: if the straight line between from and to is
+    // completely clear navigable water, use it directly without A* grid quantization.
+    const directSteps=Math.max(2,Math.ceil(distNm(from,to)/.20));
+    let directSafe=true;
+    for(let n=0;n<=directSteps;n++){
+      const t=n/directSteps,p={xNm:lerp(from.xNm,to.xNm,t),yNm:lerp(from.yNm,to.yNm,t)};
+      if(!this.isNavigableMapPoint(p)){directSafe=false;break;}
+    }
+    if(directSafe)return [{...from},{...to}];
+
     const route={from:{...from},to:{...to}},path=this.resolveWaterRoute(route);
     if(!path||path.length<2){this._lastWaypointRouteReason=route.waterRouteReason||'no-path';return null;}
     for(let i=0;i<path.length-1;i++){
@@ -1325,9 +1347,16 @@ const CoreSystem={
     };
     const S=nearest(route.from),G=nearest(route.to);
     if(!S||!G){route.waterRouteReason='endpoint-search-radius';route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    const waterLine=(a,b)=>{const L=distNm(a,b),n=Math.max(1,Math.ceil(L/Math.max(.25,cell*.20)));for(let q=0;q<=n;q++){const t=q/n,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(Bathy.feet(p.xNm,p.yNm)<30||this.checkTerrainCollision({position:p}).collision)return false;}return true;};
+    const idx=(i,j)=>j*nx+i, gi=idx(G[0],G[1]), si=idx(S[0],S[1]);
+    if(gi===si){
+      route.waterPath=waterLine(route.from,route.to)?[{...route.from},{...route.to}]:[];
+      if(!route.waterPath.length)route.waterRouteReason='no-path';
+      return route.waterPath;
+    }
     const N=nx*ny,INF=1e30,g=new Float64Array(N),parent=new Int32Array(N),closed=new Uint8Array(N);
     g.fill(INF);parent.fill(-1);
-    const idx=(i,j)=>j*nx+i, gi=idx(G[0],G[1]), si=idx(S[0],S[1]);g[si]=0;
+    g[si]=0;
     const heap=[];
     const push=(node,f)=>{heap.push([f,node]);let k=heap.length-1;while(k){const p=(k-1)>>1;if(heap[p][0]<=f)break;heap[k]=heap[p];k=p;}heap[k]=[f,node];};
     const pop=()=>{const root=heap[0],last=heap.pop();if(heap.length&&last){let k=0;while(true){let l=k*2+1,r=l+1;if(l>=heap.length)break;let c=r<heap.length&&heap[r][0]<heap[l][0]?r:l;if(heap[c][0]>=last[0])break;heap[k]=heap[c];k=c;}heap[k]=last;}return root;};
@@ -1348,13 +1377,13 @@ const CoreSystem={
     if(parent[gi]<0&&gi!==si){route.waterRouteReason='no-path';route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
     const raw=[];let u=gi;raw.push(u);while(u!==si&&u>=0){u=parent[u];if(u>=0)raw.push(u);}raw.reverse();
     let pts=raw.map(k=>({xNm:x0+(k%nx)*cell,yNm:y0+((k/nx)|0)*cell}));
-    const waterLine=(a,b)=>{const L=distNm(a,b),n=Math.max(1,Math.ceil(L/Math.max(.25,cell*.20)));for(let q=0;q<=n;q++){const t=q/n,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(Bathy.feet(p.xNm,p.yNm)<30||this.checkTerrainCollision({position:p}).collision)return false;}return true;};
     if(Bathy.feet(route.from.xNm,route.from.yNm)>=30&&waterLine(route.from,pts[0]))pts[0]={...route.from};
     if(Bathy.feet(route.to.xNm,route.to.yNm)>=30&&waterLine(pts[pts.length-1],route.to))pts[pts.length-1]={...route.to};
     // Line-of-sight simplification removes A* stair-steps but never replaces a
     // water bend by a chord that cuts across an island.
     const simple=[];let i=0;simple.push(pts[0]);
     while(i<pts.length-1){let j=pts.length-1;while(j>i+1&&!waterLine(pts[i],pts[j]))j--;simple.push(pts[j]);i=j;}
+    if(simple.length===1&&waterLine(simple[0],route.to))simple.push({...route.to});
     route.waterPath=simple;return route.waterPath;
   }
 ,

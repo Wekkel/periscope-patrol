@@ -11,9 +11,11 @@ class GameLoop{
     // only 10 Hz. A carry budget produces ~60 work frames on 60/90/120 Hz
     // panels without changing simulation time.
     this.rafTargetMs=1000/60;this.rafCarryMs=0;this.lastRaf=performance.now();
+    this.deterministic=false;
     this._frame=this.frame.bind(this);
   }
   start(){requestAnimationFrame(this._frame);}
+  setDeterministicMode(enabled=true){this.deterministic=!!enabled;this.acc=0;}
 
   _safeUpdate(dt){
     try{
@@ -56,13 +58,15 @@ class GameLoop{
 
     if(typeof AutoSave!=='undefined') AutoSave.tick();
     // fixed-step simulation
-    this.acc+=dt;
-    let steps=0;
-    while(this.acc>=this.fdt&&steps<8){
-      const ok=this._safeUpdate(this.fdt);this.acc-=this.fdt;steps++;
-      if(!ok){this.acc=0;break;}
+    if(!this.deterministic){
+      this.acc+=dt;
+      let steps=0;
+      while(this.acc>=this.fdt&&steps<8){
+        const ok=this._safeUpdate(this.fdt);this.acc-=this.fdt;steps++;
+        if(!ok){this.acc=0;break;}
+      }
+      if(this.acc>this.fdt*8) this.acc=0;
     }
-    if(this.acc>this.fdt*8) this.acc=0;
 
     if(this.game.getSnapshot().time.transitUntil)this.transit.run();
 

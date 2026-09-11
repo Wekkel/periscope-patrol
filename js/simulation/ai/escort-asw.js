@@ -131,7 +131,7 @@ const ASWSystem={
         if(hit){
           const dmg=4+Math.random()*11;this.sys.damage.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
           this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,esc.position),sub.heading,.9);
-        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);PresentationBridge.audio(this.state).playShellSplash?.(clamp(trueRng/gunRange,0,1));}
+        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);PresentationBridge.audio(this.state).playShellSplash?.(clamp(trueRng/gunRange,0,1),bearingBetween(sub.position,esc.position),sub.heading);}
       }
     }else esc.gunTimer=0;
   },
@@ -140,10 +140,10 @@ const ASWSystem={
      depth is consulted only later by updateDCs(), when the physical explosion
      is resolved. */
   dropDC(esc,sub,aim,opts={}){
-    const W=this.state.world,e=W.enemy,env=W.environment,sol=e.solution&&!e.solution.decoy?e.solution:null;
-    const speculative=!!opts.speculative;
-    const estDepth=clamp(sol?.depthFt??(70+(env.layerDepthFt||190)*.34),15,420);if(estDepth<25)return;
-    const layer=env.layerDepthFt||200,belowLayer=estDepth>layer+15,base=(20+estDepth*.10+(belowLayer?58:0))*(speculative?1.45:1);
+    const e=this.state.world.enemy,W=this.state.world,env=this.state.world.environment,sol=e.solution&&!e.solution.decoy?e.solution:null;
+    const speculative=!!opts.speculative||!e.contactHeld;
+    const estDepth=clamp(sol?.depthFt??(70+(env?.layerDepthFt||190)*.34),15,420);if(estDepth<25)return;
+    const layer=env?.layerDepthFt||200,belowLayer=estDepth>layer+15,base=(20+estDepth*.10+(belowLayer?58:0))*(speculative?1.45:1);
     let skill=clamp(1-(esc.attacksMade||0)*.11,.45,1);if(e.contactHeld)skill*=.55;
     const hist=this.state.campaign?.historicalProfile||null,tactics=aswTactics(this.state),training=aswTraining(esc,this.state);
     const err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1)*tactics.depthErrorFactor/training;let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
@@ -178,7 +178,7 @@ const ASWSystem={
         dc.waterEntryPlayed=true;const splashRange=distNm(dc.position,sub.position),hearRange=sub.depthFeet>10?1.45:2.2;
         // Real audibility gate: a distant attack on a stale datum must be silent,
         // not reduced to a minimum-volume rhythmic tick that betrays hidden action.
-        if(splashRange<hearRange)PresentationBridge.audio(this.state).event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/hearRange,0,1)});
+        if(splashRange<hearRange)PresentationBridge.audio(this.state).event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/hearRange,0,1),bearingDeg:bearingBetween(sub.position,dc.position),ownHeading:sub.heading});
         // Only the first charge in a pattern speaks for the group. The report is
         // qualitative and range-limited; it does not reveal the destroyer's set depth.
         if((dc.patternIndex??0)===0&&splashRange<hearRange){
