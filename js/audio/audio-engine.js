@@ -1117,3 +1117,4 @@ class AudioEngine{
 }
 
 const audio=new AudioEngine();
+globalThis.audio=audio;

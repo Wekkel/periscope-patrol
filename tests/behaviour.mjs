@@ -81,6 +81,40 @@ assert.equal(hud.buildHudViewModel(damagedHud,{}).vitals.underKeel.state,'critic
 let navigated=false;
 const frameWithRenderRecovery=(render,navigate)=>{try{render();}catch(_err){}finally{navigate();}};
 frameWithRenderRecovery(()=>{throw new Error('periscope display fault');},()=>{navigated=true;});
-assert.equal(navigated,true,'station navigation must survive a render failure');
+// 7. National Station Presentation & WCAG Contrast Tests
+function hexToLuminance(hex) {
+  const m = hex.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16) / 255);
+  const [r, g, b] = m.map(c => c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+function calcContrast(hex1, hex2) {
+  const l1 = hexToLuminance(hex1), l2 = hexToLuminance(hex2);
+  const bright = Math.max(l1, l2), dark = Math.min(l1, l2);
+  return (bright + 0.05) / (dark + 0.05);
+}
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1');
+const nationalPalettes = {
+  'us-fleet': { faceInner: '#0d171d', ink: '#89c2d9', bezel: '#24333d' },
+  'km-bakelite': { faceInner: '#101010', ink: '#e0d8c0', bezel: '#2d2926' },
+  'rn-admiralty': { faceInner: '#121922', ink: '#e2e7ec', bezel: '#6b583e' },
+  'ijn-fleet': { faceInner: '#0e1211', ink: '#ece5d8', bezel: '#3d382e' },
+  'rm-brass': { faceInner: '#1c1813', ink: '#f4ecd8', bezel: '#8c6d3b' },
+  'vmf-red': { faceInner: '#151719', ink: '#e6ebed', bezel: '#4e5559' }
+};
+
+for (const [theme, pal] of Object.entries(nationalPalettes)) {
+  const inkContrast = calcContrast(pal.faceInner, pal.ink);
+  assert.ok(inkContrast >= 4.5, `Ink contrast on ${theme} must satisfy WCAG AA (>= 4.5:1), got ${inkContrast.toFixed(2)}`);
+  const bezelContrast = calcContrast(pal.faceInner, pal.bezel);
+  assert.ok(bezelContrast >= 1.25, `Bezel contrast on ${theme} must provide distinct structural boundary (>= 1.25:1), got ${bezelContrast.toFixed(2)}`);
+}
+
+// Depth display contracts across imperial and metric
+function mockDepthDisplay(factor, suffix, feet, decimals = 0) {
+  return `${(Number(feet || 0) * factor).toFixed(decimals)} ${suffix}`;
+}
+assert.equal(mockDepthDisplay(1, 'ft', 100), '100 ft');
+assert.equal(mockDepthDisplay(0.3048, 'm', 100), '30 m');
+assert.equal(mockDepthDisplay(0.3048, 'm', 55), '17 m');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6');

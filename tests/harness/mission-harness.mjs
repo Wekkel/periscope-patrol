@@ -9,6 +9,7 @@ import {DEVICE_PROFILES, getDeviceProfile} from './device-profiles.mjs';
 import {ScenarioContext, ScenarioRunner} from './scenario-runner.mjs';
 import {createMissionLifecycleScenario} from './scenarios/mission-lifecycle-scenario.mjs';
 import {createEnduranceScenario} from './scenarios/endurance-scenario.mjs';
+import {createNationalStationsScenario} from './scenarios/national-stations-scenario.mjs';
 
 export async function runMissionScenario({
   scenario,
@@ -157,6 +158,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(currentFil
     let scenario;
     if (scenarioArg === 'lifecycle') {
       scenario = createMissionLifecycleScenario(profile);
+    } else if (scenarioArg === 'national-stations' || scenarioArg === 'national') {
+      scenario = createNationalStationsScenario(profile);
     } else if (scenarioArg === 'endurance') {
       scenario = createEnduranceScenario(profile, { iterations });
     } else {
