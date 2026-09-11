@@ -77,7 +77,7 @@ const PeriscopeStation={
     const displayPos={...obs.position};
     const target={...(live||{}),id:obs.contactId,name:obs.name||obs.contactId,type:obs.type||'MERCHANT',displayType:obs.displayType||obs.type,
       lengthYards:obs.lengthYards||live?.lengthYards||300,tonsFactor:obs.tonsFactor||live?.tonsFactor||0,heading:shipState.heading||0,speedKnots:shipState.speedKnots||0,
-      position:displayPos,shipDamage:shipState.shipDamage||null,sunk:!!shipState.sunk,sinkingProgress:shipState.sinkingProgress||0,sinkStyle:shipState.sinkStyle||0,
+      position:displayPos,shipDamage:shipState.shipDamage||null,sunk:!!shipState.sunk,sinkingProgress:shipState.sinkingProgress||0,sinkStyle:shipState.sinkStyle||0,sinkTrajectory:shipState.sinkTrajectory||null,
       hitFrac:Number.isFinite(shipState.hitFrac)?shipState.hitFrac:0,hitSide:shipState.hitSide||1,stationary:!!obs.stationary,side:live?.side||'ENEMY'};
     const impactPos=obs.impactPosition||obs.position;
     const env={...state.world.environment,visibilityNm:Math.max(Number(state.world.environment?.visibilityNm)||.5,range*1.35)};

@@ -42,6 +42,11 @@ function ensureShipDamage(c){
   D.abandonAt=Number.isFinite(D.abandonAt)?D.abandonAt:null;
   D.abandoned=!!D.abandoned;
   D.killCredited=!!D.killCredited;
+  D.secondaryExplosions=Array.isArray(D.secondaryExplosions)?D.secondaryExplosions:[];
+  D.boilerRuptured=!!D.boilerRuptured;
+  D.boilerTimer=Number.isFinite(D.boilerTimer)?D.boilerTimer:0;
+  D.magazineDetonated=!!D.magazineDetonated;
+  D.magazineTimer=Number.isFinite(D.magazineTimer)?D.magazineTimer:0;
 
   // Old saves can contain the former cumulative deck-gun "HP" value. Preserve
   // the fact that a ship was already damaged by translating it once into the
@@ -244,11 +249,39 @@ function applyDeckGunShipDamage(engine,c,hit){
   return{location,material,state:D,condition:shipDamageCondition(c)};
 }
 
+const SINK_TRAJECTORIES={
+  0:'PLUNGE_BOW',
+  1:'PLUNGE_STERN',
+  2:'BREAK_MIDSHIPS',
+  3:'SETTLE_LIST',
+  4:'CAPSIZE'
+};
+
+function shipDetermineSinkTrajectory(c,D){
+  const frac=Number.isFinite(D?.lastHitFrac)?D.lastHitFrac:0;
+  // Tankers or ships with severe listing capsize onto their beam ends
+  if(c?.type==='TANKER'||Math.abs(D?.list||0)>=0.40){
+    return {style:4,trajectory:SINK_TRAJECTORIES[4]};
+  }
+  // Long cargo / merchants breaking midships under midships blast
+  const longHull=(c?.lengthYards||0)>=360||c?.type==='CARGO'||c?.type==='MERCHANT';
+  if(longHull&&((D?.compartments&&D.compartments.midships>=0.55)||D?.lastHitLocation==='MIDSHIPS'||D?.lastHitLocation==='ENGINE ROOM')){
+    return {style:2,trajectory:SINK_TRAJECTORIES[2]};
+  }
+  // Steep plunge bow / stern
+  if((D?.compartments&&D.compartments.bow>=0.50)||frac>0.20||(D?.trim||0)>=0.35){
+    return {style:0,trajectory:SINK_TRAJECTORIES[0]};
+  }
+  if((D?.compartments&&D.compartments.stern>=0.50)||frac<-0.20||(D?.trim||0)<=-0.35){
+    return {style:1,trajectory:SINK_TRAJECTORIES[1]};
+  }
+  const h=_shipHash01(`${c?.id||'X'}:${D?.lastWeaponId||D?.hitCount||0}:sink`);
+  const style=h<0.50?2:3;
+  return {style,trajectory:SINK_TRAJECTORIES[style]};
+}
+
 function _shipSinkStyle(c,D){
-  const frac=Number.isFinite(D.lastHitFrac)?D.lastHitFrac:0;
-  if(frac>.22)return 0;
-  if(frac<-.22)return 1;
-  return _shipHash01(`${c.id}:${D.lastWeaponId||D.hitCount}:sink`)<.58?2:3;
+  return shipDetermineSinkTrajectory(c,D).style;
 }
 function shipCaptainLog(engine,...args){
   const captainLog=engine?.captainLog||engine?.ctx?.captainLog;
@@ -260,7 +293,9 @@ function beginShipSinking(engine,c,reason='FLOODING'){
   c.sunk=true;c.sinkingProgress=0;c.speedKnots=0;c.desiredSpeed=0;c.sunkAt=now;
   c.hitFrac=Number.isFinite(D.lastHitFrac)?D.lastHitFrac:(c.hitFrac??0);
   c.hitSide=c.hitSide??(D.list>=0?1:-1);
-  c.sinkStyle=_shipSinkStyle(c,D);
+  const sinkInfo=shipDetermineSinkTrajectory(c,D);
+  c.sinkStyle=sinkInfo.style;
+  c.sinkTrajectory=sinkInfo.trajectory;
   const fast=D.flotation>.995||reason==='STRUCTURAL';
   c.sinkDurationSec=fast?(isSurfaceCombatant(c)?25:34)+_shipHash01(`${c.id}:sinkdur`)*18
                     :(isSurfaceCombatant(c)?36:56)+_shipHash01(`${c.id}:sinkdur`)*34;
@@ -317,6 +352,48 @@ function updateShipDamage(engine,c,dt){
       if(D.fire>.68)D.fire=clamp(D.fire+(.000035+D.fireRate)*dt,0,1);
       else D.fire=clamp(D.fire-(.000045-Math.min(.000035,D.fireRate))*dt,0,1);
       if(D.fire>.72){D.propulsion=clamp(D.propulsion+dt*.000020*D.fire,0,1);D.flotation=clamp(D.flotation+dt*.000009*D.fire,0,1);}
+    }
+    // Secondary boiler rupture under sustained engine room / midships fire
+    if(D.fire>.55&&!D.boilerRuptured&&((D.compartments&&D.compartments.midships>.30)||D.lastHitLocation==='MIDSHIPS'||D.lastHitLocation==='ENGINE ROOM')){
+      D.boilerTimer+=dt;
+      const boilerThresh=12+_shipHash01(`${c.id}:boiler`)*10;
+      if(D.boilerTimer>=boilerThresh){
+        D.boilerRuptured=true;
+        D.secondaryExplosions.push({type:'BOILER_EXPLOSION',time:now,location:'MIDSHIPS'});
+        D.flotation=clamp(D.flotation+.18,0,1);
+        D.floodRate=Math.max(D.floodRate,.00045);
+        D.propulsion=clamp(D.propulsion+.35,0,1);
+        engine.log?.(`${c.name} — boiler explosion amidships! Steam and debris erupted.`,'bad');
+        engine.notify?.(`BOILER EXPLOSION — ${c.name} steam rupture!`, 'warn', 'KRITIEK');
+        if(typeof particles!=='undefined'&&particles.spawnBoilerSteam&&c.position){
+          particles.spawnBoilerSteam(c.position.xNm,c.position.yNm,1.2);
+        }
+        if(typeof particles!=='undefined'&&particles.spawnExplosion&&c.position){
+          particles.spawnExplosion(c.position.xNm,c.position.yNm,1.0,true);
+        }
+      }
+    }
+    // Secondary magazine detonation under heavy fire on armed / ammunition vessels
+    const armedShip=(typeof isSurfaceCombatant==='function'&&isSurfaceCombatant(c))||/AMMUNITION|MUNITION/i.test(c.displayType||'')||(c.type==='CARGO'&&_shipHash01(`${c.id}:ammoCargo`)<.22);
+    if(D.fire>.65&&!D.magazineDetonated&&armedShip){
+      D.magazineTimer+=dt;
+      const magThresh=16+_shipHash01(`${c.id}:mag`)*14;
+      if(D.magazineTimer>=magThresh){
+        D.magazineDetonated=true;
+        D.secondaryExplosions.push({type:'MAGAZINE_DETONATION',time:now,location:'AFTER_HOLD'});
+        D.flotation=1.0;
+        D.fire=1.0;
+        engine.log?.(`${c.name} — catastrophic magazine detonation! Hull breaking apart.`,'bad');
+        engine.notify?.(`SECONDARY DETONATION — ${c.name} magazine ruptured!`, 'warn', 'KRITIEK');
+        if(typeof particles!=='undefined'&&particles.spawnFireBurst&&c.position){
+          particles.spawnFireBurst(c.position.xNm,c.position.yNm,1.8);
+        }
+        if(typeof particles!=='undefined'&&particles.spawnExplosion&&c.position){
+          particles.spawnExplosion(c.position.xNm,c.position.yNm,2.2,true);
+        }
+        beginShipSinking(engine,c,'STRUCTURAL');
+        return;
+      }
     }
   }
   if(dt>0&&D.compartments){

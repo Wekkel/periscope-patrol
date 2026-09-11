@@ -724,12 +724,13 @@ assert.equal(vmRes.tdc.identification.mastheadFt, 72);
 const shipDmg = await load('js/simulation/ship-damage.js', [
   'ensureShipDamage', 'shipDamageSeverity', 'shipDamageCondition',
   'shipDamageSpeedFactor', 'shipDamageTurnFactor', 'shipTorpedoHitLocation',
-  'shipAttitude', 'applyTorpedoShipDamage', 'updateShipDamage'
+  'shipAttitude', 'applyTorpedoShipDamage', 'updateShipDamage',
+  'shipDetermineSinkTrajectory', 'beginShipSinking', 'SINK_TRAJECTORIES'
 ], {
   clamp,
   radToDeg,
   degToRad,
-  isSurfaceCombatant: () => false
+  isSurfaceCombatant: c => c?.type === 'DESTROYER' || c?.type === 'ESCORT' || /DESTROYER|CORVETTE|FRIGATE/i.test(c?.displayType || '')
 });
 
 // Test 1: 5-Compartment hit location resolution
@@ -811,5 +812,111 @@ assert.ok(turnFactor2 < 0.40, 'Turn rate is severely hindered by stern damage an
 shipDmg.updateShipDamage(dummyEngine, testShip1, 20.0);
 assert.ok(testShip1.shipDamage.flotation >= D1.flotation, 'Flotation decreases over time via flooding');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4');
+// ═══════════════════════════════════════════════════ 14. VISUAL DAMAGE EFFECTS & REALISTIC SINKING DYNAMICS
+const particlesMod = await load('js/rendering/particles.js', [
+  'ParticleSystem', 'particles', 'PARTICLE_MAX', 'SPARK_MAX'
+], {
+  degToRad
+});
+
+// Test 1: Sinking Trajectory Resolution (CAPSIZE, BREAK_MIDSHIPS, PLUNGE)
+const tankerShip = { id: 'T_TEXACO_1', name: 'Texaco Oslo', type: 'TANKER', lengthYards: 480 };
+const tankerD = shipDmg.ensureShipDamage(tankerShip);
+const tankerTraj = shipDmg.shipDetermineSinkTrajectory(tankerShip, tankerD);
+assert.equal(tankerTraj.style, 4, 'Tanker must resolve to style 4');
+assert.equal(tankerTraj.trajectory, 'CAPSIZE', 'Tanker must select CAPSIZE sinking trajectory');
+
+const cargoShip = { id: 'C_LIBERTY_1', name: 'SS John W. Brown', type: 'CARGO', lengthYards: 440 };
+const cargoD = shipDmg.ensureShipDamage(cargoShip);
+cargoD.compartments.midships = 0.75;
+const cargoTraj = shipDmg.shipDetermineSinkTrajectory(cargoShip, cargoD);
+assert.equal(cargoTraj.style, 2, 'Large cargo vessel with midships rupture must resolve to style 2');
+assert.equal(cargoTraj.trajectory, 'BREAK_MIDSHIPS', 'Cargo ship must break midships');
+
+const plungeBowShip = { id: 'C_ESCORT_1', name: 'HMS Sunflower', type: 'ESCORT', lengthYards: 250 };
+const plungeBowD = shipDmg.ensureShipDamage(plungeBowShip);
+plungeBowD.compartments.bow = 0.85;
+plungeBowD.trim = 0.65;
+const bowTraj = shipDmg.shipDetermineSinkTrajectory(plungeBowShip, plungeBowD);
+assert.equal(bowTraj.style, 0, 'Bow flooding must resolve to style 0');
+assert.equal(bowTraj.trajectory, 'PLUNGE_BOW', 'Forward flooded ship must plunge bow first');
+
+const plungeSternShip = { id: 'C_ESCORT_2', name: 'USS Reuben James', type: 'DESTROYER', lengthYards: 310 };
+const plungeSternD = shipDmg.ensureShipDamage(plungeSternShip);
+plungeSternD.compartments.stern = 0.90;
+plungeSternD.trim = -0.70;
+const sternTraj = shipDmg.shipDetermineSinkTrajectory(plungeSternShip, plungeSternD);
+assert.equal(sternTraj.style, 1, 'Stern flooding must resolve to style 1');
+assert.equal(sternTraj.trajectory, 'PLUNGE_STERN', 'Aft flooded ship must plunge stern first');
+
+// Test 2: Secondary Boiler Explosion
+const boilerTestShip = {
+  id: 'C_BOILER_1',
+  name: 'SS Clan Macarthur',
+  type: 'MERCHANT',
+  position: { xNm: 5.0, yNm: 5.0 },
+  lengthYards: 400
+};
+const boilerD = shipDmg.ensureShipDamage(boilerTestShip);
+boilerD.fire = 0.72;
+boilerD.compartments.midships = 0.60;
+boilerD.lastHitLocation = 'MIDSHIPS';
+let boilerExplosionNotified = false;
+const boilerEngine = {
+  state: { time: { elapsedSeconds: 200 } },
+  log() {},
+  notify(msg) {
+    if (msg.includes('BOILER EXPLOSION')) boilerExplosionNotified = true;
+  }
+};
+// Advance 25 seconds under heavy midships fire
+shipDmg.updateShipDamage(boilerEngine, boilerTestShip, 25.0);
+assert.equal(boilerD.boilerRuptured, true, 'Boiler must rupture under sustained midships fire');
+assert.ok(boilerD.secondaryExplosions.length > 0, 'Secondary explosion recorded');
+assert.equal(boilerD.secondaryExplosions[0].type, 'BOILER_EXPLOSION', 'Recorded secondary explosion type is BOILER_EXPLOSION');
+assert.ok(boilerD.flotation > 0.15, 'Boiler explosion produces sudden flotation loss');
+assert.ok(boilerD.propulsion > 0.30, 'Boiler explosion damages propulsion');
+assert.equal(boilerExplosionNotified, true, 'Boiler explosion triggered critical crew notification');
+
+// Test 3: Catastrophic Magazine Detonation on Armed Vessel
+const magTestShip = {
+  id: 'C_DD_MAG_1',
+  name: 'HMS Campbeltown',
+  type: 'DESTROYER',
+  position: { xNm: 6.0, yNm: 6.0 },
+  lengthYards: 314
+};
+const magD = shipDmg.ensureShipDamage(magTestShip);
+magD.fire = 0.80;
+let magDetonationNotified = false;
+const magEngine = {
+  state: { time: { elapsedSeconds: 300 }, weapons: {}, campaign: { score: 0, tonnageSunk: 0 }, world: { contactTracks: {} } },
+  log() {},
+  notify(msg) {
+    if (msg.includes('SECONDARY DETONATION')) magDetonationNotified = true;
+  }
+};
+// Advance 35 seconds under raging fire
+shipDmg.updateShipDamage(magEngine, magTestShip, 35.0);
+assert.equal(magD.magazineDetonated, true, 'Magazine must detonate under raging fire on combatant');
+assert.equal(magTestShip.sunk, true, 'Magazine detonation causes immediate structural sinking');
+assert.equal(magD.flotation, 1.0, 'Flotation is completely lost (1.0)');
+assert.ok(magTestShip.sinkTrajectory, 'Sinking trajectory is assigned on structural sinking');
+assert.equal(magDetonationNotified, true, 'Magazine detonation triggered critical notification');
+
+// Test 4: Particle Pool Budget Hygiene & Specialized Emitters
+const ps = new particlesMod.ParticleSystem();
+for (let i = 0; i < 50; i++) {
+  ps.spawnBoilerSteam(0, 0, 1.5);
+  ps.spawnOilSmoke(0, 0, 1.5);
+  ps.spawnFireBurst(0, 0, 1.5);
+}
+assert.ok(ps.particles.length <= particlesMod.PARTICLE_MAX, `Particles pool must not exceed limit (${ps.particles.length} <= ${particlesMod.PARTICLE_MAX})`);
+assert.ok(ps.sparks.length <= particlesMod.SPARK_MAX, `Sparks pool must not exceed limit (${ps.sparks.length} <= ${particlesMod.SPARK_MAX})`);
+assert.ok(ps.particles.some(p => p.type === 'steam'), 'Particle system generates steam puffs');
+assert.ok(ps.particles.some(p => p.type === 'oil_smoke'), 'Particle system generates dense oil smoke puffs');
+assert.ok(ps.particles.some(p => p.type === 'fire_burst'), 'Particle system generates fire burst puffs');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4');
+
 

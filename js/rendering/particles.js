@@ -41,6 +41,70 @@ class ParticleSystem {
     this.trimBudgets();
   }
 
+  spawnBoilerSteam(xNm, yNm, scale=1) {
+    const count = Math.round(14 * scale);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.random() - 0.5) * Math.PI * 0.8 - Math.PI / 2;
+      const speed = (0.35 + Math.random() * 0.85) * scale;
+      this.particles.push({
+        xNm, yNm,
+        vx: Math.cos(angle) * speed * 0.0006,
+        vy: Math.sin(angle) * speed * 0.0006,
+        life: 1, maxLife: 0.8 + Math.random() * 0.9,
+        size: (2.0 + Math.random() * 3.5) * scale,
+        type: 'steam',
+        ageSec: 0
+      });
+    }
+    this.trimBudgets();
+  }
+
+  spawnOilSmoke(xNm, yNm, scale=1) {
+    const count = Math.round(12 * scale);
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.random() - 0.5) * Math.PI * 0.6 - Math.PI / 2;
+      const speed = (0.22 + Math.random() * 0.55) * scale;
+      this.particles.push({
+        xNm, yNm,
+        vx: Math.cos(angle) * speed * 0.0004 + 0.00008,
+        vy: Math.sin(angle) * speed * 0.0004,
+        life: 1, maxLife: 1.4 + Math.random() * 1.2,
+        size: (2.5 + Math.random() * 4.0) * scale,
+        type: 'oil_smoke',
+        ageSec: 0
+      });
+    }
+    this.trimBudgets();
+  }
+
+  spawnFireBurst(xNm, yNm, scale=1) {
+    const count = Math.round(16 * scale);
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = (0.45 + Math.random() * 1.05) * scale;
+      this.particles.push({
+        xNm, yNm,
+        vx: Math.cos(angle) * speed * 0.0009,
+        vy: Math.sin(angle) * speed * 0.0009,
+        life: 1, maxLife: 0.4 + Math.random() * 0.4,
+        size: (1.5 + Math.random() * 2.8) * scale,
+        type: 'fire_burst',
+        ageSec: 0
+      });
+    }
+    for (let i = 0; i < 8; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 0.0012 + Math.random() * 0.0025;
+      this.sparks.push({
+        xNm, yNm,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 1, ageSec: 0, maxLife: 0.35 + Math.random() * 0.25
+      });
+    }
+    this.trimBudgets();
+  }
+
   update(dt) {
     for (const p of this.particles) {
       p.ageSec += dt; p.xNm += p.vx * dt; p.yNm += p.vy * dt;
@@ -60,11 +124,24 @@ class ParticleSystem {
       const pos = w2s(p.xNm, p.yNm);
       const sz = p.size * (0.5 + p.life * 0.5);
       ctx.globalAlpha = p.life * 0.85;
-      if (p.type === 'fire') {
-        const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, sz * 6);
-        g.addColorStop(0, `rgba(255,220,80,${p.life})`);
+      if (p.type === 'fire' || p.type === 'fire_burst') {
+        const isBurst = p.type === 'fire_burst';
+        const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, sz * (isBurst ? 7 : 6));
+        g.addColorStop(0, `rgba(255,${isBurst ? 245 : 220},80,${p.life})`);
         g.addColorStop(0.5, `rgba(240,100,30,${p.life * 0.7})`);
         g.addColorStop(1, `rgba(220,50,0,0)`);
+        ctx.fillStyle = g;
+      } else if (p.type === 'steam') {
+        const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, sz * 7);
+        g.addColorStop(0, `rgba(242,246,250,${p.life * 0.65})`);
+        g.addColorStop(0.5, `rgba(210,222,230,${p.life * 0.35})`);
+        g.addColorStop(1, `rgba(180,195,205,0)`);
+        ctx.fillStyle = g;
+      } else if (p.type === 'oil_smoke') {
+        const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, sz * 9);
+        g.addColorStop(0, `rgba(18,17,16,${p.life * 0.75})`);
+        g.addColorStop(0.6, `rgba(38,36,34,${p.life * 0.40})`);
+        g.addColorStop(1, `rgba(20,20,20,0)`);
         ctx.fillStyle = g;
       } else if (p.type === 'smoke') {
         const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, sz * 8);
@@ -78,7 +155,8 @@ class ParticleSystem {
         ctx.fillStyle = g;
       }
       ctx.beginPath();
-      ctx.arc(pos.x, pos.y, sz * (p.type === 'smoke' ? 8 : 6), 0, Math.PI * 2);
+      const mult = p.type === 'oil_smoke' ? 9 : p.type === 'smoke' ? 8 : (p.type === 'steam' || p.type === 'fire_burst') ? 7 : 6;
+      ctx.arc(pos.x, pos.y, sz * mult, 0, Math.PI * 2);
       ctx.fill();
     }
     // Sparks

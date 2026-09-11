@@ -132,4 +132,4 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 - [ ] **Kielmarge**: Blokkeren van de roer-/diepteorder vervangen door tijdelijk *onderbreken* met een geschaalde veiligheidsdrempel.
 - [ ] **Audio polyfonie & kraakbegrenzing**: Stemmenbegrenzing voor druk- en rompkraken (met name op de Helios) en het waypointgeluid op schonere bus/cooldown zetten.
 - [ ] **Cinematics duur**: Inkorten en vloeiender maken wanneer meerdere cinematics (zoals torpedo-inslagen of zinkende schepen) direct achter elkaar afspelen.
-- [ ] **Topografie in de latere campagne**: Verfijnen en uitwerken van eilanden, dieptes en kustlijnen in latere oorlogsjaren.
+- [ ] **Topografie & Realistische Eilandkustlijnen**: Verfijnen van eilanden en kustlijnen in de periscoopview (kustlijn zacht naar 0m waterlijn laten aflopen i.p.v. abrupte rechthoekige kliffen/blokken, zand-/strandstroken, scherpere bergkammen bij pieken >500m, boomgrens/boskap silhouetten). Gepland voor uitvoering conform Optie 1 na afronding van Initiatief 5.

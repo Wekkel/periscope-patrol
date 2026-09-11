@@ -707,6 +707,11 @@ const World3D={
       const trim=(c.hitFrac??0)*0.5;
       passes.push({zMin:-1,zMax:1,sink:{p:sinkP,pitch:-trim,pitchP:Math.pow(sinkP,1.35),
         pivot:0,roll:rollSide*0.95,drop:realLen*0.5*Math.pow(sinkP,1.5),shift:0}});
+    }else if(sinkP>0&&style===4){
+      // CAPSIZE: tanker or heavy-listing vessel rolling onto beam ends / past 90°–135°
+      const trim=(c.hitFrac??0)*0.22;
+      passes.push({zMin:-1,zMax:1,sink:{p:sinkP,pitch:-trim,pitchP:Math.pow(sinkP,1.2),
+        pivot:0,roll:rollSide*2.15,drop:realLen*0.42*Math.pow(sinkP,1.6),shift:0}});
     }else{
       const bowFirst=style===0,sinkPitchP=Math.pow(sinkP,1.72);
       const sinkDrop=realLen*(.018*phaseSmooth01(clamp(sinkP/.30,0,1))+.50*Math.pow(sinkP,2.05));
@@ -720,19 +725,35 @@ const World3D={
       const sink=pass.sink;
       let dmgCp=1, dmgSp=0, dmgCr0=1, dmgSr0=0, dmgDropM=0, hasDamageAttitude=false;
       let heelCr=1, heelSr=0, hasHeel=false;
-      if(!sink){
-        const SD=c.shipDamage;
-        if(SD){
-          const att=typeof shipAttitude==='function'?shipAttitude(c):null;
-          const pitch=att?att.pitchRad:(-clamp(SD.trim||0,-1,1)*.18);
-          dmgCp=Math.cos(pitch); dmgSp=Math.sin(pitch);
-          const roll=att?att.rollRad:(clamp(SD.list||0,-1,1)*.32);
-          dmgCr0=Math.cos(roll); dmgSr0=Math.sin(roll);
+      let initialRoll=0, initialPitch=0;
+      const SD=c.shipDamage;
+      if(SD){
+        const att=typeof shipAttitude==='function'?shipAttitude(c):null;
+        initialRoll=att?att.rollRad:(clamp(SD.list||0,-1,1)*.32);
+        initialPitch=att?att.pitchRad:(-clamp(SD.trim||0,-1,1)*.18);
+        if(!sink){
+          dmgCp=Math.cos(initialPitch); dmgSp=Math.sin(initialPitch);
+          dmgCr0=Math.cos(initialRoll); dmgSr0=Math.sin(initialRoll);
           dmgDropM=att?(att.draftOffsetM*.85):(model.fb*S*clamp((SD.flotation||0)*.65,0,.85));
           hasDamageAttitude=true;
         }
+      }
+      if(!sink){
         const heel=clamp((c.turnRateDegSec||0)*(c.speedKnots||0)*.0019,-.075,.075);
         if(Math.abs(heel)>.001){heelCr=Math.cos(heel); heelSr=Math.sin(heel); hasHeel=true;}
+      }
+      let sinkCp=1, sinkSp=0, sinkCr=1, sinkSr=0, sinkPv=0, sinkShift=0, sinkDrop=0;
+      if(sink){
+        const p=sink.pitchP??sink.p;
+        sinkPv=sink.pivot*S;
+        const blendPitch=initialPitch*(1-p);
+        const pitch=sink.pitch*p+blendPitch;
+        sinkCp=Math.cos(pitch); sinkSp=Math.sin(pitch);
+        sinkShift=(sink.shift||0)*S;
+        const blendRoll=initialRoll*(1-sink.p);
+        const roll=sink.roll*(sink.p)+blendRoll;
+        sinkCr=Math.cos(roll); sinkSr=Math.sin(roll);
+        sinkDrop=sink.drop;
       }
       const V=(lx,ly,lz)=>{
         let x=lx*S,y=ly*S,z=lz*S;
@@ -745,13 +766,10 @@ const World3D={
           if(hasHeel){const nx=x*heelCr-y*heelSr;y=x*heelSr+y*heelCr;x=nx;}
         }
         if(sink){
-          const p=sink.pitchP??sink.p, pv=sink.pivot*S;
-          const pitch=sink.pitch*p, cp=Math.cos(pitch), sp=Math.sin(pitch);
-          const z0=z-pv, nz=z0*cp-y*sp, ny=z0*sp+y*cp;
-          z=pv+nz+(sink.shift||0)*S; y=ny;
-          const roll=sink.roll*(sink.p), cr=Math.cos(roll), sr=Math.sin(roll);
-          const nx=x*cr-y*sr; y=x*sr+y*cr; x=nx;
-          y-=sink.drop;
+          const z0=z-sinkPv, nz=z0*sinkCp-y*sinkSp, ny=z0*sinkSp+y*sinkCp;
+          z=sinkPv+nz+sinkShift; y=ny;
+          const nx=x*sinkCr-y*sinkSr; y=x*sinkSr+y*sinkCr; x=nx;
+          y-=sinkDrop;
         }
         return projectWorldPoint(cam,it.E+x*cosH+z*sinH,it.N-x*sinH+z*cosH,y);
       };
@@ -809,6 +827,7 @@ const World3D={
         quad([[bb0,0,zz0],[bb0,y0,zz0],[bb1,y1,zz1],[bb1,0,zz1]],pal.hull);           // starboard
         quad([[-bb1,0,zz1],[-bb1,y1,zz1],[-bb0,y0,zz0],[-bb0,0,zz0]],pal.hull);       // port
         quad([[bb1,y1,zz1],[-bb1,y1,zz1],[-bb0,y0,zz0],[bb0,y0,zz0]],pal.deck);       // deck
+        quad([[bb0,0,zz0],[bb1,0,zz1],[-bb1,0,zz1],[-bb0,0,zz0]],pal.boot||pal.hull); // bottom / keel
       }
       // transom
       const st=hullSec[0];
@@ -929,17 +948,32 @@ const World3D={
           ctx.fillStyle=g2;
           ctx.beginPath();ctx.ellipse(fx+ox,fy-hgt*0.45,fr*0.6,hgt*0.8,0,0,Math.PI*2);ctx.fill();
         }
-        // heavy oil smoke, leaning downwind
+        // heavy oil smoke & boiler steam, leaning downwind
         if(this.quality>0.35){
-          for(let i=0;i<7;i++){
-            const ff=(i+1)/7;
+          const isTanker=c.type==='TANKER'||/TANKER/i.test(c.displayType||'');
+          const smokeCount=isTanker?9:7;
+          for(let i=0;i<smokeCount;i++){
+            const ff=(i+1)/smokeCount;
             const drift=(t*6+i*11)%60;
-            const rr2=Math.max(1.5,(fr*0.8+ff*fr*4));
-            ctx.fillStyle=`rgba(22,20,20,${fa*0.5*(1-ff*0.75)*haze})`;
+            const rr2=Math.max(1.5,(fr*(isTanker?1.1:0.8)+ff*fr*(isTanker?5.5:4)));
+            const sootCol=isTanker?`rgba(8,7,7,${fa*0.65*(1-ff*0.70)*haze})`:`rgba(22,20,20,${fa*0.5*(1-ff*0.75)*haze})`;
+            ctx.fillStyle=sootCol;
             ctx.beginPath();
             ctx.arc(fx+drift*scale*8*ff+Math.sin(t*1.3+i)*rr2*0.3,
                     fy-fr*1.5-ff*fr*7-drift*scale*2,rr2,0,Math.PI*2);
             ctx.fill();
+          }
+          if(SD?.boilerRuptured){
+            for(let i=0;i<4;i++){
+              const ff=(i+1)/4;
+              const sdrift=(t*9+i*8)%40;
+              const srr=Math.max(2,(fr*0.9+ff*fr*4));
+              ctx.fillStyle=`rgba(240,246,252,${fa*0.45*(1-ff*0.65)*haze})`;
+              ctx.beginPath();
+              ctx.arc(fx-sdrift*scale*5*ff+Math.cos(t*1.4+i)*srr*0.3,
+                      fy-fr*1.2-ff*fr*6-sdrift*scale*2.5,srr,0,Math.PI*2);
+              ctx.fill();
+            }
           }
         }
       }
@@ -960,28 +994,42 @@ const World3D={
       }
     }
 
-    // ── battle damage: black smoke / open fire ──
+    // ── battle damage: black smoke / oil soot / boiler steam / open fire ──
     // This is intentionally a handful of vector puffs, not a particle system.
     // It therefore appears in PERISCOPE, BRIDGE and GUN without a second render
     // stack and stays inexpensive on low-end phones.
     const SD=c.shipDamage;
-    if(!c.sunk&&SD&&lod>0&&(SD.fire>.12||SD.propulsion>.58)){
+    if(!c.sunk&&SD&&lod>0&&(SD.fire>.12||SD.propulsion>.58||SD.boilerRuptured)){
       const hz=(Number.isFinite(SD.lastHitFrac)?SD.lastHitFrac:0)*model.len;
       const base=V0(cam,it,cosH,sinH,S,0,model.fb+2.5,hz);
       if(base){
         const scale=cam.f/it.d,sev=clamp(Math.max(SD.fire,SD.propulsion*.65),.15,1);
-        const puffs=this.lowSpec?3:Math.round(4+sev*3);
+        const isTanker=c.type==='TANKER'||/TANKER/i.test(c.displayType||'');
+        const puffs=this.lowSpec?3:Math.round(isTanker?(5+sev*4):(4+sev*3));
         if(SD.fire>.25){
-          const fr=Math.max(2,realLen*.025*scale)*(0.7+SD.fire*.7),flick=.8+.2*Math.sin(t*13+seed);
+          const fr=Math.max(2,realLen*.025*scale)*(0.7+SD.fire*.7)*(isTanker?1.35:1.0),flick=.8+.2*Math.sin(t*13+seed);
           ctx.fillStyle=`rgba(255,105,24,${clamp(SD.fire*.72,0,.72)})`;
           ctx.beginPath();ctx.ellipse(base.x,base.y-fr*.55,fr*.60*flick,fr*1.1*flick,0,0,Math.PI*2);ctx.fill();
         }
         for(let i=0;i<puffs;i++){
           const ff=(i+1)/puffs,drift=((t*5+i*13)%50)*scale;
-          const rr=Math.max(1.5,(4+ff*19)*scale*(.65+sev*.6));
-          ctx.fillStyle=`rgba(12,13,14,${(.20+.35*sev)*(1-ff*.70)*haze})`;
+          const rr=Math.max(1.5,(4+ff*(isTanker?25:19))*scale*(.65+sev*.6));
+          const sootAlpha=isTanker?(.28+.42*sev):(.20+.35*sev);
+          const col=isTanker?`rgba(6,7,8,${sootAlpha*(1-ff*.65)*haze})`:`rgba(12,13,14,${sootAlpha*(1-ff*.70)*haze})`;
+          ctx.fillStyle=col;
           ctx.beginPath();ctx.arc(base.x+drift*ff*2.2+Math.sin(t*.9+i+seed)*rr*.25,
             base.y-ff*(18+28*sev)*scale-drift*.35,rr,0,Math.PI*2);ctx.fill();
+        }
+        // Expanding white boiler steam plume on boiler rupture or severe midships fire
+        if(SD.boilerRuptured||(SD.fire>.45&&((SD.compartments&&SD.compartments.midships>.3)||SD.lastHitLocation==='MIDSHIPS'))){
+          const steamPuffs=this.lowSpec?2:4;
+          for(let i=0;i<steamPuffs;i++){
+            const ff=(i+1)/steamPuffs,sdrift=((t*8+i*11)%40)*scale;
+            const srr=Math.max(2,(5+ff*22)*scale*(.75+sev*.6));
+            ctx.fillStyle=`rgba(238,245,252,${(.35+.25*sev)*(1-ff*.60)*haze})`;
+            ctx.beginPath();ctx.arc(base.x-sdrift*ff*1.8+Math.cos(t*1.2+i)*srr*.3,
+              base.y-ff*(22+30*sev)*scale-sdrift*.4,srr,0,Math.PI*2);ctx.fill();
+          }
         }
       }
     }

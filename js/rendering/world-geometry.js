@@ -315,7 +315,7 @@ function SHIP_PALETTE(seed,night){
   const mix=c=>[Math.round(c[0]*(1-n)+8*n),Math.round(c[1]*(1-n)+13*n),Math.round(c[2]*(1-n)+24*n)];
   return{hull:mix(hull),deck:mix([94,82,64]),house:mix(house),top:mix([164,168,162]),
     funnel:mix([28,30,34]),funnelLit:mix([66,68,72]),dark:mix([48,52,56]),
-    gun:mix([98,102,100]),mast:mix([178,180,172])};
+    gun:mix([98,102,100]),mast:mix([178,180,172]),boot:mix([72,28,24])};
 }
 
 const CLOUDS=Array.from({length:14},(_,i)=>({az:(i*47.3)%360,el:4+((i*23)%16),w:0.22+((i*13)%9)/28}));
