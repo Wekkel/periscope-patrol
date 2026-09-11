@@ -13,6 +13,7 @@ const checks=[
   ['quality gates',process.execPath,['tests/quality-gates.mjs','.']],
   ['HUD presenter measurement',process.execPath,['tests/measure-hud-presenters.mjs']],
   ['behaviour tests',process.execPath,['tests/behaviour.mjs']],
+  ['hybrid audio pipeline',process.execPath,['tests/audio-pipeline.mjs']],
   ['campaign & scenario validation',process.execPath,['tests/test-campaign-and-scenarios.mjs']],
   ...(hasJsdom ? [['boot harness',process.execPath,['tests/boot-harness.mjs','.']]] : []),
   ['ESLint globals',process.execPath,['tests/generate-eslint-globals.mjs','.']],

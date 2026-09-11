@@ -43,7 +43,7 @@ class AudioEngine{
       OBJECTIVE_FAILED:{url:'./audio/stings/objective_failed_01.ogg',bus:'mission'},
       RETURN_TO_BASE:{url:'./audio/stings/return_to_base_01.ogg',bus:'mission'}
     };
-    this.hybridBuffers=new Map();this.hybridLoading=new Map();this.hybridVoices=[];this.hybridDecodedBytes=0;this.hybridBudgetBytes=8*1024*1024;this.hybridMaxVoices=6;
+    this.hybridBuffers=new Map();this.hybridMeta=new Map();this.hybridLoading=new Map();this.hybridVoices=[];this.hybridDecodedBytes=0;this.hybridBudgetBytes=8*1024*1024;this.hybridMaxVoices=6;this.hybridEvictionsCount=0;
     // Aircraft fly-by is a deliberately tiny procedural engine. Only the nearest
     // visible aircraft in BRIDGE/GUN gets voices; this avoids turning ambient
     // sound into another sensor and keeps oscillator count bounded on G88-class
@@ -60,7 +60,8 @@ class AudioEngine{
       // Phase 4 mixer: presentation buses are cheap GainNodes. Simulation code
       // emits semantic events; the AudioDirector changes these buses without
       // ever changing physics, AI, detection or simulation timing.
-      for(const name of ['system','command','sensor','world','machinery','weapons','mission']){const g=ctx.createGain();g.gain.value=1;g.connect(this.masterGain);this.busNodes[name]=g;}
+      for(const name of ['system','command','sensor','world','machinery','weapons']){const g=ctx.createGain();g.gain.value=1;g.connect(this.masterGain);this.busNodes[name]=g;}
+      const missionBus=ctx.createGain();missionBus.gain.value=1;missionBus.connect(this.musicGain);this.busNodes['mission']=missionBus;
       // Output highpass filter: 10Hz for headphones (unfiltered deep sub-bass),
       // 65Hz for mobile speakers (protects tiny speakers and clarifies punch).
       this.speakerFilter=ctx.createBiquadFilter();
@@ -120,20 +121,72 @@ class AudioEngine{
 
   configureHybridSamples(patch={}){for(const [id,value] of Object.entries(patch)){if(this.hybridManifest[id])this.hybridManifest[id]={...this.hybridManifest[id],...value};}return this.hybridStatus();}
 
-  async _loadHybrid(id){
-    const spec=this.hybridManifest[id];if(!this.ctx||!spec?.url||this.hybridBuffers.has(id))return this.hybridBuffers.get(id)||null;
-    if(this.hybridLoading.has(id))return this.hybridLoading.get(id);
-    const task=fetch(spec.url).then(r=>{if(!r.ok)throw new Error(`${r.status} ${spec.url}`);return r.arrayBuffer();}).then(b=>this.ctx.decodeAudioData(b)).then(buffer=>{
-      const bytes=buffer.length*buffer.numberOfChannels*4;if(bytes>this.hybridBudgetBytes||this.hybridDecodedBytes+bytes>this.hybridBudgetBytes)throw new Error('hybrid audio buffer budget exceeded');
-      // Anti-click zero-crossing taper: smooth 8ms Hann taper eliminates initial non-zero sample clicks
-      const taperLen=Math.min(Math.floor(buffer.sampleRate*0.008),buffer.length);
-      for(let ch=0;ch<buffer.numberOfChannels;ch++){
-        const d=buffer.getChannelData(ch);
-        for(let i=0;i<taperLen;i++)d[i]*=0.5*(1-Math.cos((Math.PI*i)/taperLen));
+  _evictOldestBuffers(neededBytes=0){
+    if(this.hybridDecodedBytes+neededBytes<=this.hybridBudgetBytes)return true;
+    const candidates=[];
+    for(const [id,meta] of this.hybridMeta.entries()){
+      if((meta.activeVoices||0)===0){
+        candidates.push({id,bytes:meta.bytes,lastUsed:meta.lastUsed||0});
       }
-      this.hybridBuffers.set(id,buffer);this.hybridDecodedBytes+=bytes;return buffer;
-    }).catch(e=>{console.warn(`Hybrid audio ${id} unavailable; procedural fallback retained.`,e);return null;}).finally(()=>this.hybridLoading.delete(id));
-    this.hybridLoading.set(id,task);return task;
+    }
+    candidates.sort((a,b)=>a.lastUsed-b.lastUsed);
+    for(const c of candidates){
+      this.hybridBuffers.delete(c.id);
+      this.hybridMeta.delete(c.id);
+      this.hybridDecodedBytes=Math.max(0,this.hybridDecodedBytes-c.bytes);
+      this.hybridEvictionsCount++;
+      if(this.hybridDecodedBytes+neededBytes<=this.hybridBudgetBytes)break;
+    }
+    return (this.hybridDecodedBytes+neededBytes<=this.hybridBudgetBytes);
+  }
+
+  async _loadHybrid(id){
+    const spec=this.hybridManifest[id];
+    if(!this.ctx||!spec?.url)return null;
+    if(this.hybridBuffers.has(id)){
+      const meta=this.hybridMeta.get(id);
+      if(meta)meta.lastUsed=performance.now();
+      return this.hybridBuffers.get(id);
+    }
+    if(this.hybridLoading.has(id))return this.hybridLoading.get(id);
+
+    const task=(async()=>{
+      try{
+        const r=await fetch(spec.url);
+        if(!r.ok)throw new Error(`HTTP ${r.status} ${spec.url}`);
+        const ab=await r.arrayBuffer();
+        const buffer=await this.ctx.decodeAudioData(ab);
+        const bytes=buffer.length*buffer.numberOfChannels*4;
+        if(bytes>this.hybridBudgetBytes){
+          throw new Error(`Hybrid audio ${id} (${bytes} B) exceeds maximum heap budget (${this.hybridBudgetBytes} B)`);
+        }
+        const fits=this._evictOldestBuffers(bytes);
+        if(!fits){
+          throw new Error(`Hybrid audio ${id} (${bytes} B) cannot fit; active voices occupy remaining budget`);
+        }
+        // Bidirectional anti-click Hann window: 8ms fade-in and 8ms fade-out eliminates zero-crossing clicks
+        const taperLen=Math.min(Math.floor(buffer.sampleRate*0.008),Math.floor(buffer.length/2));
+        if(taperLen>0){
+          for(let ch=0;ch<buffer.numberOfChannels;ch++){
+            const d=buffer.getChannelData(ch);
+            for(let i=0;i<taperLen;i++)d[i]*=0.5*(1-Math.cos((Math.PI*i)/taperLen));
+            const tailStart=buffer.length-taperLen;
+            for(let i=0;i<taperLen;i++)d[tailStart+i]*=0.5*(1+Math.cos((Math.PI*i)/taperLen));
+          }
+        }
+        this.hybridBuffers.set(id,buffer);
+        this.hybridMeta.set(id,{bytes,lastUsed:performance.now(),activeVoices:0});
+        this.hybridDecodedBytes+=bytes;
+        return buffer;
+      }catch(e){
+        console.warn(`Hybrid audio ${id} unavailable; procedural fallback retained.`,e?.message||e);
+        return null;
+      }finally{
+        this.hybridLoading.delete(id);
+      }
+    })();
+    this.hybridLoading.set(id,task);
+    return task;
   }
 
   preloadCoreSamples(){
@@ -152,19 +205,66 @@ class AudioEngine{
   }
 
   _tryHybrid(id,{volume=1,rate=1,bearingDeg=null,ownHeading=0,loop=false}={}){
-    const spec=this.hybridManifest[id],buffer=this.hybridBuffers.get(id);if(!spec?.url)return false;
-    if(!buffer){this._loadHybrid(id);return false;}
-    while(this.hybridVoices.length>=this.hybridMaxVoices){const old=this.hybridVoices.shift();try{old.stop();}catch(_){}}
+    const spec=this.hybridManifest[id];if(!spec?.url)return false;
+    const buffer=this.hybridBuffers.get(id);
+    if(!buffer){this._loadHybrid(id).catch(()=>{});return false;}
+    const meta=this.hybridMeta.get(id);
+    if(meta)meta.lastUsed=performance.now();
+
+    while(this.hybridVoices.length>=this.hybridMaxVoices){
+      const oldest=this.hybridVoices.shift();
+      if(oldest){
+        try{
+          const nowVoice=this.ctx.currentTime;
+          oldest.gain.gain.cancelScheduledValues(nowVoice);
+          oldest.gain.gain.setValueAtTime(Math.max(0.0001,oldest.gain.gain.value||0.0001),nowVoice);
+          oldest.gain.gain.linearRampToValueAtTime(0.0001,nowVoice+0.008);
+          oldest.source.stop(nowVoice+0.010);
+        }catch(_){}
+        const oldMeta=this.hybridMeta.get(oldest.id);
+        if(oldMeta&&oldMeta.activeVoices>0)oldMeta.activeVoices--;
+      }
+    }
+
     const now=this.ctx.currentTime,source=this.ctx.createBufferSource(),gain=this.ctx.createGain();
     source.buffer=buffer;source.loop=!!loop;source.playbackRate.value=clamp(rate,.5,2);
     const targetGain=clamp(volume,0,2.0);
     gain.gain.setValueAtTime(0.0001,now);
     gain.gain.linearRampToValueAtTime(targetGain,now+.004);
     source.connect(gain);this._route(gain,bearingDeg,ownHeading,spec.bus);
-    source.onended=()=>{this.hybridVoices=this.hybridVoices.filter(x=>x!==source);};this.hybridVoices.push(source);source.start();return true;
+
+    const voiceRecord={id,source,gain,startedAt:now};
+    if(meta)meta.activeVoices++;
+    source.onended=()=>{
+      this.hybridVoices=this.hybridVoices.filter(x=>x!==voiceRecord);
+      const m=this.hybridMeta.get(id);
+      if(m&&m.activeVoices>0)m.activeVoices--;
+    };
+    this.hybridVoices.push(voiceRecord);
+    source.start();
+    return true;
   }
 
-  hybridStatus(){return{slots:Object.fromEntries(Object.entries(this.hybridManifest).map(([id,s])=>[id,{configured:!!s.url,ready:this.hybridBuffers.has(id),bus:s.bus}])),decodedBytes:this.hybridDecodedBytes,budgetBytes:this.hybridBudgetBytes,voices:this.hybridVoices.length,maxVoices:this.hybridMaxVoices,speakerMode:this.speakerMode};}
+  hybridStatus(){
+    const slots={};
+    for(const [id,s] of Object.entries(this.hybridManifest)){
+      const ready=this.hybridBuffers.has(id);
+      const loading=this.hybridLoading.has(id);
+      const status=ready?'READY':(loading?'LOADING':(s.url?'UNLOADED':'UNCONFIGURED'));
+      slots[id]={configured:!!s.url,ready,loading,status,bus:s.bus};
+    }
+    return{
+      slots,
+      decodedBytes:this.hybridDecodedBytes,
+      budgetBytes:this.hybridBudgetBytes,
+      budgetUsagePct:Number(((this.hybridDecodedBytes/this.hybridBudgetBytes)*100).toFixed(1)),
+      bufferCount:this.hybridBuffers.size,
+      evictionsCount:this.hybridEvictionsCount,
+      voices:this.hybridVoices.length,
+      maxVoices:this.hybridMaxVoices,
+      speakerMode:this.speakerMode
+    };
+  }
 
   applyMixProfile(profile={}){
     if(!this.ctx)return;const now=this.ctx.currentTime,wall=performance.now(),duck=wall<this.duckUntil?this.duckFactor:1;
