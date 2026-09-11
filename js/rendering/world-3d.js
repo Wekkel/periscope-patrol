@@ -353,8 +353,15 @@ const World3D={
         const az=i*STEP;
         const nz=Math.sin(az*0.31+seed)*0.5+Math.sin(az*0.93+seed*1.7)*0.32
                 +Math.sin(az*2.7+seed*0.6)*0.18;
-        hh*=0.82+0.30*nz*0.5+0.15;                        // ±~15 % relief
-        h[i]=clamp(hh,30,peak*1.05);
+        // Volcanic ridgeline & sharp spine harmonics for high summits (> 500m)
+        let ridgeHarmonics=0;
+        if(peak>=500){
+          const r1=1-Math.abs(Math.sin(az*1.35+seed*0.7));
+          const r2=1-Math.abs(Math.sin(az*3.7+seed*1.3));
+          ridgeHarmonics=(r1*0.65+r2*0.35-0.5)*clamp((peak-400)/1200,0,0.40);
+        }
+        hh*=(0.82+0.30*nz*0.5+0.15+ridgeHarmonics);
+        h[i]=clamp(hh,15,peak*1.05);
       }
       // smooth height + near-distance inside the land run (2 passes)
       for(let pass=0;pass<2;pass++){
@@ -423,7 +430,35 @@ const World3D={
         const hzMix=1-fade;
         const lum=Math.round(20+dl*46);
         const mix=(r,g,b)=>`rgb(${Math.round(r*fade+hazeCol[0]*hzMix)},${Math.round(g*fade+hazeCol[1]*hzMix)},${Math.round(b*fade+hazeCol[2]*hzMix)})`;
-        const topY=cc=>cam.cy+((cam.h-cc.h)/cc.d+cc.d/(2*EARTH_R))*cam.f;
+
+        // Determine if left / right edges are natural coastlines ending in open sea
+        const isLeftCoast=(R[0].x > x0 + colPx);
+        const isRightCoast=(R[R.length-1].x < x1 - colPx);
+        const taperSpan=Math.min(22,Math.max(3,Math.floor(R.length*0.28)));
+
+        // Apply smooth coastal edge tapering to 0m at true island shores
+        for(let i=0;i<R.length;i++){
+          let edgeFactor=1.0;
+          if(isLeftCoast && i<taperSpan){
+            const s=Math.sin((i/taperSpan)*Math.PI*0.5);
+            edgeFactor=Math.min(edgeFactor, s*s);
+          }
+          if(isRightCoast && (R.length-1-i)<taperSpan){
+            const s=Math.sin(((R.length-1-i)/taperSpan)*Math.PI*0.5);
+            edgeFactor=Math.min(edgeFactor, s*s);
+          }
+          R[i].hTapered=R[i].h*edgeFactor;
+
+          // Tree canopy micro-relief for nearby forested slopes
+          if(nearest<9*NM_M && this.quality>0.5){
+            if(edgeFactor>0.15 && R[i].hTapered<peak*0.82){
+              const canopy=(Math.sin(R[i].az*33+F.seed)*2.4 + Math.sin(R[i].az*77)*1.2)*edgeFactor;
+              R[i].hTapered=Math.max(0, R[i].hTapered+canopy);
+            }
+          }
+        }
+
+        const topY=cc=>cam.cy+((cam.h-(cc.hTapered!==undefined?cc.hTapered:cc.h))/cc.d+cc.d/(2*EARTH_R))*cam.f;
         const baseY=cc=>Math.min(seaSurfaceY(cam,cc.d),cam.cy+cam.r+4);
 
         // ── interior ridge: the island's far side, hazier, drawn first ──
@@ -432,7 +467,7 @@ const World3D={
           let started=false;
           for(const cc of R){
             const dm=(cc.d+cc.df)/2;
-            const hm=Math.min(cc.h*1.12,peak*1.05);
+            const hm=Math.min((cc.hTapered!==undefined?cc.hTapered:cc.h)*1.12,peak*1.05);
             const y=cam.cy+((cam.h-hm)/dm+dm/(2*EARTH_R))*cam.f;
             if(!started){ctx.moveTo(cc.x,y);started=true;}else ctx.lineTo(cc.x,y);
           }
@@ -443,15 +478,24 @@ const World3D={
           ctx.fill();
         }
 
-        // ── main slope with vertical gradient: rocky ridge → forest → dark shore ──
+        // ── main slope with vertical gradient: rocky ridge → forest → beach → shore ──
         let yMin=1e9;
         for(const cc of R){const y=topY(cc); if(y<yMin)yMin=y;}
         const yBase=baseY(R[Math.floor(R.length/2)]);
         const g=ctx.createLinearGradient(0,yMin,0,yBase);
-        g.addColorStop(0,mix(lum+46,lum+52,lum+34));       // sunlit ridge / bare rock
-        g.addColorStop(0.28,mix(lum+18,lum+40,lum+16));    // upper forest
-        g.addColorStop(0.7,mix(lum+2,lum+22,lum+8));       // lower forest
-        g.addColorStop(1,mix(Math.round(lum*0.5),Math.round(lum*0.66),Math.round(lum*0.55))); // shore shadow
+        if(peak>=600){
+          g.addColorStop(0,mix(lum+58,lum+60,lum+52));      // bare alpine/volcanic rock
+          g.addColorStop(0.20,mix(lum+30,lum+46,lum+26));   // sub-alpine scrub
+          g.addColorStop(0.42,mix(lum+16,lum+38,lum+14));   // upper rainforest canopy
+        }else{
+          g.addColorStop(0,mix(lum+46,lum+52,lum+34));      // sunlit ridge / crest
+          g.addColorStop(0.30,mix(lum+18,lum+40,lum+16));   // upper forest
+        }
+        g.addColorStop(0.70,mix(lum+4,lum+24,lum+8));       // dense lowland jungle
+        g.addColorStop(0.88,mix(lum+14,lum+30,lum+14));     // coastal scrub transition
+        g.addColorStop(0.93,mix(lum+38,lum+34,lum+20));     // warm sand beach & coral shelf band
+        g.addColorStop(0.97,mix(lum+18,lum+22,lum+16));     // wet tidal sand
+        g.addColorStop(1,mix(Math.round(lum*0.48),Math.round(lum*0.64),Math.round(lum*0.52))); // shore waterline
         ctx.fillStyle=g;
         ctx.beginPath();
         ctx.moveTo(R[0].x,baseY(R[0])+2);
@@ -480,6 +524,18 @@ const World3D={
         ctx.beginPath();
         for(let i=0;i<R.length;i++){const y=topY(R[i]); if(i===0)ctx.moveTo(R[i].x,y);else ctx.lineTo(R[i].x,y);}
         ctx.stroke();
+
+        // ── sand beach edge accent for nearby land ──
+        if(nearest<7*NM_M&&this.quality>0.5){
+          ctx.strokeStyle=`rgba(${Math.round((lum+38)*fade+hazeCol[0]*hzMix)},${Math.round((lum+34)*fade+hazeCol[1]*hzMix)},${Math.round((lum+20)*fade+hazeCol[2]*hzMix)},${fade*0.45})`;
+          ctx.lineWidth=Math.max(1,1.4*this.k);
+          ctx.beginPath();
+          for(let i=0;i<R.length;i++){
+            const y=baseY(R[i])-1.2;
+            if(i===0)ctx.moveTo(R[i].x,y);else ctx.lineTo(R[i].x,y);
+          }
+          ctx.stroke();
+        }
 
         // ── surf line where the land meets the sea ──
         if(nearest<8*NM_M){

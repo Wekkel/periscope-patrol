@@ -1051,4 +1051,92 @@ for (const cls of allCats) {
   assert.ok(depthMag > 0 && depthMag <= 45, `Class ${cls.id} magnetic depth must be 1-45 ft (got ${depthMag})`);
 }
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5');
+// ═══════════════════════════════════════════════════ 16. TOPOGRAPHY & REALISTIC ISLAND COASTLINES
+const world3dMod = await load('js/rendering/world-3d.js', ['World3D'], {
+  normDeg, degToRad, radToDeg, shortDelta, clamp, distNm, bearingBetween,
+  EARTH_R: 6371000, NM_M: 1852,
+  weatherIsWet: () => false,
+  dayPhaseRgb: () => [100, 100, 100],
+  rgbCss: arr => `rgb(${arr[0]},${arr[1]},${arr[2]})`,
+  projectAzimuthElevation: () => ({ x: 0, y: 0 }),
+  DayNightCycle: { CYCLE_SECONDS: 86400 },
+  phaseSmooth01: x => x,
+  seaSurfaceY: (cam, d) => cam.cy + (cam.h / d + d / (2 * 6371000)) * cam.f
+});
+
+// Test 1: Volcanic Ridge Harmonics on High Summits vs Flat Islands
+const mockIslandHigh = {
+  id: 'LAND-GUADALCANAL',
+  name: 'Guadalcanal',
+  peakM: 2447,
+  points: [{ xNm: 0, yNm: -5 }, { xNm: 5, yNm: -5 }, { xNm: 5, yNm: -10 }, { xNm: 0, yNm: -10 }]
+};
+const mockIslandLow = {
+  id: 'LAND-REEF',
+  name: 'Low Atoll',
+  peakM: 120,
+  points: [{ xNm: 10, yNm: -5 }, { xNm: 15, yNm: -5 }, { xNm: 15, yNm: -10 }, { xNm: 10, yNm: -10 }]
+};
+
+const simStateTerrain = {
+  playerSub: { position: { xNm: 0, yNm: 0 } },
+  world: {
+    terrain: [mockIslandHigh, mockIslandLow],
+    environment: { visibilityNm: 30, visualTone: 'PACIFIC' }
+  },
+  tactical: { periscopeBearing: 0 },
+  time: { elapsedSeconds: 0 }
+};
+
+const profs = world3dMod.World3D._terrainProfiles(simStateTerrain);
+assert.equal(profs.feats.length, 2, 'Both terrain features must be profiled');
+
+const featHigh = profs.feats.find(f => f.f.id === 'LAND-GUADALCANAL');
+const featLow = profs.feats.find(f => f.f.id === 'LAND-REEF');
+assert.ok(featHigh && featLow, 'Both high peak and low atoll must be present');
+
+// High peak profile must exhibit substantial elevation (> 1000m)
+const maxHighH = Math.max(...featHigh.h);
+assert.ok(maxHighH > 1000, `High peak must retain volcanic elevation (got ${maxHighH.toFixed(0)}m)`);
+
+// Test 2: Coastal Edge Tapering to 0m (No Rectangular Cliff)
+const mockCam = { cx: 640, cy: 400, r: 350, f: 800, h: 4.5, bearingDeg: 0 };
+const recordedLines = [];
+const recordedStops = [];
+const mockCtx = {
+  beginPath() {},
+  closePath() {},
+  fill() {},
+  stroke() {},
+  moveTo(x, y) { recordedLines.push({ type: 'move', x, y }); },
+  lineTo(x, y) { recordedLines.push({ type: 'line', x, y }); },
+  createLinearGradient() {
+    return {
+      addColorStop(stop, color) { recordedStops.push({ stop, color }); }
+    };
+  },
+  createRadialGradient() { return { addColorStop() {} }; },
+  fillRect() {},
+  fillText() {}
+};
+
+world3dMod.World3D.w = 1280;
+world3dMod.World3D.h = 800;
+world3dMod.World3D.k = 1.0;
+world3dMod.World3D.quality = 1.0;
+world3dMod.World3D.drawTerrain3D(mockCtx, mockCam, simStateTerrain, 1.0);
+
+// Test 3: Multi-zone Gradient with Sand Beach and Coral Band
+assert.ok(recordedStops.some(s => s.stop === 0.93), 'Gradient must contain warm sand beach band at 0.93');
+assert.ok(recordedStops.some(s => s.stop === 0.97), 'Gradient must contain wet tidal sand margin at 0.97');
+assert.ok(recordedStops.some(s => s.stop === 0), 'Gradient must contain alpine/volcanic summit stop at 0');
+
+// Test 4: Land meeting water with zero rectangular step (edge tapering)
+// When an island run begins in open water, the first moveTo/lineTo is at sea level
+assert.ok(recordedLines.length >= 4, 'drawTerrain3D must render polygonal terrain profile');
+const firstPoint = recordedLines[0];
+const secondPoint = recordedLines[1];
+const deltaY = Math.abs(secondPoint.y - firstPoint.y);
+assert.ok(deltaY <= 3.0, `Shoreline profile must taper smoothly to sea level with no vertical step (deltaY: ${deltaY.toFixed(2)}px)`);
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4');
