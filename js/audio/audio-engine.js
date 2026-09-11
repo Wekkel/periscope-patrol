@@ -375,31 +375,42 @@ class AudioEngine{
   }
 
   playTorpedoLaunch(){
-    if(this._tryHybrid('TORPEDO_LAUNCH'))return;
-    this.ensure();if(Date.now()-this.lastLaunch<400)return;this.lastLaunch=Date.now();this.duck(72,380);
+    this.ensure();
+    const now=Date.now();
+    if(now-this.lastLaunch<400)return;
+    this.lastLaunch=now;
+    this.duck(72,380);
+    if(this._tryHybrid('TORPEDO_LAUNCH',{volume:1.1}))return;
     this._white(.15,.4,null,0,'weapons');
     setTimeout(()=>this._noise(.6,80,'sine',.35,null,0,'weapons'),80);
     setTimeout(()=>this._noise(.4,40,'sine',.2,null,0,'weapons'),200);
   }
 
-  playDepthCharge(dist=1){
+  playDepthCharge(dist=1,bearingDeg=null,ownHeading=0){
     this.ensure();if(Date.now()-this.lastDC<210)return;this.lastDC=Date.now();if(!this.ctx||!this.enabled)return;
     const ctx=this.ctx,now=ctx.currentTime,near=clamp(1-(Number(dist)||0),0,1),far=near<.18,mid=!far&&near<.58;
-    const scale=far?.42:mid?.68:.96,bodyDur=far?.84:mid?1.04:1.24;this.duck(near>.7?98:mid?90:80,near>.7?900:620);
-    if(this._tryHybrid('DEPTH_CHARGE',{volume:scale,rate:far?.88:(mid?.94:1)}))return;
+    const scale=far?.45:mid?.72:1.0,bodyDur=far?.84:mid?1.04:1.24;
+    this.duck(near>.7?98:mid?90:80,near>.7?900:620);
+    const played=this._tryHybrid('DEPTH_CHARGE',{volume:scale,rate:far?.88:(mid?.94:1),bearingDeg,ownHeading});
+    if(played){
+      if(!near){
+        this._filteredNoise(far?1.05:.82,far?.035:.042,{type:'lowpass',freq:210,q:.42,attack:.08},bearingDeg,ownHeading,'weapons');
+      }
+      return;
+    }
     // Pressure-first design: short dark broadband WHUMP excites broad low-Q
     // water/steel resonances. Avoid clean low oscillators here: they read as a
     // synth bass note instead of an underwater explosion.
-    this._filteredNoise(far?.08:.095,.76*scale,{type:'lowpass',freq:820,q:.34,attack:.0006},null,0,'weapons');
-    this._filteredNoise(far?.14:.17,.56*scale,{type:'lowpass',freq:175,q:.38,attack:.0006},null,0,'weapons');
+    this._filteredNoise(far?.08:.095,.76*scale,{type:'lowpass',freq:820,q:.34,attack:.0006},bearingDeg,ownHeading,'weapons');
+    this._filteredNoise(far?.14:.17,.56*scale,{type:'lowpass',freq:175,q:.38,attack:.0006},bearingDeg,ownHeading,'weapons');
     const src=this._noiseSource(bodyDur),body=ctx.createGain();body.gain.setValueAtTime(.54*scale,now+.005);body.gain.exponentialRampToValueAtTime(.001,now+bodyDur);
-    for(const [f0,q,w] of [[38,.72,.34],[56,.86,.42],[79,1.0,.38],[108,1.10,.30],[146,1.20,.20],[205,1.28,.10]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.005,Math.random()*1.2);src.stop(now+bodyDur+.02);
+    for(const [f0,q,w] of [[38,.72,.34],[56,.86,.42],[79,1.0,.38],[108,1.10,.30],[146,1.20,.20],[205,1.28,.10]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}
+    this._route(body,bearingDeg,ownHeading,'weapons');src.start(now+.005,Math.random()*1.2);src.stop(now+bodyDur+.02);
     if(!far){const hd=mid?.72:.96,hs=this._noiseSource(hd),hg=ctx.createGain();hg.gain.setValueAtTime(.11*scale,now+.045);hg.gain.exponentialRampToValueAtTime(.001,now+hd);
-      for(const [f0,q,w] of [[72,1.35,.50],[118,1.55,.39],[177,1.8,.24],[268,2.0,.10]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;hs.connect(f);f.connect(g);g.connect(hg);}hg.connect(this._bus('weapons'));hs.start(now+.045,Math.random()*1.1);hs.stop(now+hd+.05);}
-    // Distant/medium charges get a little more lingering low water mass; near
-    // charges keep the already-approved compact impact with only a subtle tail.
+      for(const [f0,q,w] of [[72,1.35,.50],[118,1.55,.39],[177,1.8,.24],[268,2.0,.10]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;hs.connect(f);f.connect(g);g.connect(hg);}
+      this._route(hg,bearingDeg,ownHeading,'weapons');hs.start(now+.045,Math.random()*1.1);hs.stop(now+hd+.05);}
     const glow=far?1.00:mid?.88:.72,glowVol=far?.030:mid?.036:.032;
-    this._filteredNoise(glow,glowVol,{type:'lowpass',freq:215,q:.42,attack:.12},null,0,'weapons');
+    this._filteredNoise(glow,glowVol,{type:'lowpass',freq:215,q:.42,attack:.12},bearingDeg,ownHeading,'weapons');
   }
 
   playDepthChargeSplash(distanceFactor=.5,bearingDeg=null,ownHeading=0){
@@ -419,52 +430,73 @@ class AudioEngine{
     this._filteredNoise(.58,v*.40,{type:'bandpass',freq:115,q:1.4,attack:.018},bearingDeg,ownHeading,'weapons');
   }
 
-  playHit(){
+  playHit(bearingDeg=null,ownHeading=0){
     // Compact shell/deck-gun hull strike. Torpedoes use playTorpedoHit(), whose
     // much larger pressure body would make a 3-inch hit sound absurdly heavy.
     this.ensure();if(!this.ctx||!this.enabled)return;const ctx=this.ctx,now=ctx.currentTime;
-    this.duck(88,520);this._filteredNoise(.055,.48,{type:'lowpass',freq:1450,q:.36,attack:.0005},null,0,'weapons');
-    this._filteredNoise(.22,.27,{type:'bandpass',freq:430,q:.55,attack:.002},null,0,'weapons');
+    this.duck(88,520);
+    if(this._tryHybrid('DECK_GUN_IMPACT',{volume:1.15,rate:.98,bearingDeg,ownHeading}))return;
+    this._filteredNoise(.055,.48,{type:'lowpass',freq:1450,q:.36,attack:.0005},bearingDeg,ownHeading,'weapons');
+    this._filteredNoise(.22,.27,{type:'bandpass',freq:430,q:.55,attack:.002},bearingDeg,ownHeading,'weapons');
     const dur=.68,src=this._noiseSource(dur),body=ctx.createGain();body.gain.setValueAtTime(.24,now+.003);body.gain.exponentialRampToValueAtTime(.001,now+dur);
-    for(const [f0,q,w] of [[74,.9,.30],[118,1.0,.25],[205,1.2,.13]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.003,Math.random());src.stop(now+dur+.03);
+    for(const [f0,q,w] of [[74,.9,.30],[118,1.0,.25],[205,1.2,.13]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}
+    this._route(body,bearingDeg,ownHeading,'weapons');src.start(now+.003,Math.random());src.stop(now+dur+.03);
   }
 
-  playTorpedoHit(){
+  playTorpedoHit(bearingDeg=null,ownHeading=0){
     this.ensure();if(!this.ctx||!this.enabled)return;
     this.duck(100,1900);
-    if(this._tryHybrid('TORPEDO_HIT'))return;
+    const played=this._tryHybrid('TORPEDO_HIT',{volume:1.25,bearingDeg,ownHeading});
+    if(played){
+      // True hybrid layering: enrich sample with deep underwater hydraulic cavitation rumble
+      this._filteredNoise(2.6,.12,{type:'lowpass',freq:165,q:.38,attack:.04},bearingDeg,ownHeading,'weapons');
+      return;
+    }
     const ctx=this.ctx,now=ctx.currentTime;
     // A Mk14-sized warhead striking a steel hull is deliberately NOT a short,
     // dry bang. The first pressure face is broad and dark; a turbulent water/
     // hull body follows for almost three seconds, with inharmonic low-Q steel
     // resonances and a low tail that remains audible on small mobile speakers.
-    this._filteredNoise(.095,.98,{type:'lowpass',freq:1050,q:.28,attack:.0004},null,0,'weapons');
-    this._filteredNoise(.24,.82,{type:'lowpass',freq:185,q:.34,attack:.0007},null,0,'weapons');
-    this._filteredNoise(.48,.38,{type:'bandpass',freq:980,q:.38,attack:.002},null,0,'weapons');
+    this._filteredNoise(.095,.98,{type:'lowpass',freq:1050,q:.28,attack:.0004},bearingDeg,ownHeading,'weapons');
+    this._filteredNoise(.24,.82,{type:'lowpass',freq:185,q:.34,attack:.0007},bearingDeg,ownHeading,'weapons');
+    this._filteredNoise(.48,.38,{type:'bandpass',freq:980,q:.38,attack:.002},bearingDeg,ownHeading,'weapons');
     const dur=2.85,src=this._noiseSource(dur),body=ctx.createGain();body.gain.setValueAtTime(.92,now+.006);body.gain.setValueAtTime(.82,now+.12);body.gain.exponentialRampToValueAtTime(.001,now+dur);
-    for(const [f0,q,w] of [[34,.62,.48],[49,.70,.54],[71,.78,.50],[101,.90,.42],[143,1.02,.31],[207,1.14,.19],[292,1.22,.09]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}body.connect(this._bus('weapons'));src.start(now+.006,Math.random());src.stop(now+dur+.04);
-    this._filteredNoise(2.35,.115,{type:'lowpass',freq:245,q:.38,attack:.055},null,0,'weapons');
-    setTimeout(()=>this._filteredNoise(.90,.055,{type:'bandpass',freq:118,q:.82,attack:.015},null,0,'weapons'),165);
+    for(const [f0,q,w] of [[34,.62,.48],[49,.70,.54],[71,.78,.50],[101,.90,.42],[143,1.02,.31],[207,1.14,.19],[292,1.22,.09]]){const f=ctx.createBiquadFilter(),g=ctx.createGain();f.type='bandpass';f.frequency.value=f0;f.Q.value=q;g.gain.value=w;src.connect(f);f.connect(g);g.connect(body);}
+    this._route(body,bearingDeg,ownHeading,'weapons');src.start(now+.006,Math.random());src.stop(now+dur+.04);
+    this._filteredNoise(2.35,.115,{type:'lowpass',freq:245,q:.38,attack:.055},bearingDeg,ownHeading,'weapons');
+    setTimeout(()=>this._filteredNoise(.90,.055,{type:'bandpass',freq:118,q:.82,attack:.015},bearingDeg,ownHeading,'weapons'),165);
   }
 
-  playDud(){if(this._tryHybrid('TORPEDO_DUD'))return;this.ensure();this._noise(.22,105,'sine',.18,null,0,'weapons');setTimeout(()=>this._metalClack(.22,88,310,'weapons'),70);}
+  playDud(bearingDeg=null,ownHeading=0){
+    this.ensure();
+    this.duck(50,280);
+    if(this._tryHybrid('TORPEDO_DUD',{volume:1.1,bearingDeg,ownHeading}))return;
+    this._noise(.22,105,'sine',.18,bearingDeg,ownHeading,'weapons');
+    setTimeout(()=>this._metalClack(.22,88,310,'weapons'),70);
+  }
 
-  playDeckGun(power=1){
-    if(this._tryHybrid('DECK_GUN_SHOT',{volume:power}))return;
-    this.ensure();const v=clamp(power,.2,1);this.duck(86,320);this._noise(.055,72,'sawtooth',.55*v,null,0,'weapons');
-    setTimeout(()=>this._white(.18,.42*v,null,0,'weapons'),18);setTimeout(()=>this._noise(.42,36,'sine',.30*v,null,0,'weapons'),45);
+  playDeckGun(power=1,bearingDeg=null,ownHeading=0){
+    this.ensure();
+    const now=Date.now();
+    if(now-(this.lastDeckGun||0)<350)return;
+    this.lastDeckGun=now;
+    const v=clamp(Number(power)||1,.2,1.2);
+    this.duck(86,320);
+    if(this._tryHybrid('DECK_GUN_SHOT',{volume:v*1.15,bearingDeg,ownHeading}))return;
+    this._noise(.055,72,'sawtooth',.55*v,bearingDeg,ownHeading,'weapons');
+    setTimeout(()=>this._white(.18,.42*v,bearingDeg,ownHeading,'weapons'),18);
+    setTimeout(()=>this._noise(.42,36,'sine',.30*v,bearingDeg,ownHeading,'weapons'),45);
   }
 
   playAABurst(strength=.7,bearingDeg=null,ownHeading=0){
     this.ensure();if(!this.ctx||!this.enabled)return;
-    const v=clamp(strength,.15,1.0);
-    this.duck(60,260);
+    const v=clamp(Number(strength)||0.7,.15,1.2);
+    this.duck(64,280);
     for(let i=0;i<4;i++){
       setTimeout(()=>{
         if(!this.ctx||!this.enabled)return;
         this._filteredNoise(.042,.52*v,{type:'bandpass',freq:1150,q:.65,attack:.0005},bearingDeg,ownHeading,'weapons');
         this._metalClack(.32*v,180,920,'weapons');
-        this._filteredNoise(.068,.42*v,{type:'lowpass',freq:280,q:.55,attack:.001},bearingDeg,ownHeading,'weapons');
       },i*125);
     }
   }
@@ -535,7 +567,14 @@ class AudioEngine{
     const a=extend?[430,340]:[340,430],b=extend?[820,650]:[650,820];for(const [pair,v] of [[a,.52],[b,.22]]){const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.setValueAtTime(pair[0],now);o.frequency.linearRampToValueAtTime(pair[1],now+dur);g.gain.value=v;o.connect(g);g.connect(out);o.start();o.stop(now+dur+.02);}this._filteredNoise(dur,.014,{type:'bandpass',freq:420,q:.5,attack:.07},null,0,'system');
   }
 
-  playAirBomb(dist=.7){this.ensure();const v=clamp(1-dist*.72,.18,.75);this.duck(84,420);this._filteredNoise(.18,.42*v,{type:'bandpass',freq:180,q:.45,attack:.001},null,0,'weapons');this._filteredNoise(.72,.20*v,{type:'lowpass',freq:420,q:.45,attack:.008},null,0,'weapons');}
+  playAirBomb(dist=.7,bearingDeg=null,ownHeading=0){
+    this.ensure();
+    const d=clamp(Number(dist)||0,0,1),v=clamp(1-d*.72,.18,.75);
+    this.duck(86,480);
+    if(this._tryHybrid('DEPTH_CHARGE',{volume:v*1.08,rate:1.14,bearingDeg,ownHeading}))return;
+    this._filteredNoise(.18,.42*v,{type:'bandpass',freq:180,q:.45,attack:.001},bearingDeg,ownHeading,'weapons');
+    this._filteredNoise(.72,.20*v,{type:'lowpass',freq:420,q:.45,attack:.008},bearingDeg,ownHeading,'weapons');
+  }
   playMineStrike(){this.ensure();this.duck(99,900);this._filteredNoise(.10,.64,{type:'lowpass',freq:700,q:.35,attack:.0006},null,0,'weapons');this._filteredNoise(1.05,.34,{type:'lowpass',freq:190,q:.55,attack:.006},null,0,'weapons');setTimeout(()=>this._metalClack(.75,82,260,'weapons'),45);}
   playStrafe(){this.ensure();for(let i=0;i<5;i++)setTimeout(()=>this._filteredNoise(.055,.12,{type:'bandpass',freq:1150,q:.55,attack:.001},null,0,'weapons'),i*62);}
 
@@ -604,7 +643,7 @@ class AudioEngine{
         return true;
       }
       case'DEPTH_CHARGE_SPLASH':return this.playDepthChargeSplash(opts.distanceFactor??.5,opts.bearingDeg??null,opts.ownHeading??0);
-      case'AIR_BOMB':return this.playAirBomb(opts.distanceFactor??.3);
+      case'AIR_BOMB':return this.playAirBomb(opts.distanceFactor??.3,opts.bearingDeg??null,opts.ownHeading??0);
       case'AAR_CAREER':return this._tryHybrid('AAR_CAREER');
       default:return this.playUiConfirm(.18);
     }
@@ -644,7 +683,14 @@ class AudioEngine{
     this._filteredNoise(.68,v*.40,{type:'bandpass',freq:820,q:.4,attack:.025},bearingDeg,ownHeading,'weapons');
     this._noise(.38,65,'sine',v*.45,bearingDeg,ownHeading,'weapons');
   }
-  playShellImpact(bearingDeg=null,ownHeading=0,power=1){this.ensure();const v=clamp(power,.2,1);this.duck(88,420);this._noise(.08,52,'sawtooth',.55*v,bearingDeg,ownHeading,'weapons');setTimeout(()=>this._white(.8,.38*v,bearingDeg,ownHeading,'weapons'),20);}
+  playShellImpact(bearingDeg=null,ownHeading=0,power=1){
+    this.ensure();
+    const v=clamp(Number(power)||1,.2,1.2);
+    this.duck(88,420);
+    if(this._tryHybrid('DECK_GUN_IMPACT',{volume:v*1.1,rate:1.02,bearingDeg,ownHeading}))return;
+    this._noise(.08,52,'sawtooth',.55*v,bearingDeg,ownHeading,'weapons');
+    setTimeout(()=>this._white(.8,.38*v,bearingDeg,ownHeading,'weapons'),20);
+  }
   playDeckGunImpact(distanceFactor=.5,bearingDeg=null,ownHeading=0){
     this.ensure();if(!this.ctx||!this.enabled)return;
     this.duck(82,520);

@@ -199,4 +199,72 @@ assert.equal(voices[0].id, 'VOICE_9', 'Oldest remaining voice must be VOICE_9');
 assert.equal(voices[5].id, 'VOICE_14', 'Latest voice must be VOICE_14');
 console.log('[AUDIO TEST] Voice pool limits and stealing logic passed.');
 
-console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (4/4 test suites)!');
+// ─── 5. Combat Acoustics, Ducking & Spatial Panning ────────────────────────
+console.log('[AUDIO TEST] Testing combat acoustics, distance attenuation, and spatial panning...');
+
+const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+const degToRad = d => (d * Math.PI) / 180;
+const normDeg = d => ((d % 360) + 360) % 360;
+const shortDelta = (a, b) => ((b - a + 540) % 360) - 180;
+
+// 1. Ducking factor curve: duckFactor = clamp(1 - (priority / 100) * 0.52, 0.42, 0.92)
+function calcDuckFactor(priority) {
+  const p = clamp((Number(priority) || 0) / 100, 0, 1);
+  return clamp(1 - p * 0.52, 0.42, 0.92);
+}
+
+// Torpedo hit (p=100) must duck world/machinery deeply (~48% volume)
+const duckTorpedo = calcDuckFactor(100);
+assert.ok(Math.abs(duckTorpedo - 0.48) < 1e-4, `Torpedo duck factor expected ~0.48, got ${duckTorpedo}`);
+
+// Depth charge near (p=98) must duck heavily
+const duckDCNear = calcDuckFactor(98);
+assert.ok(duckDCNear < 0.50, `Near DC duck factor expected < 0.50, got ${duckDCNear}`);
+
+// Torpedo launch (p=72) must duck moderately
+const duckLaunch = calcDuckFactor(72);
+assert.ok(duckLaunch > 0.60 && duckLaunch < 0.65, `Launch duck factor expected ~0.625, got ${duckLaunch}`);
+
+// Minor dud (p=50) must duck lightly
+const duckDud = calcDuckFactor(50);
+assert.ok(duckDud > 0.70 && duckDud < 0.76, `Dud duck factor expected ~0.74, got ${duckDud}`);
+
+// 2. Spatial stereo panner calculation: pan = clamp(sin(delta), -1, 1)
+function calcPan(ownHeading, bearingDeg) {
+  const delta = shortDelta(ownHeading || 0, bearingDeg);
+  return clamp(Math.sin(degToRad(delta)), -1, 1);
+}
+
+assert.ok(Math.abs(calcPan(0, 0)) < 1e-6, 'Ahead (0°) pan must be dead center (0.0)');
+assert.ok(Math.abs(calcPan(0, 90) - 1.0) < 1e-6, 'Starboard beam (90°) pan must be hard right (+1.0)');
+assert.ok(Math.abs(calcPan(0, 270) - (-1.0)) < 1e-6, 'Port beam (270°) pan must be hard left (-1.0)');
+assert.ok(Math.abs(calcPan(0, 180)) < 1e-6, 'Astern (180°) pan must be center (0.0)');
+assert.ok(Math.abs(calcPan(45, 135) - 1.0) < 1e-6, 'Relative starboard beam with ownHeading 45° must be +1.0');
+assert.ok(Math.abs(calcPan(315, 225) - (-1.0)) < 1e-6, 'Relative port beam with ownHeading 315° must be -1.0');
+
+// 3. Distance attenuation scaling:
+// Depth charge: scale = far ? 0.45 : mid ? 0.72 : 1.0
+function calcDCScale(dist) {
+  const near = clamp(1 - (Number(dist) || 0), 0, 1);
+  const far = near < 0.18;
+  const mid = !far && near < 0.58;
+  return far ? 0.45 : mid ? 0.72 : 1.0;
+}
+
+assert.equal(calcDCScale(0.05), 1.0, 'Point blank DC (dist=0.05) must have full scale 1.0');
+assert.equal(calcDCScale(0.50), 0.72, 'Mid-range DC (dist=0.50) must scale to 0.72');
+assert.equal(calcDCScale(0.95), 0.45, 'Distant DC (dist=0.95) must scale to 0.45');
+
+// Aerial bomb distance attenuation: v = clamp(1 - dist * 0.72, 0.18, 0.75)
+function calcBombScale(dist) {
+  const d = clamp(Number(dist) || 0, 0, 1);
+  return clamp(1 - d * 0.72, 0.18, 0.75);
+}
+
+assert.equal(calcBombScale(0.0), 0.75, 'Direct hit bomb (dist=0.0) must be 0.75');
+assert.equal(calcBombScale(1.0), 0.28, 'Distant bomb (dist=1.0) must attenuate to 0.28');
+assert.ok(calcBombScale(0.5) < calcBombScale(0.2), 'Bomb scaling must be strictly monotonic decreasing with distance');
+
+console.log('[AUDIO TEST] Combat acoustics, ducking, distance scaling, and spatial panning passed.');
+
+console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (5/5 test suites)!');

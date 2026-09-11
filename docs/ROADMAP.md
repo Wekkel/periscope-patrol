@@ -35,7 +35,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
   * Korte muzikale cues en briefing/after-action stings
 * **Fases**:
   * [x] **Fase 2.1: Hybride Audio Pipeline & Asset Architectuur** (WebAudio mixing bus, LRU buffer-evictie, 8MB heap-plafond, bidirectionele Hann-tapering, voice stealing micro-ramps) — **GOEDGEKEURD (Harry: 9.6/10, Henry: 9.3/10)**
-  * [ ] **Fase 2.2: Gevechts- & Explosiegeluiden** (Torpedo-inslag, dieptebommen nabij/ver, 4-inch dekkanon, 20mm AA)
+  * [x] **Fase 2.2: Gevechts- & Explosiegeluiden** (Torpedo-inslag met cavitatie-rumble, dieptebommen nabij/ver, 4-inch dekkanon, 20mm AA burst) — **GOEDGEKEURD (Harry: 9.6/10, Henry: 9.4/10)**
   * [ ] **Fase 2.3: Voortstuwing, Hydrofoon & Omgevingsambience** (Diesels, elektromotoren, schroefcavitatie, diepzee-ambience)
   * [ ] **Fase 2.4: Audio Director, Alarms & Dynamische Missie-Cues** (Duikalarm, algemeen kwartier, AAR stings)
 
