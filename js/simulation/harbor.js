@@ -229,9 +229,10 @@ const HarborSystem={
       this.notify(`CHART REFINED — swept approach observed. Follow the MAP best-estimate centerline toward ${H.name}; corridor limits remain approximate${I.net.known?', and the net gate is marked separately':'. Net/gate still requires visual reconnaissance'}.`,'warn', 'NUTTIG');
     }
 
-    const segs=this.harborNetSegments(H);
-    const netDist=segs.length?Math.min(...segs.map(seg=>this.pointSegNm(sub.position,seg.a,seg.b))):99;
-    if((visual&&netDist<.65)||netDist<.075) this.revealHarborNet(netDist<.075?'CONTACT':'VISUAL');
+    const segs=(this.harborNetSegments || HarborSystem.harborNetSegments).call(this, H);
+    const pointSeg = this.pointSegNm || HarborSystem.pointSegNm;
+    const netDist=segs.length?Math.min(...segs.map(seg=>pointSeg(sub.position,seg.a,seg.b))):99;
+    if((visual&&netDist<.65)||netDist<.075) (this.revealHarborNet || HarborSystem.revealHarborNet).call(this, netDist<.075?'CONTACT':'VISUAL');
 
     // Identity comes only from the boat's own visual track. A radio report says
     // HEAVY UNIT and nothing more; hydrophones cannot turn that into a carrier.
@@ -289,9 +290,11 @@ const HarborSystem={
     // Defensive boom/net is a ring around the inner anchorage with one opening
     // aligned to the swept approach. The previous two short straight segments
     // could simply be sailed around, making the charted gate optional.
-    const segs=[],step=6,gapHalfDeg=radToDeg(Math.asin(clamp(H.netGapHalfNm/Math.max(.1,H.netRangeNm),0,.95)));
-    const at=b=>{const r=degToRad(b);return{xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};};
-    for(let a=0;a<360;a+=step){const b=a+step,mid=normDeg(a+step*.5);if(Math.abs(shortDelta(H.channelBearing,mid))<=gapHalfDeg)continue;segs.push({a:at(a),b:at(b)});}
+    const segs=[],step=6;
+    const netGapHalf=H.netGapHalfNm||0.25,netRange=H.netRangeNm||2.0;
+    const gapHalfDeg=radToDeg(Math.asin(clamp(netGapHalf/Math.max(.1,netRange),0,.95)));
+    const at=b=>{const r=degToRad(b);return{xNm:H.center.xNm+Math.sin(r)*netRange,yNm:H.center.yNm-Math.cos(r)*netRange};};
+    for(let a=0;a<360;a+=step){const b=a+step,mid=normDeg(a+step*.5);if(Math.abs(shortDelta(H.channelBearing||0,mid))<=gapHalfDeg)continue;segs.push({a:at(a),b:at(b)});}
     return segs;
   },
 
@@ -303,7 +306,8 @@ const HarborSystem={
 
   harborTorpedoNetHit(pos){
     const H=this.state.world.harbor;if(!H) return false;
-    return this.harborNetSegments(H).some(seg=>this.pointSegNm(pos,seg.a,seg.b)<0.024);
+    const pointSeg = this.pointSegNm || HarborSystem.pointSegNm;
+    return (this.harborNetSegments || HarborSystem.harborNetSegments).call(this, H).some(seg=>pointSeg(pos,seg.a,seg.b)<0.024);
   },
 
   updateHarbor(dt){
@@ -400,6 +404,20 @@ const HarborSystem={
       }
     }
 
+    // Night illumination starshells: when alert >= 2 and night, coastal batteries fire parachute flares
+    if(isDark&&H.alert>=2&&rng<H.batteryRangeNm*1.2&&now-(H.lastStarshellAt||-999)>42){
+      H.lastStarshellAt=now;
+      (this.scheduleHarborStarshell || HarborSystem.scheduleHarborStarshell).call(this, H);
+    }
+    // Update harbor illumination state based on active starshells
+    const A=this.ensureBattleAtmosphereState?.()||W.atmosphere;
+    const activeStarshell=A?.starshells?.some(s=>now>=s.at&&now<=s.until);
+    if(activeStarshell){
+      W.environment.harborIllumination=Math.max(W.environment.harborIllumination||0,0.55);
+    }else if(W.environment?.harborIllumination){
+      W.environment.harborIllumination=Math.max(0,W.environment.harborIllumination-dt*0.08);
+    }
+
     // Mines are actual persistent points. No dice are rolled merely because the
     // player entered a zone: either the hull intersects a mine or it does not.
     if(sub.depthFeet>=4&&sub.depthFeet<=105){
@@ -420,17 +438,45 @@ const HarborSystem={
     // A submarine can foul a net just as a torpedo can. Stop and shove her back
     // rather than leaving the player irretrievably welded to the obstacle.
     if(sub.depthFeet>=4&&sub.depthFeet<=(H.netMaxDepthFt||320)&&now-(H.lastNetAt||-999)>8){
-      for(const seg of this.harborNetSegments(H)){
-        if(this.pointSegNm(sub.position,seg.a,seg.b)>=0.036) continue;
-        H.lastNetAt=now;this.revealHarborNet('CONTACT');
+      const pointSeg = this.pointSegNm || HarborSystem.pointSegNm;
+      for(const seg of (this.harborNetSegments || HarborSystem.harborNetSegments).call(this, H)){
+        if(pointSeg(sub.position,seg.a,seg.b)>=0.036) continue;
+        H.lastNetAt=now;(this.revealHarborNet || HarborSystem.revealHarborNet).call(this, 'CONTACT');
         const back=degToRad(normDeg(sub.heading+180));
         sub.position.xNm+=Math.sin(back)*0.055;sub.position.yNm-=Math.cos(back)*0.055;
-        sub.propulsion.actualRpm*=0.08;sub.propulsion.speedKnots*=0.05;
-        sub.damage.rudderDamage=clamp(sub.damage.rudderDamage+0.04,0,1);
+        if(sub.propulsion){
+          if(typeof sub.propulsion.actualRpm==='number')sub.propulsion.actualRpm*=0.08;
+          if(typeof sub.propulsion.speedKnots==='number')sub.propulsion.speedKnots*=0.05;
+        }
+        if(sub.damage){
+          sub.damage.rudderDamage=clamp((sub.damage.rudderDamage||0)+0.04,0,1);
+        }
         this.notify('TORPEDO NET — screws fouled and way off the boat. Back clear and find the gate in the swept channel.','bad', 'KRITIEK');
         H.suspicion=clamp(H.suspicion+18,0,100);
         break;
       }
+    }
+
+    // Magnetic indicator loops: laid across the swept channel entrance
+    // Submerged passage (> 3.5 kn) disturbs the magnetic field
+    const gateFrame=(this.harborChannelFrame||HarborSystem.harborChannelFrame)(H,sub.position);
+    if(Math.abs(gateFrame.along-H.netRangeNm)<0.14&&Math.abs(gateFrame.lateral)<(H.channelHalfWidthNm||0.4)*1.25){
+      if(sub.propulsion?.speedKnots>3.5){
+        const loopExcess=sub.propulsion.speedKnots-3.5;
+        H.suspicion=clamp(H.suspicion+dt*loopExcess*0.22,0,100);
+        if(!H.indicatorLoopWarned&&H.suspicion>20){
+          H.indicatorLoopWarned=true;
+          this.notify('INDICATOR LOOP DISTURBANCE — harbor seabed galvanometers register magnetic signature! Rig for silent running.','warn','KRITIEK');
+        }
+      }
+    }
+
+    // Tidal current in the narrow harbor approach: subtle cross-current requiring precise helm control
+    if(rng<=H.outerRadiusNm&&rng>=H.innerRadiusNm*.75&&sub.mode!=='SUNK'){
+      const rChan=degToRad(normDeg(H.channelBearing+90));
+      const driftSpeed=knotsNmSec(0.38*Math.sin(now*0.025))*dt;
+      sub.position.xNm+=Math.sin(rChan)*driftSpeed;
+      sub.position.yNm-=Math.cos(rChan)*driftSpeed;
     }
   },
 
@@ -460,6 +506,29 @@ const HarborSystem={
     A.muzzleFlashes.push({id:`MF-${id}`,position:{...site},at:now,until:now+.34,power:1.0,kind:'COASTAL'});if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
     const br=bearingBetween(sub.position,site);PresentationBridge.audio(this.state).playDistantGunfire?.(br,sub.heading,clamp(1-rng/7,.25,1));
     this.aar.recordEvent('COASTAL_GUNFIRE','Coastal battery opened fire.',{batteryShot:id,illuminated:lit},site,impact);
+    return ev;
+  },
+
+  scheduleHarborStarshell(H){
+    const A=this.ensureBattleAtmosphereState?.()||this.state.world.atmosphere,s=this.state,sub=s.playerSub,now=s.time.elapsedSeconds;
+    if(!H||!A)return null;
+    const sites=H.batterySites||[H.center],site=sites[0],rng=distNm(site,sub.position);
+    const datum=s.world.enemy?.searchCenter||sub.position;
+    const ang=Math.random()*Math.PI*2,rad=0.15+Math.random()*0.35;
+    const pos={xNm:datum.xNm+Math.cos(ang)*rad,yNm:datum.yNm+Math.sin(ang)*rad};
+    const id=`SS-${A.nextId++}`,ev={
+      id,kind:'STARSHELL',origin:{...site},position:pos,
+      at:now,until:now+36,startAlt:175,descentRate:3.8,power:1.0
+    };
+    A.starshells=A.starshells||[];
+    A.starshells.push(ev);if(A.starshells.length>4)A.starshells.shift();
+    A.muzzleFlashes=A.muzzleFlashes||[];
+    A.muzzleFlashes.push({id:`MF-${id}`,position:{...site},at:now,until:now+.42,power:1.2,kind:'COASTAL'});
+    if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
+    const br=bearingBetween(sub.position,site);
+    PresentationBridge.audio(this.state).playDistantGunfire?.(br,sub.heading,clamp(1-rng/7,.3,1));
+    this.notify('ILLUMINATION FLARE DETONATED — coastal battery fired a starshell over the harbour!','warn','KRITIEK');
+    this.log('Starshell burning aloft — anchorage illuminated.','warn');
     return ev;
   },
 

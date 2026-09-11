@@ -142,6 +142,11 @@ const createHarborHarness = (overrides = {}) => {
     innerRadiusNm: 2.0,
     hydrophoneRangeNm: 3.0,
     batteryRangeNm: 4.0,
+    batterySites: [{ xNm: 0, yNm: 0 }],
+    channelBearing: 0,
+    netRangeNm: 2.0,
+    netGapHalfNm: 0.25,
+    channelHalfWidthNm: 0.4,
     suspicion: 0,
     alert: 0,
     entered: false,
@@ -179,6 +184,11 @@ const createHarborHarness = (overrides = {}) => {
     },
     ensureHarborIntel: () => mockIntel,
     refreshHarborOptionalObjective: () => {},
+    pointSegNm: harborModule.HarborSystem.pointSegNm,
+    harborNetSegments: harborModule.HarborSystem.harborNetSegments,
+    harborChannelFrame: harborModule.HarborSystem.harborChannelFrame,
+    revealHarborNet: harborModule.HarborSystem.revealHarborNet,
+    scheduleHarborStarshell: harborModule.HarborSystem.scheduleHarborStarshell,
     notify: () => {},
     log: () => {},
     sys: {
@@ -279,6 +289,15 @@ const createAtmosphereHarness = (harborAlert = 0, daylight = 0.1) => {
       gradients.push(g);
       return g;
     },
+    createRadialGradient(x0, y0, r0, x1, y1, r1) {
+      const stops = [];
+      const g = {
+        addColorStop(offset, color) { stops.push({ offset, color }); },
+        stops, x0, y0, r0, x1, y1, r1
+      };
+      gradients.push(g);
+      return g;
+    },
     save() {},
     restore() {},
     fills,
@@ -319,4 +338,72 @@ const harnessBlackout = createAtmosphereHarness(2, 0.1);
 battleAtm.BattleAtmosphere.drawPortScenes3D.call({ k: 1, lowSpec: false, battlePoint: battleAtm.BattleAtmosphere.battlePoint }, harnessBlackout.ctx, harnessBlackout.cam, harnessBlackout.state, harnessBlackout.dl);
 assert.ok(!harnessBlackout.ctx.fills.some(f => String(f.style).includes('255,185,75')), 'Dock lanterns must be extinguished during harbor alarm (blackout discipline)');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2');
+// 10. Harbor Nets, Starshells, Indicator Loops & Tidal Drift Tests
+// Test 1: Starshell schedule & illumination
+const starshellHarness = createHarborHarness();
+starshellHarness.mockContext.state.world.atmosphere = { version: 1, nextId: 1, starshells: [], muzzleFlashes: [] };
+starshellHarness.mockContext.ensureBattleAtmosphereState = () => starshellHarness.mockContext.state.world.atmosphere;
+const ss = harborModule.HarborSystem.scheduleHarborStarshell.call(starshellHarness.mockContext, starshellHarness.H);
+assert.ok(ss && ss.id.startsWith('SS-'), 'scheduleHarborStarshell must create a valid starshell record');
+assert.equal(ss.until, ss.at + 36, 'Starshell must burn for 36 seconds aloft');
+assert.equal(starshellHarness.mockContext.state.world.atmosphere.starshells.length, 1, 'Starshell must be queued in atmosphere');
+
+// Test 2: Active starshell illuminates harbor environment in updateHarbor
+starshellHarness.mockContext.state.world.environment.daylight = 0.1; // Night
+starshellHarness.mockContext.state.world.environment.harborIllumination = 0;
+harborModule.HarborSystem.updateHarbor.call(starshellHarness.mockContext, 1.0);
+assert.ok(starshellHarness.mockContext.state.world.environment.harborIllumination >= 0.55, 'Active starshell must raise harborIllumination >= 0.55');
+
+// Test 3: Indicator loop detects high-speed submerged passage across gate
+const loopHarness = createHarborHarness();
+loopHarness.H.channelBearing = 0;
+loopHarness.H.netRangeNm = 2.0;
+loopHarness.H.channelHalfWidthNm = 0.4;
+loopHarness.mockContext.state.playerSub.position = { xNm: 0, yNm: -2.0 }; // Exactly at the gate (along = 2.0, lateral = 0)
+loopHarness.mockContext.state.playerSub.depthFeet = 55; // Submerged
+loopHarness.mockContext.state.playerSub.propulsion.speedKnots = 7.0; // Fast > 3.5 kn
+const preSuspicion = loopHarness.H.suspicion;
+harborModule.HarborSystem.updateHarbor.call(loopHarness.mockContext, 2.0);
+assert.ok(loopHarness.H.suspicion > preSuspicion, 'Magnetic indicator loop must build suspicion for high-speed passage across net line');
+
+// Test 4: Tidal drift in swept approach corridor
+const tidalHarness = createHarborHarness();
+tidalHarness.H.channelBearing = 0;
+tidalHarness.H.outerRadiusNm = 5.0;
+tidalHarness.H.innerRadiusNm = 2.0;
+tidalHarness.mockContext.state.playerSub.position = { xNm: 0, yNm: -3.5 }; // In swept corridor (rng = 3.5 nm)
+tidalHarness.mockContext.state.time.elapsedSeconds = 100;
+const startPosX = tidalHarness.mockContext.state.playerSub.position.xNm;
+harborModule.HarborSystem.updateHarbor.call(tidalHarness.mockContext, 5.0);
+assert.notEqual(tidalHarness.mockContext.state.playerSub.position.xNm, startPosX, 'Tidal current must exert lateral drift in the harbor approach corridor');
+
+// Test 5: 3D Net and Gate buoys rendering
+const netHarness = createAtmosphereHarness(0, 0.1);
+netHarness.state.world.harbor = {
+  center: { xNm: 0, yNm: 0 },
+  netRangeNm: 1.5,
+  channelBearing: 90,
+  netGapHalfNm: 0.15
+};
+netHarness.state.playerSub.position = { xNm: 1.6, yNm: 0 }; // Close to gate at bearing 90 (x=1.5, y=0)
+battleAtm.BattleAtmosphere.drawHarborNet3D.call({ k: 1, battlePoint: battleAtm.BattleAtmosphere.battlePoint }, netHarness.ctx, netHarness.cam, netHarness.state, netHarness.dl);
+assert.ok(netHarness.ctx.strokes.length > 0, 'drawHarborNet3D must render steel cables between buoys');
+assert.ok(netHarness.ctx.fills.some(f => String(f.style).includes('45,185,95') || String(f.style).includes('225,85,75')), 'drawHarborNet3D must render green/red gate beacon buoys at net gap');
+
+// Test 6: 3D Starshell rendering
+const ssRenderHarness = createAtmosphereHarness(2, 0.1);
+ssRenderHarness.state.world.atmosphere = {
+  starshells: [{
+    at: 50,
+    until: 90,
+    startAlt: 180,
+    descentRate: 3.5,
+    position: { xNm: 0.5, yNm: 0.5 }
+  }]
+};
+ssRenderHarness.state.time = { elapsedSeconds: 60 };
+battleAtm.BattleAtmosphere.drawStarshells3D.call({ k: 1, battlePoint: battleAtm.BattleAtmosphere.battlePoint }, ssRenderHarness.ctx, ssRenderHarness.cam, ssRenderHarness.state, ssRenderHarness.dl, 60);
+assert.ok(ssRenderHarness.ctx.ellipses.length > 0, 'drawStarshells3D must render parachute canopy with ellipse');
+assert.ok(ssRenderHarness.ctx.gradients.length > 0, 'drawStarshells3D must render magnesium flare and sea reflection gradients');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6');

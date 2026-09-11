@@ -53,7 +53,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 * **Fases**:
   * [x] **Fase 4.1: Havendetectie, Alarm-Escalatie & Daglichtcontrole** (Optische kustwachtdetectie overdag voor surfaced/snelle periscoopvaart onafhankelijk van hydrofoons, directe alarm-escalatie bij torpedotreffers/schade aan ankerdoelen met algemeen alarm en escorte-dispatching, daglicht-gated zoeklichten en 2D/3D onderdrukking) — **GOEDGEKEURD (Harry: 9.75/10, Henry: 9.35/10)**
   * [x] **Fase 4.2: Fysieke Havenarchitectuur & 2.5D Kustkades** (Kades, pieren, pakhuizen met zadeldaken en kadelantaarns, cilindrische brandstoftanks met koepelkappen en directionele gradiëntshading, portaalkranen en dynamische oorlogsverduisteringsdiscipline bij havenalarm) — **GOEDGEKEURD (Harry: 9.78/10, Henry: 9.35/10)**
-  * [ ] **Fase 4.3: Verdedigingsnetten, Versperringen & Kustbatterijen** (Gedifferentieerde versperringen, indicatielussen, zoeklichtbundels en getijdewateren in havenmondingen en fjorden)
+  * [x] **Fase 4.3: Verdedigingsnetten, Versperringen & Kustbatterijen** (Gedifferentieerde netring met gemarkeerde havenpoort en stalen kabels, magnetische indicatielussen over toegangskanaal met snelheidsdrempel, harmonische getijdewater-drift in de nadering, 3D parachute-starshells bij nachtalarm door kustbatterijen met omgevingsverlichting en waterreflectie) — **GOEDGEKEURD (Harry: 9.83/10, Henry: 9.55/10)**
   * [ ] **Fase 4.4: Special Ops Infiltratiemissies & Haven-AAR Debriefing** (Specifieke penetratiescenario's, verkenning van slagschepen/vliegdekschepen op ankerplaatsen en afhandeling in campagnetactiek)
 
 ### 5. Visuele en systemische scheepsherkenning

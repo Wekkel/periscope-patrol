@@ -3,6 +3,7 @@ const BattleAtmosphere={
 
     drawBattleAtmosphereBack(ctx,cam,state,dl,t){
       this.drawPortScenes3D(ctx,cam,state,dl);
+      this.drawHarborNet3D(ctx,cam,state,dl);
       this.drawHarborSearchlight3D(ctx,cam,state,dl,t);
       this.drawDistantDamageCues3D(ctx,cam,state,dl,t);
       this.drawSignalLamps3D(ctx,cam,state,dl,t);
@@ -85,8 +86,45 @@ const BattleAtmosphere={
       }
     },
 
+    drawHarborNet3D(ctx,cam,state,dl){
+      const H=state.world.harbor;if(!H)return;
+      const own=state.playerSub.position,rng=distNm(own,H.center);
+      if(rng>H.netRangeNm+3.2||rng<H.netRangeNm-3.2)return;
+      const k=this.k,step=6,gapHalfDeg=radToDeg(Math.asin(clamp(H.netGapHalfNm/Math.max(.1,H.netRangeNm),0,.95)));
+      const brCenter=normDeg(bearingBetween(H.center,own));
+      const at=b=>{const r=degToRad(b);return{xNm:H.center.xNm+Math.sin(r)*H.netRangeNm,yNm:H.center.yNm-Math.cos(r)*H.netRangeNm};};
+      ctx.save();
+      for(let a=0;a<360;a+=step){
+        const mid=normDeg(a+step*.5);
+        if(Math.abs(shortDelta(brCenter,mid))>54)continue;
+        const inGap=Math.abs(shortDelta(H.channelBearing,mid))<=gapHalfDeg;
+        const p1=this.battlePoint(cam,at(a),0),p2=this.battlePoint(cam,at(a+step),0);
+        if(inGap){
+          if(Math.abs(shortDelta(H.channelBearing,a))<=gapHalfDeg&&Math.abs(shortDelta(H.channelBearing,a-step))>gapHalfDeg&&p1){
+            const scale=cam.f/Math.max(120,p1.d),br=Math.max(2,4*scale*k);
+            ctx.fillStyle=`rgba(45,185,95,${.65+.35*dl})`;ctx.beginPath();ctx.arc(p1.x,p1.y-br,br,0,Math.PI*2);ctx.fill();
+            if(dl<.28){ctx.fillStyle='rgba(111,224,143,.9)';ctx.fillRect(p1.x-k,p1.y-br*2-k,2*k,2*k);}
+          }
+          if(Math.abs(shortDelta(H.channelBearing,a+step))<=gapHalfDeg&&Math.abs(shortDelta(H.channelBearing,a+step*2))>gapHalfDeg&&p2){
+            const scale=cam.f/Math.max(120,p2.d),br=Math.max(2,4*scale*k);
+            ctx.fillStyle=`rgba(225,85,75,${.65+.35*dl})`;ctx.beginPath();ctx.arc(p2.x,p2.y-br,br,0,Math.PI*2);ctx.fill();
+            if(dl<.28){ctx.fillStyle='rgba(239,106,88,.9)';ctx.fillRect(p2.x-k,p2.y-br*2-k,2*k,2*k);}
+          }
+          continue;
+        }
+        if(!p1||!p2)continue;
+        ctx.strokeStyle=`rgba(72,70,65,${.45+.35*dl})`;ctx.lineWidth=Math.max(1,1.1*k);
+        ctx.beginPath();ctx.moveTo(p1.x,p1.y);ctx.lineTo(p2.x,p2.y);ctx.stroke();
+        const scale=cam.f/Math.max(120,p1.d),fr=Math.max(1.2,2.2*scale*k);
+        ctx.fillStyle=`rgba(58,56,52,${.50+.40*dl})`;
+        ctx.beginPath();ctx.arc(p1.x,p1.y-fr*.6,fr,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+    },
+
     drawBattleAtmosphereFront(ctx,cam,state,dl,t){
       const A=state.world.atmosphere;if(!A)return;const now=state.time.elapsedSeconds,k=this.k;
+      this.drawStarshells3D(ctx,cam,state,dl,t);
       // Muzzle flashes: a brief point source before the later fall of shot.
       for(const f of A.muzzleFlashes||[]){if(now<f.at||now>f.until)continue;const p=this.battlePoint(cam,f.position,f.kind==='COASTAL'?18:10);if(!p)continue;
         const a=clamp((f.until-now)/Math.max(.05,f.until-f.at),0,1),rr=clamp((f.power||1)*11*k*cam.f/Math.max(p.d,600),1.6*k,18*k);
@@ -123,6 +161,39 @@ const BattleAtmosphere={
         const brg=bearingBetween(own,c.position),off=Math.abs(shortDelta(cam.bearingDeg??state.tactical.periscopeBearing,brg));if(off>cam.fovDeg*.68)continue;const p=this.battlePoint(cam,c.position,22+sev*20);if(!p)continue;drawn++;
         const scale=cam.f/Math.max(p.d,300),puffs=this.lowSpec?2:4;if(rng>=2.2)for(let i=0;i<puffs;i++){const ff=(i+1)/puffs,rr=clamp((12+ff*34)*scale*(.8+sev),1.2*this.k,16*this.k),drift=((t*5+i*17)%55)*scale;ctx.fillStyle=`rgba(18,18,19,${(.13+.22*sev)*(1-ff*.58)*clamp(1-rng/smokeRange,.22,1)})`;ctx.beginPath();ctx.arc(p.x+drift*ff*1.5,p.y-ff*28*scale-drift*.25,rr,0,Math.PI*2);ctx.fill();}
         if(gloom>.02&&SD.fire>.22){const base=this.battlePoint(cam,c.position,2);if(base){const rr=clamp((18+45*SD.fire)*scale,2*this.k,34*this.k);ctx.save();ctx.globalCompositeOperation='screen';const g=ctx.createRadialGradient(base.x,base.y,0,base.x,base.y,rr*7);g.addColorStop(0,`rgba(255,150,48,${.34*gloom*SD.fire})`);g.addColorStop(.32,`rgba(255,98,24,${.16*gloom*SD.fire})`);g.addColorStop(1,'rgba(255,70,14,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(base.x,base.y,rr*7,0,Math.PI*2);ctx.fill();const rg=ctx.createRadialGradient(base.x,base.y,0,base.x,base.y,rr*8);rg.addColorStop(0,`rgba(255,132,35,${.13*gloom*SD.fire})`);rg.addColorStop(1,'rgba(255,70,12,0)');ctx.fillStyle=rg;ctx.beginPath();ctx.ellipse(base.x,base.y+rr*.4,rr*8,rr*1.65,0,0,Math.PI*2);ctx.fill();ctx.restore();}}
+      }
+    },
+
+    drawStarshells3D(ctx,cam,state,dl,t){
+      const A=state.world.atmosphere;if(!A||!A.starshells||!A.starshells.length)return;
+      const now=state.time.elapsedSeconds,k=this.k;
+      for(const s of A.starshells){
+        if(now<s.at||now>s.until)continue;
+        const age=now-s.at,dur=s.until-s.at,life=clamp(1-age/dur,0,1);
+        const alt=Math.max(18,s.startAlt-(age*(s.descentRate||3.8)));
+        const p=this.battlePoint(cam,s.position,alt);if(!p)continue;
+        const scale=cam.f/Math.max(180,p.d);
+        const rr=clamp(24*k*scale,3*k,36*k);
+        const pSea=this.battlePoint(cam,s.position,0);
+        if(pSea){
+          const sRad=rr*3.5;
+          const gSea=ctx.createRadialGradient(pSea.x,pSea.y,0,pSea.x,pSea.y,sRad);
+          gSea.addColorStop(0,`rgba(255,250,210,${.22*life})`);
+          gSea.addColorStop(.5,`rgba(255,230,160,${.08*life})`);
+          gSea.addColorStop(1,'rgba(255,200,100,0)');
+          ctx.fillStyle=gSea;ctx.beginPath();ctx.ellipse(pSea.x,pSea.y,sRad,sRad*.28,0,0,Math.PI*2);ctx.fill();
+        }
+        const py=p.y-rr*1.3;
+        ctx.fillStyle=`rgba(220,225,230,${.45*life})`;ctx.strokeStyle=`rgba(180,185,190,${.35*life})`;ctx.lineWidth=Math.max(1,k*.8);
+        ctx.beginPath();ctx.ellipse(p.x,py,rr*.85,rr*.42,0,Math.PI,0);ctx.fill();ctx.stroke();
+        ctx.beginPath();ctx.moveTo(p.x-rr*.7,py);ctx.lineTo(p.x,p.y);ctx.moveTo(p.x+rr*.7,py);ctx.lineTo(p.x,p.y);ctx.stroke();
+        const flicker=1+Math.sin(now*14+s.at)*.08;
+        const g=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,rr*flicker*4);
+        g.addColorStop(0,`rgba(255,255,248,${.95*life})`);
+        g.addColorStop(.15,`rgba(255,242,175,${.75*life})`);
+        g.addColorStop(.45,`rgba(255,215,115,${.28*life})`);
+        g.addColorStop(1,'rgba(255,160,50,0)');
+        ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y,rr*flicker*4,0,Math.PI*2);ctx.fill();
       }
     },
 

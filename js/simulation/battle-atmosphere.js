@@ -21,10 +21,10 @@ function battlePredictPosition(p,heading,speedKnots,sec){
     ensureBattleAtmosphereState(reset=false){
       const W=this.state.world;
       if(reset||!W.atmosphere||W.atmosphere.version!==BATTLE_ATMOSPHERE_VERSION){
-        W.atmosphere={version:BATTLE_ATMOSPHERE_VERSION,nextId:1,shells:[],tracers:[],splashes:[],muzzleFlashes:[],signals:[],
+        W.atmosphere={version:BATTLE_ATMOSPHERE_VERSION,nextId:1,shells:[],tracers:[],splashes:[],muzzleFlashes:[],signals:[],starshells:[],
           lastSignalAt:-999,lastAmbientGunAt:-999};
       }
-      const A=W.atmosphere;A.shells=A.shells||[];A.tracers=A.tracers||[];A.splashes=A.splashes||[];A.muzzleFlashes=A.muzzleFlashes||[];A.signals=A.signals||[];
+      const A=W.atmosphere;A.shells=A.shells||[];A.tracers=A.tracers||[];A.splashes=A.splashes||[];A.muzzleFlashes=A.muzzleFlashes||[];A.signals=A.signals||[];A.starshells=A.starshells||[];
       const H=W.harbor;
       if(H){
         H.searchlightWidthDeg=H.searchlightWidthDeg||12;
