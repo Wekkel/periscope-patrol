@@ -35,8 +35,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
   * Korte muzikale cues en briefing/after-action stings
 * **Fases**:
   * [x] **Fase 2.1: Hybride Audio Pipeline & Asset Architectuur** (WebAudio mixing bus, LRU buffer-evictie, 8MB heap-plafond, bidirectionele Hann-tapering, voice stealing micro-ramps) — **GOEDGEKEURD (Harry: 9.6/10, Henry: 9.3/10)**
-  * [x] **Fase 2.2: Gevechts- & Explosiegeluiden** (Torpedo-inslag met cavitatie-rumble, dieptebommen nabij/ver, 4-inch dekkanon, 20mm AA burst) — **GOEDGEKEURD (Harry: 9.6/10, Henry: 9.4/10)**
-  * [ ] **Fase 2.3: Voortstuwing, Hydrofoon & Omgevingsambience** (Diesels, elektromotoren, schroefcavitatie, diepzee-ambience)
+  * [x] **Fase 2.3: Voortstuwing, Hydrofoon & Omgevingsambience** (Diesels met RPM-pitching, elektromotoren met stille vaart demping, hydrodynamische cavitatiefysica voor eigen boot en aanvallende ASW escortes, submersed vs surfaced zee/weer ambiance, Sound Room hydrofoontracking) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.5/10)**
   * [ ] **Fase 2.4: Audio Director, Alarms & Dynamische Missie-Cues** (Duikalarm, algemeen kwartier, AAR stings)
 
 ### 3. Marine-specifiek bedieningskarakter (6 Nationaliteiten)

@@ -43,6 +43,9 @@ class AudioEngine{
       OBJECTIVE_FAILED:{url:'./audio/stings/objective_failed_01.ogg',bus:'mission'},
       RETURN_TO_BASE:{url:'./audio/stings/return_to_base_01.ogg',bus:'mission'}
     };
+    this.ambientLoopNodes={};
+    this.lastHydrophoneContactSampleAt=0;
+    this.lastEscortCavIntensity=0;
     this.hybridBuffers=new Map();this.hybridMeta=new Map();this.hybridLoading=new Map();this.hybridVoices=[];this.hybridDecodedBytes=0;this.hybridBudgetBytes=8*1024*1024;this.hybridMaxVoices=6;this.hybridEvictionsCount=0;
     // Aircraft fly-by is a deliberately tiny procedural engine. Only the nearest
     // visible aircraft in BRIDGE/GUN gets voices; this avoids turning ambient
@@ -190,7 +193,12 @@ class AudioEngine{
   }
 
   preloadCoreSamples(){
-    for(const key of ['SONAR_PING','GENERAL_ALARM','TORPEDO_LAUNCH','TUBE_FILL','TORPEDO_HIT','DECK_GUN_SHOT','DECK_GUN_IMPACT','DEPTH_CHARGE']){
+    for(const key of [
+      'SONAR_PING','GENERAL_ALARM','TORPEDO_LAUNCH','TUBE_FILL',
+      'TORPEDO_HIT','DECK_GUN_SHOT','DECK_GUN_IMPACT','DEPTH_CHARGE',
+      'DIESEL_MACHINERY','ELECTRIC_MOTOR','SEA_AMBIENCE','SURFACED_WEATHER','CAVITATION',
+      'TORPEDO_RUN','HYDROPHONE_CONTACT'
+    ]){
       this._loadHybrid(key).catch(()=>{});
     }
   }
@@ -243,6 +251,56 @@ class AudioEngine{
     this.hybridVoices.push(voiceRecord);
     source.start();
     return true;
+  }
+
+  _ensureLoopVoice(slot,manifestKey,busName='machinery'){
+    if(!this.ctx||!this.enabled)return null;
+    const existing=this.ambientLoopNodes[slot];
+    if(existing)return existing;
+    const buffer=this.hybridBuffers.get(manifestKey);
+    if(!buffer){
+      this._loadHybrid(manifestKey).catch(()=>{});
+      return null;
+    }
+    const source=this.ctx.createBufferSource();
+    source.buffer=buffer;
+    source.loop=true;
+    const gain=this.ctx.createGain();
+    gain.gain.value=0;
+    source.connect(gain);
+    gain.connect(this._bus(busName));
+    source.start();
+    const meta=this.hybridMeta.get(manifestKey);
+    if(meta){
+      meta.activeVoices=(meta.activeVoices||0)+1;
+      meta.lastUsed=performance.now();
+    }
+    const loopRecord={slot,manifestKey,busName,source,gain};
+    this.ambientLoopNodes[slot]=loopRecord;
+    return loopRecord;
+  }
+
+  _stopAmbientLoop(slot,fadeSec=0.25){
+    const loop=this.ambientLoopNodes[slot];
+    if(!loop)return;
+    const now=this.ctx?.currentTime||0;
+    try{
+      loop.gain.gain.cancelScheduledValues(now);
+      loop.gain.gain.setValueAtTime(Math.max(0.0001,loop.gain.gain.value||0.0001),now);
+      loop.gain.gain.exponentialRampToValueAtTime(0.0001,now+Math.max(0.05,fadeSec));
+      setTimeout(()=>{
+        try{loop.source.stop();}catch(_){}
+        const meta=this.hybridMeta.get(loop.manifestKey);
+        if(meta&&meta.activeVoices>0)meta.activeVoices--;
+      },Math.max(50,fadeSec*1000)+20);
+    }catch(_){}
+    delete this.ambientLoopNodes[slot];
+  }
+
+  stopAllAmbientLoops(){
+    for(const slot of Object.keys(this.ambientLoopNodes)){
+      this._stopAmbientLoop(slot,0.1);
+    }
   }
 
   hybridStatus(){
@@ -342,6 +400,18 @@ class AudioEngine{
     if(this.ambientOsc){
       const hz=(25.5+rpm*15.5+deep*1.6)*clamp(Number(identity.electricPitch)||1,.8,1.25);
       this.ambientOsc.frequency.setTargetAtTime(hz,now,silent?.62:.38);
+    }
+    // Hybrid Electric Motor Loop:
+    if(submerged){
+      const electricRate=(0.85+rpm*0.40)*clamp(Number(identity.electricPitch)||1,.8,1.25);
+      const electricLevel=(silent?0.009:0.016)*drive;
+      const eLoop=this._ensureLoopVoice('electric','ELECTRIC_MOTOR','machinery');
+      if(eLoop){
+        eLoop.gain.gain.setTargetAtTime(electricLevel,now,.65);
+        eLoop.source.playbackRate.setTargetAtTime(electricRate,now,.50);
+      }
+    }else if(this.ambientLoopNodes.electric){
+      this.ambientLoopNodes.electric.gain.gain.setTargetAtTime(0,now,.55);
     }
   }
 
@@ -662,7 +732,7 @@ class AudioEngine{
     throw new Error(`Unknown audio review sound: ${name}`);
   }
 
-  audioStats(){return{initialized:this.initialized,context:this.ctx?.state||'none',enabled:this.enabled,speakerMode:this.speakerMode,gestureResumeAttempts:this.gestureResumeAttempts,lastGestureEvent:this.lastGestureEvent,sonarVariant:this.sonarVariant,sfxVolume:this.sfxVolume,musicVolume:this.musicVolume,sampleRate:this.ctx?.sampleRate||null,sharedNoiseBufferSeconds:this.noiseBuffer?this.noiseBuffer.length/this.noiseBuffer.sampleRate:0,busMix:{...this.mixTargets},hybrid:this.hybridStatus(),duckUntilMs:Math.max(0,(this.duckUntil||0)-performance.now()),lastEnemyPingAgeMs:this.lastEnemyPingAt?performance.now()-this.lastEnemyPingAt:null,nearbyEscort:this.escortMachinery?{id:this.escortMachinery.id,rangeNm:this.escortMachinery.rangeNm}:null};}
+  audioStats(){return{initialized:this.initialized,context:this.ctx?.state||'none',enabled:this.enabled,speakerMode:this.speakerMode,gestureResumeAttempts:this.gestureResumeAttempts,lastGestureEvent:this.lastGestureEvent,sonarVariant:this.sonarVariant,sfxVolume:this.sfxVolume,musicVolume:this.musicVolume,sampleRate:this.ctx?.sampleRate||null,sharedNoiseBufferSeconds:this.noiseBuffer?this.noiseBuffer.length/this.noiseBuffer.sampleRate:0,busMix:{...this.mixTargets},hybrid:this.hybridStatus(),ambientLoops:Object.keys(this.ambientLoopNodes),duckUntilMs:Math.max(0,(this.duckUntil||0)-performance.now()),lastEnemyPingAgeMs:this.lastEnemyPingAt?performance.now()-this.lastEnemyPingAt:null,nearbyEscort:this.escortMachinery?{id:this.escortMachinery.id,rangeNm:this.escortMachinery.rangeNm}:null};}
 
   playDistantGunfire(bearingDeg=null,ownHeading=0,strength=.5){
     this.ensure();const v=clamp(strength,.08,.8);this._noise(.055,64,'sawtooth',.26*v,bearingDeg,ownHeading,'weapons');
@@ -732,6 +802,19 @@ class AudioEngine{
       o.start();this.torpedoOsc=o;this.torpedoGain=g;
     }
     if(this.torpedoGain){const now=this.ctx.currentTime,target=on?clamp(.004+(1-rng/6)*.035,.004,.04):0;this.torpedoGain.gain.setTargetAtTime(target,now,.12);this.torpedoOsc.frequency.setTargetAtTime(210+(best?.speedKnots||40)*1.3,now,.15);if(this.torpedoPan)this.torpedoPan.pan.setTargetAtTime(clamp(Math.sin(degToRad(shortDelta(sub.heading,br))),-1,1),now,.1);}
+    // Hybrid TORPEDO_RUN loop voice in SOUND room:
+    if(on){
+      const now=this.ctx.currentTime;
+      const tLevel=clamp(.006+(1-rng/6)*.038,.005,.045);
+      const tRate=clamp(0.92+(best?.speedKnots||40)*.005,0.85,1.25);
+      const tLoop=this._ensureLoopVoice('torpedoRun','TORPEDO_RUN','sensor');
+      if(tLoop){
+        tLoop.gain.gain.setTargetAtTime(tLevel,now,.20);
+        tLoop.source.playbackRate.setTargetAtTime(tRate,now,.20);
+      }
+    }else if(this.ambientLoopNodes.torpedoRun){
+      this.ambientLoopNodes.torpedoRun.gain.gain.setTargetAtTime(0,this.ctx.currentTime,.35);
+    }
   }
 
   _ensureEscortMachinery(){
@@ -746,8 +829,9 @@ class AudioEngine{
   _setNearbyEscortMachinery(state){
     if(!this.ctx||!state)return;const sub=state.playerSub,now=this.ctx.currentTime,E=this._ensureEscortMachinery();let best=null,bestR=Infinity;
     if((sub.depthFeet||0)>8){for(const c of state.world?.contacts||[]){const kind=String(c?.type||'').toUpperCase(),asw=(typeof isASWCombatant==='function'?isASWCombatant(c):/DESTROYER|ESCORT|PATROL|KAIBOKAN/.test(kind));if(!asw||c.sunk||!c.position)continue;const r=distNm(sub.position,c.position);if(r<bestR){best=c;bestR=r;}}}
-    const on=best&&bestR<1.55;if(!on){E.out.gain.setTargetAtTime(0,now,.28);E.rangeNm=null;return;}
+    const on=best&&bestR<1.55;if(!on){E.out.gain.setTargetAtTime(0,now,.28);E.rangeNm=null;this.lastEscortCavIntensity=0;return;}
     const speed=clamp(Number(best.speedKnots)||0,0,35),rpm=clamp(speed/24,0,1.25),near=clamp(1-bestR/1.55,0,1),cad=.65+speed*.15;
+    this.lastEscortCavIntensity=(bestR<0.85&&speed>16)?clamp(1-bestR/0.85,0,1)*clamp((speed-16)/14,0,1):0;
     // The same fixed node set moves continuously from slow heavy machinery to
     // the higher mechanical/cavitation scream of an attacking destroyer. Actual
     // contact speed and range drive it; there is no extra audio-only AI state.
@@ -759,6 +843,7 @@ class AudioEngine{
   setBattleAmbience(state){
     this.ensure();if(!this.ctx||!state)return;this._ensureBattleLoops();const sub=state.playerSub,env=state.world.environment||{},sta=state.tactical?.activeStation||'TACTICAL',now=this.ctx.currentTime;
     const outside=(sta==='BRIDGE'||sta==='DECK_GUN')&&sub.depthFeet<10,internalSurface=!outside&&sub.depthFeet<10,submerged=sub.depthFeet>=10,sea=clamp(env.seaState||0,0,1),rain=clamp(env.precipitation||0,0,1),wind=clamp(Number(env.windSpeedKnots||env.windKnots)||sea*28,0,45)/45;
+    this._setNearbyEscortMachinery(state);
     // SCOPE is an optical outside view but an acoustic inside-the-pressure-hull
     // perspective. Never let rain/wind turn the periscope into an open bridge.
     const seaLevel=outside?(.006+sea*.028):(internalSurface?(.0015+sea*.004):0),windLevel=outside?(.002+wind*.022):(internalSurface?wind*.002:0),rainLevel=outside?rain*.038:(internalSurface?rain*.001:0);
@@ -778,8 +863,56 @@ class AudioEngine{
     if(this.dieselGain)this.dieselGain.gain.setTargetAtTime(dieselLevel,now,.72);
     if(this.dieselOsc)this.dieselOsc.frequency.setTargetAtTime((25.5+clamp(sub.propulsion.actualRpm||0,0,maxRpm)/maxRpm*23.4)*clamp(Number(identity.dieselPitch)||1,.8,1.25),now,.62);
     if(this.dieselFilter)this.dieselFilter.frequency.setTargetAtTime(150+rpm*115,now,.70);
+
+    // Hybrid Diesel Loop:
+    if(diesel){
+      const dLoopLevel=(outside?(.018+rpm*.042):(.012+rpm*.030))*clamp(Number(identity.dieselLevel)||1,.7,1.25);
+      const dLoopRate=(0.80+rpm*0.45)*clamp(Number(identity.dieselPitch)||1,.8,1.25);
+      const dLoop=this._ensureLoopVoice('diesel','DIESEL_MACHINERY','machinery');
+      if(dLoop){
+        dLoop.gain.gain.setTargetAtTime(dLoopLevel,now,.50);
+        dLoop.source.playbackRate.setTargetAtTime(dLoopRate,now,.45);
+      }
+    }else if(this.ambientLoopNodes.diesel){
+      this.ambientLoopNodes.diesel.gain.gain.setTargetAtTime(0,now,.60);
+    }
+
+    // Hybrid Weather vs Sea Ambience Loops:
+    if(submerged){
+      if(this.ambientLoopNodes.weather)this.ambientLoopNodes.weather.gain.gain.setTargetAtTime(0,now,.50);
+      const deep=clamp((sub.depthFeet-45)/190,0,1);
+      const sLoopLevel=clamp(.012+deep*.008,.010,.024);
+      const sLoop=this._ensureLoopVoice('sea','SEA_AMBIENCE','world');
+      if(sLoop)sLoop.gain.gain.setTargetAtTime(sLoopLevel,now,.80);
+    }else{
+      if(this.ambientLoopNodes.sea)this.ambientLoopNodes.sea.gain.gain.setTargetAtTime(0,now,.60);
+      const wLoopLevel=outside?(.014+wind*.032+sea*.024):(.003+wind*.006+sea*.005);
+      const wLoopRate=0.90+wind*0.22;
+      const wLoop=this._ensureLoopVoice('weather','SURFACED_WEATHER','world');
+      if(wLoop){
+        wLoop.gain.gain.setTargetAtTime(wLoopLevel,now,.60);
+        wLoop.source.playbackRate.setTargetAtTime(wLoopRate,now,.55);
+      }
+    }
+
+    // Hybrid Cavitation Loop (own high-rpm shallow screw or attacking escort):
+    const ownCav=(sub.depthFeet<55)&&(rpm>0.65);
+    const ownCavIntensity=ownCav?clamp((rpm-0.65)/0.35,0,1)*clamp(1-(sub.depthFeet||0)/55,0,1):0;
+    const cavIntensity=Math.max(ownCavIntensity,this.lastEscortCavIntensity||0);
+    if(cavIntensity>0){
+      const cavLevel=clamp(cavIntensity*0.038,0.005,0.045);
+      const cavRate=0.95+cavIntensity*0.25;
+      const cLoop=this._ensureLoopVoice('cavitation','CAVITATION','sensor');
+      if(cLoop){
+        cLoop.gain.gain.setTargetAtTime(cavLevel,now,.20);
+        cLoop.source.playbackRate.setTargetAtTime(cavRate,now,.20);
+      }
+    }else if(this.ambientLoopNodes.cavitation){
+      this.ambientLoopNodes.cavitation.gain.gain.setTargetAtTime(0,now,.35);
+    }
+
     const wall=Date.now();if(sub.depthFeet>170&&wall-this.lastCreak>clamp(12000-sub.depthFeet*14,4500,10000)){this.lastCreak=wall;this.playCreak();}
-    this._setTorpedoMonitor(state);this._setNearbyEscortMachinery(state);
+    this._setTorpedoMonitor(state);
   }
 
 
@@ -906,6 +1039,16 @@ class AudioEngine{
     this.hydroMod.gain.setTargetAtTime(.0015+level*.0045,now,.10);
     this.hydroWhineGain.gain.setTargetAtTime(level*(.0015+fast*.024),now,.15);
     this.hydroNoiseGain.gain.setTargetAtTime(level*(.001+fast*.012),now,.18);
+    if(s>.38&&Math.abs(offsetDeg||0)<5.5){
+      const wall=Date.now();
+      if(wall-(this.lastHydrophoneContactSampleAt||0)>3800){
+        this.lastHydrophoneContactSampleAt=wall;
+        this._tryHybrid('HYDROPHONE_CONTACT',{
+          volume:clamp(0.65*level,0.25,0.85),
+          rate:clamp(0.92+(cad-1.2)*0.14,0.75,1.30)
+        });
+      }
+    }
   }
 
   stopHydrophoneMonitor(){
@@ -918,7 +1061,7 @@ class AudioEngine{
 
   setSfxVolume(v){this.sfxVolume=clamp(Number(v)||0,0,1);if(this.masterGain&&this.ctx)this.masterGain.gain.setTargetAtTime(this.enabled?this.sfxVolume:0,this.ctx.currentTime,.04);return this.sfxVolume;}
   setMusicVolume(v){this.musicVolume=clamp(Number(v)||0,0,1);if(this.musicGain&&this.ctx)this.musicGain.gain.setTargetAtTime(this.enabled?this.musicVolume:0,this.ctx.currentTime,.04);return this.musicVolume;}
-  toggle(){this.enabled=!this.enabled;if(this.masterGain)this.masterGain.gain.value=this.enabled?this.sfxVolume:0;if(this.musicGain)this.musicGain.gain.value=this.enabled?this.musicVolume:0;return this.enabled;}
+  toggle(){this.enabled=!this.enabled;if(this.masterGain)this.masterGain.gain.value=this.enabled?this.sfxVolume:0;if(this.musicGain)this.musicGain.gain.value=this.enabled?this.musicVolume:0;if(!this.enabled)this.stopAllAmbientLoops();return this.enabled;}
 }
 
 const audio=new AudioEngine();

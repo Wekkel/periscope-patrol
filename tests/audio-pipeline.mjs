@@ -267,4 +267,105 @@ assert.ok(calcBombScale(0.5) < calcBombScale(0.2), 'Bomb scaling must be strictl
 
 console.log('[AUDIO TEST] Combat acoustics, ducking, distance scaling, and spatial panning passed.');
 
-console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (5/5 test suites)!');
+// ─── 6. Ambient Loops, RPM Pitching & Cavitation Triggers ──────────────────
+console.log('[AUDIO TEST] Testing ambient loops, RPM pitching, and cavitation triggers...');
+
+// 1. Loop files disk budget & decoded heap verification
+const loopKeys = ['DIESEL_MACHINERY', 'ELECTRIC_MOTOR', 'SEA_AMBIENCE', 'SURFACED_WEATHER', 'CAVITATION'];
+let totalLoopsDiskBytes = 0;
+for (const key of loopKeys) {
+  const spec = manifest[key];
+  assert.ok(spec, `Loop manifest entry missing for ${key}`);
+  const filePath = path.join(root, spec.url.replace(/^\.\//, ''));
+  assert.ok(existsSync(filePath), `Loop file missing at ${filePath}`);
+  const st = await stat(filePath);
+  assert.ok(st.size > 20000, `Loop file ${key} is unexpectedly small (${st.size} bytes)`);
+  totalLoopsDiskBytes += st.size;
+}
+console.log(`[AUDIO TEST] Total 5 loops disk footprint: ${(totalLoopsDiskBytes / 1024).toFixed(1)} KB`);
+assert.ok(totalLoopsDiskBytes < 800 * 1024, `5 ambient loops exceed 800 KB disk allocation: ${totalLoopsDiskBytes}`);
+
+// 2. RPM to playbackRate transfer functions
+function calcDieselRate(rpm) {
+  const r = clamp(Number(rpm) || 0, 0, 1);
+  return 0.80 + r * 0.45;
+}
+
+function calcElectricRate(rpm) {
+  const r = clamp(Number(rpm) || 0, 0, 1);
+  return 0.85 + r * 0.40;
+}
+
+// Diesel rate bounds: 0.80 (idle) to 1.25 (flank)
+assert.equal(calcDieselRate(0.0), 0.80, 'Diesel idle playbackRate must be 0.80');
+assert.ok(Math.abs(calcDieselRate(0.5) - 1.025) < 1e-6, 'Diesel half speed playbackRate must be 1.025');
+assert.equal(calcDieselRate(1.0), 1.25, 'Diesel flank speed playbackRate must be 1.25');
+assert.ok(calcDieselRate(0.8) > calcDieselRate(0.4), 'Diesel rate must increase monotonically with RPM');
+
+// Electric rate bounds: 0.85 (stop/slow) to 1.25 (flank)
+assert.equal(calcElectricRate(0.0), 0.85, 'Electric stop playbackRate must be 0.85');
+assert.ok(Math.abs(calcElectricRate(0.5) - 1.05) < 1e-6, 'Electric half speed playbackRate must be 1.05');
+assert.equal(calcElectricRate(1.0), 1.25, 'Electric flank speed playbackRate must be 1.25');
+assert.ok(calcElectricRate(0.8) > calcElectricRate(0.4), 'Electric rate must increase monotonically with RPM');
+
+// 3. Cavitation trigger logic
+function calcCavitationIntensity(subDepthFt, ownRpm, bestEscortDistNm = 99, escortSpeedKnots = 0) {
+  const ownCav = (subDepthFt < 55) && (ownRpm > 0.65);
+  const ownCavIntensity = ownCav ? clamp((ownRpm - 0.65) / 0.35, 0, 1) * clamp(1 - (subDepthFt || 0) / 55, 0, 1) : 0;
+  const escortCavIntensity = (bestEscortDistNm < 0.85 && escortSpeedKnots > 16) ? clamp(1 - bestEscortDistNm / 0.85, 0, 1) * clamp((escortSpeedKnots - 16) / 14, 0, 1) : 0;
+  return Math.max(ownCavIntensity, escortCavIntensity);
+}
+
+// Deep diving at flank -> hydrostatic pressure suppresses own cavitation
+assert.equal(calcCavitationIntensity(120, 1.0), 0, 'No own cavitation at 120ft depth despite flank speed');
+// Shallow crawl -> low rpm blade tip speed below vapor pressure threshold
+assert.equal(calcCavitationIntensity(20, 0.35), 0, 'No cavitation at low RPM (0.35) even in shallow water');
+// Shallow water (25ft) at flank speed -> cavitation scream triggered!
+const shallowFlankCav = calcCavitationIntensity(25, 1.0);
+assert.ok(shallowFlankCav > 0.50, `Shallow flank cavitation intensity must be > 0.50, got ${shallowFlankCav}`);
+// Just at threshold: depth 55ft -> 0
+assert.equal(calcCavitationIntensity(55, 1.0), 0, 'Cavitation must cut off at or below 55ft threshold');
+
+// Escort cavitation: destroyer closing fast at 28 knots, distance 0.35 nm
+const escortCav = calcCavitationIntensity(150, 0.2, 0.35, 28);
+assert.ok(escortCav > 0.40, `Charging escort cavitation must be audible (>0.40), got ${escortCav}`);
+// Distant escort (1.2 nm) -> no cavitation audible
+assert.equal(calcCavitationIntensity(150, 0.2, 1.2, 28), 0, 'Distant escort (>0.85 nm) must not trigger cavitation');
+// Slow escort (10 knots) -> no blade cavitation
+assert.equal(calcCavitationIntensity(150, 0.2, 0.35, 10), 0, 'Slow escort (<16 knots) must not trigger cavitation');
+
+// 4. Silent running damping
+function calcElectricMotorLevel(silentRunning, rpm) {
+  const drive = 0.56 + (clamp(rpm, 0, 1)) * 0.66;
+  return (silentRunning ? 0.009 : 0.016) * drive;
+}
+
+const normalLevel = calcElectricMotorLevel(false, 0.5);
+const silentLevel = calcElectricMotorLevel(true, 0.5);
+const dampingRatio = silentLevel / normalLevel;
+assert.ok(Math.abs(dampingRatio - 0.5625) < 1e-4, `Silent running must attenuate electric motor to ~56% (-5dB), got ${dampingRatio}`);
+
+// 5. Persistent loop pinning in LRU cache
+const loopCache = new MockHybridCache(4 * 1024 * 1024);
+assert.equal(loopCache.insert('DIESEL_MACHINERY', 1.2 * 1024 * 1024, 100), true);
+assert.equal(loopCache.insert('ELECTRIC_MOTOR', 1.1 * 1024 * 1024, 200), true);
+assert.equal(loopCache.insert('SEA_AMBIENCE', 1.1 * 1024 * 1024, 300), true);
+
+// Pin the active persistent loops
+loopCache.hybridMeta.get('DIESEL_MACHINERY').activeVoices = 1;
+loopCache.hybridMeta.get('ELECTRIC_MOTOR').activeVoices = 1;
+// SEA_AMBIENCE is idle (activeVoices = 0)
+
+// Try to insert CAVITATION (1.0 MB) into 4 MB cache (currently 3.4 MB used).
+// Needed: 3.4 + 1.0 = 4.4 MB > 4.0 MB.
+// SEA_AMBIENCE must be evicted because DIESEL and ELECTRIC are pinned!
+assert.equal(loopCache.insert('CAVITATION', 1.0 * 1024 * 1024, 400), true);
+assert.equal(loopCache.hybridBuffers.has('DIESEL_MACHINERY'), true, 'Pinned diesel loop must remain');
+assert.equal(loopCache.hybridBuffers.has('ELECTRIC_MOTOR'), true, 'Pinned electric motor loop must remain');
+assert.equal(loopCache.hybridBuffers.has('SEA_AMBIENCE'), false, 'Unpinned sea ambience was evicted');
+assert.equal(loopCache.hybridBuffers.has('CAVITATION'), true, 'New cavitation buffer cached');
+
+console.log('[AUDIO TEST] Ambient loops, RPM transfer functions, cavitation logic, and silent running passed.');
+
+console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (6/6 test suites)!');
+
