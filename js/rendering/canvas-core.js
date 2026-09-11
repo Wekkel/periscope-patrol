@@ -162,12 +162,13 @@ class CanvasViewCore{
       &&distNm(state.playerSub.position,a.position)<12);
     const orbiting=known.some(a=>a.state==='ORBIT');
     if(!known.length) return;
-    const inbound=known.some(a=>a.state==='ATTACKING');
+    const inbound=known.some(a=>a.state==='ATTACKING'||a.state==='STRAFING');
+    const investigating=known.some(a=>a.state==='INVESTIGATING');
     const t=state.time.elapsedSeconds;
-    const pulse=0.55+0.45*Math.sin(t*(inbound?9:4));
+    const pulse=0.55+0.45*Math.sin(t*(inbound?9:investigating?6.5:4));
     const bh=Math.round(26*this.k);
     const y=h-bh;
-    ctx.fillStyle=inbound?`rgba(190,36,30,${0.85*pulse})`:`rgba(150,96,10,${0.8*pulse})`;
+    ctx.fillStyle=inbound?`rgba(190,36,30,${0.85*pulse})`:investigating?`rgba(215,115,18,${0.85*pulse})`:`rgba(150,96,10,${0.8*pulse})`;
     ctx.fillRect(0,y,w,bh);
     const near=known.reduce((a,b)=>distNm(state.playerSub.position,a.position)
                                   <distNm(state.playerSub.position,b.position)?a:b);
@@ -175,9 +176,11 @@ class CanvasViewCore{
     ctx.fillStyle='#fff3ef';ctx.font=this.fnt(11,true);ctx.textAlign='center';
     const sub=state.playerSub,diveUnderway=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
     const action=inbound?'TAKE HER DOWN'
+      :investigating?'EMERGENCY DIVE'
       :orbiting?'STAY DOWN'
       :(sub.depthFeet>=12?'STAY SUBMERGED':diveUnderway?'CONTINUE THE DIVE':'CLEAR THE BRIDGE');
     ctx.fillText(inbound?`✈ AIRCRAFT ATTACKING — ${rng.toFixed(1)} nm — ${action}`
+                :investigating?`✈ AIRCRAFT INVESTIGATING — ${rng.toFixed(1)} nm — ${action}`
                 :orbiting?`✈ AIRCRAFT CIRCLING OVERHEAD ${rng.toFixed(1)} nm — ${action}`
                         :`✈ AIR CONTACT ${rng.toFixed(1)} nm — ${action}`,w/2,y+bh*0.7);
     ctx.textAlign='left';

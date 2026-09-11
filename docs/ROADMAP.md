@@ -74,6 +74,11 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 ### 6. Gedifferentieerde vijandelijke doctrines
 * **Doel**: Escortes en vliegtuigen moeten per nationaliteit, oorlogsjaar, ervaringsniveau (training) en radars/sonarsystemen anders zoeken en jagen.
 * **Cruciaal**: Geen telepathische kennis ("omniscience"); jagers moeten werken op basis van peilingen, geschatte datums, akoestische dovenhoeken (baffles), thermoclines en waarnemingsfouten.
+* **Fases**:
+  * [x] **Fase 6.1: Nationale Doctrineprofielen & Escortetactieken** (Gedifferentieerde ASW-doctrines voor 6 vloten RN, USN, IJN, KM, RM, VMF met historische zoekpatronen BOX, SECTOR, EXPANDING_SQUARE, CREEPING_LINE, zonsverloop-aanpassingen, historische `aswTraining` attributen in de scheepscatalogus en persistentie) — **VOLTOOID**
+  * [x] **Fase 6.2: Niet-Alwetende Sensorfysica** (Realistische akoestische dovenhoek/baffles $\approx 152^\circ-180^\circ$ hekwaarts door eigen cavitatie/schroefgeluid, zoek-snelheid straf op escortesonars van 1.0 bij 8 knopen tot 0.2 bij 22 knopen, en thermocline-brekingsbias waarbij sonarcontacten onder de spronglaag ondieper worden geschat en dieptebommen systematisch te ondiep exploderen) — **VOLTOOID**
+  * [x] **Fase 6.3: Twee-Fasen Vliegtuigverkenningscyclus** (Transitie van `SEARCHING` naar `INVESTIGATING` bij initiële visuele- of kielzogdetectie met 16–24s verkenningspass, tijdcompressie-onderbreking, uitkijk-alarm en duikvenster; overgang naar `ATTACKING` indien boot ondiep blijft of `ORBIT` boven datum bij tijdige noodduik $\ge 42$ ft) — **VOLTOOID**
+  * [x] **Fase 6.4: Teststraat Integratie, Grognard Verificatie & Evaluatie** (Section 17 in `behaviour.mjs` met 5 specifieke behaviour tests voor nationale doctrineprofielen, dovenhoeken, snelheidssensorstraffen, thermocline-breking en de tweefasige vliegtuigcyclus; volledige call-target en call-graph verificatie, 100% groen in `run-all.mjs`) — **VOLTOOID**
 
 ### 7. Dynamische bewaking van missiepacing
 * **Doel**: Geen geforceerde of automatische overwinningen, maar een pacing waarin routes, contactmomenten, tijdcompressie en terugkeercondities zo zijn uitgebalanceerd dat één primair tactisch hoofddoel doorgaans binnen circa 30 minuten haalbaar en intensief te spelen is.
@@ -123,7 +128,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 ## Deel 3: Concrete Operationele Taken ("Andere TODO")
 
 - [x] **Havendetectie**: Detectie in havens alleen via hydrofoon; direct zicht telt nu mee via kustwacht en gezonken/beschadigde schepen op de ankerplaats escaleren de haven direct.
-- [ ] **Vliegtuigdetectiefase**: Vliegtuigen vallen momenteel direct aan zonder voorafgaande verkennings- of detectiefase.
+- [x] **Vliegtuigdetectiefase**: Vliegtuigen vallen niet meer direct aan; tweefasige verkenningspass (`INVESTIGATING`) met uitkijk-alarm, duikvenster en tijdcompressie-onderbreking geïmplementeerd (voltooid in Initiatief 6, Fase 6.3).
 - [x] **Zoeklichten overdag**: Zoeklichten worden overdag automatisch gedoofd en niet langer weergegeven (`daylight >= 0.35`).
 - [x] **Havenmissies uitbouwen**: Kades, pakhuizen, havengebouwen, kustbatterijen, schijnwerpers, lichtkogels, corridors en torpedonetten toevoegen (voltooid in Initiatief 4, inclusief *USN Chokepoint Penetration* en *HARBOR_STRIKE* Special Ops).
 - [ ] **Interne benchmark**: Gestandaardiseerde benchmark voor 3D-framerate, audioload en CPU-cycli, direct vergelijkbaar tussen apparaten en git-commits.

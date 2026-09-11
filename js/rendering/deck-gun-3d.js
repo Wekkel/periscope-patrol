@@ -225,9 +225,9 @@ const DeckGunStation={
     // ATTACKING shows a restrained nose-down attitude; DEPARTING a slight climb.
     // This is presentation only. Flight AI remains 2-D and therefore cannot leak
     // a fake altitude state back into simulation or collision logic.
-    const pitchDeg=a.state==='ATTACKING'?-5.5:a.state==='DEPARTING'?5.0:a.state==='STRAFING'?-3:0;
+    const pitchDeg=a.state==='ATTACKING'?-5.5:a.state==='INVESTIGATING'?-2.5:a.state==='DEPARTING'?5.0:a.state==='STRAFING'?-3:0;
     const pitch=degToRad(pitchDeg),cp=Math.cos(pitch),sp=Math.sin(pitch);
-    const bankDeg=(a.state==='ORBIT'?clamp((a.orbitSign||1)*14,-18,18):a.state==='DEPARTING'?clamp((a.orbitSign||1)*8,-12,12):0);
+    const bankDeg=(a.state==='ORBIT'||a.state==='INVESTIGATING'?clamp((a.orbitSign||1)*14,-18,18):a.state==='DEPARTING'?clamp((a.orbitSign||1)*8,-12,12):0);
     const bank=degToRad(bankDeg),cb=Math.cos(bank),sb=Math.sin(bank);
     const E0=a.position.xNm*NM_M,N0=-a.position.yNm*NM_M;
     const world=(side,forward,up=0)=>{
@@ -239,7 +239,7 @@ const DeckGunStation={
       return{E:E0+fx*f2+rx*s2,N:N0+fy*f2+ry*s2,Y:alt+u3};
     };
     const project=q=>{const p=projectWorldPoint(cam,q.E,q.N,q.Y);return p&&Number.isFinite(p.x)&&Number.isFinite(p.y)?p:null;};
-    const friendly=a.side==='FRIENDLY',attack=!friendly&&(a.state==='ATTACKING'||a.state==='STRAFING');
+    const friendly=a.side==='FRIENDLY',attack=!friendly&&(a.state==='ATTACKING'||a.state==='STRAFING'||a.state==='INVESTIGATING');
     const haze=clamp(1-rng/Math.max(1,vis),.24,1),night=clamp(1-dl,0,1);
     const base=friendly?[39,68,54]:attack?[53,45,35]:[45,52,51];
     const shade=(mul,alpha=.96)=>`rgba(${Math.round(base[0]*mul)},${Math.round(base[1]*mul)},${Math.round(base[2]*mul)},${alpha*haze})`;

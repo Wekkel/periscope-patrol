@@ -548,7 +548,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 31,
-          "offset": 1912,
+          "offset": 1939,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -561,7 +561,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 33,
-          "offset": 2035,
+          "offset": 2062,
           "definedBy": null,
           "relation": "unresolved"
         }
@@ -704,7 +704,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 106,
-          "offset": 3113,
+          "offset": 3140,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -713,7 +713,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 111,
-          "offset": 3546,
+          "offset": 3573,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -6021,7 +6021,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 110,
-          "offset": 1501,
+          "offset": 1528,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6034,7 +6034,7 @@
           "kind": "optional-direct",
           "unresolved": false,
           "line": 122,
-          "offset": 1946,
+          "offset": 1973,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6043,7 +6043,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 128,
-          "offset": 2224,
+          "offset": 2251,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6056,7 +6056,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 134,
-          "offset": 2498,
+          "offset": 2525,
           "definedBy": null,
           "relation": "unresolved"
         }
@@ -6125,18 +6125,18 @@
       ]
     },
     {
-      "name": "beginAircraftAttack",
+      "name": "beginAircraftInvestigation",
       "class": "AircraftSystem",
       "file": "js/simulation/ai/aircraft.js",
       "line": 138,
-      "end": 153,
+      "end": 152,
       "callDetails": [
         {
           "name": "noteWearManualAircraft",
           "kind": "direct",
           "unresolved": false,
-          "line": 149,
-          "offset": 1005,
+          "line": 146,
+          "offset": 637,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6148,8 +6148,8 @@
           "name": "stopAutomaticTimeCompression",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 150,
-          "offset": 1072,
+          "line": 147,
+          "offset": 704,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6157,8 +6157,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 151,
-          "offset": 1132,
+          "line": 150,
+          "offset": 1071,
           "definedBy": null,
           "relation": "unresolved"
         }
@@ -6172,22 +6172,89 @@
         {
           "path": "noteWearManualAircraft",
           "access": "read",
-          "line": 149
+          "line": 146
         },
         {
           "path": "stopAutomaticTimeCompression",
           "access": "read",
-          "line": 150
+          "line": 147
         },
         {
           "path": "log",
           "access": "read",
-          "line": 151
+          "line": 150
         },
         {
           "path": "state",
           "access": "read",
-          "line": 152
+          "line": 151
+        }
+      ]
+    },
+    {
+      "name": "beginAircraftAttack",
+      "class": "AircraftSystem",
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 153,
+      "end": 168,
+      "callDetails": [
+        {
+          "name": "noteWearManualAircraft",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 164,
+          "offset": 1005,
+          "definedBy": {
+            "class": "AircraftSystem",
+            "file": "js/simulation/ai/aircraft.js",
+            "line": 58
+          },
+          "relation": "system"
+        },
+        {
+          "name": "stopAutomaticTimeCompression",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 165,
+          "offset": 1072,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 166,
+          "offset": 1132,
+          "definedBy": null,
+          "relation": "unresolved"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state",
+          "access": "read",
+          "line": 154
+        },
+        {
+          "path": "noteWearManualAircraft",
+          "access": "read",
+          "line": 164
+        },
+        {
+          "path": "stopAutomaticTimeCompression",
+          "access": "read",
+          "line": 165
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 166
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 167
         }
       ]
     },
@@ -6195,14 +6262,14 @@
       "name": "updateAircraft",
       "class": "AircraftSystem",
       "file": "js/simulation/ai/aircraft.js",
-      "line": 154,
-      "end": 512,
+      "line": 169,
+      "end": 548,
       "callDetails": [
         {
           "name": "ensureSoundRadarState",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 168,
+          "line": 183,
           "offset": 1128,
           "definedBy": null,
           "relation": "unresolved"
@@ -6211,7 +6278,7 @@
           "name": "updateAirSurfaceTrace",
           "kind": "direct",
           "unresolved": false,
-          "line": 247,
+          "line": 262,
           "offset": 6973,
           "definedBy": {
             "class": "AircraftSystem",
@@ -6224,7 +6291,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 260,
+          "line": 275,
           "offset": 7717,
           "definedBy": null,
           "relation": "unresolved"
@@ -6233,7 +6300,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 269,
+          "line": 284,
           "offset": 8449,
           "definedBy": null,
           "relation": "unresolved"
@@ -6242,7 +6309,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 280,
+          "line": 295,
           "offset": 9128,
           "definedBy": null,
           "relation": "unresolved"
@@ -6251,8 +6318,8 @@
           "name": "stopAutomaticTimeCompression",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 302,
-          "offset": 10595,
+          "line": 317,
+          "offset": 10622,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6260,8 +6327,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 303,
-          "offset": 10715,
+          "line": 318,
+          "offset": 10742,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6269,17 +6336,17 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 307,
-          "offset": 11049,
+          "line": 322,
+          "offset": 11076,
           "definedBy": null,
           "relation": "unresolved"
         },
         {
-          "name": "beginAircraftAttack",
+          "name": "beginAircraftInvestigation",
           "kind": "direct",
           "unresolved": false,
-          "line": 325,
-          "offset": 12107,
+          "line": 340,
+          "offset": 12134,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6291,8 +6358,8 @@
           "name": "airSurfaceTraceStrength",
           "kind": "direct",
           "unresolved": false,
-          "line": 327,
-          "offset": 12215,
+          "line": 342,
+          "offset": 12249,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6301,11 +6368,11 @@
           "relation": "system"
         },
         {
-          "name": "beginAircraftAttack",
+          "name": "beginAircraftInvestigation",
           "kind": "direct",
           "unresolved": false,
-          "line": 333,
-          "offset": 12927,
+          "line": 348,
+          "offset": 12961,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6317,8 +6384,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 339,
-          "offset": 13452,
+          "line": 354,
+          "offset": 13493,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6326,8 +6393,8 @@
           "name": "startWearAirRoutine",
           "kind": "direct",
           "unresolved": false,
-          "line": 374,
-          "offset": 15670,
+          "line": 389,
+          "offset": 15752,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6339,8 +6406,8 @@
           "name": "noteWearManualAircraft",
           "kind": "direct",
           "unresolved": false,
-          "line": 376,
-          "offset": 15735,
+          "line": 391,
+          "offset": 15817,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6352,17 +6419,70 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 379,
-          "offset": 16138,
+          "line": 394,
+          "offset": 16220,
           "definedBy": null,
           "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 425,
+          "offset": 17842,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "beginAircraftAttack",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 426,
+          "offset": 17966,
+          "definedBy": {
+            "class": "AircraftSystem",
+            "file": "js/simulation/ai/aircraft.js",
+            "line": 153
+          },
+          "relation": "system"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 429,
+          "offset": 18168,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 432,
+          "offset": 18310,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "beginAircraftAttack",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 433,
+          "offset": 18413,
+          "definedBy": {
+            "class": "AircraftSystem",
+            "file": "js/simulation/ai/aircraft.js",
+            "line": 153
+          },
+          "relation": "system"
         },
         {
           "name": "airAttackDatumPosition",
           "kind": "direct",
           "unresolved": false,
-          "line": 426,
-          "offset": 18918,
+          "line": 462,
+          "offset": 20346,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6374,8 +6494,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 429,
-          "offset": 19255,
+          "line": 465,
+          "offset": 20683,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6383,8 +6503,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 434,
-          "offset": 19612,
+          "line": 470,
+          "offset": 21040,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6392,8 +6512,8 @@
           "name": "airAttack",
           "kind": "system-path",
           "unresolved": false,
-          "line": 442,
-          "offset": 20094,
+          "line": 478,
+          "offset": 21522,
           "object": "this.sys.aaGun",
           "definedBy": null,
           "relation": "unresolved"
@@ -6402,8 +6522,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 449,
-          "offset": 20749,
+          "line": 485,
+          "offset": 22177,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6411,8 +6531,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 450,
-          "offset": 20953,
+          "line": 486,
+          "offset": 22381,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6420,8 +6540,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 462,
-          "offset": 21544,
+          "line": 498,
+          "offset": 22972,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6429,8 +6549,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 466,
-          "offset": 21763,
+          "line": 502,
+          "offset": 23191,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6438,8 +6558,8 @@
           "name": "shake",
           "kind": "direct",
           "unresolved": false,
-          "line": 467,
-          "offset": 21843,
+          "line": 503,
+          "offset": 23271,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6447,8 +6567,8 @@
           "name": "aaCasualty",
           "kind": "system-path",
           "unresolved": false,
-          "line": 468,
-          "offset": 21958,
+          "line": 504,
+          "offset": 23386,
           "object": "this.sys.aaGun",
           "definedBy": null,
           "relation": "unresolved"
@@ -6457,8 +6577,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 469,
-          "offset": 22039,
+          "line": 505,
+          "offset": 23467,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6466,8 +6586,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 471,
-          "offset": 22212,
+          "line": 507,
+          "offset": 23640,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6475,8 +6595,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 508,
-          "offset": 24192,
+          "line": 544,
+          "offset": 25620,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -6484,8 +6604,8 @@
           "name": "updateWearAirRoutine",
           "kind": "direct",
           "unresolved": false,
-          "line": 511,
-          "offset": 24266,
+          "line": 547,
+          "offset": 25694,
           "definedBy": {
             "class": "AircraftSystem",
             "file": "js/simulation/ai/aircraft.js",
@@ -6498,225 +6618,225 @@
         {
           "path": "state.world",
           "access": "read",
-          "line": 155
+          "line": 170
         },
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 155
+          "line": 170
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 156
+          "line": 171
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 156
+          "line": 171
         },
         {
           "path": "ensureSoundRadarState",
           "access": "read",
-          "line": 168
+          "line": 183
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 184
+          "line": 199
         },
         {
           "path": "state.time",
           "access": "read",
-          "line": 184
+          "line": 199
         },
         {
           "path": "state",
           "access": "read",
-          "line": 188
-        },
-        {
-          "path": "state.campaign",
-          "access": "read",
-          "line": 203
-        },
-        {
-          "path": "state.time",
-          "access": "read",
           "line": 203
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 204
+          "line": 218
         },
         {
           "path": "state.time",
           "access": "read",
-          "line": 204
+          "line": 218
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 231
+          "line": 219
+        },
+        {
+          "path": "state.time",
+          "access": "read",
+          "line": 219
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 246
         },
         {
           "path": "updateAirSurfaceTrace",
           "access": "read",
-          "line": 247
+          "line": 262
         },
         {
           "path": "state",
           "access": "read",
-          "line": 256
+          "line": 271
         },
         {
           "path": "log",
           "access": "read",
-          "line": 260
+          "line": 275
         },
         {
           "path": "log",
           "access": "read",
-          "line": 269
+          "line": 284
         },
         {
           "path": "log",
           "access": "read",
-          "line": 280
+          "line": 295
         },
         {
           "path": "state.time.transitUntil",
           "access": "read",
-          "line": 302
+          "line": 317
         },
         {
           "path": "state.time.timeScale",
           "access": "read",
-          "line": 302
+          "line": 317
         },
         {
           "path": "stopAutomaticTimeCompression",
           "access": "read",
-          "line": 302
+          "line": 317
         },
         {
           "path": "log",
           "access": "read",
-          "line": 303
+          "line": 318
         },
         {
           "path": "state",
           "access": "read",
-          "line": 303
+          "line": 318
         },
         {
           "path": "log",
           "access": "read",
-          "line": 307
+          "line": 322
         },
         {
           "path": "state",
           "access": "read",
-          "line": 319
+          "line": 334
         },
         {
-          "path": "beginAircraftAttack",
+          "path": "beginAircraftInvestigation",
           "access": "read",
-          "line": 325
+          "line": 340
         },
         {
           "path": "airSurfaceTraceStrength",
           "access": "read",
-          "line": 327
+          "line": 342
         },
         {
           "path": "state",
           "access": "read",
-          "line": 329
+          "line": 344
         },
         {
-          "path": "beginAircraftAttack",
+          "path": "beginAircraftInvestigation",
           "access": "read",
-          "line": 333
+          "line": 348
         },
         {
           "path": "log",
           "access": "read",
-          "line": 339
+          "line": 354
         },
         {
           "path": "state.tactical.activeStation",
           "access": "write",
-          "line": 350
+          "line": 365
         },
         {
           "path": "state",
           "access": "read",
-          "line": 351
+          "line": 366
         },
         {
           "path": "state.tactical.bridgeBearing",
           "access": "read",
-          "line": 351
+          "line": 366
         },
         {
           "path": "state",
           "access": "read",
-          "line": 352
+          "line": 367
         },
         {
           "path": "state",
           "access": "read",
-          "line": 363
+          "line": 378
         },
         {
           "path": "state.tactical.activeStation",
           "access": "write",
-          "line": 367
+          "line": 382
         },
         {
           "path": "state.tactical.periscopeBearing",
           "access": "read",
-          "line": 368
+          "line": 383
         },
         {
           "path": "startWearAirRoutine",
           "access": "read",
-          "line": 374
+          "line": 389
         },
         {
           "path": "noteWearManualAircraft",
           "access": "read",
-          "line": 376
+          "line": 391
         },
         {
           "path": "state.time.transitUntil",
           "access": "read",
-          "line": 376
+          "line": 391
         },
         {
           "path": "state.time.timeScale",
           "access": "read",
-          "line": 376
+          "line": 391
         },
         {
           "path": "log",
           "access": "read",
-          "line": 379
+          "line": 394
         },
         {
           "path": "state",
           "access": "read",
-          "line": 380
+          "line": 395
         },
         {
-          "path": "state",
+          "path": "log",
           "access": "read",
-          "line": 421
+          "line": 425
         },
         {
-          "path": "airAttackDatumPosition",
+          "path": "beginAircraftAttack",
           "access": "read",
           "line": 426
         },
@@ -6726,44 +6846,29 @@
           "line": 429
         },
         {
+          "path": "log",
+          "access": "read",
+          "line": 432
+        },
+        {
+          "path": "beginAircraftAttack",
+          "access": "read",
+          "line": 433
+        },
+        {
           "path": "state",
           "access": "read",
-          "line": 431
+          "line": 457
         },
         {
-          "path": "log",
-          "access": "read",
-          "line": 434
-        },
-        {
-          "path": "sys.aaGun.airAttack",
-          "access": "read",
-          "line": 442
-        },
-        {
-          "path": "log",
-          "access": "read",
-          "line": 449
-        },
-        {
-          "path": "log",
-          "access": "read",
-          "line": 450
-        },
-        {
-          "path": "log",
+          "path": "airAttackDatumPosition",
           "access": "read",
           "line": 462
         },
         {
           "path": "log",
           "access": "read",
-          "line": 466
-        },
-        {
-          "path": "shake",
-          "access": "read",
-          "line": 467
+          "line": 465
         },
         {
           "path": "state",
@@ -6771,29 +6876,69 @@
           "line": 467
         },
         {
+          "path": "log",
+          "access": "read",
+          "line": 470
+        },
+        {
+          "path": "sys.aaGun.airAttack",
+          "access": "read",
+          "line": 478
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 485
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 486
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 498
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 502
+        },
+        {
+          "path": "shake",
+          "access": "read",
+          "line": 503
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 503
+        },
+        {
           "path": "sys.aaGun.aaCasualty",
           "access": "read",
-          "line": 468
+          "line": 504
         },
         {
           "path": "log",
           "access": "read",
-          "line": 469
+          "line": 505
         },
         {
           "path": "log",
           "access": "read",
-          "line": 471
+          "line": 507
         },
         {
           "path": "log",
           "access": "read",
-          "line": 508
+          "line": 544
         },
         {
           "path": "updateWearAirRoutine",
           "access": "read",
-          "line": 511
+          "line": 547
         }
       ]
     },
@@ -9073,14 +9218,14 @@
       "class": "ASWSystem",
       "file": "js/simulation/ai/escort-asw.js",
       "line": 142,
-      "end": 170,
+      "end": 173,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 166,
-          "offset": 2253,
+          "line": 169,
+          "offset": 2420,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -9088,8 +9233,8 @@
           "name": "ensureASWState",
           "kind": "system-path",
           "unresolved": false,
-          "line": 168,
-          "offset": 2641,
+          "line": 171,
+          "offset": 2808,
           "object": "this.sys.aswBrain",
           "definedBy": null,
           "relation": "unresolved"
@@ -9098,8 +9243,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 169,
-          "offset": 2839,
+          "line": 172,
+          "offset": 3006,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -9107,8 +9252,8 @@
           "name": "assignASWRoles",
           "kind": "system-path",
           "unresolved": false,
-          "line": 169,
-          "offset": 2949,
+          "line": 172,
+          "offset": 3116,
           "object": "this.sys.aswBrain",
           "definedBy": null,
           "relation": "unresolved"
@@ -9143,37 +9288,37 @@
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 161
+          "line": 164
         },
         {
           "path": "log",
           "access": "read",
-          "line": 166
+          "line": 169
         },
         {
           "path": "aar.recordEvent",
           "access": "read",
-          "line": 167
+          "line": 170
         },
         {
           "path": "sys.aswBrain.ensureASWState",
           "access": "read",
-          "line": 168
+          "line": 171
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 168
+          "line": 171
         },
         {
           "path": "log",
           "access": "read",
-          "line": 169
+          "line": 172
         },
         {
           "path": "sys.aswBrain.assignASWRoles",
           "access": "read",
-          "line": 169
+          "line": 172
         }
       ]
     },
@@ -9181,14 +9326,14 @@
       "name": "updateDCs",
       "class": "ASWSystem",
       "file": "js/simulation/ai/escort-asw.js",
-      "line": 172,
-      "end": 218,
+      "line": 175,
+      "end": 221,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 186,
+          "line": 189,
           "offset": 1074,
           "definedBy": null,
           "relation": "unresolved"
@@ -9197,7 +9342,7 @@
           "name": "shake",
           "kind": "direct",
           "unresolved": false,
-          "line": 206,
+          "line": 209,
           "offset": 2333,
           "definedBy": null,
           "relation": "unresolved"
@@ -9206,7 +9351,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 210,
+          "line": 213,
           "offset": 2648,
           "definedBy": null,
           "relation": "unresolved"
@@ -9215,7 +9360,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 211,
+          "line": 214,
           "offset": 2752,
           "definedBy": null,
           "relation": "unresolved"
@@ -9224,7 +9369,7 @@
           "name": "applyShock",
           "kind": "system-path",
           "unresolved": false,
-          "line": 213,
+          "line": 216,
           "offset": 2855,
           "object": "this.sys.damage",
           "definedBy": null,
@@ -9234,7 +9379,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 213,
+          "line": 216,
           "offset": 2887,
           "definedBy": null,
           "relation": "unresolved"
@@ -9243,7 +9388,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 214,
+          "line": 217,
           "offset": 3229,
           "definedBy": null,
           "relation": "unresolved"
@@ -9253,72 +9398,72 @@
         {
           "path": "state.world",
           "access": "read",
-          "line": 173
+          "line": 176
         },
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 173
+          "line": 176
         },
         {
           "path": "state",
           "access": "read",
-          "line": 181
+          "line": 184
         },
         {
           "path": "log",
           "access": "read",
-          "line": 186
+          "line": 189
         },
         {
           "path": "state.runtime.campaign._depthChargeAttackSeen",
           "access": "write",
-          "line": 204
+          "line": 207
         },
         {
           "path": "state.weapons.explosions.push",
           "access": "read",
-          "line": 205
+          "line": 208
         },
         {
           "path": "shake",
           "access": "read",
-          "line": 206
+          "line": 209
         },
         {
           "path": "log",
           "access": "read",
-          "line": 210
+          "line": 213
         },
         {
           "path": "log",
           "access": "read",
-          "line": 211
+          "line": 214
         },
         {
           "path": "sys.damage.applyShock",
           "access": "read",
-          "line": 213
+          "line": 216
         },
         {
           "path": "log",
           "access": "read",
-          "line": 213
+          "line": 216
         },
         {
           "path": "state",
           "access": "read",
-          "line": 213
+          "line": 216
         },
         {
           "path": "log",
           "access": "read",
-          "line": 214
+          "line": 217
         },
         {
           "path": "state",
           "access": "read",
-          "line": 214
+          "line": 217
         }
       ]
     },
@@ -19232,7 +19377,7 @@
       "class": "SensorsSystem",
       "file": "js/simulation/sensors.js",
       "line": 128,
-      "end": 201,
+      "end": 202,
       "callDetails": [
         {
           "name": "ensureASWState",
@@ -19259,7 +19404,7 @@
           "kind": "system-path",
           "unresolved": false,
           "line": 174,
-          "offset": 4119,
+          "offset": 4229,
           "object": "this.sys.aswBrain",
           "definedBy": null,
           "relation": "unresolved"
@@ -19269,7 +19414,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 175,
-          "offset": 4194,
+          "offset": 4304,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -19277,8 +19422,8 @@
           "name": "noteASWFix",
           "kind": "system-path",
           "unresolved": false,
-          "line": 189,
-          "offset": 5508,
+          "line": 190,
+          "offset": 5725,
           "object": "this.sys.aswBrain",
           "definedBy": null,
           "relation": "unresolved"
@@ -19287,8 +19432,8 @@
           "name": "loseASWContact",
           "kind": "system-path",
           "unresolved": false,
-          "line": 196,
-          "offset": 6064,
+          "line": 197,
+          "offset": 6281,
           "object": "this.sys.aswBrain",
           "definedBy": null,
           "relation": "unresolved"
@@ -19343,12 +19488,12 @@
         {
           "path": "sys.aswBrain.noteASWFix",
           "access": "read",
-          "line": 189
+          "line": 190
         },
         {
           "path": "sys.aswBrain.loseASWContact",
           "access": "read",
-          "line": 196
+          "line": 197
         }
       ]
     },

@@ -42,16 +42,24 @@ const SONAR={
   patternSize:7,         // charges per attack
   sinkFps:8.5            // depth-charge sink rate
 };
-/* A destroyer's sonar is not an all-round oracle. Propeller/wake noise and
-   hull geometry make the stern sector a poor listening/echo-ranging direction,
-   especially at pursuit speed. The factor is intentionally continuous so an
-   escort can regain contact by turning rather than crossing a magic boundary. */
+/* A destroyer's sonar is not an all-round oracle. Propeller/wake noise, hull
+   geometry and aeration make the stern baffles a dead listening/echo-ranging
+   sector (~150°-180°), especially at speed. High ship speed also degrades
+   dome sonar reception from water flow turbulence and hull self-noise. */
 function escortSonarOwnshipFactor(esc,targetPos){
   if(!esc?.position||!targetPos)return 1;
   const rel=Math.abs(shortDelta(esc.heading||0,bearingBetween(esc.position,targetPos)));
-  const aft=rel<=112?1:rel>=168?.14:lerp(1,.14,(rel-112)/56);
-  const speedNoise=lerp(1,.68,clamp(((esc.speedKnots||0)-8)/16,0,1));
-  return clamp(aft*speedNoise,.09,1);
+  const spd=esc.speedKnots||0;
+  // Flow turbulence & machinery self-noise: drops significantly above search speeds (>14 kt)
+  const speedNoise=spd<=8?1:spd>=22?.20:lerp(1,.20,(spd-8)/14);
+  // Baffles: stern dead-cone. When moving (>4 kt), propeller cavitation and churning wash
+  // render active sonar and listening completely deaf in the 152°-180° cone (aft -> 0).
+  let aft=1;
+  if(rel>115){
+    const baffleFloor=spd>4?0:.06;
+    aft=rel>=152?baffleFloor:lerp(1,baffleFloor,(rel-115)/37);
+  }
+  return clamp(aft*speedNoise,0,1);
 }
 
 // Historic fleet-boat attack scope: 1.5× search power, 6× attack power.

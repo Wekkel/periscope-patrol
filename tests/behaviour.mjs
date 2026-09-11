@@ -1139,4 +1139,131 @@ const secondPoint = recordedLines[1];
 const deltaY = Math.abs(secondPoint.y - firstPoint.y);
 assert.ok(deltaY <= 3.0, `Shoreline profile must taper smoothly to sea level with no vertical step (deltaY: ${deltaY.toFixed(2)}px)`);
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4');
+// ═══════════════════════════════════════════════════ 17. DIFFERENTIATED ENEMY DOCTRINES & NON-OMNISCIENT SENSORS
+const worldGeomMod = await load('js/rendering/world-geometry.js', ['escortSonarOwnshipFactor', 'SONAR'], {
+  shortDelta, bearingBetween, clamp, lerp, NM_M: 1852
+});
+const catalogVmCtx = {
+  console, Math, clamp, degToRad, radToDeg, normDeg, shortDelta, distNm, bearingBetween, knotsNmSec, lerp,
+  COASTLINES: {}, DEFAULT_GAME_IDENTITY: { campaignProfileId: 'us-pacific' }
+};
+catalogVmCtx.globalThis = catalogVmCtx;
+vm.createContext(catalogVmCtx);
+const torpSrc = await readFile(path.join(root, 'js/data/torpedo-data.js'), 'utf8');
+const campSrc = await readFile(path.join(root, 'js/data/campaign-data.js'), 'utf8');
+const gameCatalogSrc = await readFile(path.join(root, 'js/data/game-catalog.js'), 'utf8');
+const multiTheaterSrc = await readFile(path.join(root, 'js/data/multi-theater-campaigns.js'), 'utf8');
+vm.runInContext(torpSrc, catalogVmCtx, { filename: 'js/data/torpedo-data.js' });
+vm.runInContext(campSrc, catalogVmCtx, { filename: 'js/data/campaign-data.js' });
+vm.runInContext(gameCatalogSrc + '\n;globalThis.VESSEL_PROFILES = VESSEL_PROFILES;', catalogVmCtx, { filename: 'js/data/game-catalog.js' });
+vm.runInContext(multiTheaterSrc + '\n;globalThis.MULTI_ASW_TACTICS = MULTI_ASW_TACTICS;', catalogVmCtx, { filename: 'js/data/multi-theater-campaigns.js' });
+const doctrines = catalogVmCtx.MULTI_ASW_TACTICS;
+const gameCatalogProfiles = catalogVmCtx.VESSEL_PROFILES;
+assert.ok(doctrines.britain && doctrines.usa && doctrines.japan && doctrines.italy && doctrines.soviet && doctrines.germany, 'All 6 national doctrine tactics must be defined');
+assert.equal(doctrines.britain.searchPattern, 'EXPANDING_SQUARE', 'Royal Navy doctrine uses expanding square search');
+assert.equal(doctrines.japan.searchPattern, 'SECTOR', 'IJN doctrine uses sector search');
+assert.equal(doctrines.usa.searchPattern, 'CIRCULAR', 'USN doctrine uses circular radar-assisted search');
+assert.ok(doctrines.britain.yearBands.some(b => b.from === 1944 && b.prosecutionFactor >= 1.15 && b.depthErrorFactor <= 0.85), 'RN 1944 doctrine must reflect relentless late-war prosecution and Hedgehog accuracy');
+assert.ok(doctrines.japan.depthErrorFactor > 1.10, 'Early IJN doctrine must reflect higher depth error factor due to lower ASW specialization');
+assert.ok(gameCatalogProfiles['uk-black-swan-sloop'].aswTraining > 1.0, 'Walker group Black Swan sloop must have elite ASW training (> 1.0)');
+assert.ok(gameCatalogProfiles['jp-destroyer'].aswTraining === 0.84, 'Japanese fleet destroyer must have authored ASW training of 0.84');
+
+// Test 2: Acoustic Baffle Stern Dead-Cone Physics (152°-180° deafened by cavitation)
+const movingEsc = { heading: 0, speedKnots: 16, position: { xNm: 0, yNm: 0 } };
+const deadAsternSub = { xNm: 0, yNm: 1 }; // Relative bearing 180° (South of heading 0)
+const baffleFactor = worldGeomMod.escortSonarOwnshipFactor(movingEsc, deadAsternSub);
+assert.equal(baffleFactor, 0, 'Moving escort must be completely deafened directly astern by prop cavitation wake (baffle factor must be 0)');
+
+const beamSub = { xNm: 1, yNm: 0 }; // Relative bearing 90° (on beam)
+const beamFactor = worldGeomMod.escortSonarOwnshipFactor(movingEsc, beamSub);
+assert.ok(beamFactor > 0.40, `Beam sector must retain active sonar reception (got ${beamFactor.toFixed(2)})`);
+
+const stationaryEsc = { heading: 0, speedKnots: 0, position: { xNm: 0, yNm: 0 } };
+const stoppedAsternFactor = worldGeomMod.escortSonarOwnshipFactor(stationaryEsc, deadAsternSub);
+assert.ok(stoppedAsternFactor > 0, 'Stationary escort with stopped screws retains baseline acoustic reception');
+
+// Test 3: Escort Search Speed Self-Noise Degradation
+const searchSpeedEsc = { heading: 0, speedKnots: 8, position: { xNm: 0, yNm: 0 } };
+const sprintSpeedEsc = { heading: 0, speedKnots: 22, position: { xNm: 0, yNm: 0 } };
+const forwardTarget = { xNm: 0.5, yNm: -0.5 }; // Bearing 45° (North-East of heading 0)
+const searchNoise = worldGeomMod.escortSonarOwnshipFactor(searchSpeedEsc, forwardTarget);
+const sprintNoise = worldGeomMod.escortSonarOwnshipFactor(sprintSpeedEsc, forwardTarget);
+assert.equal(searchNoise, 1.0, 'Escort at optimal search speed (<= 8 kt) must have 1.0 sonar sensitivity');
+assert.equal(sprintNoise, 0.20, 'Escort at high sprint speed (>= 22 kt) must lose 80% sensitivity due to flow turbulence and dome self-noise');
+
+// Test 4: Thermocline Refraction Depth Bias
+const layerDepthFt = 200;
+const deepSubDepthFt = 285;
+const trueBelowLayer = deepSubDepthFt > layerDepthFt + 15;
+const training = 0.85;
+const refractBias = trueBelowLayer ? -clamp((deepSubDepthFt - layerDepthFt) * 0.40 * (1.25 - training * 0.3), 20, 70) : 0;
+assert.ok(refractBias <= -30 && refractBias >= -70, `Thermocline refraction must systematically bias depth setting shallow (got ${refractBias.toFixed(1)} ft)`);
+
+// Test 5: Two-Phase Aircraft Reconnaissance (INVESTIGATING State & Reaction Window)
+const loggedAir = [];
+const aircraftMod = await load('js/simulation/ai/aircraft.js', ['AircraftSystem'], {
+  clamp, degToRad, radToDeg, normDeg, shortDelta, distNm, bearingBetween, knotsNmSec, lerp,
+  weatherBetween: () => ({ visibilityNm: 15, seaState: 0, precipitation: 0, aircraftFactor: 1 }),
+  weatherAtPosition: () => ({ visibilityNm: 15, seaState: 0, precipitation: 0, aircraftFactor: 1 }),
+  getCampaignDoctrineProfile: () => ({ air: { hostile: { checkSec: 90, baseChance: 0.02 }, friendly: {} } }),
+  getPlayerSensorPresentation: () => ({ airWarningRadar: { label: 'Air Warning Radar' } }),
+  PresentationBridge: { audio: () => ({ event: () => {} }) },
+  DEFAULT_GAME_IDENTITY: { campaignProfileId: 'us-pacific' }
+});
+
+const airCtx = {
+  state: {
+    world: {
+      aircraft: [],
+      airThreat: { alarmedAt: -999, airWarningOn: true, level: 0.5 },
+      environment: { daylight: 1.0, visibilityNm: 15, seaState: 0 },
+      terrain: [],
+      contacts: [],
+      enemy: { alertState: 'UNAWARE' }
+    },
+    playerSub: {
+      position: { xNm: 0, yNm: 0 },
+      heading: 0,
+      depthFeet: 0,
+      orderedDepthFeet: 0,
+      mode: 'SURFACED',
+      propulsion: { speedKnots: 10 }
+    },
+    time: { elapsedSeconds: 100, timeScale: 1 },
+    campaign: { campaignProfileId: 'us-pacific' },
+    tactical: { activeStation: 'BRIDGE', bridgeBearing: 0 }
+  },
+  noteWearManualAircraft() {},
+  stopAutomaticTimeCompression() {},
+  log(msg, kind) { loggedAir.push({ msg, kind }); }
+};
+Object.assign(airCtx, aircraftMod.AircraftSystem);
+
+const testAir = {
+  id: 'AIR-TEST-1',
+  name: 'B5N Kate',
+  kind: 'BOMBER',
+  ordnance: 'BOMB',
+  position: { xNm: 1.5, yNm: 1.5 },
+  heading: 225,
+  speedKnots: 140,
+  bombs: 2,
+  state: 'SEARCHING'
+};
+airCtx.state.world.aircraft.push(testAir);
+
+// Spotting sub triggers INVESTIGATING reconnaissance pass
+aircraftMod.AircraftSystem.beginAircraftInvestigation.call(airCtx, testAir, airCtx.state.playerSub.position, 'VISUAL');
+assert.equal(testAir.state, 'INVESTIGATING', 'Spotted aircraft must enter INVESTIGATING state');
+assert.ok(testAir.investigateTimer >= 15 && testAir.investigateTimer <= 25, `investigateTimer must provide a 15-25s reaction window (got ${testAir.investigateTimer.toFixed(1)}s)`);
+assert.equal(testAir.seenBySub, true, 'Submarine lookouts must be alerted during reconnaissance pass');
+assert.ok(loggedAir.some(l => l.msg.includes('AIR CONTACT') && l.msg.includes('EMERGENCY DIVE')), 'Air alarm must instruct the crew to emergency dive');
+
+// Submarine crash dives deep (> 42 ft): Aircraft arrives overhead but cannot bomb submerged boat -> enters ORBIT
+airCtx.state.playerSub.depthFeet = 55;
+testAir.investigateTimer = 0.1;
+aircraftMod.AircraftSystem.updateAircraft.call(airCtx, 0.2);
+assert.equal(testAir.state, 'ORBIT', 'Aircraft arriving at datum after submarine submerged must switch to ORBIT instead of attacking');
+assert.ok(loggedAir.some(l => l.msg.includes('boat has submerged') && l.msg.includes('Circling')), 'Log must confirm boat submerged and aircraft is circling');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5');

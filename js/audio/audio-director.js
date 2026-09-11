@@ -20,7 +20,7 @@ class AudioDirector{
     else if(station==='SOUND'&&T.soundDisplay==='PASSIVE')perspective='HYDROPHONE_FEED';
 
     // Threat mixing is permitted only when the threat is already perceptible.
-    const visibleAir=(W.aircraft||[]).some(a=>a&&!a.shotDown&&a.seenBySub&&(a.state==='ATTACKING'||a.state==='STRAFING'));
+    const visibleAir=(W.aircraft||[]).some(a=>a&&!a.shotDown&&a.seenBySub&&(a.state==='ATTACKING'||a.state==='STRAFING'||a.state==='INVESTIGATING'));
     const chargesNear=(W.depthCharges||[]).some(dc=>dc?.status==='SINKING'&&dc.ageSec>=0&&distNm(sub.position,dc.position)<1.4);
     const firmASW=W.enemy?.alertState==='ATTACKING'&&(W.enemy?.contactHeld||W.enemy?.visualOnSub||chargesNear);
     const heardPing=(performance.now()-(this.engine.lastEnemyPingAt||-1e9))<8000;

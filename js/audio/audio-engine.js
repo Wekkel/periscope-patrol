@@ -1000,7 +1000,7 @@ class AudioEngine{
     if(now-this.airFlybyLastUpdate<.085)return;this.airFlybyLastUpdate=now;
     const sub=state.playerSub,sta=state.tactical?.activeStation||'TACTICAL';
     const surfaced=(sub.depthFeet||0)<12;
-    const hasAttacker=(state.world?.aircraft||[]).some(a=>!a.shotDown&&a.seenBySub&&(a.state==='ATTACKING'||a.state==='STRAFING'));
+    const hasAttacker=(state.world?.aircraft||[]).some(a=>!a.shotDown&&a.seenBySub&&(a.state==='ATTACKING'||a.state==='STRAFING'||a.state==='INVESTIGATING'));
     const stationOK=surfaced&&((sta==='BRIDGE'||sta==='DECK_GUN')||hasAttacker);
     let best=null,bestR=Infinity;
     if(stationOK){for(const a of state.world?.aircraft||[]){

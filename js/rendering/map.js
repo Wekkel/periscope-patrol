@@ -306,7 +306,7 @@ const MapStation={
     for(const a of list){
       if(!a.seenBySub) continue;                       // only what the boat knows about
       const p=w2s(a.position.xNm,a.position.yNm);
-      const col=a.side==='FRIENDLY'?'#6fe08f':a.state==='ATTACKING'||a.state==='STRAFING'?'#ef6a58':'#f5c65c';
+      const col=a.side==='FRIENDLY'?'#6fe08f':a.state==='ATTACKING'||a.state==='STRAFING'?'#ef6a58':a.state==='INVESTIGATING'?'#ff9d42':'#f5c65c';
       const S=Math.max(4.5,6*K);                       // a chart symbol, smaller than the boat
       ctx.save();ctx.translate(p.x,p.y);ctx.rotate(degToRad(a.heading));
       ctx.fillStyle=col;ctx.strokeStyle=col;
@@ -342,10 +342,10 @@ const MapStation={
       }
       ctx.restore();
       ctx.fillStyle=col;ctx.font=this.fnt(7.5,true);
-      ctx.fillText(a.state==='ATTACKING'?'ATTACKING':(a.name||'AIRCRAFT'),p.x+S*1.4,p.y+3*K);
-      if(a.state==='ATTACKING'){
-        ctx.strokeStyle='rgba(239,106,88,.30)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
-        ctx.beginPath();ctx.arc(p.x,p.y,16*K,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillText(a.state==='ATTACKING'?'ATTACKING':a.state==='INVESTIGATING'?'INVESTIGATING':(a.name||'AIRCRAFT'),p.x+S*1.4,p.y+3*K);
+      if(a.state==='ATTACKING'||a.state==='INVESTIGATING'){
+        ctx.strokeStyle=a.state==='ATTACKING'?'rgba(239,106,88,.30)':'rgba(255,157,66,.28)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+        ctx.beginPath();ctx.arc(p.x,p.y,(a.state==='ATTACKING'?16:22)*K,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
       }
     }
   },

@@ -146,7 +146,10 @@ const ASWSystem={
     const layer=env?.layerDepthFt||200,belowLayer=estDepth>layer+15,base=(20+estDepth*.10+(belowLayer?58:0))*(speculative?1.45:1);
     let skill=clamp(1-(esc.attacksMade||0)*.11,.45,1);if(e.contactHeld)skill*=.55;
     const hist=this.state.campaign?.historicalProfile||null,tactics=aswTactics(this.state),training=aswTraining(esc,this.state);
-    const err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1)*tactics.depthErrorFactor/training;let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
+    const trueBelowLayer=sub.depthFeet>layer+15;
+    const refractBias=trueBelowLayer?-clamp((sub.depthFeet-layer)*0.40*(1.25-training*0.3),20,70):0;
+    const err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1)*tactics.depthErrorFactor/training;
+    let guess=clamp(estDepth+refractBias+err*(Math.random()<.5?-1:1),45,400);
     esc.attacksMade=(esc.attacksMade||0)+1;esc.dcRemaining=Math.max(0,(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize);
     const hdg=degToRad(esc.heading),patternId=`DCP-${W.nextDcPatternId=(W.nextDcPatternId||0)+1}`;
     for(let i=0;i<SONAR.patternSize;i++){

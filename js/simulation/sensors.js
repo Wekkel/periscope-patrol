@@ -165,7 +165,7 @@ const SensorsSystem={
         const bottomReturn=sub.bottomed?(sub.bottomType==='MUD'?.42:sub.bottomType==='SAND'?.54:.68):1;
         p=.94*clamp(1-(rng-SONAR.deadZoneNm)/(SONAR.maxRangeNm-SONAR.deadZoneNm),0,1)*layerFactor*activeEcho*bottomReturn
           *(1-clamp(env.seaState,0,1)*.30)*(sub.stealth.silentRunning?.96:1)*ownship;
-        esc.sonarBaffled=ownship<.42;
+        esc.sonarBaffled=ownship<.25||(Math.abs(shortDelta(esc.heading||0,bearingBetween(esc.position,sub.position)))>=140&&(esc.speedKnots||0)>4);
       }else esc.sonarBaffled=false;
       p=clamp(p*(hist?.aswSkill||1),0,.98);
       const kn=(W.knuckles||[]).find(k=>{const kr=distNm(esc.position,k.pos);return kr<rng&&kr<SONAR.maxRangeNm&&Math.abs(shortDelta(bearingBetween(esc.position,k.pos),bearingBetween(esc.position,sub.position)))<14;});
@@ -183,7 +183,8 @@ const SensorsSystem={
           crs=prev.courseDeg===undefined?rawC:normDeg(prev.courseDeg+shortDelta(prev.courseDeg,rawC)*.5);spd=prev.speedKn===undefined?rawS:lerp(prev.speedKn,rawS,.5);
         }
         if(!Number.isFinite(crs))crs=Math.random()*360;if(!Number.isFinite(spd))spd=1+Math.random()*6;
-        e.solution={xNm:nx,yNm:ny,courseDeg:normDeg(crs),speedKn:clamp(spd,0,12),depthFt:clamp(sub.depthFeet+(Math.random()-.5)*2*(16+(belowLayer?58:0)),0,420),
+        const layerBias=belowLayer?-clamp((sub.depthFeet-(env.layerDepthFt||200))*0.38,18,60):0;
+        e.solution={xNm:nx,yNm:ny,courseDeg:normDeg(crs),speedKn:clamp(spd,0,12),depthFt:clamp(sub.depthFeet+layerBias+(Math.random()-.5)*2*(16+(belowLayer?58:0)),0,420),
           errNm:err,ageSec:0,sourceEscortId:esc.id};
         e.alertTimerSec=Math.max(e.alertTimerSec,190);e.alertState='ATTACKING';
         const wasHeld=!!e.contactHeld;esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.7;esc.sonarMisses=0;this.sys.aswBrain.noteASWFix(esc,'ACTIVE',clamp(p,0,1));e.contactHeld=true;fixes++;

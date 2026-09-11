@@ -107,7 +107,7 @@ updateWearAirRoutine(){
     if(!elig.ok){this.abortWearAirRoutine(elig.why);return;}
     if((s.time.timeScale||1)<=1&&!s.time.transitUntil){this.abortWearAirRoutine('the captain has slowed to real time');return;}
     if(otherAir){this.abortWearAirRoutine('a second air contact');return;}
-    if(a&&(a.state==='ATTACKING'||a.state==='STRAFING')){this.abortWearAirRoutine('aircraft attack');return;}
+    if(a&&(a.state==='ATTACKING'||a.state==='STRAFING'||a.state==='INVESTIGATING')){this.abortWearAirRoutine('aircraft attack');return;}
 
     if(active.phase==='DIVE'){
       if(sub.depthFeet>=105)active.phase='HIDE';
@@ -134,6 +134,21 @@ updateWearAirRoutine(){
         this.log('ROUTINE AIR EVASION COMPLETE — homeward course and power restored.','ok');
       }
     }
+  },
+  beginAircraftInvestigation(a,observed,source='VISUAL',motion=null){
+    const s=this.state,now=s.time.elapsedSeconds,src=source==='WAKE'?'WAKE':'VISUAL';
+    a.state='INVESTIGATING';a.spotted=true;a.runTimer=0;
+    a.investigateTimer=16+Math.random()*8;
+    a.investigateDatum={xNm:observed.xNm,yNm:observed.yNm,courseDeg:motion?.heading??s.playerSub.heading,
+      speedKnots:motion?.speedKnots??s.playerSub.propulsion.speedKnots,at:now,source:src,motion};
+    a.orbitAt={xNm:observed.xNm,yNm:observed.yNm};
+    a.seenBySub=true;s.world.airThreat.alarmedAt=now;
+    const T=s.time,wasCompressed=!!(T.transitUntil||(T.timeScale||1)>1);this.noteWearManualAircraft(a,wasCompressed);
+    if(wasCompressed)this.stopAutomaticTimeCompression?.('aircraft spotted');
+    const sub=s.playerSub,diveUnderway=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
+    const diveMsg=sub.depthFeet<8&&!diveUnderway?'CLEAR THE BRIDGE! EMERGENCY DIVE!':sub.depthFeet<20&&diveUnderway?'CONTINUE THE DIVE!':'REMAIN SUBMERGED.';
+    this.log(src==='WAKE'?`⚠ AIR RECONNAISSANCE — ${a.name} spotted surface disturbance; circling to investigate! ${diveMsg}`:`⚠ AIR CONTACT — ${a.name} sighted closing fast! Circling to investigate and identify! ${diveMsg}`,'bad');
+    PresentationBridge.audio(this.state).event?.('AIRCRAFT_SPOTTED');
   },
 beginAircraftAttack(a,observed,source='VISUAL',motion=null){
     const s=this.state,now=s.time.elapsedSeconds,src=source==='WAKE'?'WAKE':'VISUAL';
@@ -297,7 +312,7 @@ updateAircraft(dt){
          beginAircraftAttack(), but an older save can contain ATTACKING with
          seenBySub=false. Never let that legacy state deliver an invisible 32x
          strike before the lookout/map warning is restored. */
-      if((a.state==='ATTACKING'||a.state==='STRAFING')&&!a.seenBySub){
+      if((a.state==='ATTACKING'||a.state==='STRAFING'||a.state==='INVESTIGATING')&&!a.seenBySub){
         a.seenBySub=true;air.alarmedAt=now;
         if(this.state.time.transitUntil||(this.state.time.timeScale||1)>1)this.stopAutomaticTimeCompression?.('aircraft attack');
         if(!a._attackHandoffLogged){a._attackHandoffLogged=true;this.log(`⚠ AIR ALARM — ${a.name} is already on an attack run!`,'bad');PresentationBridge.audio(this.state).event?.('AIRCRAFT_SPOTTED');}
@@ -322,7 +337,7 @@ updateAircraft(dt){
         p*=clamp(wx.visibilityNm/12,.12,1.35)*clamp(env.daylight*1.3+.10*wx.moonFactor,.08,1.2);
         p*=maxR>0?Math.pow(clamp(1-rng/Math.max(.1,maxR),0,1),1.7):0;
         p*=(1-clamp(wx.seaState,0,1)*.30)*wx.aircraftFactor;
-        if(p>0&&Math.random()<p*dt*.5){this.beginAircraftAttack(a,sub.position,'VISUAL');}
+        if(p>0&&Math.random()<p*dt*.5){this.beginAircraftInvestigation(a,sub.position,'VISUAL');}
         else if(surfaceTrace){
           const strength=this.airSurfaceTraceStrength(surfaceTrace),trRng=distNm(a.position,surfaceTrace.position),trBear=bearingBetween(a.position,surfaceTrace.position);
           const off=Math.abs(shortDelta(a.heading,trBear)),look=off<=55?1:off<=95?.42:.07;
@@ -330,7 +345,7 @@ updateAircraft(dt){
           let tp=.31*strength*look*Math.pow(clamp(1-trRng/Math.max(.1,traceRange),0,1),1.35);
           tp*=clamp(env.daylight*1.25+.08*twx.moonFactor,.06,1.1)*(1-clamp(twx.seaState,0,1)*.38)*twx.aircraftFactor;
           if(traceRange>.2&&Math.random()<tp*dt*.52){
-            if(a.ordnance==='DEPTH_CHARGE')this.beginAircraftAttack(a,surfaceTrace.position,'WAKE',{heading:surfaceTrace.heading,speedKnots:surfaceTrace.speedKnots,strength});
+            if(a.ordnance==='DEPTH_CHARGE')this.beginAircraftInvestigation(a,surfaceTrace.position,'WAKE',{heading:surfaceTrace.heading,speedKnots:surfaceTrace.speedKnots,strength});
             else{
               // Bomb-only aircraft can find the swirl but have no useful
               // submerged weapon. They circle/report the datum instead of
@@ -350,13 +365,13 @@ updateAircraft(dt){
         if(surfaced&&this.state.tactical.activeStation==='BRIDGE'){
           const wx=weatherBetween(this.state,sub.position,a.position),off=Math.abs(shortDelta(this.state.tactical.bridgeBearing,airBear));
           const inGlass=off<=bridgeFovDeg(this.state)*.52;
-          const attack=a.state==='ATTACKING'||a.state==='STRAFING';
+          const attack=a.state==='ATTACKING'||a.state==='STRAFING'||a.state==='INVESTIGATING';
           const bridgeAirRange=Math.min(12,Math.max(1.4,wx.visibilityNm*(attack?1.05:.82)));
           // An aeroplane actually boring in on the boat cannot remain an
           // invisible world object while the player is looking straight at it
           // from an open bridge. Routine distant searches remain probabilistic.
           if(inGlass&&rng<=bridgeAirRange&&((attack&&rng<=6)||Math.random()<dt*(.18+.28*env.daylight))){
-            seen=true;how=`Bridge lookouts: ${attack?'ATTACKING ':''}AIRCRAFT bearing ${fmtDeg(airBear)}, range ${rng.toFixed(1)} nm`;
+            seen=true;how=`Bridge lookouts: ${attack?'ATTACKING/INVESTIGATING ':''}AIRCRAFT bearing ${fmtDeg(airBear)}, range ${rng.toFixed(1)} nm`;
           }
         }
         if(!seen&&surfaced&&air.airWarningOn&&rng<18&&Math.random()<dt*0.30){
@@ -386,7 +401,7 @@ updateAircraft(dt){
       // early enough to reach the outer tactical domain around the old lifetime;
       // only remove the aircraft once it is actually near that edge.
       const patrolAge=now-(a.bornAt||now);
-      if((a.state==='SEARCHING'||a.state==='ORBIT')&&!a.spotted&&patrolAge>310){
+      if((a.state==='SEARCHING'||a.state==='ORBIT'||a.state==='INVESTIGATING')&&!a.spotted&&patrolAge>310){
         a.state='DEPARTING';a.departBearing=bearingBetween(sub.position,a.position);a.departAt=now;
       }
 
@@ -397,7 +412,28 @@ updateAircraft(dt){
       // degrees a second, a comfortable rate one turn.
       const TURN=6.0;
       let want=a.heading;
-      if(a.state==='ATTACKING'){
+      if(a.state==='INVESTIGATING'){
+        const datum=a.investigateDatum||a.orbitAt||sub.position,rngToDatum=distNm(a.position,datum);
+        a.speedKnots=Math.min(a.speedKnots+dt*4,175);
+        a.investigateTimer=(a.investigateTimer||0)-dt;
+        a.orbitSign=a.orbitSign||(Math.random()<0.5?1:-1);
+        const bearToDatum=bearingBetween(a.position,datum);
+        want=normDeg(bearToDatum+(rngToDatum<.8?a.orbitSign*32:0));
+        if(a.investigateTimer<=0||rngToDatum<.22){
+          if(sub.depthFeet>=42){
+            if(a.ordnance==='DEPTH_CHARGE'&&a.investigateDatum?.source==='WAKE'){
+              this.log(`${a.name} verified swirl from submerged boat — committing to depth-charge run on the wake!`,'bad');
+              this.beginAircraftAttack(a,datum,'WAKE',a.investigateDatum.motion);
+            }else{
+              a.state='ORBIT';a.spotted=false;a.orbitAt={...datum};a.orbitTimer=45+Math.random()*30;
+              this.log(`${a.name} arrived over datum — boat has submerged! Circling to regain contact.`,'warn');
+            }
+          }else{
+            this.log(`${a.name} has positively identified the boat and rolls into attack run!`,'bad');
+            this.beginAircraftAttack(a,sub.position,a.investigateDatum?.source||'VISUAL',a.investigateDatum?.motion);
+          }
+        }
+      }else if(a.state==='ATTACKING'){
         // After releasing ordnance the pilot continues through the attack line
         // for a few seconds before breaking away. The old code turned instantly,
         // so a nominal low pass often never crossed the submarine at all. Apart
