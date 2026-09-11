@@ -590,4 +590,135 @@ checkHarborStrike(missionContext);
 assert.equal(missionContext.state.campaign.objectives.find(o => o.id === 'escape').done, true, 'Escape must be completed outside escape radius');
 assert.equal(missionContext.state.campaign.primaryMission.result, 'SUCCESS', 'Primary mission must finish with SUCCESS');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3');
+// ═══════════════════════════════════════════════════
+// 12. SHIP RECOGNITION MANUAL & MASTHEAD STADIMETER
+// ═══════════════════════════════════════════════════
+
+const recData = await load('js/data/recognition-manual.js', [
+  'SHIP_RECOGNITION_CATALOG',
+  'getShipRecognitionClass',
+  'getAllRecognitionClasses',
+  'inferShipClassFromContact',
+  'stadimeterRangeNm',
+  'recommendedTorpedoDepthFt'
+]);
+
+// Test 1: Recognition Catalog Integrity & Taxonomy
+const allClasses = recData.getAllRecognitionClasses();
+assert.ok(allClasses.length >= 15, 'Recognition catalog must contain at least 15 historical ship classes');
+for (const c of allClasses) {
+  assert.ok(c.id && c.name && c.navy && c.category, `Ship class ${c.id} must define id, name, navy and category`);
+  assert.ok(['M-F', 'F-M', 'M-F-M', 'M-F-F-M', 'FLUSH-4F', 'ISLAND-AFT', 'FLIGHT-DECK'].includes(c.compositeCode), `Class ${c.id} must use standard composite code: ${c.compositeCode}`);
+  assert.ok(c.dimensions.lengthFt > 100 && c.dimensions.lengthFt < 1000, `Class ${c.id} lengthFt reasonable`);
+  assert.ok(c.dimensions.mastheadHeightFt >= 50 && c.dimensions.mastheadHeightFt <= 120, `Class ${c.id} mastheadHeightFt reasonable for stadimeter`);
+  assert.ok(c.dimensions.draftFt >= 7 && c.dimensions.draftFt <= 35, `Class ${c.id} draftFt reasonable for torpedo depth`);
+  assert.ok(c.tonnage > 300 && c.speedMaxKnots > 8, `Class ${c.id} tonnage and speed`);
+  assert.ok(c.silhouetteSvg.startsWith('M ') && c.silhouetteSvg.length > 20, `Class ${c.id} vector silhouette path`);
+}
+
+// Test 2: Stadimeter Mathematics & Ground-Truth Inference
+const rng80 = recData.stadimeterRangeNm(80, 1.0);
+approx(rng80, 80 / (6076.1155 * Math.tan(degToRad(1.0))), 1e-4);
+approx(rng80, 0.754, 0.01); // ~1527 yards
+
+const rng62 = recData.stadimeterRangeNm(62, 0.5);
+approx(rng62, 62 / (6076.1155 * Math.tan(degToRad(0.5))), 1e-4);
+approx(rng62, 1.17, 0.02);
+
+// Ground-truth inference
+const mockFlower = { type: 'ESCORT', vesselProfileId: 'uk-flower-corvette-1941', modelKey: 'FLOWER_CORVETTE_1941' };
+const infFlower = recData.inferShipClassFromContact(mockFlower);
+assert.equal(infFlower.id, 'flower-corvette', 'Should infer Flower corvette from profile ID');
+
+const mockTown = { type: 'DESTROYER', vesselProfileId: 'uk-town-destroyer-1941', modelKey: 'TOWN_DESTROYER_1941' };
+const infTown = recData.inferShipClassFromContact(mockTown);
+assert.equal(infTown.id, 'town-destroyer', 'Should infer Town destroyer from modelKey');
+
+// Torpedo depth recommendation
+const optImpact = recData.recommendedTorpedoDepthFt(27.5, false); // draft 27.5 ft -> ~15 ft
+assert.ok(optImpact >= 10 && optImpact <= 20, 'Impact torpedo depth recommendation');
+const optMagnetic = recData.recommendedTorpedoDepthFt(27.5, true); // draft 27.5 ft + 2 ft -> 30 ft
+assert.equal(optMagnetic, 30, 'Magnetic under-keel torpedo depth recommendation');
+
+// Test 3: Ship Identification & TDC Kinematic Coupling
+const simState = {
+  playerSub: { position: { xNm: 0, yNm: 0 }, heading: 0, depthFeet: 55, damage: { periscopeDamage: 0 } },
+  tactical: { activeStation: 'PERISCOPE', periscopeBearing: 45, periscopeZoom: 1, selectedTrackId: 'T1' },
+  tdc: { targetId: 'T1', solutionQuality: 0.50, trackSource: 'SCOPE', rangeNm: 2.0, bearing: 45, dudMode: 'reduced' },
+  world: {
+    contacts: [{ id: 'T1', name: 'Flower Corvette HMCS Snowberry', type: 'ESCORT', vesselProfileId: 'uk-flower-corvette-1941', modelKey: 'FLOWER_CORVETTE_1941', position: { xNm: 1.414, yNm: 1.414 }, heading: 90, speedKnots: 12, lengthYards: 70 }],
+    contactTracks: {
+      T1: { id: 'T1', bearing: 45, rangeEstimateNm: 2.0, courseEstimate: 90, speedEstimateKnots: 12, confidence: 0.8, visualHullConfirmed: true }
+    }
+  },
+  time: { elapsedSeconds: 120 },
+  log: []
+};
+
+// Emulate SimEngine identifyContactClass & sendScopeToTdc
+const engineScope = {
+  state: simState,
+  log(msg) { simState.log.push(msg); },
+  confirmScopeVisualContact() {},
+  updateTdc() {}
+};
+
+// Execute identifyContactClass from physics-navigation
+const physNav = await load('js/simulation/physics-navigation.js', ['SimEngine'], {
+  CoreSystem: { constructor(s, b) { this.state = s; this.bus = b; } },
+  normDeg, degToRad, radToDeg, shortDelta, clamp, distNm, bearingBetween,
+  scopeHullObservation: () => ({ bearing: 45, rangeNm: 2.0, courseDeg: 90, speedKnots: 12, quality: 0.9, confidenceFloor: 0.8, positionConfidence: 0.9, positionUncertaintyNm: 0.03, position: [1.414, 1.414] }),
+  updateStableContactPlot: () => {},
+  scopeMeasuredBearing: (_s, b) => b,
+  scopeMeasuredRangeNm: (_s, r) => r,
+  fmtDeg: d => `${Math.round(d)}°`,
+  getShipRecognitionClass: recData.getShipRecognitionClass,
+  inferShipClassFromContact: recData.inferShipClassFromContact,
+  recommendedTorpedoDepthFt: recData.recommendedTorpedoDepthFt,
+  PresentationBridge: { audio: () => ({ playTdcSolution() {} }) }
+});
+
+const simInstance = new physNav.SimEngine(simState, { dispatch() {} });
+simInstance.state = simState;
+simInstance.log = (msg, level) => { simState.log.push({ msg, level }); };
+simInstance.updateTdc = () => {};
+
+// Case A: Correct identification
+const identRes = simInstance.identifyContactClass('T1', 'flower-corvette');
+assert.equal(identRes.success, true);
+assert.equal(identRes.isCorrect, true);
+assert.equal(simState.world.contactTracks.T1.identificationStatus, 'CONFIRMED');
+assert.ok(simState.tdc.solutionQuality >= 0.65, 'TDC solution quality boosted after correct identification');
+assert.equal(simState.world.contactTracks.T1.identifiedMastheadFt, 62);
+assert.equal(simState.world.contactTracks.T1.identifiedDraftFt, 14.2);
+
+// Case B: Misidentification scaling error
+simInstance.identifyContactClass('T1', 'town-destroyer'); // Masthead 72 instead of 62
+assert.equal(simState.world.contactTracks.T1.identificationStatus, 'MISIDENTIFIED');
+assert.equal(simState.world.contactTracks.T1.identifiedMastheadFt, 72);
+simInstance.sendScopeToTdc();
+const apparentRange = simState.tdc.rangeNm;
+assert.ok(apparentRange > 2.0, `Apparent range (${apparentRange.toFixed(2)} NM) should be overstated when mistaking 62ft mast for 72ft mast`);
+approx(apparentRange, 2.0 * (72 / 62), 0.05);
+
+// Test 4: HUD ViewModel Integration
+const hudVm = await load('js/ui/hud-viewmodel.js', ['buildHudViewModel'], {
+  normDeg, degToRad, radToDeg, shortDelta, clamp, distNm, bearingBetween,
+  playerDepthDisplay: (_s, v) => `${v} ft`,
+  fmtTime: () => '00:00',
+  fmtDeg: d => `${Math.round(d)}°`,
+  torpedoRangeInfo: () => null,
+  torpedoStoresStatus: () => ({ total: 4, loadShort: 'READY' }),
+  isSurfaceCombatant: () => false,
+  ensureShipDamage: () => null,
+  DayNightCycle: { getTimeString: () => '12:00' }
+});
+
+const vmRes = hudVm.buildHudViewModel(simState, { shell: 'desk' });
+assert.ok(vmRes.tdc.targetLabel.includes('Town-class Destroyer'), 'TDC target label incorporates identified class');
+assert.ok(vmRes.tdc.identification, 'TDC viewmodel carries identification object');
+assert.equal(vmRes.tdc.identification.classId, 'town-destroyer');
+assert.equal(vmRes.tdc.identification.mastheadFt, 72);
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4');
+

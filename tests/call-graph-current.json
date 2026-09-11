@@ -12,7 +12,7 @@
       "extends": null,
       "file": "js/simulation/physics-navigation.js",
       "line": 1,
-      "end": 831,
+      "end": 893,
       "depth": 0
     },
     {
@@ -436,7 +436,7 @@
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 796
+        "line": 858
       },
       "relation": "same"
     },
@@ -495,7 +495,7 @@
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 817
+        "line": 879
       },
       "relation": "same"
     },
@@ -1177,7 +1177,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 796
+            "line": 858
           },
           "relation": "same"
         },
@@ -1235,7 +1235,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 817
+            "line": 879
           },
           "relation": "same"
         },
@@ -1538,7 +1538,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         },
@@ -1551,7 +1551,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         }
@@ -1600,7 +1600,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         },
@@ -1613,7 +1613,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         }
@@ -2088,7 +2088,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         },
@@ -2176,7 +2176,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         }
@@ -2290,7 +2290,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 783
+            "line": 845
           },
           "relation": "same"
         },
@@ -2303,7 +2303,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         },
@@ -2329,7 +2329,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         },
@@ -2390,7 +2390,7 @@
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
       "line": 769,
-      "end": 781,
+      "end": 794,
       "callDetails": [
         {
           "name": "log",
@@ -2401,7 +2401,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         },
@@ -2427,7 +2427,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         },
@@ -2435,8 +2435,8 @@
           "name": "updateTdc",
           "kind": "direct",
           "unresolved": false,
-          "line": 779,
-          "offset": 626,
+          "line": 791,
+          "offset": 1320,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -2448,12 +2448,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 780,
-          "offset": 709,
+          "line": 793,
+          "offset": 1481,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         }
@@ -2500,64 +2500,77 @@
           "line": 776
         },
         {
-          "path": "updateTdc",
+          "path": "state.world.contacts",
           "access": "read",
-          "line": 779
+          "line": 778
         },
         {
-          "path": "state",
-          "access": "read",
-          "line": 779
-        },
-        {
-          "path": "log",
-          "access": "read",
-          "line": 780
-        },
-        {
-          "path": "state.playerSub.damage.periscopeDamage",
-          "access": "read",
-          "line": 780
-        }
-      ]
-    },
-    {
-      "name": "nearestScopeTrack",
-      "class": "SimEngine",
-      "file": "js/simulation/physics-navigation.js",
-      "line": 783,
-      "end": 794,
-      "callDetails": [],
-      "fieldAccess": [
-        {
-          "path": "state.tactical",
+          "path": "state.playerSub.position",
           "access": "read",
           "line": 784
         },
         {
-          "path": "state.world.contactTracks",
+          "path": "state",
           "access": "read",
-          "line": 786
+          "line": 785
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 788
+        },
+        {
+          "path": "updateTdc",
+          "access": "read",
+          "line": 791
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 791
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 793
+        },
+        {
+          "path": "state.playerSub.damage.periscopeDamage",
+          "access": "read",
+          "line": 793
         }
       ]
     },
     {
-      "name": "steerWaypoint",
+      "name": "identifyContactClass",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
       "line": 796,
-      "end": 807,
+      "end": 843,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 800,
-          "offset": 174,
+          "line": 799,
+          "offset": 171,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 802,
+          "offset": 368,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 889
           },
           "relation": "same"
         },
@@ -2566,11 +2579,11 @@
           "kind": "direct",
           "unresolved": false,
           "line": 804,
-          "offset": 407,
+          "offset": 558,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         },
@@ -2578,31 +2591,83 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 806,
-          "offset": 563,
+          "line": 828,
+          "offset": 2102,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 831,
+          "offset": 2406,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 889
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 834,
+          "offset": 2595,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 889
+          },
+          "relation": "same"
+        },
+        {
+          "name": "sendScopeToTdc",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 838,
+          "offset": 2773,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 769
+          },
+          "relation": "same"
+        },
+        {
+          "name": "updateTdc",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 840,
+          "offset": 2813,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 529
           },
           "relation": "same"
         }
       ],
       "fieldAccess": [
         {
-          "path": "state.playerSub",
-          "access": "read",
-          "line": 797
-        },
-        {
-          "path": "state.map",
+          "path": "state",
           "access": "read",
           "line": 797
         },
         {
           "path": "log",
           "access": "read",
-          "line": 800
+          "line": 799
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 802
         },
         {
           "path": "log",
@@ -2612,7 +2677,127 @@
         {
           "path": "log",
           "access": "read",
-          "line": 806
+          "line": 828
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 829
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 831
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 834
+        },
+        {
+          "path": "sendScopeToTdc",
+          "access": "read",
+          "line": 838
+        },
+        {
+          "path": "updateTdc",
+          "access": "read",
+          "line": 840
+        }
+      ]
+    },
+    {
+      "name": "nearestScopeTrack",
+      "class": "SimEngine",
+      "file": "js/simulation/physics-navigation.js",
+      "line": 845,
+      "end": 856,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state.tactical",
+          "access": "read",
+          "line": 846
+        },
+        {
+          "path": "state.world.contactTracks",
+          "access": "read",
+          "line": 848
+        }
+      ]
+    },
+    {
+      "name": "steerWaypoint",
+      "class": "SimEngine",
+      "file": "js/simulation/physics-navigation.js",
+      "line": 858,
+      "end": 869,
+      "callDetails": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 862,
+          "offset": 174,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 889
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 866,
+          "offset": 407,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 889
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 868,
+          "offset": 563,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 889
+          },
+          "relation": "same"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 859
+        },
+        {
+          "path": "state.map",
+          "access": "read",
+          "line": 859
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 862
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 866
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 868
         }
       ]
     },
@@ -2620,14 +2805,14 @@
       "name": "derivMode",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 809,
-      "end": 815,
+      "line": 871,
+      "end": 877,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 810
+          "line": 872
         }
       ]
     },
@@ -2635,8 +2820,8 @@
       "name": "updateModeAfter",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 817,
-      "end": 825,
+      "line": 879,
+      "end": 887,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -2644,29 +2829,29 @@
       "name": "log",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 827,
-      "end": 830,
+      "line": 889,
+      "end": 892,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.log.unshift",
           "access": "read",
-          "line": 828
+          "line": 890
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 828
+          "line": 890
         },
         {
           "path": "state.log",
           "access": "write",
-          "line": 829
+          "line": 891
         },
         {
           "path": "state.log.slice",
           "access": "read",
-          "line": 829
+          "line": 891
         }
       ]
     },
@@ -3591,7 +3776,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 827
+            "line": 889
           },
           "relation": "same"
         }
@@ -11631,7 +11816,7 @@
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
       "line": 279,
-      "end": 589,
+      "end": 590,
       "callDetails": [
         {
           "name": "notify",
@@ -11841,7 +12026,7 @@
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 807
+            "line": 808
           },
           "relation": "system"
         },
@@ -11854,7 +12039,7 @@
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 632
+            "line": 633
           },
           "relation": "system"
         },
@@ -12499,11 +12684,20 @@
           "relation": "unresolved"
         },
         {
+          "name": "identifyContactClass",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 491,
+          "offset": 17020,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
           "name": "floodTube",
           "kind": "system-path",
           "unresolved": false,
-          "line": 491,
-          "offset": 17008,
+          "line": 492,
+          "offset": 17104,
           "object": "this.sys.torpedoes",
           "definedBy": null,
           "relation": "unresolved"
@@ -12512,8 +12706,8 @@
           "name": "fireTorpedo",
           "kind": "system-path",
           "unresolved": false,
-          "line": 492,
-          "offset": 17083,
+          "line": 493,
+          "offset": 17179,
           "object": "this.sys.torpedoes",
           "definedBy": null,
           "relation": "unresolved"
@@ -12522,8 +12716,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 495,
-          "offset": 17289,
+          "line": 496,
+          "offset": 17385,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12531,8 +12725,8 @@
           "name": "floodTube",
           "kind": "system-path",
           "unresolved": false,
-          "line": 496,
-          "offset": 17395,
+          "line": 497,
+          "offset": 17491,
           "object": "this.sys.torpedoes",
           "definedBy": null,
           "relation": "unresolved"
@@ -12541,8 +12735,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 497,
-          "offset": 17445,
+          "line": 498,
+          "offset": 17541,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12550,8 +12744,8 @@
           "name": "fireSpread",
           "kind": "system-path",
           "unresolved": false,
-          "line": 501,
-          "offset": 17694,
+          "line": 502,
+          "offset": 17790,
           "object": "this.sys.torpedoes",
           "definedBy": null,
           "relation": "unresolved"
@@ -12560,8 +12754,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 506,
-          "offset": 17960,
+          "line": 507,
+          "offset": 18056,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
@@ -12573,26 +12767,17 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 514,
-          "offset": 18461,
+          "line": 515,
+          "offset": 18557,
           "definedBy": null,
           "relation": "unresolved"
         },
         {
           "name": "updateTdc",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 515,
-          "offset": 18774,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "log",
           "kind": "direct",
           "unresolved": false,
           "line": 516,
-          "offset": 18863,
+          "offset": 18870,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12600,8 +12785,17 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 519,
-          "offset": 19011,
+          "line": 517,
+          "offset": 18959,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 520,
+          "offset": 19107,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12609,17 +12803,8 @@
           "name": "updateTdc",
           "kind": "direct",
           "unresolved": false,
-          "line": 530,
-          "offset": 19746,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "log",
-          "kind": "direct",
-          "unresolved": false,
           "line": 531,
-          "offset": 19833,
+          "offset": 19842,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12627,8 +12812,17 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 535,
-          "offset": 20197,
+          "line": 532,
+          "offset": 19929,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 536,
+          "offset": 20293,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12636,8 +12830,8 @@
           "name": "floodTube",
           "kind": "system-path",
           "unresolved": false,
-          "line": 536,
-          "offset": 20299,
+          "line": 537,
+          "offset": 20395,
           "object": "this.sys.torpedoes",
           "definedBy": null,
           "relation": "unresolved"
@@ -12646,8 +12840,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 537,
-          "offset": 20349,
+          "line": 538,
+          "offset": 20445,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12655,8 +12849,8 @@
           "name": "fireSpreadByPos",
           "kind": "system-path",
           "unresolved": false,
-          "line": 541,
-          "offset": 20592,
+          "line": 542,
+          "offset": 20688,
           "object": "this.sys.torpedoes",
           "definedBy": null,
           "relation": "unresolved"
@@ -12665,12 +12859,12 @@
           "name": "clampToArea",
           "kind": "direct",
           "unresolved": false,
-          "line": 543,
-          "offset": 20694,
+          "line": 544,
+          "offset": 20790,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1284
+            "line": 1285
           },
           "relation": "system"
         },
@@ -12678,12 +12872,12 @@
           "name": "isNavigableMapPoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 544,
-          "offset": 20785,
+          "line": 545,
+          "offset": 20881,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1289
+            "line": 1290
           },
           "relation": "system"
         },
@@ -12691,8 +12885,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 544,
-          "offset": 20819,
+          "line": 545,
+          "offset": 20915,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
@@ -12704,12 +12898,12 @@
           "name": "planNavigableCourse",
           "kind": "direct",
           "unresolved": false,
-          "line": 545,
-          "offset": 20988,
+          "line": 546,
+          "offset": 21084,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1311
+            "line": 1312
           },
           "relation": "system"
         },
@@ -12717,8 +12911,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 548,
-          "offset": 21110,
+          "line": 549,
+          "offset": 21206,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
@@ -12730,8 +12924,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 555,
-          "offset": 21512,
+          "line": 556,
+          "offset": 21608,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12739,8 +12933,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 562,
-          "offset": 21794,
+          "line": 563,
+          "offset": 21890,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12748,8 +12942,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 568,
-          "offset": 22051,
+          "line": 569,
+          "offset": 22147,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12757,8 +12951,8 @@
           "name": "steerWaypoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 569,
-          "offset": 22214,
+          "line": 570,
+          "offset": 22310,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12766,8 +12960,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 573,
-          "offset": 22368,
+          "line": 574,
+          "offset": 22464,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12775,8 +12969,8 @@
           "name": "intelSummary",
           "kind": "system-path",
           "unresolved": false,
-          "line": 575,
-          "offset": 22473,
+          "line": 576,
+          "offset": 22569,
           "object": "this.sys.intel",
           "definedBy": null,
           "relation": "unresolved"
@@ -12785,8 +12979,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 576,
-          "offset": 22582,
+          "line": 577,
+          "offset": 22678,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
@@ -12798,12 +12992,12 @@
           "name": "planNavigableCourse",
           "kind": "direct",
           "unresolved": false,
-          "line": 577,
-          "offset": 22725,
+          "line": 578,
+          "offset": 22821,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1311
+            "line": 1312
           },
           "relation": "system"
         },
@@ -12811,12 +13005,12 @@
           "name": "clampToArea",
           "kind": "direct",
           "unresolved": false,
-          "line": 577,
-          "offset": 22780,
+          "line": 578,
+          "offset": 22876,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1284
+            "line": 1285
           },
           "relation": "system"
         },
@@ -12824,8 +13018,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 578,
-          "offset": 22834,
+          "line": 579,
+          "offset": 22930,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
@@ -12837,8 +13031,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 580,
-          "offset": 23234,
+          "line": 581,
+          "offset": 23330,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
@@ -12850,8 +13044,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 581,
-          "offset": 23342,
+          "line": 582,
+          "offset": 23438,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12859,8 +13053,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 584,
-          "offset": 23576,
+          "line": 585,
+          "offset": 23672,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
@@ -12872,8 +13066,8 @@
           "name": "steerWaypoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 585,
-          "offset": 23842,
+          "line": 586,
+          "offset": 23938,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -12881,12 +13075,12 @@
           "name": "headToPort",
           "kind": "direct",
           "unresolved": false,
-          "line": 586,
-          "offset": 23901,
+          "line": 587,
+          "offset": 23997,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 992
+            "line": 993
           },
           "relation": "system"
         },
@@ -12894,12 +13088,12 @@
           "name": "startNewPatrol",
           "kind": "direct",
           "unresolved": false,
-          "line": 587,
-          "offset": 23951,
+          "line": 588,
+          "offset": 24047,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1132
+            "line": 1133
           },
           "relation": "system"
         }
@@ -13761,37 +13955,37 @@
           "line": 490
         },
         {
-          "path": "sys.torpedoes.floodTube",
+          "path": "identifyContactClass",
           "access": "read",
           "line": 491
         },
         {
-          "path": "sys.torpedoes.fireTorpedo",
+          "path": "sys.torpedoes.floodTube",
           "access": "read",
           "line": 492
         },
         {
-          "path": "state.weapons.tubes.filter",
+          "path": "sys.torpedoes.fireTorpedo",
           "access": "read",
-          "line": 494
+          "line": 493
         },
         {
-          "path": "log",
+          "path": "state.weapons.tubes.filter",
           "access": "read",
           "line": 495
         },
         {
-          "path": "sys.torpedoes.floodTube",
+          "path": "log",
           "access": "read",
           "line": 496
         },
         {
-          "path": "log",
+          "path": "sys.torpedoes.floodTube",
           "access": "read",
           "line": 497
         },
         {
-          "path": "state",
+          "path": "log",
           "access": "read",
           "line": 498
         },
@@ -13801,172 +13995,172 @@
           "line": 499
         },
         {
+          "path": "state",
+          "access": "read",
+          "line": 500
+        },
+        {
           "path": "sys.torpedoes.fireSpread",
           "access": "read",
-          "line": 501
+          "line": 502
         },
         {
           "path": "state",
-          "access": "read",
-          "line": 505
-        },
-        {
-          "path": "notify",
           "access": "read",
           "line": 506
         },
         {
-          "path": "state.tdc.torpedoSpecKey",
-          "access": "write",
-          "line": 508
+          "path": "notify",
+          "access": "read",
+          "line": 507
         },
         {
-          "path": "state.tdc.torpedoType",
+          "path": "state.tdc.torpedoSpecKey",
           "access": "write",
           "line": 509
         },
         {
-          "path": "state.tdc.torpedoSpeedKnots",
+          "path": "state.tdc.torpedoType",
           "access": "write",
           "line": 510
         },
         {
-          "path": "state.tdc.torpedoMaxRangeNm",
+          "path": "state.tdc.torpedoSpeedKnots",
           "access": "write",
           "line": 511
         },
         {
+          "path": "state.tdc.torpedoMaxRangeNm",
+          "access": "write",
+          "line": 512
+        },
+        {
           "path": "state.weapons.tubes",
           "access": "read",
-          "line": 513
+          "line": 514
         },
         {
           "path": "log",
           "access": "read",
-          "line": 514
+          "line": 515
         },
         {
           "path": "state",
-          "access": "read",
-          "line": 514
-        },
-        {
-          "path": "state.tdc.dudMode",
-          "access": "read",
-          "line": 514
-        },
-        {
-          "path": "updateTdc",
           "access": "read",
           "line": 515
         },
         {
           "path": "state.tdc.dudMode",
-          "access": "write",
-          "line": 516
-        },
-        {
-          "path": "log",
           "access": "read",
-          "line": 516
-        },
-        {
-          "path": "state.tdc.torpedoRunDepthFt",
-          "access": "write",
-          "line": 518
-        },
-        {
-          "path": "log",
-          "access": "read",
-          "line": 519
-        },
-        {
-          "path": "state.tdc.torpedoRunDepthFt",
-          "access": "read",
-          "line": 519
-        },
-        {
-          "path": "state.tdc.manualBearing",
-          "access": "write",
-          "line": 521
-        },
-        {
-          "path": "state.tdc.manualBearing",
-          "access": "read",
-          "line": 521
-        },
-        {
-          "path": "state.tdc.manualRange",
-          "access": "write",
-          "line": 522
-        },
-        {
-          "path": "state.tdc.manualRange",
-          "access": "read",
-          "line": 522
-        },
-        {
-          "path": "state.tdc.manualCourse",
-          "access": "write",
-          "line": 523
-        },
-        {
-          "path": "state.tdc.manualCourse",
-          "access": "read",
-          "line": 523
-        },
-        {
-          "path": "state.tdc.manualSpeed",
-          "access": "write",
-          "line": 524
-        },
-        {
-          "path": "state.tdc.manualSpeed",
-          "access": "read",
-          "line": 524
-        },
-        {
-          "path": "state.tdc",
-          "access": "read",
-          "line": 526
+          "line": 515
         },
         {
           "path": "updateTdc",
           "access": "read",
-          "line": 530
+          "line": 516
         },
         {
-          "path": "state",
-          "access": "read",
-          "line": 530
+          "path": "state.tdc.dudMode",
+          "access": "write",
+          "line": 517
         },
         {
           "path": "log",
+          "access": "read",
+          "line": 517
+        },
+        {
+          "path": "state.tdc.torpedoRunDepthFt",
+          "access": "write",
+          "line": 519
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 520
+        },
+        {
+          "path": "state.tdc.torpedoRunDepthFt",
+          "access": "read",
+          "line": 520
+        },
+        {
+          "path": "state.tdc.manualBearing",
+          "access": "write",
+          "line": 522
+        },
+        {
+          "path": "state.tdc.manualBearing",
+          "access": "read",
+          "line": 522
+        },
+        {
+          "path": "state.tdc.manualRange",
+          "access": "write",
+          "line": 523
+        },
+        {
+          "path": "state.tdc.manualRange",
+          "access": "read",
+          "line": 523
+        },
+        {
+          "path": "state.tdc.manualCourse",
+          "access": "write",
+          "line": 524
+        },
+        {
+          "path": "state.tdc.manualCourse",
+          "access": "read",
+          "line": 524
+        },
+        {
+          "path": "state.tdc.manualSpeed",
+          "access": "write",
+          "line": 525
+        },
+        {
+          "path": "state.tdc.manualSpeed",
+          "access": "read",
+          "line": 525
+        },
+        {
+          "path": "state.tdc",
+          "access": "read",
+          "line": 527
+        },
+        {
+          "path": "updateTdc",
           "access": "read",
           "line": 531
         },
         {
-          "path": "state.weapons.tubes.filter",
+          "path": "state",
           "access": "read",
-          "line": 534
+          "line": 531
         },
         {
           "path": "log",
+          "access": "read",
+          "line": 532
+        },
+        {
+          "path": "state.weapons.tubes.filter",
           "access": "read",
           "line": 535
         },
         {
-          "path": "sys.torpedoes.floodTube",
+          "path": "log",
           "access": "read",
           "line": 536
         },
         {
-          "path": "log",
+          "path": "sys.torpedoes.floodTube",
           "access": "read",
           "line": 537
         },
         {
-          "path": "state",
+          "path": "log",
           "access": "read",
           "line": 538
         },
@@ -13976,219 +14170,224 @@
           "line": 539
         },
         {
+          "path": "state",
+          "access": "read",
+          "line": 540
+        },
+        {
           "path": "sys.torpedoes.fireSpreadByPos",
           "access": "read",
-          "line": 541
+          "line": 542
         },
         {
           "path": "clampToArea",
           "access": "read",
-          "line": 543
+          "line": 544
         },
         {
           "path": "state.map.plottedCourse",
           "access": "read",
-          "line": 543
+          "line": 544
         },
         {
           "path": "isNavigableMapPoint",
           "access": "read",
-          "line": 544
+          "line": 545
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 544
+          "line": 545
         },
         {
           "path": "state.playerSub.position",
           "access": "read",
-          "line": 545
+          "line": 546
         },
         {
           "path": "planNavigableCourse",
           "access": "read",
-          "line": 545
+          "line": 546
         },
         {
           "path": "_lastWaypointRouteReason",
           "access": "read",
-          "line": 547
+          "line": 548
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 548
+          "line": 549
         },
         {
           "path": "state.map.autoFollowPlot",
           "access": "write",
-          "line": 554
+          "line": 555
         },
         {
           "path": "log",
           "access": "read",
-          "line": 555
+          "line": 556
         },
         {
           "path": "state.map.plottedCourse",
           "access": "read",
-          "line": 558
+          "line": 559
         },
         {
           "path": "log",
           "access": "read",
-          "line": 562
-        },
-        {
-          "path": "state.map.autoFollowPlot",
-          "access": "write",
           "line": 563
         },
         {
           "path": "state.map.autoFollowPlot",
           "access": "write",
-          "line": 567
+          "line": 564
+        },
+        {
+          "path": "state.map.autoFollowPlot",
+          "access": "write",
+          "line": 568
         },
         {
           "path": "state.map.autoFollowPlot",
           "access": "read",
-          "line": 567
+          "line": 568
         },
         {
           "path": "log",
           "access": "read",
-          "line": 568
-        },
-        {
-          "path": "state.map.autoFollowPlot",
-          "access": "read",
-          "line": 568
+          "line": 569
         },
         {
           "path": "state.map.autoFollowPlot",
           "access": "read",
           "line": 569
+        },
+        {
+          "path": "state.map.autoFollowPlot",
+          "access": "read",
+          "line": 570
         },
         {
           "path": "steerWaypoint",
           "access": "read",
-          "line": 569
+          "line": 570
         },
         {
           "path": "state.map.plottedCourse",
           "access": "write",
-          "line": 572
+          "line": 573
         },
         {
           "path": "state.map.autoFollowPlot",
           "access": "write",
-          "line": 572
+          "line": 573
         },
         {
           "path": "log",
           "access": "read",
-          "line": 573
+          "line": 574
         },
         {
           "path": "sys.intel.intelSummary",
           "access": "read",
-          "line": 575
+          "line": 576
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 576
+          "line": 577
         },
         {
           "path": "planNavigableCourse",
           "access": "read",
-          "line": 577
+          "line": 578
         },
         {
           "path": "state.playerSub.position",
           "access": "read",
-          "line": 577
+          "line": 578
         },
         {
           "path": "clampToArea",
           "access": "read",
-          "line": 577
+          "line": 578
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 578
+          "line": 579
         },
         {
           "path": "state.map.interceptPlot",
           "access": "write",
-          "line": 579
+          "line": 580
         },
         {
           "path": "state.world.ultra",
           "access": "read",
-          "line": 579
+          "line": 580
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 579
+          "line": 580
         },
         {
           "path": "state.campaign.historyId",
           "access": "read",
-          "line": 579
-        },
-        {
-          "path": "notify",
-          "access": "read",
           "line": 580
         },
         {
-          "path": "log",
+          "path": "notify",
           "access": "read",
           "line": 581
         },
         {
+          "path": "log",
+          "access": "read",
+          "line": 582
+        },
+        {
           "path": "state.map.weatherOverlay",
           "access": "write",
-          "line": 583
+          "line": 584
         },
         {
           "path": "state.map.weatherOverlay",
           "access": "read",
-          "line": 583
+          "line": 584
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 584
+          "line": 585
         },
         {
           "path": "state.map.weatherOverlay",
           "access": "read",
-          "line": 584
+          "line": 585
         },
         {
           "path": "state.map.autoFollowPlot",
           "access": "write",
-          "line": 585
+          "line": 586
         },
         {
           "path": "steerWaypoint",
           "access": "read",
-          "line": 585
+          "line": 586
         },
         {
           "path": "headToPort",
           "access": "read",
-          "line": 586
+          "line": 587
         },
         {
           "path": "startNewPatrol",
           "access": "read",
-          "line": 587
+          "line": 588
         }
       ]
     },
@@ -14196,8 +14395,8 @@
       "name": "pointInPolygon",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 592,
-      "end": 599,
+      "line": 593,
+      "end": 600,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -14205,19 +14404,19 @@
       "name": "checkTerrainCollision",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 601,
-      "end": 619,
+      "line": 602,
+      "end": 620,
       "callDetails": [
         {
           "name": "pointInPolygon",
           "kind": "direct",
           "unresolved": false,
-          "line": 613,
+          "line": 614,
           "offset": 622,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 592
+            "line": 593
           },
           "relation": "system"
         }
@@ -14226,12 +14425,12 @@
         {
           "path": "state.world.terrain",
           "access": "read",
-          "line": 604
+          "line": 605
         },
         {
           "path": "pointInPolygon",
           "access": "read",
-          "line": 613
+          "line": 614
         }
       ]
     },
@@ -14239,24 +14438,24 @@
       "name": "seabedFeet",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 632,
-      "end": 658,
+      "line": 633,
+      "end": 659,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.world.terrain",
           "access": "read",
-          "line": 633
+          "line": 634
         },
         {
           "path": "state",
           "access": "read",
-          "line": 641
+          "line": 642
         },
         {
           "path": "state",
           "access": "read",
-          "line": 649
+          "line": 650
         }
       ]
     },
@@ -14264,8 +14463,8 @@
       "name": "setDepthAndClearance",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 660,
-      "end": 664,
+      "line": 661,
+      "end": 665,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -14273,14 +14472,14 @@
       "name": "shoalWatch",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 674,
-      "end": 706,
+      "line": 675,
+      "end": 707,
       "callDetails": [
         {
           "name": "stopAutomaticTimeCompression",
           "kind": "direct",
           "unresolved": false,
-          "line": 695,
+          "line": 696,
           "offset": 1305,
           "definedBy": {
             "class": "CoreSystem",
@@ -14293,7 +14492,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 699,
+          "line": 700,
           "offset": 1565,
           "definedBy": {
             "class": "CoreSystem",
@@ -14306,7 +14505,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 704,
+          "line": 705,
           "offset": 1958,
           "definedBy": {
             "class": "CoreSystem",
@@ -14320,57 +14519,57 @@
         {
           "path": "state.time",
           "access": "read",
-          "line": 675
+          "line": 676
         },
         {
           "path": "state.runtime.playerSub._keelClosingFps",
           "access": "read",
-          "line": 680
+          "line": 681
         },
         {
           "path": "_shoalAt",
           "access": "read",
-          "line": 691
-        },
-        {
-          "path": "_shoalLastClear",
-          "access": "read",
-          "line": 691
-        },
-        {
-          "path": "_shoalAt",
-          "access": "write",
           "line": 692
         },
         {
           "path": "_shoalLastClear",
+          "access": "read",
+          "line": 692
+        },
+        {
+          "path": "_shoalAt",
           "access": "write",
           "line": 693
         },
         {
-          "path": "_shoalTelemetryLogged",
-          "access": "read",
-          "line": 694
-        },
-        {
-          "path": "_shoalTelemetryLogged",
+          "path": "_shoalLastClear",
           "access": "write",
           "line": 694
         },
         {
-          "path": "stopAutomaticTimeCompression",
+          "path": "_shoalTelemetryLogged",
           "access": "read",
           "line": 695
         },
         {
-          "path": "notify",
+          "path": "_shoalTelemetryLogged",
+          "access": "write",
+          "line": 695
+        },
+        {
+          "path": "stopAutomaticTimeCompression",
           "access": "read",
-          "line": 699
+          "line": 696
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 704
+          "line": 700
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 705
         }
       ]
     },
@@ -14378,19 +14577,19 @@
       "name": "updateSeabed",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 708,
-      "end": 764,
+      "line": 709,
+      "end": 765,
       "callDetails": [
         {
           "name": "seabedFeet",
           "kind": "direct",
           "unresolved": false,
-          "line": 710,
+          "line": 711,
           "offset": 264,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 632
+            "line": 633
           },
           "relation": "system"
         },
@@ -14398,12 +14597,12 @@
           "name": "setDepthAndClearance",
           "kind": "direct",
           "unresolved": false,
-          "line": 714,
+          "line": 715,
           "offset": 457,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 660
+            "line": 661
           },
           "relation": "system"
         },
@@ -14411,7 +14610,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 726,
+          "line": 727,
           "offset": 1107,
           "definedBy": {
             "class": "CoreSystem",
@@ -14424,7 +14623,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 734,
+          "line": 735,
           "offset": 1634,
           "definedBy": {
             "class": "CoreSystem",
@@ -14437,12 +14636,12 @@
           "name": "setDepthAndClearance",
           "kind": "direct",
           "unresolved": false,
-          "line": 751,
+          "line": 752,
           "offset": 2613,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 660
+            "line": 661
           },
           "relation": "system"
         },
@@ -14450,7 +14649,7 @@
           "name": "applyShock",
           "kind": "system-path",
           "unresolved": false,
-          "line": 754,
+          "line": 755,
           "offset": 2736,
           "object": "this.sys.damage",
           "definedBy": null,
@@ -14460,7 +14659,7 @@
           "name": "alertEscorts",
           "kind": "system-path",
           "unresolved": false,
-          "line": 756,
+          "line": 757,
           "offset": 2863,
           "object": "this.sys.enemyAI",
           "definedBy": null,
@@ -14470,7 +14669,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 757,
+          "line": 758,
           "offset": 2933,
           "definedBy": {
             "class": "CoreSystem",
@@ -14483,12 +14682,12 @@
           "name": "bottomOut",
           "kind": "direct",
           "unresolved": false,
-          "line": 759,
+          "line": 760,
           "offset": 3157,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 777
+            "line": 778
           },
           "relation": "system"
         },
@@ -14496,12 +14695,12 @@
           "name": "updateBottomed",
           "kind": "direct",
           "unresolved": false,
-          "line": 762,
+          "line": 763,
           "offset": 3223,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 788
+            "line": 789
           },
           "relation": "system"
         },
@@ -14509,12 +14708,12 @@
           "name": "shoalWatch",
           "kind": "direct",
           "unresolved": false,
-          "line": 763,
+          "line": 764,
           "offset": 3260,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 674
+            "line": 675
           },
           "relation": "system"
         }
@@ -14523,82 +14722,82 @@
         {
           "path": "state.world",
           "access": "read",
-          "line": 709
+          "line": 710
         },
         {
           "path": "seabedFeet",
           "access": "read",
-          "line": 710
+          "line": 711
         },
         {
           "path": "setDepthAndClearance",
           "access": "read",
-          "line": 714
+          "line": 715
         },
         {
           "path": "state.runtime.playerSub._keelClosingFps",
           "access": "write",
-          "line": 715
+          "line": 716
         },
         {
           "path": "state.time.elapsedSeconds",
-          "access": "read",
-          "line": 723
-        },
-        {
-          "path": "_depthLimAt",
           "access": "read",
           "line": 724
         },
         {
           "path": "_depthLimAt",
-          "access": "write",
+          "access": "read",
           "line": 725
         },
         {
-          "path": "notify",
-          "access": "read",
+          "path": "_depthLimAt",
+          "access": "write",
           "line": 726
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 734
-        },
-        {
-          "path": "setDepthAndClearance",
-          "access": "read",
-          "line": 751
-        },
-        {
-          "path": "sys.damage.applyShock",
-          "access": "read",
-          "line": 754
-        },
-        {
-          "path": "sys.enemyAI.alertEscorts",
-          "access": "read",
-          "line": 756
+          "line": 727
         },
         {
           "path": "notify",
           "access": "read",
+          "line": 735
+        },
+        {
+          "path": "setDepthAndClearance",
+          "access": "read",
+          "line": 752
+        },
+        {
+          "path": "sys.damage.applyShock",
+          "access": "read",
+          "line": 755
+        },
+        {
+          "path": "sys.enemyAI.alertEscorts",
+          "access": "read",
           "line": 757
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 758
         },
         {
           "path": "bottomOut",
           "access": "read",
-          "line": 759
+          "line": 760
         },
         {
           "path": "updateBottomed",
           "access": "read",
-          "line": 762
+          "line": 763
         },
         {
           "path": "shoalWatch",
           "access": "read",
-          "line": 763
+          "line": 764
         }
       ]
     },
@@ -14606,19 +14805,19 @@
       "name": "bottomOut",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 777,
-      "end": 786,
+      "line": 778,
+      "end": 787,
       "callDetails": [
         {
           "name": "setDepthAndClearance",
           "kind": "direct",
           "unresolved": false,
-          "line": 784,
+          "line": 785,
           "offset": 740,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 660
+            "line": 661
           },
           "relation": "system"
         },
@@ -14626,7 +14825,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 785,
+          "line": 786,
           "offset": 971,
           "definedBy": {
             "class": "CoreSystem",
@@ -14640,22 +14839,22 @@
         {
           "path": "state.world.terrain",
           "access": "read",
-          "line": 778
+          "line": 779
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 783
+          "line": 784
         },
         {
           "path": "setDepthAndClearance",
           "access": "read",
-          "line": 784
+          "line": 785
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 785
+          "line": 786
         }
       ]
     },
@@ -14663,19 +14862,19 @@
       "name": "updateBottomed",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 788,
-      "end": 805,
+      "line": 789,
+      "end": 806,
       "callDetails": [
         {
           "name": "setDepthAndClearance",
           "kind": "direct",
           "unresolved": false,
-          "line": 791,
+          "line": 792,
           "offset": 140,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 660
+            "line": 661
           },
           "relation": "system"
         },
@@ -14683,7 +14882,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 799,
+          "line": 800,
           "offset": 612,
           "definedBy": {
             "class": "CoreSystem",
@@ -14696,12 +14895,12 @@
           "name": "unbottom",
           "kind": "direct",
           "unresolved": false,
-          "line": 803,
+          "line": 804,
           "offset": 882,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 807
+            "line": 808
           },
           "relation": "system"
         }
@@ -14710,27 +14909,27 @@
         {
           "path": "setDepthAndClearance",
           "access": "read",
-          "line": 791
+          "line": 792
         },
         {
           "path": "state.runtime.playerSub._suctWarn",
           "access": "read",
-          "line": 797
+          "line": 798
         },
         {
           "path": "state.runtime.playerSub._suctWarn",
           "access": "write",
-          "line": 798
+          "line": 799
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 799
+          "line": 800
         },
         {
           "path": "unbottom",
           "access": "read",
-          "line": 803
+          "line": 804
         }
       ]
     },
@@ -14738,14 +14937,14 @@
       "name": "unbottom",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 807,
-      "end": 820,
+      "line": 808,
+      "end": 821,
       "callDetails": [
         {
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 812,
+          "line": 813,
           "offset": 218,
           "definedBy": {
             "class": "CoreSystem",
@@ -14758,7 +14957,7 @@
           "name": "alertEscorts",
           "kind": "system-path",
           "unresolved": false,
-          "line": 814,
+          "line": 815,
           "offset": 427,
           "object": "this.sys.enemyAI",
           "definedBy": null,
@@ -14768,7 +14967,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 816,
+          "line": 817,
           "offset": 513,
           "definedBy": {
             "class": "CoreSystem",
@@ -14782,22 +14981,22 @@
         {
           "path": "state.runtime.playerSub._suctWarn",
           "access": "write",
-          "line": 810
+          "line": 811
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 812
+          "line": 813
         },
         {
           "path": "sys.enemyAI.alertEscorts",
           "access": "read",
-          "line": 814
+          "line": 815
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 816
+          "line": 817
         }
       ]
     },
@@ -14805,19 +15004,19 @@
       "name": "applyTerrainEffects",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 822,
-      "end": 863,
+      "line": 823,
+      "end": 864,
       "callDetails": [
         {
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 823,
+          "line": 824,
           "offset": 61,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 601
+            "line": 602
           },
           "relation": "system"
         },
@@ -14825,12 +15024,12 @@
           "name": "_insideFriendlyRv",
           "kind": "direct",
           "unresolved": false,
-          "line": 828,
+          "line": 829,
           "offset": 367,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 906
+            "line": 907
           },
           "relation": "system"
         },
@@ -14838,12 +15037,12 @@
           "name": "updateSeabed",
           "kind": "direct",
           "unresolved": false,
-          "line": 831,
+          "line": 832,
           "offset": 510,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 708
+            "line": 709
           },
           "relation": "system"
         },
@@ -14851,7 +15050,7 @@
           "name": "applyShock",
           "kind": "system-path",
           "unresolved": false,
-          "line": 841,
+          "line": 842,
           "offset": 851,
           "object": "this.sys.damage",
           "definedBy": null,
@@ -14861,7 +15060,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 842,
+          "line": 843,
           "offset": 892,
           "definedBy": null,
           "relation": "unresolved"
@@ -14870,7 +15069,7 @@
           "name": "applyShock",
           "kind": "system-path",
           "unresolved": false,
-          "line": 845,
+          "line": 846,
           "offset": 1023,
           "object": "this.sys.damage",
           "definedBy": null,
@@ -14880,7 +15079,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 846,
+          "line": 847,
           "offset": 1064,
           "definedBy": null,
           "relation": "unresolved"
@@ -14889,7 +15088,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 858,
+          "line": 859,
           "offset": 1510,
           "definedBy": null,
           "relation": "unresolved"
@@ -14899,42 +15098,42 @@
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 823
+          "line": 824
         },
         {
           "path": "_insideFriendlyRv",
           "access": "read",
-          "line": 828
+          "line": 829
         },
         {
           "path": "updateSeabed",
           "access": "read",
-          "line": 831
+          "line": 832
         },
         {
           "path": "sys.damage.applyShock",
-          "access": "read",
-          "line": 841
-        },
-        {
-          "path": "log",
           "access": "read",
           "line": 842
         },
         {
-          "path": "sys.damage.applyShock",
+          "path": "log",
           "access": "read",
-          "line": 845
+          "line": 843
         },
         {
-          "path": "log",
+          "path": "sys.damage.applyShock",
           "access": "read",
           "line": 846
         },
         {
           "path": "log",
           "access": "read",
-          "line": 858
+          "line": 847
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 859
         }
       ]
     },
@@ -14942,14 +15141,14 @@
       "name": "_friendlyRvInsideArea",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 866,
-      "end": 875,
+      "line": 867,
+      "end": 876,
       "callDetails": [
         {
           "name": "areaBounds",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 871,
+          "line": 872,
           "offset": 395,
           "definedBy": null,
           "relation": "unresolved"
@@ -14959,7 +15158,7 @@
         {
           "path": "areaBounds",
           "access": "read",
-          "line": 871
+          "line": 872
         }
       ]
     },
@@ -14967,14 +15166,14 @@
       "name": "_friendlyRvAreaAnchor",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 877,
-      "end": 882,
+      "line": 878,
+      "end": 883,
       "callDetails": [
         {
           "name": "areaBounds",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 878,
+          "line": 879,
           "offset": 53,
           "definedBy": null,
           "relation": "unresolved"
@@ -14984,7 +15183,7 @@
         {
           "path": "areaBounds",
           "access": "read",
-          "line": 878
+          "line": 879
         }
       ]
     },
@@ -14992,19 +15191,19 @@
       "name": "_friendlyRvDiskSafe",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 884,
-      "end": 904,
+      "line": 885,
+      "end": 905,
       "callDetails": [
         {
           "name": "_friendlyRvInsideArea",
           "kind": "direct",
           "unresolved": false,
-          "line": 890,
+          "line": 891,
           "offset": 428,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 866
+            "line": 867
           },
           "relation": "system"
         },
@@ -15012,12 +15211,12 @@
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 898,
+          "line": 899,
           "offset": 824,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 601
+            "line": 602
           },
           "relation": "system"
         }
@@ -15026,12 +15225,12 @@
         {
           "path": "_friendlyRvInsideArea",
           "access": "read",
-          "line": 890
+          "line": 891
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 898
+          "line": 899
         }
       ]
     },
@@ -15039,14 +15238,14 @@
       "name": "_insideFriendlyRv",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 906,
-      "end": 909,
+      "line": 907,
+      "end": 910,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 907
+          "line": 908
         }
       ]
     },
@@ -15054,19 +15253,19 @@
       "name": "friendlyPortApproach",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 911,
-      "end": 979,
+      "line": 912,
+      "end": 980,
       "callDetails": [
         {
           "name": "_friendlyRvDiskSafe",
           "kind": "direct",
           "unresolved": false,
-          "line": 917,
+          "line": 918,
           "offset": 343,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 884
+            "line": 885
           },
           "relation": "system"
         },
@@ -15074,12 +15273,12 @@
           "name": "_friendlyRvAreaAnchor",
           "kind": "direct",
           "unresolved": false,
-          "line": 931,
+          "line": 932,
           "offset": 1058,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 877
+            "line": 878
           },
           "relation": "system"
         },
@@ -15087,12 +15286,12 @@
           "name": "_friendlyRvDiskSafe",
           "kind": "direct",
           "unresolved": false,
-          "line": 937,
+          "line": 938,
           "offset": 1344,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 884
+            "line": 885
           },
           "relation": "system"
         },
@@ -15100,12 +15299,12 @@
           "name": "_friendlyRvDiskSafe",
           "kind": "direct",
           "unresolved": false,
-          "line": 959,
+          "line": 960,
           "offset": 2366,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 884
+            "line": 885
           },
           "relation": "system"
         },
@@ -15113,7 +15312,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 972,
+          "line": 973,
           "offset": 2917,
           "definedBy": {
             "class": "CoreSystem",
@@ -15126,12 +15325,12 @@
           "name": "seabedFeet",
           "kind": "direct",
           "unresolved": false,
-          "line": 973,
+          "line": 974,
           "offset": 3137,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 632
+            "line": 633
           },
           "relation": "system"
         }
@@ -15140,47 +15339,47 @@
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 913
+          "line": 914
         },
         {
           "path": "state.world.terrain",
           "access": "read",
-          "line": 915
+          "line": 916
         },
         {
           "path": "_friendlyRvDiskSafe",
           "access": "read",
-          "line": 917
+          "line": 918
         },
         {
           "path": "_friendlyRvAreaAnchor",
           "access": "read",
-          "line": 931
+          "line": 932
         },
         {
           "path": "_friendlyRvDiskSafe",
           "access": "read",
-          "line": 937
+          "line": 938
         },
         {
           "path": "_friendlyRvDiskSafe",
           "access": "read",
-          "line": 959
+          "line": 960
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 972
+          "line": 973
         },
         {
           "path": "state.playerSub.position",
           "access": "read",
-          "line": 973
+          "line": 974
         },
         {
           "path": "seabedFeet",
           "access": "read",
-          "line": 973
+          "line": 974
         }
       ]
     },
@@ -15188,19 +15387,19 @@
       "name": "friendlyPortNav",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 981,
-      "end": 990,
+      "line": 982,
+      "end": 991,
       "callDetails": [
         {
           "name": "friendlyPortApproach",
           "kind": "direct",
           "unresolved": false,
-          "line": 984,
+          "line": 985,
           "offset": 106,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 911
+            "line": 912
           },
           "relation": "system"
         }
@@ -15209,17 +15408,17 @@
         {
           "path": "state.campaign.friendlyPort",
           "access": "read",
-          "line": 982
+          "line": 983
         },
         {
           "path": "friendlyPortApproach",
           "access": "read",
-          "line": 984
+          "line": 985
         },
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 985
+          "line": 986
         }
       ]
     },
@@ -15227,19 +15426,19 @@
       "name": "headToPort",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 992,
-      "end": 1000,
+      "line": 993,
+      "end": 1001,
       "callDetails": [
         {
           "name": "friendlyPortNav",
           "kind": "direct",
           "unresolved": false,
-          "line": 993,
+          "line": 994,
           "offset": 28,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 981
+            "line": 982
           },
           "relation": "system"
         },
@@ -15247,7 +15446,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 994,
+          "line": 995,
           "offset": 63,
           "definedBy": null,
           "relation": "unresolved"
@@ -15256,7 +15455,7 @@
           "name": "steerWaypoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 998,
+          "line": 999,
           "offset": 322,
           "definedBy": null,
           "relation": "unresolved"
@@ -15265,7 +15464,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 999,
+          "line": 1000,
           "offset": 352,
           "definedBy": {
             "class": "CoreSystem",
@@ -15279,37 +15478,37 @@
         {
           "path": "friendlyPortNav",
           "access": "read",
-          "line": 993
+          "line": 994
         },
         {
           "path": "log",
           "access": "read",
-          "line": 994
+          "line": 995
         },
         {
           "path": "state.map.plottedCourse",
           "access": "write",
-          "line": 995
+          "line": 996
         },
         {
           "path": "state.map.autoFollowPlot",
           "access": "write",
-          "line": 996
+          "line": 997
         },
         {
           "path": "state.runtime.campaign._headingHome",
           "access": "write",
-          "line": 997
+          "line": 998
         },
         {
           "path": "steerWaypoint",
           "access": "read",
-          "line": 998
+          "line": 999
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 999
+          "line": 1000
         }
       ]
     },
@@ -15317,19 +15516,19 @@
       "name": "nearestFriendlyPort",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1002,
-      "end": 1011,
+      "line": 1003,
+      "end": 1012,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 1003
+          "line": 1004
         },
         {
           "path": "state.world.ports",
           "access": "read",
-          "line": 1005
+          "line": 1006
         }
       ]
     },
@@ -15337,14 +15536,14 @@
       "name": "performFriendlyPortService",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1017,
-      "end": 1032,
+      "line": 1018,
+      "end": 1033,
       "callDetails": [
         {
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 1030,
+          "line": 1031,
           "offset": 1005,
           "definedBy": {
             "class": "CoreSystem",
@@ -15357,7 +15556,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 1031,
+          "line": 1032,
           "offset": 1204,
           "definedBy": null,
           "relation": "unresolved"
@@ -15367,22 +15566,22 @@
         {
           "path": "state",
           "access": "read",
-          "line": 1018
+          "line": 1019
         },
         {
           "path": "state.runtime.playerSub._nhdWarned",
           "access": "write",
-          "line": 1029
+          "line": 1030
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 1030
+          "line": 1031
         },
         {
           "path": "log",
           "access": "read",
-          "line": 1031
+          "line": 1032
         }
       ]
     },
@@ -15390,19 +15589,19 @@
       "name": "checkPortArrival",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1034,
-      "end": 1088,
+      "line": 1035,
+      "end": 1089,
       "callDetails": [
         {
           "name": "friendlyPortNav",
           "kind": "direct",
           "unresolved": false,
-          "line": 1045,
+          "line": 1046,
           "offset": 736,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 981
+            "line": 982
           },
           "relation": "system"
         },
@@ -15410,7 +15609,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 1055,
+          "line": 1056,
           "offset": 1194,
           "definedBy": {
             "class": "CoreSystem",
@@ -15423,7 +15622,7 @@
           "name": "stopAutomaticTimeCompression",
           "kind": "direct",
           "unresolved": false,
-          "line": 1060,
+          "line": 1061,
           "offset": 1544,
           "definedBy": {
             "class": "CoreSystem",
@@ -15436,7 +15635,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 1062,
+          "line": 1063,
           "offset": 1619,
           "definedBy": {
             "class": "CoreSystem",
@@ -15449,7 +15648,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 1079,
+          "line": 1080,
           "offset": 2553,
           "definedBy": {
             "class": "CoreSystem",
@@ -15462,12 +15661,12 @@
           "name": "completeMission",
           "kind": "direct",
           "unresolved": false,
-          "line": 1084,
+          "line": 1085,
           "offset": 2911,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1090
+            "line": 1091
           },
           "relation": "system"
         },
@@ -15475,12 +15674,12 @@
           "name": "performFriendlyPortService",
           "kind": "direct",
           "unresolved": false,
-          "line": 1087,
+          "line": 1088,
           "offset": 3094,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1017
+            "line": 1018
           },
           "relation": "system"
         }
@@ -15489,72 +15688,72 @@
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 1035
+          "line": 1036
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 1035
+          "line": 1036
         },
         {
           "path": "state.runtime.campaign",
           "access": "read",
-          "line": 1035
+          "line": 1036
         },
         {
           "path": "friendlyPortNav",
           "access": "read",
-          "line": 1045
+          "line": 1046
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 1055
+          "line": 1056
         },
         {
           "path": "state.time.timeScale",
           "access": "read",
-          "line": 1059
+          "line": 1060
         },
         {
           "path": "state.time.transitUntil",
           "access": "read",
-          "line": 1059
+          "line": 1060
         },
         {
           "path": "stopAutomaticTimeCompression",
           "access": "read",
-          "line": 1060
+          "line": 1061
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 1062
+          "line": 1063
         },
         {
           "path": "state",
           "access": "read",
-          "line": 1078
+          "line": 1079
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 1079
+          "line": 1080
         },
         {
           "path": "completeMission",
           "access": "read",
-          "line": 1084
+          "line": 1085
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 1086
+          "line": 1087
         },
         {
           "path": "performFriendlyPortService",
           "access": "read",
-          "line": 1087
+          "line": 1088
         }
       ]
     },
@@ -15562,14 +15761,14 @@
       "name": "completeMission",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1090,
-      "end": 1130,
+      "line": 1091,
+      "end": 1131,
       "callDetails": [
         {
           "name": "find",
           "kind": "optional-object",
           "unresolved": true,
-          "line": 1094,
+          "line": 1095,
           "offset": 153,
           "object": "camp.objectives",
           "definedBy": null,
@@ -15579,7 +15778,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 1106,
+          "line": 1107,
           "offset": 731,
           "object": "this.ctx",
           "definedBy": null,
@@ -15589,7 +15788,7 @@
           "name": "updateAfterActionRecorder",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 1107,
+          "line": 1108,
           "offset": 853,
           "definedBy": null,
           "relation": "unresolved"
@@ -15598,7 +15797,7 @@
           "name": "finalizePatrol",
           "kind": "system-path",
           "unresolved": false,
-          "line": 1108,
+          "line": 1109,
           "offset": 915,
           "object": "this.sys.career",
           "definedBy": null,
@@ -15608,7 +15807,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 1115,
+          "line": 1116,
           "offset": 1529,
           "definedBy": {
             "class": "CoreSystem",
@@ -15621,7 +15820,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 1117,
+          "line": 1118,
           "offset": 1849,
           "definedBy": null,
           "relation": "unresolved"
@@ -15631,77 +15830,77 @@
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 1091
+          "line": 1092
         },
         {
           "path": "state.weapons",
           "access": "read",
-          "line": 1092
+          "line": 1093
         },
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 1097
+          "line": 1098
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 1106
+          "line": 1107
         },
         {
           "path": "updateAfterActionRecorder",
           "access": "read",
-          "line": 1107
+          "line": 1108
         },
         {
           "path": "sys.career.finalizePatrol",
           "access": "read",
-          "line": 1108
+          "line": 1109
         },
         {
           "path": "state.runtime.campaign._careerStartDate",
           "access": "read",
-          "line": 1110
+          "line": 1111
         },
         {
           "path": "state",
           "access": "read",
-          "line": 1113
+          "line": 1114
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 1115
-        },
-        {
-          "path": "state",
-          "access": "read",
           "line": 1116
         },
         {
-          "path": "log",
+          "path": "state",
           "access": "read",
           "line": 1117
         },
         {
-          "path": "state",
+          "path": "log",
           "access": "read",
           "line": 1118
         },
         {
+          "path": "state",
+          "access": "read",
+          "line": 1119
+        },
+        {
           "path": "state.tdc.torpedoSpecKey",
           "access": "read",
-          "line": 1121
+          "line": 1122
         },
         {
           "path": "state.runtime.playerSub._nhdWarned",
           "access": "write",
-          "line": 1122
+          "line": 1123
         },
         {
           "path": "state",
           "access": "read",
-          "line": 1129
+          "line": 1130
         }
       ]
     },
@@ -15709,19 +15908,19 @@
       "name": "startNewPatrol",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1132,
-      "end": 1279,
+      "line": 1133,
+      "end": 1280,
       "callDetails": [
         {
           "name": "findNavigablePointNear",
           "kind": "direct",
           "unresolved": false,
-          "line": 1229,
+          "line": 1230,
           "offset": 8468,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1297
+            "line": 1298
           },
           "relation": "system"
         },
@@ -15729,12 +15928,12 @@
           "name": "isNavigableMapPoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 1230,
+          "line": 1231,
           "offset": 8612,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1289
+            "line": 1290
           },
           "relation": "system"
         },
@@ -15742,12 +15941,12 @@
           "name": "setDepthAndClearance",
           "kind": "direct",
           "unresolved": false,
-          "line": 1232,
+          "line": 1233,
           "offset": 8797,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 660
+            "line": 661
           },
           "relation": "system"
         },
@@ -15755,7 +15954,7 @@
           "name": "ensureHistoricalCampaignProfile",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 1258,
+          "line": 1259,
           "offset": 11434,
           "definedBy": null,
           "relation": "unresolved"
@@ -15764,12 +15963,12 @@
           "name": "makeConvoy",
           "kind": "direct",
           "unresolved": false,
-          "line": 1259,
+          "line": 1260,
           "offset": 11541,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1430
+            "line": 1431
           },
           "relation": "system"
         },
@@ -15777,7 +15976,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 1265,
+          "line": 1266,
           "offset": 12052,
           "definedBy": null,
           "relation": "unresolved"
@@ -15786,7 +15985,7 @@
           "name": "setupHarbor",
           "kind": "context-path",
           "unresolved": false,
-          "line": 1268,
+          "line": 1269,
           "offset": 12129,
           "object": "this.ctx",
           "definedBy": null,
@@ -15796,7 +15995,7 @@
           "name": "ensureAfterActionReport",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 1272,
+          "line": 1273,
           "offset": 12399,
           "definedBy": null,
           "relation": "unresolved"
@@ -15805,7 +16004,7 @@
           "name": "configureMission",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 1273,
+          "line": 1274,
           "offset": 12441,
           "definedBy": null,
           "relation": "unresolved"
@@ -15814,7 +16013,7 @@
           "name": "ensureTrafficDirector",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 1274,
+          "line": 1275,
           "offset": 12507,
           "definedBy": null,
           "relation": "unresolved"
@@ -15823,7 +16022,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 1275,
+          "line": 1276,
           "offset": 12547,
           "definedBy": null,
           "relation": "unresolved"
@@ -15832,7 +16031,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 1276,
+          "line": 1277,
           "offset": 12610,
           "definedBy": null,
           "relation": "unresolved"
@@ -15841,7 +16040,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 1277,
+          "line": 1278,
           "offset": 12693,
           "definedBy": null,
           "relation": "unresolved"
@@ -15851,12 +16050,7 @@
         {
           "path": "state",
           "access": "read",
-          "line": 1133
-        },
-        {
-          "path": "state",
-          "access": "read",
-          "line": 1164
+          "line": 1134
         },
         {
           "path": "state",
@@ -15864,67 +16058,67 @@
           "line": 1165
         },
         {
-          "path": "findNavigablePointNear",
+          "path": "state",
           "access": "read",
-          "line": 1229
+          "line": 1166
         },
         {
-          "path": "isNavigableMapPoint",
+          "path": "findNavigablePointNear",
           "access": "read",
           "line": 1230
         },
         {
+          "path": "isNavigableMapPoint",
+          "access": "read",
+          "line": 1231
+        },
+        {
           "path": "setDepthAndClearance",
           "access": "read",
-          "line": 1232
+          "line": 1233
         },
         {
           "path": "state.runtime.playerSub._nhdWarned",
           "access": "write",
-          "line": 1235
+          "line": 1236
         },
         {
           "path": "state.runtime.playerSub._suctWarn",
           "access": "write",
-          "line": 1244
+          "line": 1245
         },
         {
           "path": "ensureHistoricalCampaignProfile",
           "access": "read",
-          "line": 1258
+          "line": 1259
         },
         {
           "path": "makeConvoy",
           "access": "read",
-          "line": 1259
+          "line": 1260
         },
         {
           "path": "log",
           "access": "read",
-          "line": 1265
+          "line": 1266
         },
         {
           "path": "ctx.setupHarbor",
           "access": "read",
-          "line": 1268
+          "line": 1269
         },
         {
           "path": "ensureAfterActionReport",
           "access": "read",
-          "line": 1272
+          "line": 1273
         },
         {
           "path": "configureMission",
           "access": "read",
-          "line": 1273
-        },
-        {
-          "path": "ensureTrafficDirector",
-          "access": "read",
           "line": 1274
         },
         {
-          "path": "log",
+          "path": "ensureTrafficDirector",
           "access": "read",
           "line": 1275
         },
@@ -15937,6 +16131,11 @@
           "path": "log",
           "access": "read",
           "line": 1277
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 1278
         }
       ]
     },
@@ -15944,14 +16143,14 @@
       "name": "clampToArea",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1284,
-      "end": 1287,
+      "line": 1285,
+      "end": 1288,
       "callDetails": [
         {
           "name": "areaBounds",
           "kind": "direct",
           "unresolved": false,
-          "line": 1285,
+          "line": 1286,
           "offset": 32,
           "definedBy": null,
           "relation": "unresolved"
@@ -15961,7 +16160,7 @@
         {
           "path": "areaBounds",
           "access": "read",
-          "line": 1285
+          "line": 1286
         }
       ]
     },
@@ -15969,14 +16168,14 @@
       "name": "isNavigableMapPoint",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1289,
-      "end": 1295,
+      "line": 1290,
+      "end": 1296,
       "callDetails": [
         {
           "name": "areaBounds",
           "kind": "direct",
           "unresolved": false,
-          "line": 1291,
+          "line": 1292,
           "offset": 136,
           "definedBy": null,
           "relation": "unresolved"
@@ -15985,12 +16184,12 @@
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1294,
+          "line": 1295,
           "offset": 358,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 601
+            "line": 602
           },
           "relation": "system"
         }
@@ -15999,17 +16198,17 @@
         {
           "path": "areaBounds",
           "access": "read",
-          "line": 1291
+          "line": 1292
         },
         {
           "path": "state.world.terrain",
           "access": "read",
-          "line": 1293
+          "line": 1294
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1294
+          "line": 1295
         }
       ]
     },
@@ -16017,19 +16216,19 @@
       "name": "findNavigablePointNear",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1297,
-      "end": 1301,
+      "line": 1298,
+      "end": 1302,
       "callDetails": [
         {
           "name": "clampToArea",
           "kind": "direct",
           "unresolved": false,
-          "line": 1298,
+          "line": 1299,
           "offset": 66,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1284
+            "line": 1285
           },
           "relation": "system"
         },
@@ -16037,12 +16236,12 @@
           "name": "clampToArea",
           "kind": "direct",
           "unresolved": false,
-          "line": 1299,
+          "line": 1300,
           "offset": 199,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1284
+            "line": 1285
           },
           "relation": "system"
         },
@@ -16050,12 +16249,12 @@
           "name": "isNavigableMapPoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 1299,
+          "line": 1300,
           "offset": 278,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1289
+            "line": 1290
           },
           "relation": "system"
         }
@@ -16064,17 +16263,17 @@
         {
           "path": "clampToArea",
           "access": "read",
-          "line": 1298
+          "line": 1299
         },
         {
           "path": "clampToArea",
           "access": "read",
-          "line": 1299
+          "line": 1300
         },
         {
           "path": "isNavigableMapPoint",
           "access": "read",
-          "line": 1299
+          "line": 1300
         }
       ]
     },
@@ -16082,14 +16281,14 @@
       "name": "endTrainingScenario",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1303,
-      "end": 1309,
+      "line": 1304,
+      "end": 1310,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 1304
+          "line": 1305
         }
       ]
     },
@@ -16097,19 +16296,19 @@
       "name": "planNavigableCourse",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1311,
-      "end": 1334,
+      "line": 1312,
+      "end": 1335,
       "callDetails": [
         {
           "name": "isNavigableMapPoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 1313,
+          "line": 1314,
           "offset": 80,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1289
+            "line": 1290
           },
           "relation": "system"
         },
@@ -16117,12 +16316,12 @@
           "name": "isNavigableMapPoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 1313,
+          "line": 1314,
           "offset": 113,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1289
+            "line": 1290
           },
           "relation": "system"
         },
@@ -16130,12 +16329,12 @@
           "name": "isNavigableMapPoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 1323,
+          "line": 1324,
           "offset": 615,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1289
+            "line": 1290
           },
           "relation": "system"
         },
@@ -16143,12 +16342,12 @@
           "name": "resolveWaterRoute",
           "kind": "direct",
           "unresolved": false,
-          "line": 1327,
+          "line": 1328,
           "offset": 771,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1339
+            "line": 1340
           },
           "relation": "system"
         },
@@ -16156,12 +16355,12 @@
           "name": "isNavigableMapPoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 1331,
+          "line": 1332,
           "offset": 1131,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1289
+            "line": 1290
           },
           "relation": "system"
         }
@@ -16170,42 +16369,42 @@
         {
           "path": "_lastWaypointRouteReason",
           "access": "write",
-          "line": 1312
+          "line": 1313
         },
         {
           "path": "isNavigableMapPoint",
           "access": "read",
-          "line": 1313
+          "line": 1314
         },
         {
           "path": "_lastWaypointRouteReason",
           "access": "write",
-          "line": 1314
+          "line": 1315
         },
         {
           "path": "isNavigableMapPoint",
           "access": "read",
-          "line": 1323
+          "line": 1324
         },
         {
           "path": "resolveWaterRoute",
           "access": "read",
-          "line": 1327
+          "line": 1328
         },
         {
           "path": "_lastWaypointRouteReason",
           "access": "write",
-          "line": 1328
+          "line": 1329
         },
         {
           "path": "isNavigableMapPoint",
           "access": "read",
-          "line": 1331
+          "line": 1332
         },
         {
           "path": "_lastWaypointRouteReason",
           "access": "write",
-          "line": 1331
+          "line": 1332
         }
       ]
     },
@@ -16213,19 +16412,19 @@
       "name": "resolveWaterRoute",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1339,
-      "end": 1396,
+      "line": 1340,
+      "end": 1397,
       "callDetails": [
         {
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1346,
+          "line": 1347,
           "offset": 372,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 601
+            "line": 602
           },
           "relation": "system"
         },
@@ -16233,12 +16432,12 @@
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1358,
+          "line": 1359,
           "offset": 1255,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 601
+            "line": 602
           },
           "relation": "system"
         }
@@ -16247,17 +16446,17 @@
         {
           "path": "state.world.terrain",
           "access": "read",
-          "line": 1342
+          "line": 1343
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1346
+          "line": 1347
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1358
+          "line": 1359
         }
       ]
     },
@@ -16265,19 +16464,19 @@
       "name": "validateActiveWaterNetwork",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1398,
-      "end": 1428,
+      "line": 1399,
+      "end": 1429,
       "callDetails": [
         {
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1400,
+          "line": 1401,
           "offset": 279,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 601
+            "line": 602
           },
           "relation": "system"
         },
@@ -16285,12 +16484,12 @@
           "name": "resolveWaterRoute",
           "kind": "direct",
           "unresolved": false,
-          "line": 1403,
+          "line": 1404,
           "offset": 574,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1339
+            "line": 1340
           },
           "relation": "system"
         },
@@ -16298,12 +16497,12 @@
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1404,
+          "line": 1405,
           "offset": 1018,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 601
+            "line": 602
           },
           "relation": "system"
         },
@@ -16311,12 +16510,12 @@
           "name": "findNavigablePointNear",
           "kind": "direct",
           "unresolved": false,
-          "line": 1412,
+          "line": 1413,
           "offset": 1648,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1297
+            "line": 1298
           },
           "relation": "system"
         },
@@ -16324,12 +16523,12 @@
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1421,
+          "line": 1422,
           "offset": 2320,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 601
+            "line": 602
           },
           "relation": "system"
         },
@@ -16337,12 +16536,12 @@
           "name": "friendlyPortApproach",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 1426,
+          "line": 1427,
           "offset": 2588,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 911
+            "line": 912
           },
           "relation": "system"
         }
@@ -16351,47 +16550,47 @@
         {
           "path": "state.world",
           "access": "read",
-          "line": 1399
+          "line": 1400
         },
         {
           "path": "state.campaign.patrolArea",
           "access": "read",
-          "line": 1399
+          "line": 1400
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1400
+          "line": 1401
         },
         {
           "path": "resolveWaterRoute",
           "access": "read",
-          "line": 1403
+          "line": 1404
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1404
+          "line": 1405
         },
         {
           "path": "findNavigablePointNear",
           "access": "read",
-          "line": 1412
+          "line": 1413
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1421
+          "line": 1422
         },
         {
           "path": "friendlyPortApproach",
           "access": "read",
-          "line": 1426
+          "line": 1427
         },
         {
           "path": "state.campaign.friendlyPort",
           "access": "read",
-          "line": 1426
+          "line": 1427
         }
       ]
     },
@@ -16399,19 +16598,19 @@
       "name": "makeConvoy",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1430,
-      "end": 1516,
+      "line": 1431,
+      "end": 1517,
       "callDetails": [
         {
           "name": "resolveWaterRoute",
           "kind": "direct",
           "unresolved": false,
-          "line": 1432,
+          "line": 1433,
           "offset": 81,
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1339
+            "line": 1340
           },
           "relation": "system"
         }
@@ -16420,27 +16619,22 @@
         {
           "path": "resolveWaterRoute",
           "access": "read",
-          "line": 1432
+          "line": 1433
         },
         {
           "path": "state.playerSub.position",
           "access": "read",
-          "line": 1437
+          "line": 1438
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 1437
+          "line": 1438
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 1442
-        },
-        {
-          "path": "state.campaign",
-          "access": "read",
-          "line": 1454
+          "line": 1443
         },
         {
           "path": "state.campaign",
@@ -16453,24 +16647,29 @@
           "line": 1456
         },
         {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 1457
+        },
+        {
           "path": "state.time",
           "access": "read",
-          "line": 1456
+          "line": 1457
         },
         {
           "path": "state.campaign.patrolArea",
           "access": "read",
-          "line": 1496
+          "line": 1497
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 1497
+          "line": 1498
         },
         {
           "path": "state",
           "access": "read",
-          "line": 1514
+          "line": 1515
         }
       ]
     },

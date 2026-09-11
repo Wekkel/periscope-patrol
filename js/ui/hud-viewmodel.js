@@ -12,6 +12,7 @@
   const targetLabel=(state,id)=>{
     if(!id)return '';
     const t=state.world?.contactTracks?.[id]||state.world?.contacts?.find?.(x=>x.id===id);
+    if(t?.identifiedClassName)return `${id} [${t.identifiedClassName}]`;
     return t?.name||t?.label||id;
   };
   function buildHudViewModel(state,layout){
@@ -25,7 +26,7 @@
     if(!tdc.targetId)reason='No target selected.';
     else if(!ready)reason='No torpedo tube is ready.';
     else if(n(tdc.solutionQuality)<.25)reason=range?.band==='OUT'?'Target is outside torpedo range.':'No firing solution is ready.';
-    const torp=typeof torpedoStoresStatus==='function'?torpedoStoresStatus(s):{total:tubes.length,loadShort:'—'};
+    const torp=(typeof torpedoStoresStatus==='function'?torpedoStoresStatus(s):null)||{total:tubes.length,loadShort:'—'};
     const threat=enemy.alertState==='UNAWARE'?'clear':String(enemy.alertState||'clear');
     const warnings=d.warnings||[];
     const mission=s.campaign||{};
@@ -104,7 +105,8 @@
     damage.burden=burden;damage.dcNote=`Priority ${typeof repairPriorityLabel==='function'?repairPriorityLabel(d.repairPriority):d.repairPriority||'FLOODING'} · ${d.damageControlActive?'parties working':'standby'} · pumps ${d.pumpTripped?'TRIPPED':d.pumpActive?`ON ${Math.round(Math.max(.16,Math.min(1,1-n(d.pumpDamage)*.78))*100)}%`:`ready ${Math.round(Math.max(.16,Math.min(1,1-n(d.pumpDamage)*.78))*100)}%`}${d.driveBankOffline?' · drive bank offline':''}`;
     const stores=typeof torpedoStoresStatus==='function'?torpedoStoresStatus(s):null;weapons.storesText=stores?`${stores.total} aboard · ${stores.loaded} loaded (${stores.loadedText}) · ${stores.reserve} reserve · reload ${stores.loadShort} · ${stores.ready} READY`:'';weapons.fwdIds=tubes.filter(t=>t.pos==='FWD').map(t=>t.id).join('-');weapons.aftIds=tubes.filter(t=>t.pos==='AFT').map(t=>t.id).join('-');
     const track=tdc.targetId?(s.world?.contactTracks?.[tdc.targetId]||s.world?.contacts?.find?.(x=>x.id===tdc.targetId)):null;
-    const tdcView={status:String(tdc.status||'NO SOLUTION'),targetLabel:fire.targetLabel||'No target',bearingText:track&&Number.isFinite(track.brg)?`${track.brg.toFixed(0)}°`:'--',rangeText:range?`${range.rangeNm.toFixed(1)} nm`:(Number.isFinite(tdc.rangeNm)?`${tdc.rangeNm.toFixed(1)} nm`:'--'),courseText:track&&Number.isFinite(track.courseDeg)?(typeof fmtDeg==='function'?fmtDeg(track.courseDeg):`${round(track.courseDeg)}°`):'--',speedText:track&&Number.isFinite(track.speedKn)?`${track.speedKn.toFixed(0)} kn`:'--',aobText:fire.aobText,gyroText:fire.gyroText,runText:fire.ttiText,qualityText:fire.solutionText,sourceText:track?.source||track?.kind||'—',modeText:tdc.manual?'MANUAL':'AUTO'};
+    const targetIdent=track?.identifiedClassId?{classId:track.identifiedClassId,className:track.identifiedClassName||track.identifiedClassId,status:track.identificationStatus||'IDENTIFIED',code:track.identifiedCompositeCode||'',category:track.identifiedCategory||'',mastheadFt:Number(track.identifiedMastheadFt)||0,draftFt:Number(track.identifiedDraftFt)||0,optDepthFt:Number(track.recommendedTorpedoDepthFt)||0}:null;
+    const tdcView={status:String(tdc.status||'NO SOLUTION'),targetLabel:fire.targetLabel||'No target',identification:targetIdent,bearingText:track&&Number.isFinite(track.brg)?`${track.brg.toFixed(0)}°`:'--',rangeText:range?`${range.rangeNm.toFixed(1)} nm`:(Number.isFinite(tdc.rangeNm)?`${tdc.rangeNm.toFixed(1)} nm`:'--'),courseText:track&&Number.isFinite(track.courseDeg)?(typeof fmtDeg==='function'?fmtDeg(track.courseDeg):`${round(track.courseDeg)}°`):'--',speedText:track&&Number.isFinite(track.speedKn)?`${track.speedKn.toFixed(0)} kn`:'--',aobText:fire.aobText,gyroText:fire.gyroText,runText:fire.ttiText,qualityText:fire.solutionText,sourceText:track?.source||track?.kind||'—',modeText:tdc.manual?'MANUAL':'AUTO'};
     tdcView.summaryText=tdc.targetId?`${tdcView.targetLabel} · ${tdcView.qualityText} · ${ready} READY`:'NO TARGET';
     systems.intelSummaryText=`${systems.contacts} CONTACT${systems.contacts===1?'':'S'} · ${systems.alertLevel}`;
     const missionSummary=missionProgress||String(mission.missionStatus||missionTitle);

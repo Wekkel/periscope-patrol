@@ -103,6 +103,8 @@ class BridgeController{
     btn('scopeOverlayZoom', ()=>this.game.dispatch({type:'TOGGLE_PERISCOPE_ZOOM'}));
     btn('selectScopeTargetButton',()=>this.game.dispatch({type:'PERISCOPE_SELECT_CENTER_CONTACT'}));
     btn('sendScopeToTdcButton',   ()=>this.game.dispatch({type:'TDC_SEND_SCOPE_OBSERVATION'}));
+    btn('recManualButton',        ()=>globalThis.RecognitionManual?.open(this.game));
+    btn('oRecManual',             ()=>globalThis.RecognitionManual?.open(this.game));
     btn('floodTubeButton',  ()=>this.game.dispatch({type:'FLOOD_ALL_TUBES'}));
     btn('fireTubeButton',   ()=>{
       const s=this.game.getSnapshot(),bank=s.tdc?.launchBank||'FWD';

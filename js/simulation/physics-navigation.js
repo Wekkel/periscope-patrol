@@ -773,11 +773,73 @@ class SimEngine {
     const tr=this.state.world.contactTracks[sid];
     if(!tr){this.log('Track lost.','warn');return;}
     const tdc=this.state.tdc;
-    const mb=scopeMeasuredBearing(this.state,tr.bearing),mr=scopeMeasuredRangeNm(this.state,tr.rangeEstimateNm);
+    let mr=scopeMeasuredRangeNm(this.state,tr.rangeEstimateNm);
+    if(tr.identifiedClassId&&typeof getShipRecognitionClass==='function'){
+      const cls=getShipRecognitionClass(tr.identifiedClassId),c=(this.state.world.contacts||[]).find(q=>q.id===sid);
+      if(cls&&c){
+        const groundTruth=typeof inferShipClassFromContact==='function'?inferShipClassFromContact(c):cls;
+        const actualMast=groundTruth?.dimensions?.mastheadHeightFt||72;
+        const apparentMast=cls.dimensions?.mastheadHeightFt||actualMast;
+        const scale=apparentMast/actualMast;
+        const trueRng=Math.max(.05,tr.rangeEstimateNm||distNm(this.state.playerSub.position,c.position));
+        mr=scopeMeasuredRangeNm(this.state,trueRng*scale);
+      }
+    }
+    const mb=scopeMeasuredBearing(this.state,tr.bearing);
     tdc.targetId=sid;tdc.autoTrack=true;tdc.trackSource='SCOPE';tdc.bearing=mb;tdc.rangeNm=mr;
     tdc.targetCourse=tr.courseEstimate;tdc.targetSpeedKnots=tr.speedEstimateKnots;
     this.updateTdc(true);PresentationBridge.audio(this.state).playTdcSolution?.();
-    this.log(`TDC: ${sid} B${fmtDeg(mb)} R${mr.toFixed(1)}nm C${fmtDeg(tr.courseEstimate)} S${tr.speedEstimateKnots.toFixed(1)}kn${this.state.playerSub.damage.periscopeDamage>.12?' — optical measurement degraded':''}`);
+    const identNote=tr.identifiedClassName?` [${tr.identifiedClassName}]`:'';
+    this.log(`TDC: ${sid}${identNote} B${fmtDeg(mb)} R${mr.toFixed(1)}nm C${fmtDeg(tr.courseEstimate)} S${tr.speedEstimateKnots.toFixed(1)}kn${this.state.playerSub.damage.periscopeDamage>.12?' — optical measurement degraded':''}`);
+  }
+
+  identifyContactClass(trackId, classId){
+    const s=this.state, W=s.world, tdc=s.tdc;
+    const sid=trackId || s.tactical?.selectedTrackId || tdc.targetId;
+    if(!sid){this.log('No contact selected for identification.','warn');return {success:false,reason:'NO_TARGET'};}
+    let tr=W.contactTracks[sid];
+    const c=(W.contacts||[]).find(q=>q.id===sid);
+    if(!c){this.log('Contact lost.','warn');return {success:false,reason:'CONTACT_LOST'};}
+    const cls=typeof getShipRecognitionClass==='function'?getShipRecognitionClass(classId):null;
+    if(!cls){this.log(`Unknown vessel class: ${classId}`,'warn');return {success:false,reason:'UNKNOWN_CLASS'};}
+    if(!tr){
+      tr={id:c.id,typeEstimate:cls.name,bearing:bearingBetween(s.playerSub.position,c.position),rangeEstimateNm:distNm(s.playerSub.position,c.position),courseEstimate:c.heading,speedEstimateKnots:c.speedKnots,confidence:0.8,source:'VISUAL',lastUpdated:s.time.elapsedSeconds,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards};
+      W.contactTracks[sid]=tr;
+    }
+    const groundTruth=typeof inferShipClassFromContact==='function'?inferShipClassFromContact(c):null;
+    const isCorrect=groundTruth?groundTruth.id===cls.id:true;
+    const isClose=groundTruth&&!isCorrect&&(groundTruth.category===cls.category&&groundTruth.compositeCode===cls.compositeCode);
+
+    tr.identifiedClassId=cls.id;
+    tr.identifiedClassName=cls.name;
+    tr.identifiedCategory=cls.category;
+    tr.identifiedCompositeCode=cls.compositeCode;
+    tr.identifiedMastheadFt=cls.dimensions.mastheadHeightFt;
+    tr.identifiedDraftFt=cls.dimensions.draftFt;
+    tr.identifiedLengthFt=cls.dimensions.lengthFt;
+    tr.typeEstimate=cls.name;
+    tr.identificationStatus=isCorrect?'CONFIRMED':(isClose?'PROBABLE':'MISIDENTIFIED');
+
+    const optDepth=typeof recommendedTorpedoDepthFt==='function'?recommendedTorpedoDepthFt(cls.dimensions.draftFt,s.tdc?.dudMode==='magnetic'):Math.round(cls.dimensions.draftFt*0.6);
+    tr.recommendedTorpedoDepthFt=optDepth;
+
+    if(isCorrect){
+      tdc.solutionQuality=Math.min(1.0,(tdc.solutionQuality||0)+0.18);
+      this.log(`RECOGNITION CONFIRMED: ${c.name||sid} identified as ${cls.name}. Masthead ${cls.dimensions.mastheadHeightFt} ft, draft ${cls.dimensions.draftFt} ft (optimal depth ${optDepth} ft). TDC refined.`,'ok');
+      PresentationBridge.audio(this.state).playTdcSolution?.();
+    }else if(isClose){
+      this.log(`RECOGNITION LOGGED: ${c.name||sid} logged as ${cls.name}. Similar class profile.`,'info');
+    }else{
+      tdc.solutionQuality=Math.max(0.1,(tdc.solutionQuality||0)-0.10);
+      this.log(`RECOGNITION CAUTION: ${c.name||sid} classified as ${cls.name}. Visual features uncertain.`,'warn');
+    }
+
+    if(tdc.targetId===sid&&tdc.trackSource==='SCOPE'){
+      this.sendScopeToTdc();
+    }else{
+      this.updateTdc(true);
+    }
+    return {success:true,isCorrect,classId:cls.id,className:cls.name};
   }
 
   nearestScopeTrack(){

@@ -28,6 +28,7 @@ const scriptFiles=[
   'js/data/campaign-data.js',
   'js/data/pacific-terrain-data.js',
   'js/data/game-catalog.js',
+  'js/data/recognition-manual.js',
   'js/data/multi-theater-campaigns.js',
   'js/data/historical-scenarios.js'
 ];
