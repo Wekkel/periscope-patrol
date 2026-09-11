@@ -71,7 +71,7 @@ const MapStation={
     this.drawMapPortScenes(ctx,state.world.portScenes||[],w2s);
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
-    this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds,state.campaign);
+    this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds,state.campaign,state.world.environment?.daylight);
     this.drawMissionOverlay(ctx,state,w2s);
     this.drawMapTrail(ctx,map.ownshipTrail,w2s);
     this.drawMapPlot(ctx,map.plottedCourse,w2s,sub.position,map.autoFollowPlot);
@@ -623,11 +623,12 @@ const MapStation={
     }
   },
 
-  drawMapHarbor(ctx,H,I,w2s,now,campaign=null){
+  drawMapHarbor(ctx,H,I,w2s,now,campaign=null,daylight=null){
     if(!H) return;
     const K=this.k,c=w2s(H.center.xNm,H.center.yNm), mine=I?.minefield, ch=I?.channel;
     const hasKnowledge=!!I&&(mine?.level!=='NONE'||ch?.level!=='NONE'||I.net?.known||(I.batteries||[]).length);
-    const lightActive=(H.searchlightActiveUntil||-1)>(now||0);
+    const isDark=(daylight??0)<0.35;
+    const lightActive=(H.searchlightActiveUntil||-1)>(now||0)&&isDark;
     if(!hasKnowledge&&!lightActive&&H.alert<=0) return; // before intel: the port symbol is all the chart knows
     ctx.save();
 

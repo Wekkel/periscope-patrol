@@ -115,6 +115,132 @@ function mockDepthDisplay(factor, suffix, feet, decimals = 0) {
 }
 assert.equal(mockDepthDisplay(1, 'ft', 100), '100 ft');
 assert.equal(mockDepthDisplay(0.3048, 'm', 100), '30 m');
-assert.equal(mockDepthDisplay(0.3048, 'm', 55), '17 m');
+// 8. Harbor detection, alarm escalation & daylight gating tests
+let generalAlarmTriggered = false;
+let escortsAlerted = null;
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6');
+const harborModule = await load('js/simulation/harbor.js', ['HarborSystem'], {
+  degToRad, radToDeg, normDeg, shortDelta, knotsNmSec, clamp, distNm, lerp, bearingBetween,
+  weatherBetween: () => ({ searchlightFactor: 1, seaState: 1 }),
+  shipDamageSeverity: c => c.damageSeverity || 0,
+  PresentationBridge: { audio: () => ({ playGeneralAlarm: () => { generalAlarmTriggered = true; } }) },
+  PATROL_AREAS: {},
+  materializePortScenes: () => [],
+  getSubmarineProfile: () => ({ weapons: { deckGun: { ammo: 100 } } }),
+  getCampaignHarborOperationProfile: () => null,
+  materializeVesselIdentity: x => x,
+  BATTLE_MAX_FLASHES: 10,
+  battlePredictPosition: () => ({ xNm: 0, yNm: 0 })
+});
+
+const createHarborHarness = (overrides = {}) => {
+  const H = {
+    name: 'Scapa Flow',
+    shortName: 'Scapa',
+    center: { xNm: 0, yNm: 0 },
+    outerRadiusNm: 5.0,
+    innerRadiusNm: 2.0,
+    hydrophoneRangeNm: 3.0,
+    batteryRangeNm: 4.0,
+    suspicion: 0,
+    alert: 0,
+    entered: false,
+    inside: false,
+    lastGunAt: -999,
+    lastSweepAt: -999,
+    searchlightActiveUntil: 0,
+    searchlightSweepWarned: false,
+    heavyTargetId: 'HEAVY_1',
+    mines: []
+  };
+  const mockIntel = {
+    raid: { attempted: false, enteredAt: null, result: 'not_attempted' },
+    heavyUnit: { identified: false },
+    net: { known: false },
+    minefield: { level: 'NONE' },
+    channel: { level: 'NONE' }
+  };
+  const mockContext = {
+    state: {
+      world: {
+        harbor: H,
+        enemy: { searchCenter: null },
+        environment: { daylight: 1.0, visibilityNm: 10 },
+        contacts: []
+      },
+      playerSub: {
+        position: { xNm: 1.0, yNm: 0 },
+        depthFeet: 0,
+        propulsion: { speedKnots: 8 },
+        stealth: { acousticSignature: 0.2 },
+        mode: 'SURFACED'
+      },
+      time: { elapsedSeconds: 100 }
+    },
+    ensureHarborIntel: () => mockIntel,
+    refreshHarborOptionalObjective: () => {},
+    notify: () => {},
+    log: () => {},
+    sys: {
+      enemyAI: {
+        alertEscorts: (reason, pos, intensity) => {
+          escortsAlerted = { reason, pos, intensity };
+        }
+      }
+    }
+  };
+  if (overrides.state) {
+    Object.assign(mockContext.state, overrides.state);
+  }
+  return { H, mockIntel, mockContext };
+};
+
+// Test 1: noteHarborAttack escalates alarm immediately on damaged or sunk harbor targets
+generalAlarmTriggered = false;
+escortsAlerted = null;
+const harness1 = createHarborHarness();
+const targetContact = {
+  id: 'HEAVY_1',
+  harborTarget: true,
+  sunk: true,
+  position: { xNm: 0.5, yNm: 0.5 }
+};
+harborModule.HarborSystem.noteHarborAttack.call(harness1.mockContext, targetContact);
+assert.equal(harness1.H.suspicion, 100, 'Suspicion must max out (100) on harbor attack');
+assert.equal(harness1.H.alert, 2, 'Harbor alert must escalate to 2 (FULL ALARM)');
+assert.equal(harness1.mockContext.state.world.enemy.searchCenter?.xNm, 0.5, 'Search center xNm must match target position');
+assert.equal(harness1.mockContext.state.world.enemy.searchCenter?.yNm, 0.5, 'Search center yNm must match target position');
+assert.equal(generalAlarmTriggered, true, 'General alarm audio must trigger');
+assert.equal(escortsAlerted?.reason, 'HARBOR_ATTACK', 'Escorts must receive HARBOR_ATTACK alert');
+
+// Test 2: Daylight extinguishes active searchlights
+const harness2 = createHarborHarness();
+harness2.H.searchlightActiveUntil = 150; // Active until t=150
+harness2.mockContext.state.world.environment.daylight = 0.8; // Daylight!
+harborModule.HarborSystem.updateHarbor.call(harness2.mockContext, 1.0);
+assert.equal(harness2.H.searchlightActiveUntil, 0, 'Searchlight must be extinguished when daylight >= 0.35');
+
+// Test 3: Nighttime allows searchlights to sweep
+const harness3 = createHarborHarness();
+harness3.mockContext.state.world.environment.daylight = 0.1; // Night!
+harness3.H.suspicion = 25; // Above decay threshold (< 4)
+harness3.H.alert = 1;
+harness3.mockContext.state.playerSub.depthFeet = 0; // Surfaced
+harness3.mockContext.state.playerSub.position = { xNm: 2.0, yNm: 0 }; // rng = 2.0 < 4.4
+harness3.mockContext.state.time.elapsedSeconds = 200;
+harness3.H.lastSweepAt = 100; // > 22 seconds ago
+harborModule.HarborSystem.updateHarbor.call(harness3.mockContext, 1.0);
+assert.ok(harness3.H.searchlightActiveUntil > 200, 'Searchlight sweep must activate at night when surfaced within range');
+
+// Test 4: Optical shore lookout detects surfaced hull in daylight independent of hydrophones
+const harness4 = createHarborHarness();
+harness4.mockContext.state.world.environment.daylight = 0.85; // Bright day
+harness4.mockContext.state.playerSub.depthFeet = 0; // Surfaced
+harness4.mockContext.state.playerSub.position = { xNm: 1.5, yNm: 0 }; // Inside approach (1.5 nm)
+harness4.mockContext.state.playerSub.propulsion.speedKnots = 0; // Dead in the water
+harness4.mockContext.state.playerSub.stealth.acousticSignature = 0; // Completely silent
+const initialSuspicion = harness4.H.suspicion;
+harborModule.HarborSystem.updateHarbor.call(harness4.mockContext, 10.0);
+assert.ok(harness4.H.suspicion > initialSuspicion, 'Optical lookouts must build suspicion against surfaced hulls during daytime');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4');

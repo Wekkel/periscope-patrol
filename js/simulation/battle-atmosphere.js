@@ -38,6 +38,8 @@ function battlePredictPosition(p,heading,speedKnots,sec){
 
     updateHarborSearchlight(dt){
       const W=this.state.world,H=W.harbor,sub=this.state.playerSub;if(!H)return;
+      const isDark=(W.environment?.daylight??1)<0.35;
+      if(!isDark){H.searchlightActiveUntil=0;H.searchlightSweep=null;return;}
       const now=this.state.time.elapsedSeconds,sw=H.searchlightSweep;
       if(!sw||now>sw.startedAt+sw.duration)return;
       const u=clamp((now-sw.startedAt)/Math.max(.1,sw.duration),0,1);

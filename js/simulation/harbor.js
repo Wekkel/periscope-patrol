@@ -202,6 +202,14 @@ const HarborSystem={
       else if(shipDamageSeverity(contact)>.05||(contact.gunDamage||0)>0) I.raid.result='damaged';
     }
     this.refreshHarborOptionalObjective();
+    // Harbor alarm escalation: an attack or sinking on the anchorage immediately alerts coastal batteries & escorts
+    if(H&&(contact.sunk||shipDamageSeverity(contact)>.02||(contact.gunDamage||0)>0)){
+      H.suspicion=100;H.alert=2;
+      this.state.world.enemy.searchCenter={...contact.position};
+      this.notify(`HARBOUR DEFENCES ALERTED — detonation inside ${H.name}! Coastal batteries and escorts on full alert.`,'bad','KRITIEK');
+      PresentationBridge.audio(this.state).playGeneralAlarm?.();
+      this.sys.enemyAI?.alertEscorts?.('HARBOR_ATTACK',{...contact.position},0.95);
+    }
   },
 
   updateHarborKnowledge(dt){
@@ -305,7 +313,7 @@ const HarborSystem={
     if(rng<H.outerRadiusNm&&!H.entered){
       H.entered=true;
       const I=this.ensureHarborIntel();
-      this.notify(I&&(I.minefield.level!=='NONE'||I.channel.level!=='NONE')
+      this.notify(I&&(I.minefield?.level!=='NONE'||I.channel?.level!=='NONE')
         ?`ENEMY HARBOUR WATERS — ${H.name}. Work from the chart: keep near the swept-approach centerline, treat its limits as approximate, and do not assume the torpedo-net gate is known.`
         :`ENEMY HARBOUR WATERS — ${H.name}. Defences are not charted. Proceed carefully and build the picture yourself.`,'warn', 'NUTTIG');
     }
@@ -322,7 +330,19 @@ const HarborSystem={
     if(hydro>0){
       const prop=Math.max(0,noise-0.035)+Math.max(0,sub.propulsion.speedKnots-3)*0.012;
       H.suspicion+=dt*hydro*prop*0.62;
-      if(sub.depthFeet<12) H.suspicion+=dt*hydro*(0.025+W.environment.daylight*0.045);
+    }
+    // Shore visual observation: coastal lookouts with binoculars detect surfaced hulls
+    // or high-speed periscope wakes during daylight or under illumination,
+    // independent of hydrophone range.
+    if(rng<=H.outerRadiusNm){
+      const day=clamp(W.environment.daylight||0,0,1),visNm=Math.max(1,W.environment.visibilityNm||6);
+      const shoreVisFactor=clamp(1-rng/Math.min(H.outerRadiusNm,visNm*.85),0,1);
+      if(day>0.20&&sub.depthFeet<12&&shoreVisFactor>0){
+        H.suspicion=clamp(H.suspicion+dt*shoreVisFactor*(0.04+day*0.08),0,100);
+      }else if(day>0.20&&sub.depthFeet<=55&&sub.propulsion?.speedKnots>4.5&&rng<H.innerRadiusNm*1.2){
+        const wakeF=clamp((sub.propulsion.speedKnots-4.5)/3.5,0,1)*day;
+        H.suspicion=clamp(H.suspicion+dt*wakeF*0.06,0,100);
+      }
     }
     const quiet=noise<0.16&&sub.propulsion.speedKnots<4;
     H.suspicion=clamp(H.suspicion-dt*(quiet?0.045:0.012),0,100);
@@ -341,8 +361,13 @@ const HarborSystem={
 
     // Searchlight sweeps are warnings; the battery only has a useful target if
     // the boat is surfaced/awash. Diving under the beams is therefore real cover.
+    const isDark=(W.environment?.daylight??1)<0.35;
+    if(!isDark&&(H.searchlightActiveUntil||0)>now){
+      H.searchlightActiveUntil=0;
+      H.searchlightSweep=null;
+    }
     const harborWx=weatherBetween(this.state,H.center,sub.position);
-    if(H.alert>0&&sub.depthFeet<12&&rng<4.4*harborWx.searchlightFactor&&now-H.lastSweepAt>22){
+    if(isDark&&H.alert>0&&sub.depthFeet<12&&rng<4.4*harborWx.searchlightFactor&&now-H.lastSweepAt>22){
       H.lastSweepAt=now;
       if(this.startHarborSearchlightSweep)this.startHarborSearchlightSweep(H);
       else{H.searchlightActiveUntil=now+8*harborWx.searchlightFactor;H.searchlightBearing=normDeg(bearingBetween(H.center,sub.position)+(Math.random()-.5)*12);H.searchlightWidthDeg=14;}

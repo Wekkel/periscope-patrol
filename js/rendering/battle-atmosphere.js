@@ -42,7 +42,7 @@ const BattleAtmosphere={
     },
 
     drawHarborSearchlight3D(ctx,cam,state,dl,t){
-      const H=state.world.harbor,now=state.time.elapsedSeconds;if(!H||(H.searchlightActiveUntil||-1)<=now)return;
+      const H=state.world.harbor,now=state.time.elapsedSeconds;if(!H||(H.searchlightActiveUntil||-1)<=now||dl>=0.35)return;
       const wx=weatherAtPosition(state,H.center),maxNm=4.4*wx.searchlightFactor,br=degToRad(H.searchlightBearing||0),wid=degToRad((H.searchlightWidthDeg||12)*.5),steps=this.lowSpec?6:9;
       const pts=[];for(let i=0;i<=steps;i++){const f=i/steps,rng=.18+maxNm*f,z=lerp(18,3,f);for(const side of [-1,1]){const a=br+side*wid*(.15+.85*f),q={xNm:H.center.xNm+Math.sin(a)*rng,yNm:H.center.yNm-Math.cos(a)*rng},p=this.battlePoint(cam,q,z);if(p)pts.push({p,side,i});}}
       // Draw paired cross-sections as translucent strips. Missing off-screen

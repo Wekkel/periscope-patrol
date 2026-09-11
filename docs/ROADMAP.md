@@ -50,6 +50,11 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 
 ### 4. Fysiek geloofwaardige havens, fjorden en corridors
 * **Doel**: Toegang tot havens en ankerplaatsen moet natuurlijk ontstaan uit kustlijnen, eilanden, ondieptes, mijnenvelden, anti-onderzeebootnetten, patrouillerende zoeklichten en kustbatterijen—niet uit zichtbare kunstmatige rechthoeken of willekeurige verboden zones.
+* **Fases**:
+  * [x] **Fase 4.1: Havendetectie, Alarm-Escalatie & Daglichtcontrole** (Optische kustwachtdetectie overdag voor surfaced/snelle periscoopvaart onafhankelijk van hydrofoons, directe alarm-escalatie bij torpedotreffers/schade aan ankerdoelen met algemeen alarm en escorte-dispatching, daglicht-gated zoeklichten en 2D/3D onderdrukking) — **GOEDGEKEURD (Harry: 9.75/10, Henry: 9.35/10)**
+  * [ ] **Fase 4.2: Fysieke Havenarchitectuur & 2.5D Kustkades** (Kades, pieren, pakhuizen, brandstoftanks en havenstructuren met perspectivische projectie en verlichting in periscoop-/brugzicht)
+  * [ ] **Fase 4.3: Verdedigingsnetten, Versperringen & Kustbatterijen** (Gedifferentieerde versperringen, indicatielussen, zoeklichtbundels en getijdewateren in havenmondingen en fjorden)
+  * [ ] **Fase 4.4: Special Ops Infiltratiemissies & Haven-AAR Debriefing** (Specifieke penetratiescenario's, verkenning van slagschepen/vliegdekschepen op ankerplaatsen en afhandeling in campagnetactiek)
 
 ### 5. Visuele en systemische scheepsherkenning
 * **Doel**: Rijkere differentiatie van schepen:
@@ -111,9 +116,9 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 
 ## Deel 3: Concrete Operationele Taken ("Andere TODO")
 
-- [ ] **Havendetectie**: Detectie in havens alleen via hydrofoon; direct zicht telt nu niet mee en een gezonken schip op de ankerplaats escaleert de haven nog niet.
+- [x] **Havendetectie**: Detectie in havens alleen via hydrofoon; direct zicht telt nu mee via kustwacht en gezonken/beschadigde schepen op de ankerplaats escaleren de haven direct.
 - [ ] **Vliegtuigdetectiefase**: Vliegtuigen vallen momenteel direct aan zonder voorafgaande verkennings- of detectiefase.
-- [ ] **Zoeklichten overdag**: Zoeklichten worden overdag soms nog actief getoond; daglichtcontrole toevoegen.
+- [x] **Zoeklichten overdag**: Zoeklichten worden overdag automatisch gedoofd en niet langer weergegeven (`daylight >= 0.35`).
 - [ ] **Havenmissies uitbouwen**: Kades, pakhuizen, havengebouwen, kustbatterijen, schijnwerpers, lichtkogels, corridors en torpedonetten toevoegen (beginnend bij *USN Chokepoint Penetration*).
 - [ ] **Interne benchmark**: Gestandaardiseerde benchmark voor 3D-framerate, audioload en CPU-cycli, direct vergelijkbaar tussen apparaten en git-commits.
 - [ ] **Automatische veilige routeplanning**: Routering over lange afstanden rond landmassa's automatiseren zonder hinder bij handmatige precisienavigatie.
