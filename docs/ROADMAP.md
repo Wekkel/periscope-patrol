@@ -44,7 +44,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 * **Randvoorwaarde**: Zonder zes afzonderlijke parallelle UI-codebases te onderhouden; modulaire datagedreven styling, SVG-instrumentwijzers en gelokaliseerde order-vocabulaires over één gedeelde kern.
 * **Fases**:
   * [x] **Fase 3.1: Visuele Thema- & Typografie-Architectuur** (Design Tokens per natie in CSS, complete `palette` specificaties in game data, procedurele fysieke bezels met klinknagels/messing/bakeliet op het Canvas, automatische metrische vs imperiale diepteschaling en tactical depth ladder, harmonisatie met GyroIndicator en SoundStation) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.45/10)**
-  * [ ] **Fase 3.2: Maritieme Terminologie & Meertalige Orders** (Historische scheepsposten, officiersrollen en order-vocabulaire in `STATION_PRESENTATION_PROFILES`, torpedokamer en buizenpresentatie, roer- en machinebevelen)
+  * [x] **Fase 3.2: Maritieme Terminologie & Meertalige Orders** (Historische scheepsposten, officiersrollen en order-vocabulaire in `STATION_PRESENTATION_PROFILES`, torpedokamer en buizenpresentatie, roer- en machinebevelen over alle 6 vloten, dynamische presets en metrische stappen) — **GOEDGEKEURD (Harry: 9.8/10, Henry: 9.78/10)**
   * [ ] **Fase 3.3: Nationale Akoestiek & Bedieningsfeedback** (Land-specifieke akoestische accenten bij telegraafbediening, ventielknoppen en roerorders, Sound Room terminologie)
   * [ ] **Fase 3.4: Teststraat Integratie, Cross-Device Verificatie & Evaluatie** (Uitbreiding scenario-runner en behaviour tests, toetsing op contrast en responsiveness over alle 6 marines, formele eindevaluatie)
 

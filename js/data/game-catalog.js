@@ -74,21 +74,23 @@ const STATION_PRESENTATION_PROFILES=Object.freeze({
     palette:Object.freeze({faceInner:'#0d2029',faceOuter:'#050f13',bezel:'#2f5f56',ink:'#dfeee8',muted:'#8fb3a8',dim:'#4f7168',order:'#f5c65c',ok:'#6fe08f',tickMajor:'#dfeee8',tickMinor:'#8fb3a8',font:'ui-monospace,"SF Mono",Menlo,monospace'}),
     depth:Object.freeze({factor:1,suffix:'ft',unit:'FEET',fine:'FINE',deep:'DEEP',scopeFeet:55,detentsDisplay:Object.freeze([0,55,100,150,200,250])}),
     gauges:Object.freeze({course:'Course',depth:'Depth',power:'Power',courseLegends:Object.freeze(['GYRO','REPEATER']),powerSurface:'DIESEL',powerSubmerged:'BATTERY',rpm:'RPM',speed:'KNOTS'}),
-    orders:Object.freeze({heading:'Heading',depth:'Depth',power:'RPM',speed:'Speed',engine:'Engine',ballast:'Ballast',silent:'Silent',alarm:'ALARM'}),
+    orders:Object.freeze({heading:'Heading',depth:'Depth',power:'RPM',speed:'Speed',engine:'Engine',ballast:'Ballast',silent:'Silent Running',alarm:'DIVE ALARM',surface:'Surface',dive:'Dive',crashDive:'Crash Dive',blow:'Emergency Blow',bottom:'Lie on Bottom'}),
     tubes:Object.freeze({prefix:'T',forward:'FWD',aft:'AFT',forwardTitle:'Fwd Tubes',aftTitle:'Aft Tubes',flood:'Flood',fire:'Fire',roomTitle:'Tubes'}),
     sensors:Object.freeze({room:'Sound Room',operator:'sound operator'}),
     roles:Object.freeze({captain:'Skipper',executive:'Executive Officer',engineer:'Chief of the Boat',radio:'Radioman'}),
+    confirmations:Object.freeze(['Aye, sir!','Very well.','Right away, sir!']),
     engineOrders:Object.freeze(['STOP','SLOW','2/3','STD','FULL','FLANK'])
   }),
   'km-type-vii':Object.freeze({
     id:'km-type-vii',theme:'km-bakelite',language:'de-DE',
     palette:Object.freeze({faceInner:'#171712',faceOuter:'#070806',bezel:'#5d5543',ink:'#eee5ca',muted:'#aaa185',dim:'#756e5b',order:'#d6a84a',ok:'#9eae75',tickMajor:'#eee5ca',tickMinor:'#aaa185',font:'ui-monospace,"SF Mono",Menlo,monospace'}),
     depth:Object.freeze({factor:.3048,suffix:'m',unit:'METER',fine:'FEIN',deep:'TIEF',scopeFeet:55,detentsDisplay:Object.freeze([0,20,40,60,80,100,120,140])}),
-    gauges:Object.freeze({course:'Kurs',depth:'Tiefe',power:'Fahrt',courseLegends:Object.freeze(['KREISEL','KOMPASS']),powerSurface:'DIESEL',powerSubmerged:'E-MOTOR',rpm:'U/MIN',speed:'KNOTEN'}),
-    orders:Object.freeze({heading:'Kurs',depth:'Tiefe',power:'U/min',speed:'Fahrt',engine:'Maschine',ballast:'Tauchzellen',silent:'Schleichfahrt',alarm:'ALARM'}),
-    tubes:Object.freeze({prefix:'Rohr ',forward:'BUG',aft:'HECK',forwardTitle:'Bugrohre',aftTitle:'Heckrohr',flood:'Fluten',fire:'Los',roomTitle:'Torpedoraum'}),
-    sensors:Object.freeze({room:'Horchraum',operator:'Horchoperator'}),
+    gauges:Object.freeze({course:'Kurs',depth:'Tiefe',power:'Fahrt',courseLegends:Object.freeze(['KREISEL','KOMPASS']),powerSurface:'DIESEL',powerSubmerged:'E-MASCHINE',rpm:'U/MIN',speed:'KNOTEN'}),
+    orders:Object.freeze({heading:'Kurs',depth:'Tiefe',power:'U/min',speed:'Fahrt',engine:'Maschine',ballast:'Tauchzellen',silent:'Schleichfahrt',alarm:'ALARM!',surface:'Auftauchen',dive:'Fluten',crashDive:'Alarmtauchen',blow:'Anblasen',bottom:'Auf Grund'}),
+    tubes:Object.freeze({prefix:'Rohr ',forward:'BUG',aft:'HECK',forwardTitle:'Bugrohre',aftTitle:'Heckrohr',flood:'Fluten',fire:'Los!',roomTitle:'Torpedoraum'}),
+    sensors:Object.freeze({room:'Horchraum',operator:'Horchgänger'}),
     roles:Object.freeze({captain:'Kaleu',executive:'I WO',engineer:'LI',radio:'Funker'}),
+    confirmations:Object.freeze(['Jawohl, Herr Kaleu!','Wird ausgeführt!','Zu Befehl!']),
     engineOrders:Object.freeze(['STOP','LANGSAM','HALBE','GROSSE','VOLLE','ÄUSSERSTE'])
   })
 });

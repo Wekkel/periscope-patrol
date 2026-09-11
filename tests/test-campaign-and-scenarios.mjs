@@ -145,6 +145,56 @@ for (const spec of nationalProfiles) {
   } else {
     assert.equal(formatted, '30 m', `Depth display mismatch for ${spec.id}`);
   }
+
+  // Validate Fase 3.2: Maritime terminology & multilingual orders
+  assert.ok(profile.language, `Language code missing for ${spec.id}`);
+  assert.ok(Array.isArray(profile.engineOrders), `engineOrders must be an array for ${spec.id}`);
+  assert.equal(profile.engineOrders.length, 6, `engineOrders must contain exactly 6 bells for ${spec.id}`);
+  profile.engineOrders.forEach((b, i) => assert.ok(b && typeof b === 'string', `engineOrder[${i}] invalid for ${spec.id}`));
+
+  assert.ok(profile.gauges, `Gauges missing for ${spec.id}`);
+  for (const gKey of ['course', 'depth', 'power', 'speed', 'rpm']) {
+    assert.ok(profile.gauges[gKey], `Gauge label ${gKey} missing for ${spec.id}`);
+  }
+  assert.ok(Array.isArray(profile.gauges.courseLegends) && profile.gauges.courseLegends.length >= 2, `courseLegends missing for ${spec.id}`);
+
+  assert.ok(profile.orders, `Orders missing for ${spec.id}`);
+  for (const oKey of ['heading', 'depth', 'power', 'speed', 'engine', 'ballast', 'silent', 'alarm', 'surface', 'dive', 'crashDive', 'blow', 'bottom']) {
+    assert.ok(profile.orders[oKey], `Order label ${oKey} missing for ${spec.id}`);
+  }
+
+  assert.ok(profile.roles, `Roles missing for ${spec.id}`);
+  for (const rKey of ['captain', 'executive', 'engineer', 'radio']) {
+    assert.ok(profile.roles[rKey], `Role label ${rKey} missing for ${spec.id}`);
+  }
+
+  assert.ok(profile.sensors, `Sensors missing for ${spec.id}`);
+  assert.ok(profile.sensors.room && profile.sensors.operator, `Sensors labels missing for ${spec.id}`);
+
+  assert.ok(profile.tubes, `Tubes missing for ${spec.id}`);
+  for (const tKey of ['prefix', 'forward', 'aft', 'forwardTitle', 'aftTitle', 'flood', 'fire', 'roomTitle']) {
+    assert.ok(profile.tubes[tKey], `Tube label ${tKey} missing for ${spec.id}`);
+  }
+
+  assert.ok(Array.isArray(profile.confirmations) && profile.confirmations.length >= 2, `Confirmations missing for ${spec.id}`);
 }
+
+// Distinct nationality verification: ensure no German bleed-through on Italian, Soviet or Japanese profiles
+const rm = evalCtx(`getStationPresentation('rm-submarine')`);
+assert.equal(rm.gauges.course, 'Rotta');
+assert.equal(rm.gauges.depth, 'Profondità');
+assert.equal(rm.engineOrders[0], 'ALT');
+assert.equal(rm.engineOrders[4], 'AVANTI TUTTA');
+
+const vmf = evalCtx(`getStationPresentation('vmf-submarine')`);
+assert.equal(vmf.gauges.depth, 'Glubina');
+assert.equal(vmf.gauges.power, 'Khod');
+assert.equal(vmf.engineOrders[4], 'POLNYY');
+
+const ijn = evalCtx(`getStationPresentation('ijn-fleet-sub')`);
+assert.equal(ijn.gauges.course, 'Shinro');
+assert.equal(ijn.gauges.depth, 'Shinkou');
+assert.equal(ijn.engineOrders[0], 'TEISHI');
+assert.equal(ijn.engineOrders[4], 'KAISHIN');
 
 console.log('All campaign, mission profile, historical scenario, and national station presentation checks passed successfully!');

@@ -10,6 +10,7 @@ const sceneSelector=new ScenarioSelector(game);
 const aarController=new AfterActionReport(game);
 globalThis.aarController=aarController;
 const touchCtrl=new TouchCtrl(game,canvasView);
+globalThis.touchCtrl=touchCtrl;
 const tutorial=new Tutorial(game,canvasView,touchCtrl);
 const uiToast=(method,...args)=>PresentationBridge.toast(game.state)[method]?.(...args);
 globalThis.processPresentationEffects=()=>{

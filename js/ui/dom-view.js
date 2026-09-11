@@ -187,10 +187,28 @@ class DomView{
     const eng=document.getElementById('touchEngineTitle')?.firstChild;if(eng)eng.nodeValue=(g.power||'Engine')+' ';
     const dep=document.getElementById('touchDepthTitle')?.firstChild;if(dep)dep.nodeValue=(g.depth||'Depth')+' ';
     set('hkDepthStep',`Ordered ${String(g.depth||'depth').toLowerCase()} −/+ ${ui.depth?.factor<.9?'3 m':'10 ft'}`);
-    set('periscopeButton',`${g.depth||'Periscope depth'} (${playerDepthDisplay(state,ui.depth?.scopeFeet||55,0)})`);
-    set('diveButton',`${g.depth||'Dive'} (${playerDepthDisplay(state,100,0)})`);
+    set('periscopeButton',`${o.depth||'Periscope depth'} (${playerDepthDisplay(state,ui.depth?.scopeFeet||55,0)})`);
+    set('diveButton',`${o.dive||'Dive'} (${playerDepthDisplay(state,100,0)})`);
     const qd=document.querySelector('#qsDepth .qs-l');if(qd)qd.textContent=`${String(g.depth||'DEPTH').toUpperCase()} ⇅`;
     const qh=document.querySelector('#qsSpeed .qs-l');if(qh)qh.textContent=`${String(g.power||'SPEED').toUpperCase()} ⇅`;
+    set('floodTubeButton',`${t.flood||'Flood'} ${t.forwardTitle||'Fwd Tubes'}`);
+    set('fireTubeButton',`${t.fire||'Fire'} ${t.prefix||'Tube '}1`);
+    set('fireSpreadButton',`${t.fire||'Fire'} ${t.forward||'Fwd'} Spread`);
+    set('floodAftButton',`${t.flood||'Flood'} ${t.aftTitle||'Aft Tubes'}`);
+    set('fireAftButton',`${t.fire||'Fire'} ${t.aft||'Aft'} Spread`);
+    const isMetric=Number(ui.depth?.factor)<0.9,pScope=isMetric?'17 m':'55 ft',pDive=isMetric?'30 m':'100 ft',pDeep=isMetric?'60 m':'200 ft';
+    const eo=ui.engineOrders||['STOP','SLOW','2/3','STD','FULL','FLANK'];
+    const eBtns=document.querySelectorAll('#paneHelm [data-rpm]');
+    if(eBtns.length>=4){eBtns[0].textContent=eo[0]||'Stop';eBtns[1].textContent=eo[1]||'Slow';eBtns[2].textContent=eo[3]||'Std';eBtns[3].textContent=eo[5]||'Flank';}
+    const opSpdBtns=document.querySelectorAll('#opSpeed [data-rpm]');
+    if(opSpdBtns.length>=4){opSpdBtns[0].textContent='■ '+(eo[0]||'Stop');opSpdBtns[1].textContent=eo[1]||'Slow';opSpdBtns[2].textContent=eo[3]||'Standard';opSpdBtns[3].textContent=eo[5]||'Flank';}
+    set('mSurface',o.surface||'Surface');set('mPeriscope',pScope);set('mDive',pDive);set('mDeep',pDeep);
+    set('mCrashDive',`⚠ ${o.crashDive||'Crash Dive'}`);set('mBlow',`⚠ ${o.blow||'Emergency Blow'}`);set('mSilent',`🔇 ${o.silent||'Silent Running'}`);
+    const opDPresets=document.querySelectorAll('#opDepth .op-presets button[data-depth]');
+    if(opDPresets.length>=4){opDPresets[0].textContent=`▲ ${o.surface||'Surface'}`;opDPresets[1].textContent=`◎ ${pScope}`;opDPresets[2].textContent=`▼ ${pDive}`;opDPresets[3].textContent=`▼▼ ${pDeep}`;}
+    set('opCrash',`⚠ ${o.crashDive||'Crash Dive'}`);set('opBlow',`⚠ ${o.blow||'Emergency Blow'}`);set('opBottom',`⚓ ${o.bottom||'Lie on the Bottom'}`);
+    const opStepBtns=document.querySelectorAll('#opDepth .op-step button[data-dstep]');
+    if(opStepBtns.length>=4){opStepBtns[0].textContent=isMetric?'−15':'−50';opStepBtns[1].textContent=isMetric?'−3':'−10';opStepBtns[2].textContent=isMetric?'+3':'+10';opStepBtns[3].textContent=isMetric?'+15':'+50';}
   }
   renderAlerts(state){
     const W=state.playerSub.damage.warnings||[{level:'normal',text:'SYSTEMS NOMINAL'}];

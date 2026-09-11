@@ -28,33 +28,49 @@ const MULTI_STATION_PRESENTATION_PROFILES={
     theme:'ijn-fleet',language:'ja-JP',
     palette:{faceInner:'#161412',faceOuter:'#080706',bezel:'#54483b',ink:'#f0ebd8',muted:'#a69a84',dim:'#706452',order:'#d63a2a',ok:'#8fae6a',tickMajor:'#f0ebd8',tickMinor:'#a69a84',font:'ui-monospace,"SF Mono",Menlo,monospace'},
     depth:{factor:.3048,suffix:'m',unit:'METER',fine:'SEN',deep:'SHIN',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
+    gauges:{course:'Shinro',depth:'Shinkou',power:'Sokuryoku',courseLegends:['TENRAN','JIKI'],powerSurface:'JŪYU',powerSubmerged:'DENKI',rpm:'KAI-TEN',speed:'SETSU'},
+    orders:{heading:'Shinro',depth:'Shinkou',power:'Kaiten',speed:'Sokuryoku',engine:'Kikan',ballast:'Chūsui',silent:'Mutei Kōkō',alarm:'SEN-KOU!',surface:'Fujō',dive:'Sensui',crashDive:'Kyūsoku Sensui',blow:'Kaikyū Fushō',bottom:'Chakutei'},
     roles:{captain:'Kanchō',executive:'Fukuchō',engineer:'Kikanchō',radio:'Tsūshinin'},
-    sensors:{room:'Hydrophone Room',operator:'hydrophone operator'},
-    tubes:{prefix:'Tube ',forward:'BOW',aft:'STERN',forwardTitle:'Bow Tubes',aftTitle:'Stern Tubes',flood:'Flood',fire:'Fire',roomTitle:'Torpedoes'}
+    sensors:{room:'Chōonshitsu',operator:'chōonshu'},
+    tubes:{prefix:'Hasshakan ',forward:'KANSOU',aft:'KOUBU',forwardTitle:'Kansou Hasshakan',aftTitle:'Koubu Hasshakan',flood:'Chūsui',fire:'Hassha!',roomTitle:'Gyoraishitsu'},
+    confirmations:['Ha!','Ryōkai!','Gokurōsama!'],
+    engineOrders:['TEISHI','BIYOKU','HANJŌ','ZENSHIN','KAISHIN','SAIKOU']
   }),
   'rn-submarine':_station('rn-submarine',STATION_PRESENTATION_PROFILES['us-fleet-submarine'],{
     theme:'rn-admiralty',language:'en-GB',
     palette:{faceInner:'#121922',faceOuter:'#080d14',bezel:'#6b583e',ink:'#e2e7ec',muted:'#8e9eab',dim:'#586877',order:'#e5b158',ok:'#68b894',tickMajor:'#e2e7ec',tickMinor:'#8e9eab',font:'ui-monospace,"SF Mono",Menlo,monospace'},
     depth:{factor:1,suffix:'ft',unit:'FEET',fine:'SHALLOW',deep:'DEEP',scopeFeet:55,detentsDisplay:[0,55,100,150,200,250]},
+    gauges:{course:'Course',depth:'Depth',power:'Speed',courseLegends:['GYRO','DIRECTOR'],powerSurface:'DIESEL',powerSubmerged:'MAIN MOTOR',rpm:'REV/MIN',speed:'KNOTS'},
+    orders:{heading:'Heading',depth:'Depth',power:'Revs',speed:'Speed',engine:'Telegraph',ballast:'Main Ballast',silent:'Silent Running',alarm:'ACTION STATIONS',surface:'Surface',dive:'Dive',crashDive:'Emergency Dive',blow:'Main Vent Blow',bottom:'Bottom Boat'},
     roles:{captain:'Captain',executive:'First Lieutenant',engineer:'Engineer Officer',radio:'Wireless Operator'},
     sensors:{room:'Asdic Compartment',operator:'ASDIC operator'},
-    tubes:{prefix:'Tube ',forward:'BOW',aft:'STERN',forwardTitle:'Bow Tubes',aftTitle:'Stern Tubes',flood:'Flood',fire:'Fire',roomTitle:'Torpedoes'}
+    tubes:{prefix:'Tube ',forward:'BOW',aft:'STERN',forwardTitle:'Bow Tubes',aftTitle:'Stern Tubes',flood:'Flood',fire:'Fire',roomTitle:'Torpedo Compartment'},
+    confirmations:['Aye aye, Sir!','Very good, Sir.','Carrying out now, Sir!'],
+    engineOrders:['STOP','DEAD SLOW','SLOW','HALF','FULL','EMERGENCY']
   }),
   'rm-submarine':_station('rm-submarine',STATION_PRESENTATION_PROFILES['km-type-vii'],{
     theme:'rm-brass',language:'it-IT',
     palette:{faceInner:'#1c1813',faceOuter:'#0a0907',bezel:'#8c6d3b',ink:'#f4ecd8',muted:'#b5a482',dim:'#7a6b52',order:'#e8a838',ok:'#83a76a',tickMajor:'#f4ecd8',tickMinor:'#b5a482',font:'ui-monospace,"SF Mono",Menlo,monospace'},
     depth:{factor:.3048,suffix:'m',unit:'METRI',fine:'FINE',deep:'PROF',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
+    gauges:{course:'Rotta',depth:'Profondità',power:'Velocità',courseLegends:['GIRO','BUSSOLA'],powerSurface:'TERMICO',powerSubmerged:'ELETTRICO',rpm:'GIRI',speed:'NODI'},
+    orders:{heading:'Rotta',depth:'Profondità',power:'Giri',speed:'Velocità',engine:'Telegrafo',ballast:'Casse zavorra',silent:'Navigazione silenziosa',alarm:'POSTI DI COMBATTIMENTO',surface:'Emersione',dive:'Immersione',crashDive:'Rapida immersione',blow:'Esaurimento ad aria',bottom:'Posarsi sul fondo'},
     roles:{captain:'Comandante',executive:'Ufficiale in seconda',engineer:'Direttore di macchina',radio:'Radiotelegrafista'},
     sensors:{room:'Camera idrofonica',operator:'operatore idrofonico'},
-    tubes:{prefix:'Tubi ',forward:'PRUA',aft:'POPPA',forwardTitle:'Tubi di prora',aftTitle:'Tubi di poppa',flood:'Allagamento',fire:'Lancio',roomTitle:'Camera di lancio'}
+    tubes:{prefix:'Tubo ',forward:'PRUA',aft:'POPPA',forwardTitle:'Tubi di prora',aftTitle:'Tubi di poppa',flood:'Allagamento',fire:'Lancio!',roomTitle:'Camera di lancio'},
+    confirmations:['Comandi, Comandante!','Signor sì!','Eseguo subito!'],
+    engineOrders:['ALT','MOLTO ADAGIO','ADAGIO','MEZZA FORZA','AVANTI TUTTA','FORZA ESTREMA']
   }),
   'vmf-submarine':_station('vmf-submarine',STATION_PRESENTATION_PROFILES['km-type-vii'],{
     theme:'vmf-red',language:'ru-RU',
     palette:{faceInner:'#151719',faceOuter:'#08090a',bezel:'#4e5559',ink:'#e6ebed',muted:'#959fa5',dim:'#606a70',order:'#de3333',ok:'#6eb875',tickMajor:'#e6ebed',tickMinor:'#959fa5',font:'ui-monospace,"SF Mono",Menlo,monospace'},
     depth:{factor:.3048,suffix:'m',unit:'METERS',fine:'MALAYA',deep:'GLUBINA',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
-    roles:{captain:'Commander',executive:'Executive Officer',engineer:'Chief Engineer',radio:'Radio Operator'},
-    sensors:{room:'Hydroacoustic Post',operator:'hydroacoustic operator'},
-    tubes:{prefix:'Apparat ',forward:'NOS',aft:'KORMA',forwardTitle:'Nosovye apparaty',aftTitle:'Kormovye apparaty',flood:'Zapolnenie',fire:'Pusk',roomTitle:'Torpedny otsek'}
+    gauges:{course:'Kurs',depth:'Glubina',power:'Khod',courseLegends:['GIRO','MAGNIT'],powerSurface:'DIZEL',powerSubmerged:'ELEKTRO',rpm:'OB/MIN',speed:'UZLOV'},
+    orders:{heading:'Kurs',depth:'Glubina',power:'Ob/min',speed:'Khod',engine:'Mashinny',ballast:'Ballast',silent:'Besshumny khod',alarm:'BOEVAYA TREVOGA!',surface:'Vsplytie',dive:'Pogruzhenie',crashDive:'Srochnoe pogruzhenie',blow:'Produvka',bottom:'Na grunt'},
+    roles:{captain:'Komandir',executive:'Pomoshchnik',engineer:'Mekhanik',radio:'Radist'},
+    sensors:{room:'Gidroakustika',operator:'gidroakustik'},
+    tubes:{prefix:'Apparat ',forward:'NOS',aft:'KORMA',forwardTitle:'Nosovye apparaty',aftTitle:'Kormovye apparaty',flood:'Zapolnenie',fire:'Pusk!',roomTitle:'Torpedny otsek'},
+    confirmations:['Yest, tovarishch komandir!','Tak tochno!','Slushayus!'],
+    engineOrders:['STOP','SAMYY MALYY','MALYY','SREDNIY','POLNYY','SAMYY BYSTRYY']
   })
 };
 _mtFreeze(MULTI_STATION_PRESENTATION_PROFILES);
