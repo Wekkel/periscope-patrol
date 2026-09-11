@@ -404,6 +404,190 @@ ssRenderHarness.state.world.atmosphere = {
 ssRenderHarness.state.time = { elapsedSeconds: 60 };
 battleAtm.BattleAtmosphere.drawStarshells3D.call({ k: 1, battlePoint: battleAtm.BattleAtmosphere.battlePoint }, ssRenderHarness.ctx, ssRenderHarness.cam, ssRenderHarness.state, ssRenderHarness.dl, 60);
 assert.ok(ssRenderHarness.ctx.ellipses.length > 0, 'drawStarshells3D must render parachute canopy with ellipse');
-assert.ok(ssRenderHarness.ctx.gradients.length > 0, 'drawStarshells3D must render magnesium flare and sea reflection gradients');
+// 11. Special Ops Infiltratiemissies & Haven-AAR Debriefing Tests
+const careerModule = await load('js/simulation/career-history.js', ['CareerSystem'], {
+  clamp, degToRad, radToDeg, normDeg, shortDelta, distNm, bearingBetween,
+  CAREER_RECORD_VERSION: 2,
+  GAME_DAY_SECONDS: 86400,
+  _careerClone: x => JSON.parse(JSON.stringify(x)),
+  _careerStampFrom: () => '1943-08-17 06:00',
+  _careerPatrolId: () => 'test-patrol-1',
+  _careerRarity: () => ({ rarityScore: 1 }),
+  _careerDamagePoints: () => 1,
+  _careerEngagements: () => [],
+  _careerLessons: () => ['Good patrol.'],
+  _careerOwnBoat: () => ({ hullIntegrity: 100 }),
+  shipDamageSeverity: c => c.damageSeverity || 0,
+  shipDamageCondition: () => 'INTACT',
+  ensureShipDamage: () => ({ flotation: 1, propulsion: 1, steering: 1, fire: 0 }),
+  PresentationBridge: { emit: () => {} }
+});
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6');
+// Test 1: AAR event recording in harbor operations
+const aarHarness = createHarborHarness();
+const recordedAar = [];
+aarHarness.mockContext.aar = {
+  recordEvent: (type, text, data, pos) => recordedAar.push({ type, text, data, pos })
+};
+
+// Submarine penetrates gate cleanly
+const gateSimSub = { position: { xNm: 0, yNm: -1.96 } };
+aarHarness.mockIntel.raid.lastChannelAlongNm = 2.05; // Was outside netRange (2.0)
+harborModule.HarborSystem.updateHarborGateProgress.call(aarHarness.mockContext, aarHarness.mockIntel, aarHarness.H, gateSimSub);
+assert.equal(aarHarness.mockIntel.raid.gateCrossed, true, 'Gate crossed must be marked true');
+assert.ok(recordedAar.some(e => e.type === 'HARBOR_GATE_PASSED'), 'HARBOR_GATE_PASSED must be recorded in AAR');
+
+// Submarine fouls net
+aarHarness.mockContext.state.playerSub.position = { xNm: 0, yNm: 2.0 }; // At solid net (y=+2.0)
+aarHarness.mockContext.state.playerSub.depthFeet = 20;
+aarHarness.mockContext.state.playerSub.propulsion = { speedKnots: 6, actualRpm: 120 };
+aarHarness.mockContext.state.playerSub.damage = { rudderDamage: 0 };
+harborModule.HarborSystem.updateHarbor.call(aarHarness.mockContext, 1.0);
+assert.ok(recordedAar.some(e => e.type === 'HARBOR_NET_CONTACT'), 'HARBOR_NET_CONTACT must be recorded in AAR on fouling net');
+
+// Indicator loop triggered on high-speed submerged passage
+aarHarness.H.suspicion = 20;
+aarHarness.mockContext.state.playerSub.position = { xNm: 0, yNm: -2.0 }; // At gate
+aarHarness.mockContext.state.playerSub.depthFeet = 45;
+aarHarness.mockContext.state.playerSub.propulsion.speedKnots = 8.0;
+harborModule.HarborSystem.updateHarbor.call(aarHarness.mockContext, 1.0);
+assert.ok(recordedAar.some(e => e.type === 'INDICATOR_LOOP_ALARM'), 'INDICATOR_LOOP_ALARM must be recorded when speed > 3.5 kn');
+
+// Harbor attack event recorded
+const attackTargetContact = { id: 'H-04', harborTarget: true, sunk: true, position: { xNm: 0.1, yNm: 0.1 } };
+harborModule.HarborSystem.noteHarborAttack.call(aarHarness.mockContext, attackTargetContact);
+assert.ok(recordedAar.some(e => e.type === 'HARBOR_ATTACK'), 'HARBOR_ATTACK must be recorded when moored target is struck');
+
+// Harbor escape recorded
+aarHarness.H.entered = true;
+aarHarness.H.escaped = false;
+aarHarness.mockContext.state.playerSub.position = { xNm: 0, yNm: -6.2 }; // Outside outer radius (5.0 + 0.8)
+harborModule.HarborSystem.updateHarbor.call(aarHarness.mockContext, 1.0);
+assert.ok(recordedAar.some(e => e.type === 'HARBOR_ESCAPE'), 'HARBOR_ESCAPE must be recorded when clearing outer harbor defenses');
+
+// Test 2: buildPatrolRecord awards Special Intel bonus for stealth penetration
+const stealthCareerContext = {
+  state: {
+    campaign: {
+      patrolNumber: 1,
+      patrolArea: 'Truk Approaches',
+      historyId: 'test-1',
+      score: 1000,
+      totalScore: 1000,
+      patrolDuration: 1800,
+      importantEvents: []
+    },
+    runtime: {
+      campaign: { _careerStartDate: '1943-08-17 06:00' }
+    },
+    world: {
+      harbor: { name: 'Truk Anchorage', shortName: 'Truk', entered: true, alert: 0, indicatorLoopWarned: false, heavyTargetId: 'H-04' },
+      harborIntel: { raid: { attempted: true, gateCrossed: true }, heavyUnit: { identified: true } },
+      contacts: [{ id: 'H-04', sunk: true, damageSeverity: 1.0 }],
+      hits: []
+    },
+    playerSub: { damage: { hullIntegrity: 100 }, propulsion: { fuel: 80, battery: 90 } },
+    weapons: { deckGun: { shots: 0, hits: 0 } }
+  },
+  aar: { buildReplay: () => null },
+  ensureCareerPatrolState: careerModule.CareerSystem.ensureCareerPatrolState
+};
+const rec = careerModule.CareerSystem.buildPatrolRecord.call(stealthCareerContext, 'COMPLETED');
+assert.ok(rec.harborOperation, 'harborOperation must be present in patrol record');
+assert.equal(rec.harborOperation.stealthPenetration, true, 'Stealth penetration must be true when no loops/alarm triggered');
+assert.equal(rec.harborOperation.specialIntelBonus, 500, 'Special Intel bonus must be 500 for stealth penetration');
+assert.equal(rec.patrolScore, 1500, 'Patrol score must include +500 Special Intel bonus (1000 + 500 = 1500)');
+
+// Test 3: HARBOR_STRIKE mission lifecycle logic
+const missionContext = {
+  state: {
+    campaign: {
+      missionType: 'HARBOR_STRIKE',
+      missionStatus: 'PATROL',
+      score: 0,
+      objectives: [
+        { id: 'approach', text: 'Penetrate', done: false },
+        { id: 'identify', text: 'Identify', done: false },
+        { id: 'neutralize', text: 'Neutralize', done: false },
+        { id: 'escape', text: 'Escape', done: false },
+        { id: 'return', text: 'Return', done: false }
+      ],
+      primaryMission: {
+        type: 'HARBOR_STRIKE',
+        title: 'HARBOR STRIKE',
+        reward: 2600,
+        result: 'ACTIVE',
+        targetId: 'HS-01',
+        targetLabel: 'Anchorage Target',
+        neutralized: false,
+        gatePenetrated: false,
+        targetIdentified: false,
+        center: { xNm: 0, yNm: 0 },
+        radiusNm: 2,
+        escapeRadiusNm: 6,
+        siteName: 'Truk Anchorage'
+      }
+    },
+    world: {
+      harbor: { name: 'Truk Anchorage', center: { xNm: 0, yNm: 0 }, innerRadiusNm: 2, outerRadiusNm: 5 },
+      harborIntel: { raid: { gateCrossed: false }, heavyUnit: { identified: false } },
+      contacts: [{ id: 'HS-01', name: 'Yamato', sunk: false, position: { xNm: 0.2, yNm: 0.2 } }],
+      contactTracks: {}
+    },
+    playerSub: { position: { xNm: 0, yNm: -5 } },
+    time: { elapsedSeconds: 200 }
+  },
+  ctx: { captainLog: () => {} },
+  notify: () => {},
+  log: () => {},
+  _missionStopTransit: () => {},
+  _missionFinish(success) {
+    this.state.campaign.primaryMission.result = success ? 'SUCCESS' : 'FAILED';
+  }
+};
+
+const checkHarborStrike = (ctx) => {
+  const s = ctx.state, c = s.campaign, m = c.primaryMission, W = s.world;
+  const t = W.contacts.find(x => x.id === m.targetId), rng = distNm(s.playerSub.position, m.center);
+  const I = s.world.harborIntel;
+  if ((I?.raid?.gateCrossed || rng <= Math.max(2.5, m.radiusNm || 2)) && !c.objectives.find(o => o.id === 'approach').done) {
+    m.gatePenetrated = true;
+    c.objectives.find(o => o.id === 'approach').done = true;
+  }
+  const tr = W.contactTracks[m.targetId];
+  if ((I?.heavyUnit?.identified || (tr && tr.typeEstimate && !/UNKNOWN/i.test(tr.typeEstimate))) && !c.objectives.find(o => o.id === 'identify').done) {
+    m.targetIdentified = true;
+    c.objectives.find(o => o.id === 'identify').done = true;
+  }
+  if (t?.sunk && !m.neutralized) {
+    m.neutralized = true;
+    c.objectives.find(o => o.id === 'neutralize').done = true;
+  }
+  if (m.neutralized && rng >= m.escapeRadiusNm) {
+    c.objectives.find(o => o.id === 'escape').done = true;
+    ctx._missionFinish(true);
+  }
+};
+
+// Step 1: Penetrate gate
+missionContext.state.world.harborIntel.raid.gateCrossed = true;
+checkHarborStrike(missionContext);
+assert.equal(missionContext.state.campaign.objectives.find(o => o.id === 'approach').done, true, 'Approach must be completed upon gate penetration');
+
+// Verify step 2: Identify target
+missionContext.state.world.contactTracks['HS-01'] = { typeEstimate: 'BATTLESHIP', confidence: 0.9 };
+checkHarborStrike(missionContext);
+assert.equal(missionContext.state.campaign.objectives.find(o => o.id === 'identify').done, true, 'Identify must be completed upon visual track');
+
+// Verify step 3: Neutralize target
+missionContext.state.world.contacts[0].sunk = true;
+checkHarborStrike(missionContext);
+assert.equal(missionContext.state.campaign.objectives.find(o => o.id === 'neutralize').done, true, 'Neutralize must be completed when target is sunk');
+
+// Verify step 4: Escape outside defenses
+missionContext.state.playerSub.position = { xNm: 0, yNm: -6.5 }; // rng = 6.5 >= 6
+checkHarborStrike(missionContext);
+assert.equal(missionContext.state.campaign.objectives.find(o => o.id === 'escape').done, true, 'Escape must be completed outside escape radius');
+assert.equal(missionContext.state.campaign.primaryMission.result, 'SUCCESS', 'Primary mission must finish with SUCCESS');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3');

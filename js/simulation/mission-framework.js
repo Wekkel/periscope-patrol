@@ -363,7 +363,7 @@ function missionProgressText(state){
       }else if(type==='ESCORT_HUNT'){
         setObjs([['locate','Reach the reported escort area'],['identify','Identify the assigned warship'],['neutralize','Sink or disable the assigned escort'],['return','Return to friendly port']]);const content=_missionContent(s,'escortHunt'),combatants=_missionMainCombatants(this),preferred=content?.preferredGameplayTypes||[];let t=combatants.find(x=>preferred.includes(vesselGameplayType(x)))||combatants[0];if(!t){const spec=content?.fallbackTarget;if(!spec)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no escort-hunt target content`);const q=_missionRoutePoint(this,16),pos={...q.pos};t={...spec,position:pos,heading:q.heading,desiredHeading:q.heading};materializeVesselIdentity(t,s);W.contacts.push(t);}t.missionRole='ESCORT_HUNT_TARGET';const targetType=vesselGameplayType(t);t.name=content?.targetNamesByGameplayType?.[targetType]||content?.targetNamesByGameplayType?.default||t.name;Object.assign(m,{targetId:t.id,targetLabel:t.displayType||t.name,intelSeq:0,nextIntelAt:now});_missionRefreshIntel(this,m,true);
       }else if(type==='HARBOR_STRIKE'){
-        setObjs([['approach','Penetrate the enemy anchorage'],['neutralize','Neutralize the assigned high-value unit'],['escape','Withdraw outside the harbor defenses'],['return','Return to friendly port']]);const content=_missionContent(s,'harborStrike'),H=W.harbor,q=H?{port:{name:H.name},pos:{...H.center}}:_missionNearEnemyPort(this,1.5),targets=W.contacts.filter(x=>x.harborTarget&&!x.sunk),preferred=content?.preferredGameplayTypes||[];let t=targets.find(x=>preferred.includes(vesselGameplayType(x)))||targets[0];if(!t){const spec=content?.fallbackTarget;if(!spec)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no harbor-strike target content`);const pos={...q.pos};t={...spec,position:pos,heading:90,desiredHeading:90};materializeVesselIdentity(t,s);W.contacts.push(t);}t.missionRole='HARBOR_STRIKE_TARGET';Object.assign(m,{siteName:H?.name||q.port?.name||'enemy anchorage',center:H?{...H.center}:{...q.pos},radiusNm:H?.innerRadiusNm||2,escapeRadiusNm:(H?.outerRadiusNm||5)+1,targetId:t.id,targetLabel:t.displayType||t.name,neutralized:false});
+        setObjs([['approach','Penetrate the enemy anchorage'],['identify','Positively identify the high-value unit'],['neutralize','Neutralize the assigned high-value unit'],['escape','Withdraw outside the harbor defenses'],['return','Return to friendly port']]);const content=_missionContent(s,'harborStrike'),H=W.harbor,q=H?{port:{name:H.name},pos:{...H.center}}:_missionNearEnemyPort(this,1.5),targets=W.contacts.filter(x=>x.harborTarget&&!x.sunk),preferred=content?.preferredGameplayTypes||[];let t=targets.find(x=>preferred.includes(vesselGameplayType(x)))||targets[0];if(!t){const spec=content?.fallbackTarget;if(!spec)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no harbor-strike target content`);const pos={...q.pos};t={...spec,position:pos,heading:90,desiredHeading:90};materializeVesselIdentity(t,s);W.contacts.push(t);}t.missionRole='HARBOR_STRIKE_TARGET';Object.assign(m,{siteName:H?.name||q.port?.name||'enemy anchorage',center:H?{...H.center}:{...q.pos},radiusNm:H?.innerRadiusNm||2,escapeRadiusNm:(H?.outerRadiusNm||5)+1,targetId:t.id,targetLabel:t.displayType||t.name,neutralized:false,gatePenetrated:false,targetIdentified:false});
       }else if(type==='WEATHER_AMBUSH'){
         setObjs([['locate','Locate the assigned convoy'],['cover','Enter useful rain/squall or darkness'],['attack','Score a covered hit on enemy shipping'],['return','Return to friendly port']]);Object.assign(m,{hitBaseline:(s.weapons.hits||[]).length,coveredHit:false});const ws=W.weatherSystem;if(ws?.cells?.length){const q=_missionRoutePoint(this,10+_missionHash(c.scenarioSeed,'wx-ambush')*10),cell=ws.cells[0];cell.center={...q.pos};cell.radiusNm=Math.max(cell.radiusNm||6,7);cell.speedKnots=Math.min(cell.speedKnots||10,8);cell.lifeSec=Math.max(cell.lifeSec||0,10*3600);cell.bornAt=now;m.weatherCellId=cell.id;}
       }
@@ -429,6 +429,20 @@ function missionProgressText(state){
         }else{const g=W.traffic?.primaryGroup,center=g?.position||(_missionMainMerchants(this)[0]?.position),rng=center?distNm(sub.position,center):Infinity,known=Object.keys(W.contactTracks||{}).some(id=>{const x=_missionContact(this,id);return x?.convoyId==='MAIN'&&W.contactTracks[id].confidence>.08;});if(known)_missionSetDone(c,'locate');const safe=W.enemy.alertState!=='ATTACKING'&&!W.enemy.contactHeld,inBand=rng>=m.shadowMinNm&&rng<=m.shadowMaxNm;if(known&&safe&&inBand){m.shadowSeconds+=dt;if(m.shadowSeconds>=m.shadowRequired){_missionSetDone(c,'shadow');_missionSetDone(c,'report');this.ctx.captainLog?.('CONVOY_SHADOWED','Convoy movement report completed without a firm enemy prosecution.',{minutes:Math.round(m.shadowSeconds/60)},'convoy-shadowed');this._missionFinish(true);}}else if(W.enemy.alertState==='ATTACKING'){m.detected=true;m.shadowSeconds=Math.max(0,m.shadowSeconds-dt*.22);}}
       }else if(m.type==='WEATHER_AMBUSH'){
         const merchants=_missionMainMerchants(this),known=Object.keys(W.contactTracks||{}).some(id=>{const x=_missionContact(this,id);return x?.convoyId==='MAIN'&&W.contactTracks[id].confidence>.08;});if(known)_missionSetDone(c,'locate');const near=merchants.slice().sort((a,b)=>distNm(sub.position,a.position||{xNm:999,yNm:999})-distNm(sub.position,b.position||{xNm:999,yNm:999}))[0],cover=near&&_missionWeatherAmbushCondition(s,near);_missionSetDone(c,'cover',!!cover);const hits=s.weapons.hits||[];for(let i=m.hitBaseline||0;i<hits.length;i++){const hit=hits[i],t=_missionContact(this,hit.contactId);if(t?.convoyId==='MAIN'&&_missionWeatherAmbushCondition(s,t)){m.coveredHit=true;_missionSetDone(c,'attack');this.ctx.captainLog?.('WEATHER_AMBUSH','Successful attack made under concealment of poor visibility.',{contactId:t.id},'weather-ambush');this._missionFinish(true);break;}}m.hitBaseline=hits.length;
+      }else if(m.type==='HARBOR_STRIKE'){
+        const rng=distNm(sub.position,m.center),I=s.world?.harborIntel;
+        if((I?.raid?.gateCrossed||rng<=Math.max(2.5,m.radiusNm||2))&&!m.gatePenetrated){
+          m.gatePenetrated=true;_missionSetDone(c,'approach');
+          this.ctx.captainLog?.('HARBOR_ANCHORAGE_PENETRATED',`Penetrated the ${m.siteName} defenses.`,{siteName:m.siteName},'harbor-anchorage-penetrated');
+          this.notify(`ANCHORAGE PENETRATED — inside ${m.siteName}. Locate and visually identify the assigned high-value unit.`,'ok','KRITIEK');
+        }
+        const tr=_missionVisualTrack(W,m.targetId);
+        if((I?.heavyUnit?.identified||(tr&&tr.typeEstimate&&!/UNKNOWN|SURFACE SHIP/i.test(tr.typeEstimate)))&&!m.targetIdentified){
+          m.targetIdentified=true;_missionSetDone(c,'identify');
+          const t=_missionContact(this,m.targetId);
+          this.ctx.captainLog?.('HARBOR_TARGET_IDENTIFIED',`${t?.name||m.targetLabel} identified in ${m.siteName}.`,{targetId:m.targetId},'harbor-target-identified');
+          this.notify(`TARGET IDENTIFIED — ${t?.name||m.targetLabel} positively identified at anchor. Attack at discretion.`,'ok','KRITIEK');
+        }
       }
     },
 
@@ -447,7 +461,25 @@ function missionProgressText(state){
         if(distNm(s.playerSub.position,m.station)<=m.stationRadiusNm){const first=!_missionObj(c,'station')?.done;_missionSetDone(c,'station');if(first||!Number.isFinite(m.stationArrivedAt)){m.stationArrivedAt=s.time.elapsedSeconds||0;m.strikeAt=m.stationArrivedAt+(m.stationWaitSec||240);const content=_missionContent(s,'lifeguard');this.notify(`${content?.stationPrefix||'Lifeguard station — on station. Air operation expected in about '}${Math.ceil((m.stationWaitSec||240)/60)}${content?.stationSuffix||' minutes.'}`,'ok', 'NUTTIG');}}return true;
       }
       if(m.type==='HARBOR_STRIKE'){
-        const t=_missionContact(this,m.targetId),rng=distNm(s.playerSub.position,m.center);if(rng<=Math.max(3,m.radiusNm||2))_missionSetDone(c,'approach');if(_missionShipNeutralized(t)){m.neutralized=true;_missionSetDone(c,'neutralize');}if(m.neutralized&&rng>=m.escapeRadiusNm){_missionSetDone(c,'escape');this._missionFinish(true);}return true;
+        const t=_missionContact(this,m.targetId),rng=distNm(s.playerSub.position,m.center);
+        const I=s.world?.harborIntel;
+        if((I?.raid?.gateCrossed||rng<=Math.max(2.5,m.radiusNm||2))&&!_missionObj(c,'approach')?.done){
+          m.gatePenetrated=true;_missionSetDone(c,'approach');
+        }
+        const tr=_missionVisualTrack(W,m.targetId);
+        if((I?.heavyUnit?.identified||(tr&&tr.typeEstimate&&!/UNKNOWN|SURFACE SHIP/i.test(tr.typeEstimate)))&&!_missionObj(c,'identify')?.done){
+          m.targetIdentified=true;_missionSetDone(c,'identify');
+        }
+        if(_missionShipNeutralized(t)&&!m.neutralized){
+          m.neutralized=true;_missionSetDone(c,'neutralize');
+          this.ctx.captainLog?.('HARBOR_TARGET_NEUTRALIZED',`${t?.name||m.targetLabel} neutralized in ${m.siteName}.`,{targetId:m.targetId},'harbor-target-neutralized');
+          this.notify(`HIGH-VALUE TARGET NEUTRALIZED — ${t?.name||m.targetLabel} destroyed. Withdraw outside harbor defenses!`,'ok','KRITIEK');
+        }
+        if(m.neutralized&&rng>=m.escapeRadiusNm){
+          _missionSetDone(c,'escape');
+          this._missionFinish(true);
+        }
+        return true;
       }
       if(['SPECIAL_TRANSPORT','RECON_INSERTION','RECON_EXTRACTION','MINELAYING','SHADOW_REPORT','WEATHER_AMBUSH'].includes(m.type))return true;
       return true;

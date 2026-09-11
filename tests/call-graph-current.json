@@ -781,7 +781,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 435
+            "line": 449
           },
           "relation": "same"
         },
@@ -3577,7 +3577,7 @@
           "kind": "context-path",
           "unresolved": false,
           "line": 370,
-          "offset": 10760,
+          "offset": 10859,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -3587,7 +3587,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 370,
-          "offset": 10870,
+          "offset": 10969,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
@@ -3793,7 +3793,7 @@
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
       "line": 382,
-      "end": 433,
+      "end": 447,
       "callDetails": [
         {
           "name": "ensureMissionFramework",
@@ -4274,6 +4274,44 @@
             "line": 374
           },
           "relation": "same"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 436,
+          "offset": 16004,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 437,
+          "offset": 16161,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 443,
+          "offset": 16617,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 444,
+          "offset": 16784,
+          "definedBy": null,
+          "relation": "unresolved"
         }
       ],
       "fieldAccess": [
@@ -4496,6 +4534,26 @@
           "path": "_missionFinish",
           "access": "read",
           "line": 431
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 436
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 437
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 443
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 444
         }
       ]
     },
@@ -4503,14 +4561,14 @@
       "name": "checkPrimaryMission",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 435,
-      "end": 454,
+      "line": 449,
+      "end": 486,
       "callDetails": [
         {
           "name": "ensureMissionFramework",
           "kind": "direct",
           "unresolved": false,
-          "line": 436,
+          "line": 450,
           "offset": 144,
           "definedBy": {
             "class": "SimEngine",
@@ -4523,7 +4581,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 438,
+          "line": 452,
           "offset": 648,
           "object": "this.ctx",
           "definedBy": null,
@@ -4533,7 +4591,7 @@
           "name": "primaryConvoyExists",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 438,
+          "line": 452,
           "offset": 1271,
           "definedBy": {
             "class": "SimEngine",
@@ -4546,7 +4604,7 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 438,
+          "line": 452,
           "offset": 1443,
           "definedBy": {
             "class": "SimEngine",
@@ -4559,7 +4617,7 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 441,
+          "line": 455,
           "offset": 1914,
           "definedBy": {
             "class": "SimEngine",
@@ -4572,7 +4630,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 444,
+          "line": 458,
           "offset": 2239,
           "object": "this.ctx",
           "definedBy": null,
@@ -4582,7 +4640,7 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 444,
+          "line": 458,
           "offset": 2572,
           "definedBy": {
             "class": "SimEngine",
@@ -4595,8 +4653,27 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 447,
+          "line": 461,
           "offset": 2986,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 475,
+          "offset": 3954,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 476,
+          "offset": 4124,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4604,8 +4681,8 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 450,
-          "offset": 3554,
+          "line": 480,
+          "offset": 4367,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
@@ -4618,52 +4695,62 @@
         {
           "path": "state",
           "access": "read",
-          "line": 436
+          "line": 450
         },
         {
           "path": "ensureMissionFramework",
           "access": "read",
-          "line": 436
+          "line": 450
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 438
+          "line": 452
         },
         {
           "path": "primaryConvoyExists",
           "access": "read",
-          "line": 438
+          "line": 452
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 438
+          "line": 452
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 441
+          "line": 455
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 444
+          "line": 458
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 444
+          "line": 458
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 447
+          "line": 461
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 475
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 476
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 450
+          "line": 480
         }
       ]
     },
@@ -9139,7 +9226,7 @@
       "class": "CareerSystem",
       "file": "js/simulation/career-history.js",
       "line": 138,
-      "end": 189,
+      "end": 204,
       "callDetails": [
         {
           "name": "ensureCareerPatrolState",
@@ -9174,7 +9261,7 @@
         {
           "path": "aar.buildReplay",
           "access": "read",
-          "line": 186
+          "line": 201
         }
       ]
     },
@@ -9182,14 +9269,14 @@
       "name": "finalizePatrol",
       "class": "CareerSystem",
       "file": "js/simulation/career-history.js",
-      "line": 191,
-      "end": 206,
+      "line": 206,
+      "end": 221,
       "callDetails": [
         {
           "name": "ensureCareerPatrolState",
           "kind": "direct",
           "unresolved": false,
-          "line": 192,
+          "line": 207,
           "offset": 97,
           "definedBy": {
             "class": "CareerSystem",
@@ -9202,7 +9289,7 @@
           "name": "captainLog",
           "kind": "direct",
           "unresolved": false,
-          "line": 194,
+          "line": 209,
           "offset": 224,
           "definedBy": {
             "class": "CareerSystem",
@@ -9215,7 +9302,7 @@
           "name": "buildPatrolRecord",
           "kind": "direct",
           "unresolved": false,
-          "line": 200,
+          "line": 215,
           "offset": 551,
           "definedBy": {
             "class": "CareerSystem",
@@ -9229,47 +9316,47 @@
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 192
+          "line": 207
         },
         {
           "path": "state.runtime.campaign",
           "access": "read",
-          "line": 192
+          "line": 207
         },
         {
           "path": "ensureCareerPatrolState",
           "access": "read",
-          "line": 192
+          "line": 207
         },
         {
           "path": "captainLog",
           "access": "read",
-          "line": 194
+          "line": 209
         },
         {
           "path": "state.runtime",
           "access": "read",
-          "line": 196
+          "line": 211
         },
         {
           "path": "buildPatrolRecord",
           "access": "read",
-          "line": 200
+          "line": 215
         },
         {
           "path": "state.runtime.careerRecords",
           "access": "write",
-          "line": 201
+          "line": 216
         },
         {
           "path": "state.runtime.careerRecords",
           "access": "read",
-          "line": 201
+          "line": 216
         },
         {
           "path": "state",
           "access": "read",
-          "line": 203
+          "line": 218
         }
       ]
     },
@@ -16909,7 +16996,7 @@
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
       "line": 196,
-      "end": 213,
+      "end": 214,
       "callDetails": [
         {
           "name": "ensureHarborIntel",
@@ -16938,11 +17025,21 @@
           "relation": "system"
         },
         {
+          "name": "recordEvent",
+          "kind": "optional-object",
+          "unresolved": true,
+          "line": 209,
+          "offset": 788,
+          "object": "aar",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 209,
-          "offset": 783,
+          "line": 210,
+          "offset": 989,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -16950,8 +17047,8 @@
           "name": "alertEscorts",
           "kind": "optional-object",
           "unresolved": true,
-          "line": 211,
-          "offset": 992,
+          "line": 212,
+          "offset": 1198,
           "object": "sys.enemyAI",
           "definedBy": null,
           "relation": "unresolved"
@@ -16984,19 +17081,24 @@
           "line": 208
         },
         {
-          "path": "notify",
+          "path": "aar",
           "access": "read",
           "line": 209
         },
         {
-          "path": "state",
+          "path": "notify",
           "access": "read",
           "line": 210
         },
         {
-          "path": "sys.enemyAI",
+          "path": "state",
           "access": "read",
           "line": 211
+        },
+        {
+          "path": "sys.enemyAI",
+          "access": "read",
+          "line": 212
         }
       ]
     },
@@ -17004,14 +17106,14 @@
       "name": "updateHarborKnowledge",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 215,
-      "end": 261,
+      "line": 216,
+      "end": 262,
       "callDetails": [
         {
           "name": "ensureHarborIntel",
           "kind": "direct",
           "unresolved": false,
-          "line": 217,
+          "line": 218,
           "offset": 121,
           "definedBy": {
             "class": "HarborSystem",
@@ -17024,7 +17126,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 229,
+          "line": 230,
           "offset": 791,
           "definedBy": null,
           "relation": "unresolved"
@@ -17033,13 +17135,13 @@
           "name": "pointSegNm",
           "kind": "indirect-alias",
           "unresolved": true,
-          "line": 234,
+          "line": 235,
           "offset": 1282,
           "alias": "pointSeg",
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
-            "line": 301
+            "line": 304
           },
           "relation": "unresolved"
         },
@@ -17047,7 +17149,7 @@
           "name": "refreshHarborOptionalObjective",
           "kind": "direct",
           "unresolved": false,
-          "line": 243,
+          "line": 244,
           "offset": 1951,
           "definedBy": {
             "class": "HarborSystem",
@@ -17060,7 +17162,7 @@
           "name": "harborIdentityLabel",
           "kind": "direct",
           "unresolved": false,
-          "line": 244,
+          "line": 245,
           "offset": 2008,
           "definedBy": {
             "class": "HarborSystem",
@@ -17073,7 +17175,7 @@
           "name": "harborOperationProfile",
           "kind": "direct",
           "unresolved": false,
-          "line": 244,
+          "line": 245,
           "offset": 2057,
           "definedBy": {
             "class": "HarborSystem",
@@ -17086,7 +17188,7 @@
           "name": "captainLog",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 245,
+          "line": 246,
           "offset": 2106,
           "definedBy": null,
           "relation": "unresolved"
@@ -17095,7 +17197,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 246,
+          "line": 247,
           "offset": 2298,
           "definedBy": null,
           "relation": "unresolved"
@@ -17104,12 +17206,12 @@
           "name": "updateHarborGateProgress",
           "kind": "direct",
           "unresolved": false,
-          "line": 249,
+          "line": 250,
           "offset": 2424,
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
-            "line": 269
+            "line": 270
           },
           "relation": "system"
         },
@@ -17117,7 +17219,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 252,
+          "line": 253,
           "offset": 2585,
           "definedBy": null,
           "relation": "unresolved"
@@ -17126,7 +17228,7 @@
           "name": "refreshHarborOptionalObjective",
           "kind": "direct",
           "unresolved": false,
-          "line": 260,
+          "line": 261,
           "offset": 3208,
           "definedBy": {
             "class": "HarborSystem",
@@ -17140,82 +17242,82 @@
         {
           "path": "state.world",
           "access": "read",
-          "line": 216
+          "line": 217
         },
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 216
+          "line": 217
         },
         {
           "path": "ensureHarborIntel",
           "access": "read",
-          "line": 217
+          "line": 218
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 217
+          "line": 218
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 229
+          "line": 230
         },
         {
           "path": "harborNetSegments",
           "access": "read",
-          "line": 232
+          "line": 233
         },
         {
           "path": "pointSegNm",
           "access": "read",
-          "line": 233
+          "line": 234
         },
         {
           "path": "revealHarborNet",
           "access": "read",
-          "line": 235
+          "line": 236
         },
         {
           "path": "refreshHarborOptionalObjective",
           "access": "read",
-          "line": 243
+          "line": 244
         },
         {
           "path": "harborIdentityLabel",
           "access": "read",
-          "line": 244
+          "line": 245
         },
         {
           "path": "harborOperationProfile",
           "access": "read",
-          "line": 244
+          "line": 245
         },
         {
           "path": "captainLog",
           "access": "read",
-          "line": 245
+          "line": 246
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 246
+          "line": 247
         },
         {
           "path": "updateHarborGateProgress",
           "access": "read",
-          "line": 249
+          "line": 250
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 252
+          "line": 253
         },
         {
           "path": "refreshHarborOptionalObjective",
           "access": "read",
-          "line": 260
+          "line": 261
         }
       ]
     },
@@ -17223,8 +17325,8 @@
       "name": "harborChannelFrame",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 263,
-      "end": 267,
+      "line": 264,
+      "end": 268,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -17232,28 +17334,38 @@
       "name": "updateHarborGateProgress",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 269,
-      "end": 286,
+      "line": 270,
+      "end": 289,
       "callDetails": [
         {
           "name": "harborChannelFrame",
           "kind": "direct",
           "unresolved": false,
-          "line": 271,
+          "line": 272,
           "offset": 77,
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
-            "line": 263
+            "line": 264
           },
           "relation": "system"
+        },
+        {
+          "name": "recordEvent",
+          "kind": "optional-object",
+          "unresolved": true,
+          "line": 278,
+          "offset": 511,
+          "object": "aar",
+          "definedBy": null,
+          "relation": "unresolved"
         },
         {
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 277,
-          "offset": 506,
+          "line": 279,
+          "offset": 675,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17261,8 +17373,8 @@
           "name": "harborOperationProfile",
           "kind": "direct",
           "unresolved": false,
-          "line": 282,
-          "offset": 955,
+          "line": 284,
+          "offset": 1124,
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
@@ -17274,8 +17386,8 @@
           "name": "captainLog",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 283,
-          "offset": 1004,
+          "line": 285,
+          "offset": 1173,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17283,8 +17395,31 @@
           "name": "harborIdentityLabel",
           "kind": "direct",
           "unresolved": false,
-          "line": 283,
-          "offset": 1073,
+          "line": 285,
+          "offset": 1242,
+          "definedBy": {
+            "class": "HarborSystem",
+            "file": "js/simulation/harbor.js",
+            "line": 142
+          },
+          "relation": "system"
+        },
+        {
+          "name": "recordEvent",
+          "kind": "optional-object",
+          "unresolved": true,
+          "line": 286,
+          "offset": 1451,
+          "object": "aar",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "harborIdentityLabel",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 286,
+          "offset": 1500,
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
@@ -17296,8 +17431,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 284,
-          "offset": 1277,
+          "line": 287,
+          "offset": 1636,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17305,8 +17440,8 @@
           "name": "harborIdentityLabel",
           "kind": "direct",
           "unresolved": false,
-          "line": 284,
-          "offset": 1326,
+          "line": 287,
+          "offset": 1685,
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
@@ -17319,12 +17454,7 @@
         {
           "path": "harborChannelFrame",
           "access": "read",
-          "line": 271
-        },
-        {
-          "path": "state.time.elapsedSeconds",
-          "access": "read",
-          "line": 275
+          "line": 272
         },
         {
           "path": "state.time.elapsedSeconds",
@@ -17332,34 +17462,54 @@
           "line": 276
         },
         {
-          "path": "notify",
+          "path": "state.time.elapsedSeconds",
           "access": "read",
           "line": 277
         },
         {
-          "path": "harborOperationProfile",
+          "path": "aar",
           "access": "read",
-          "line": 282
-        },
-        {
-          "path": "captainLog",
-          "access": "read",
-          "line": 283
-        },
-        {
-          "path": "harborIdentityLabel",
-          "access": "read",
-          "line": 283
+          "line": 278
         },
         {
           "path": "notify",
           "access": "read",
+          "line": 279
+        },
+        {
+          "path": "harborOperationProfile",
+          "access": "read",
           "line": 284
+        },
+        {
+          "path": "captainLog",
+          "access": "read",
+          "line": 285
         },
         {
           "path": "harborIdentityLabel",
           "access": "read",
-          "line": 284
+          "line": 285
+        },
+        {
+          "path": "aar",
+          "access": "read",
+          "line": 286
+        },
+        {
+          "path": "harborIdentityLabel",
+          "access": "read",
+          "line": 286
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 287
+        },
+        {
+          "path": "harborIdentityLabel",
+          "access": "read",
+          "line": 287
         }
       ]
     },
@@ -17367,8 +17517,8 @@
       "name": "harborNetSegments",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 288,
-      "end": 299,
+      "line": 291,
+      "end": 302,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -17376,8 +17526,8 @@
       "name": "pointSegNm",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 301,
-      "end": 305,
+      "line": 304,
+      "end": 308,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -17385,20 +17535,20 @@
       "name": "harborTorpedoNetHit",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 307,
-      "end": 311,
+      "line": 310,
+      "end": 314,
       "callDetails": [
         {
           "name": "pointSegNm",
           "kind": "indirect-alias",
           "unresolved": true,
-          "line": 310,
+          "line": 313,
           "offset": 244,
           "alias": "pointSeg",
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
-            "line": 301
+            "line": 304
           },
           "relation": "unresolved"
         }
@@ -17407,17 +17557,17 @@
         {
           "path": "state.world.harbor",
           "access": "read",
-          "line": 308
+          "line": 311
         },
         {
           "path": "pointSegNm",
           "access": "read",
-          "line": 309
+          "line": 312
         },
         {
           "path": "harborNetSegments",
           "access": "read",
-          "line": 310
+          "line": 313
         }
       ]
     },
@@ -17425,14 +17575,14 @@
       "name": "updateHarbor",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 313,
-      "end": 481,
+      "line": 316,
+      "end": 492,
       "callDetails": [
         {
           "name": "ensureHarborIntel",
           "kind": "direct",
           "unresolved": false,
-          "line": 319,
+          "line": 322,
           "offset": 281,
           "definedBy": {
             "class": "HarborSystem",
@@ -17445,7 +17595,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 320,
+          "line": 323,
           "offset": 313,
           "definedBy": null,
           "relation": "unresolved"
@@ -17454,7 +17604,7 @@
           "name": "ensureHarborIntel",
           "kind": "direct",
           "unresolved": false,
-          "line": 326,
+          "line": 329,
           "offset": 795,
           "definedBy": {
             "class": "HarborSystem",
@@ -17467,17 +17617,18 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 327,
+          "line": 330,
           "offset": 827,
           "definedBy": null,
           "relation": "unresolved"
         },
         {
-          "name": "notify",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 356,
-          "offset": 2524,
+          "name": "recordEvent",
+          "kind": "optional-object",
+          "unresolved": true,
+          "line": 335,
+          "offset": 1219,
+          "object": "aar",
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17485,8 +17636,26 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 360,
-          "offset": 2722,
+          "line": 336,
+          "offset": 1375,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 365,
+          "offset": 2891,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 369,
+          "offset": 3089,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17494,12 +17663,12 @@
           "name": "startHarborSearchlightSweep",
           "kind": "direct",
           "unresolved": false,
-          "line": 376,
-          "offset": 3646,
+          "line": 385,
+          "offset": 4013,
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
-            "line": 484
+            "line": 495
           },
           "relation": "system"
         },
@@ -17507,8 +17676,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 378,
-          "offset": 3935,
+          "line": 387,
+          "offset": 4302,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17516,8 +17685,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 379,
-          "offset": 4085,
+          "line": 388,
+          "offset": 4452,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17525,8 +17694,8 @@
           "name": "recordHarborBatteryFire",
           "kind": "system-path",
           "unresolved": false,
-          "line": 384,
-          "offset": 4319,
+          "line": 393,
+          "offset": 4686,
           "object": "this.sys.harbor",
           "definedBy": {
             "class": "HarborSystem",
@@ -17539,12 +17708,12 @@
           "name": "scheduleCoastalBatteryShot",
           "kind": "direct",
           "unresolved": false,
-          "line": 386,
-          "offset": 4425,
+          "line": 395,
+          "offset": 4792,
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
-            "line": 493
+            "line": 504
           },
           "relation": "system"
         },
@@ -17552,8 +17721,8 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 387,
-          "offset": 4486,
+          "line": 396,
+          "offset": 4853,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17561,8 +17730,8 @@
           "name": "applyShock",
           "kind": "system-path",
           "unresolved": false,
-          "line": 396,
-          "offset": 5043,
+          "line": 405,
+          "offset": 5410,
           "object": "this.sys.damage",
           "definedBy": null,
           "relation": "unresolved"
@@ -17571,8 +17740,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 398,
-          "offset": 5205,
+          "line": 407,
+          "offset": 5572,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17580,8 +17749,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 401,
-          "offset": 5460,
+          "line": 410,
+          "offset": 5827,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17589,8 +17758,8 @@
           "name": "ensureBattleAtmosphereState",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 413,
-          "offset": 6042,
+          "line": 422,
+          "offset": 6409,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17598,8 +17767,8 @@
           "name": "ensureHarborIntel",
           "kind": "direct",
           "unresolved": false,
-          "line": 427,
-          "offset": 6804,
+          "line": 436,
+          "offset": 7171,
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
@@ -17611,8 +17780,8 @@
           "name": "applyShock",
           "kind": "system-path",
           "unresolved": false,
-          "line": 429,
-          "offset": 6939,
+          "line": 438,
+          "offset": 7306,
           "object": "this.sys.damage",
           "definedBy": null,
           "relation": "unresolved"
@@ -17621,8 +17790,8 @@
           "name": "captainLog",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 431,
-          "offset": 7089,
+          "line": 440,
+          "offset": 7456,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17630,8 +17799,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 432,
-          "offset": 7218,
+          "line": 441,
+          "offset": 7585,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17639,22 +17808,23 @@
           "name": "pointSegNm",
           "kind": "indirect-alias",
           "unresolved": true,
-          "line": 443,
-          "offset": 7946,
+          "line": 452,
+          "offset": 8313,
           "alias": "pointSeg",
           "definedBy": {
             "class": "HarborSystem",
             "file": "js/simulation/harbor.js",
-            "line": 301
+            "line": 304
           },
           "relation": "unresolved"
         },
         {
-          "name": "notify",
-          "kind": "direct",
-          "unresolved": false,
+          "name": "recordEvent",
+          "kind": "optional-object",
+          "unresolved": true,
           "line": 454,
-          "offset": 8581,
+          "offset": 8481,
+          "object": "aar",
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -17662,8 +17832,27 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 469,
-          "offset": 9404,
+          "line": 464,
+          "offset": 9094,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "recordEvent",
+          "kind": "optional-object",
+          "unresolved": true,
+          "line": 479,
+          "offset": 9922,
+          "object": "aar",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 480,
+          "offset": 10128,
           "definedBy": null,
           "relation": "unresolved"
         }
@@ -17672,187 +17861,207 @@
         {
           "path": "state.world",
           "access": "read",
-          "line": 314
+          "line": 317
         },
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 314
+          "line": 317
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 316
-        },
-        {
-          "path": "ensureHarborIntel",
-          "access": "read",
           "line": 319
         },
         {
+          "path": "ensureHarborIntel",
+          "access": "read",
+          "line": 322
+        },
+        {
           "path": "notify",
           "access": "read",
-          "line": 320
+          "line": 323
         },
         {
           "path": "ensureHarborIntel",
           "access": "read",
-          "line": 326
+          "line": 329
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 327
+          "line": 330
+        },
+        {
+          "path": "aar",
+          "access": "read",
+          "line": 335
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 356
+          "line": 336
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 360
+          "line": 365
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 369
         },
         {
           "path": "state",
           "access": "read",
-          "line": 373
+          "line": 382
         },
         {
           "path": "startHarborSearchlightSweep",
           "access": "read",
-          "line": 376
-        },
-        {
-          "path": "notify",
-          "access": "read",
-          "line": 378
-        },
-        {
-          "path": "log",
-          "access": "read",
-          "line": 379
-        },
-        {
-          "path": "sys.harbor.recordHarborBatteryFire",
-          "access": "read",
-          "line": 384
-        },
-        {
-          "path": "scheduleCoastalBatteryShot",
-          "access": "read",
           "line": 385
         },
         {
-          "path": "scheduleCoastalBatteryShot",
-          "access": "read",
-          "line": 386
-        },
-        {
-          "path": "log",
+          "path": "notify",
           "access": "read",
           "line": 387
         },
         {
-          "path": "sys.damage.applyShock",
+          "path": "log",
+          "access": "read",
+          "line": 388
+        },
+        {
+          "path": "sys.harbor.recordHarborBatteryFire",
+          "access": "read",
+          "line": 393
+        },
+        {
+          "path": "scheduleCoastalBatteryShot",
+          "access": "read",
+          "line": 394
+        },
+        {
+          "path": "scheduleCoastalBatteryShot",
+          "access": "read",
+          "line": 395
+        },
+        {
+          "path": "log",
           "access": "read",
           "line": 396
         },
         {
+          "path": "sys.damage.applyShock",
+          "access": "read",
+          "line": 405
+        },
+        {
           "path": "state.weapons.explosions.push",
           "access": "read",
-          "line": 397
+          "line": 406
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 398
+          "line": 407
         },
         {
           "path": "state",
           "access": "read",
-          "line": 399
+          "line": 408
         },
         {
           "path": "notify",
-          "access": "read",
-          "line": 401
-        },
-        {
-          "path": "state",
-          "access": "read",
-          "line": 402
-        },
-        {
-          "path": "scheduleHarborStarshell",
           "access": "read",
           "line": 410
         },
         {
+          "path": "state",
+          "access": "read",
+          "line": 411
+        },
+        {
+          "path": "scheduleHarborStarshell",
+          "access": "read",
+          "line": 419
+        },
+        {
           "path": "ensureBattleAtmosphereState",
           "access": "read",
-          "line": 413
+          "line": 422
         },
         {
           "path": "ensureHarborIntel",
           "access": "read",
-          "line": 427
+          "line": 436
         },
         {
           "path": "sys.damage.applyShock",
           "access": "read",
-          "line": 429
+          "line": 438
         },
         {
           "path": "state.weapons.explosions.push",
           "access": "read",
-          "line": 430
+          "line": 439
         },
         {
           "path": "captainLog",
           "access": "read",
-          "line": 431
+          "line": 440
         },
         {
           "path": "notify",
-          "access": "read",
-          "line": 432
-        },
-        {
-          "path": "state",
-          "access": "read",
-          "line": 433
-        },
-        {
-          "path": "pointSegNm",
           "access": "read",
           "line": 441
         },
         {
-          "path": "harborNetSegments",
+          "path": "state",
           "access": "read",
           "line": 442
         },
         {
-          "path": "revealHarborNet",
+          "path": "pointSegNm",
           "access": "read",
-          "line": 444
+          "line": 450
         },
         {
-          "path": "notify",
+          "path": "harborNetSegments",
+          "access": "read",
+          "line": 451
+        },
+        {
+          "path": "revealHarborNet",
+          "access": "read",
+          "line": 453
+        },
+        {
+          "path": "aar",
           "access": "read",
           "line": 454
         },
         {
+          "path": "notify",
+          "access": "read",
+          "line": 464
+        },
+        {
           "path": "harborChannelFrame",
           "access": "read",
-          "line": 462
+          "line": 472
+        },
+        {
+          "path": "aar",
+          "access": "read",
+          "line": 479
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 469
+          "line": 480
         }
       ]
     },
@@ -17860,24 +18069,24 @@
       "name": "startHarborSearchlightSweep",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 484,
-      "end": 491,
+      "line": 495,
+      "end": 502,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 485
+          "line": 496
         },
         {
           "path": "state.world",
           "access": "read",
-          "line": 485
+          "line": 496
         },
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 485
+          "line": 496
         }
       ]
     },
@@ -17885,14 +18094,14 @@
       "name": "scheduleCoastalBatteryShot",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 493,
-      "end": 510,
+      "line": 504,
+      "end": 521,
       "callDetails": [
         {
           "name": "ensureBattleAtmosphereState",
           "kind": "direct",
           "unresolved": false,
-          "line": 494,
+          "line": 505,
           "offset": 54,
           "definedBy": null,
           "relation": "unresolved"
@@ -17902,22 +18111,22 @@
         {
           "path": "ensureBattleAtmosphereState",
           "access": "read",
-          "line": 494
+          "line": 505
         },
         {
           "path": "state",
           "access": "read",
-          "line": 494
+          "line": 505
         },
         {
           "path": "state",
           "access": "read",
-          "line": 507
+          "line": 518
         },
         {
           "path": "aar.recordEvent",
           "access": "read",
-          "line": 508
+          "line": 519
         }
       ]
     },
@@ -17925,14 +18134,14 @@
       "name": "scheduleHarborStarshell",
       "class": "HarborSystem",
       "file": "js/simulation/harbor.js",
-      "line": 512,
-      "end": 533,
+      "line": 523,
+      "end": 544,
       "callDetails": [
         {
           "name": "ensureBattleAtmosphereState",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 513,
+          "line": 524,
           "offset": 42,
           "definedBy": null,
           "relation": "unresolved"
@@ -17941,7 +18150,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 530,
+          "line": 541,
           "offset": 1134,
           "definedBy": null,
           "relation": "unresolved"
@@ -17950,7 +18159,7 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 531,
+          "line": 542,
           "offset": 1254,
           "definedBy": null,
           "relation": "unresolved"
@@ -17960,32 +18169,32 @@
         {
           "path": "ensureBattleAtmosphereState",
           "access": "read",
-          "line": 513
+          "line": 524
         },
         {
           "path": "state.world.atmosphere",
           "access": "read",
-          "line": 513
+          "line": 524
         },
         {
           "path": "state",
           "access": "read",
-          "line": 513
+          "line": 524
         },
         {
           "path": "state",
           "access": "read",
-          "line": 529
+          "line": 540
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 530
+          "line": 541
         },
         {
           "path": "log",
           "access": "read",
-          "line": 531
+          "line": 542
         }
       ]
     },

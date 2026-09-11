@@ -54,7 +54,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
   * [x] **Fase 4.1: Havendetectie, Alarm-Escalatie & Daglichtcontrole** (Optische kustwachtdetectie overdag voor surfaced/snelle periscoopvaart onafhankelijk van hydrofoons, directe alarm-escalatie bij torpedotreffers/schade aan ankerdoelen met algemeen alarm en escorte-dispatching, daglicht-gated zoeklichten en 2D/3D onderdrukking) — **GOEDGEKEURD (Harry: 9.75/10, Henry: 9.35/10)**
   * [x] **Fase 4.2: Fysieke Havenarchitectuur & 2.5D Kustkades** (Kades, pieren, pakhuizen met zadeldaken en kadelantaarns, cilindrische brandstoftanks met koepelkappen en directionele gradiëntshading, portaalkranen en dynamische oorlogsverduisteringsdiscipline bij havenalarm) — **GOEDGEKEURD (Harry: 9.78/10, Henry: 9.35/10)**
   * [x] **Fase 4.3: Verdedigingsnetten, Versperringen & Kustbatterijen** (Gedifferentieerde netring met gemarkeerde havenpoort en stalen kabels, magnetische indicatielussen over toegangskanaal met snelheidsdrempel, harmonische getijdewater-drift in de nadering, 3D parachute-starshells bij nachtalarm door kustbatterijen met omgevingsverlichting en waterreflectie) — **GOEDGEKEURD (Harry: 9.83/10, Henry: 9.55/10)**
-  * [ ] **Fase 4.4: Special Ops Infiltratiemissies & Haven-AAR Debriefing** (Specifieke penetratiescenario's, verkenning van slagschepen/vliegdekschepen op ankerplaatsen en afhandeling in campagnetactiek)
+  * [x] **Fase 4.4: Special Ops Infiltratiemissies & Haven-AAR Debriefing** (Volwaardige HARBOR_STRIKE missiecyclus met poortpenetratie, optische doelwit-identificatie, aanval en ontsnapping, AAR havenreconstructie met 6 specifieke gebeurtenistypes en +500 Special Intel bonus bij geruisloze netpassage) — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.55/10)**
 
 ### 5. Visuele en systemische scheepsherkenning
 * **Doel**: Rijkere differentiatie van schepen:
@@ -119,7 +119,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 - [x] **Havendetectie**: Detectie in havens alleen via hydrofoon; direct zicht telt nu mee via kustwacht en gezonken/beschadigde schepen op de ankerplaats escaleren de haven direct.
 - [ ] **Vliegtuigdetectiefase**: Vliegtuigen vallen momenteel direct aan zonder voorafgaande verkennings- of detectiefase.
 - [x] **Zoeklichten overdag**: Zoeklichten worden overdag automatisch gedoofd en niet langer weergegeven (`daylight >= 0.35`).
-- [ ] **Havenmissies uitbouwen**: Kades, pakhuizen, havengebouwen, kustbatterijen, schijnwerpers, lichtkogels, corridors en torpedonetten toevoegen (beginnend bij *USN Chokepoint Penetration*).
+- [x] **Havenmissies uitbouwen**: Kades, pakhuizen, havengebouwen, kustbatterijen, schijnwerpers, lichtkogels, corridors en torpedonetten toevoegen (voltooid in Initiatief 4, inclusief *USN Chokepoint Penetration* en *HARBOR_STRIKE* Special Ops).
 - [ ] **Interne benchmark**: Gestandaardiseerde benchmark voor 3D-framerate, audioload en CPU-cycli, direct vergelijkbaar tussen apparaten en git-commits.
 - [ ] **Automatische veilige routeplanning**: Routering over lange afstanden rond landmassa's automatiseren zonder hinder bij handmatige precisienavigatie.
 - [ ] **Kaartlegenda & PRIMARY markering**: Kaartlegenda voor patrouillezones en heldere `PRIMARY`-markering op de doelwitten.

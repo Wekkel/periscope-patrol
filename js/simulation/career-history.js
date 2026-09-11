@@ -155,6 +155,20 @@ const CareerSystem={
     const aircraftEncounters=Object.entries(this.state.runtime?.aar?.airStates||{}).filter(([,a])=>a?.seen||a?.attacked||a?.shotDown).map(([id,a])=>{const p=typeof getAircraftProfile==='function'?getAircraftProfile(a.aircraftProfileId):null;return{id,name:a.name||p?.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,factionId:p?.factionId||null,kind:a.kind||p?.kind||null,status:a.shotDown?'SHOT DOWN':a.attacked?'ATTACK EVADED':'SIGHTED',dimensionsM:p?{span:p.spanM,length:p.lengthM}:null,speedKnots:_careerClone(p?.speedKnots||[]),ordnance:p?.ordnance||null,recognition:p?.recognition||null,doctrine:p?.doctrine||null};});
     const ownBoat=_careerOwnBoat(s),lessons=_careerLessons(s,engagements),hp=c.historicalProfile||{};
     const I=s.world.harborIntel;
+    const H=s.world.harbor;
+    let harborOp=null;
+    if(H&&(H.entered||I?.raid?.attempted||I?.raid?.gateCrossed)){
+      const stealthBonus=(I?.raid?.gateCrossed&&!H.indicatorLoopWarned&&H.alert<2)?500:0;
+      harborOp={
+        siteName:H.name,shortName:H.shortName,
+        gateCrossed:!!I?.raid?.gateCrossed,
+        stealthPenetration:stealthBonus>0,
+        targetIdentified:!!I?.heavyUnit?.identified,
+        targetNeutralized:!!(s.world.contacts||[]).find(x=>x.id===H.heavyTargetId)?.sunk,
+        maxAlert:H.alert,
+        specialIntelBonus:stealthBonus
+      };
+    }
     const opts=(c.optionalObjectives||[]).map(o=>({text:o.text,done:!!o.done,failed:!!o.failed,result:o.result||null}));
     return Object.freeze({
       version:CAREER_RECORD_VERSION,id:c.historyId,
@@ -166,7 +180,7 @@ const CareerSystem={
       startDate:R._careerStartDate,
       endDate:_careerStampFrom(R._careerStartDate,c.patrolDuration||0),
       durationSeconds:Math.round(c.patrolDuration||0),outcome:String(outcome||c.missionStatus||'UNKNOWN'),
-      patrolScore:Number(meta.patrolScore!==undefined?meta.patrolScore:c.score)||0,
+      patrolScore:Number(meta.patrolScore!==undefined?meta.patrolScore:c.score)+(harborOp?.specialIntelBonus||0),
       careerTotalScore:Number(c.totalScore)||0,
       shipsSunk:sunk.length,sunkShips:_careerClone(sunk),
       tonnage:Number(c.tonnageSunk)||0,
@@ -175,6 +189,7 @@ const CareerSystem={
       deckGunRounds:Number(G.shots)||0,deckGunHits:Number(G.hits)||0,aircraftKills:Number(s.world.aaKills)||0,
       optionalObjectives:_careerClone(opts),
       specialOperationId:I?.operationId||null,harborRaid:I?.raid?_careerClone(I.raid):null,
+      harborOperation:harborOp?_careerClone(harborOp):null,
       hullAtEnd:Number(meta.hullAtEnd!==undefined?meta.hullAtEnd:s.playerSub.damage.hullIntegrity),
       aircraftEvaded:Number(c.afterAction?.aircraftEvaded)||0,
       importantEvents:_careerClone(c.importantEvents),

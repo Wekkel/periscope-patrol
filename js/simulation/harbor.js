@@ -206,6 +206,7 @@ const HarborSystem={
     if(H&&(contact.sunk||shipDamageSeverity(contact)>.02||(contact.gunDamage||0)>0)){
       H.suspicion=100;H.alert=2;
       this.state.world.enemy.searchCenter={...contact.position};
+      this.aar?.recordEvent?.('HARBOR_ATTACK',`Attack conducted against moored ${contact.name||contact.displayType||'vessel'} inside ${H.name}.`,{targetId:contact.id,sunk:!!contact.sunk},contact.position);
       this.notify(`HARBOUR DEFENCES ALERTED — detonation inside ${H.name}! Coastal batteries and escorts on full alert.`,'bad','KRITIEK');
       PresentationBridge.audio(this.state).playGeneralAlarm?.();
       this.sys.enemyAI?.alertEscorts?.('HARBOR_ATTACK',{...contact.position},0.95);
@@ -274,6 +275,7 @@ const HarborSystem={
        &&Math.abs(f.lateral)<=H.netGapHalfNm*.92){
       I.raid.gateCrossed=true;I.raid.gateCrossedAt=this.state.time.elapsedSeconds;
       if(!I.raid.attempted){I.raid.attempted=true;I.raid.enteredAt=this.state.time.elapsedSeconds;}
+      this.aar?.recordEvent?.('HARBOR_GATE_PASSED',`Penetrated ${H.shortName} torpedo-net gate.`,{harbor:H.shortName,alongNm:f.along,lateralNm:f.lateral},sub.position);
       this.notify('TORPEDO-NET GATE PASSED — inside the defended anchorage. Intelligence objective now requires a firm visual identification of the reported heavy unit.','ok', 'KRITIEK');
     }
     I.raid.lastChannelAlongNm=f.along;
@@ -281,6 +283,7 @@ const HarborSystem={
       I.raid.reconComplete=true;if(I.raid.result==='not_attempted'||I.raid.result==='abandoned')I.raid.result='recon_complete';
       const events=this.harborOperationProfile()?.events||{};
       this.captainLog?.(events.reconCompleteId||'HARBOR_RECON_COMPLETE',`${this.harborIdentityLabel(I.heavyUnit.identity)} identified after penetrating the ${H.shortName} torpedo-net gate.`,{identity:I.heavyUnit.identity},events.reconCompleteKey||'harbor-recon-complete');
+      this.aar?.recordEvent?.('HARBOR_TARGET_IDENTIFIED',`${this.harborIdentityLabel(I.heavyUnit.identity)} identified inside ${H.shortName}.`,{identity:I.heavyUnit.identity},sub.position);
       this.notify(`INTELLIGENCE OBJECTIVE COMPLETE — ${this.harborIdentityLabel(I.heavyUnit.identity).toUpperCase()} positively identified inside ${H.name}.`,'ok', 'KRITIEK');
     }
   },
@@ -326,6 +329,12 @@ const HarborSystem={
       const I=this.ensureHarborIntel();
       this.notify(`INSIDE ${H.name.toUpperCase()} — silhouettes at anchor. High-value targets are close${I?.net?.known?', and the observed net opening is still your way out':'; your exit remains only as good as your reconnaissance'}.`,'ok', 'NUTTIG');
     }else if(rng>H.innerRadiusNm*1.35) H.inside=false;
+
+    if(H.entered&&rng>=H.outerRadiusNm+0.8&&!H.escaped){
+      H.escaped=true;
+      this.aar?.recordEvent?.('HARBOR_ESCAPE',`Cleared ${H.shortName} outer defenses and withdrawal corridor.`,{harbor:H.shortName,alert:H.alert},sub.position);
+      this.notify(`HARBOUR DEFENSES CLEARED — safely outside ${H.name} perimeter. Plot return course.`,'ok', 'NUTTIG');
+    }
 
     // Harbour hydrophones / indicator loops: not magical truth, but sustained
     // screw noise inside the defensive ring builds a suspicion plot.
@@ -442,6 +451,7 @@ const HarborSystem={
       for(const seg of (this.harborNetSegments || HarborSystem.harborNetSegments).call(this, H)){
         if(pointSeg(sub.position,seg.a,seg.b)>=0.036) continue;
         H.lastNetAt=now;(this.revealHarborNet || HarborSystem.revealHarborNet).call(this, 'CONTACT');
+        this.aar?.recordEvent?.('HARBOR_NET_CONTACT',`Submarine fouled ${H.shortName} anti-torpedo boom net.`,{harbor:H.shortName},sub.position);
         const back=degToRad(normDeg(sub.heading+180));
         sub.position.xNm+=Math.sin(back)*0.055;sub.position.yNm-=Math.cos(back)*0.055;
         if(sub.propulsion){
@@ -466,6 +476,7 @@ const HarborSystem={
         H.suspicion=clamp(H.suspicion+dt*loopExcess*0.22,0,100);
         if(!H.indicatorLoopWarned&&H.suspicion>20){
           H.indicatorLoopWarned=true;
+          this.aar?.recordEvent?.('INDICATOR_LOOP_ALARM',`Seabed magnetic indicator loops triggered at ${H.shortName} channel entrance.`,{harbor:H.shortName,speedKnots:sub.propulsion?.speedKnots},sub.position);
           this.notify('INDICATOR LOOP DISTURBANCE — harbor seabed galvanometers register magnetic signature! Rig for silent running.','warn','KRITIEK');
         }
       }
