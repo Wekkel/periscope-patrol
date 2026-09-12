@@ -1501,5 +1501,147 @@ assert.ok(hudVmPrimary.fire.targetLabel.startsWith('★ PRIMARY '), 'HUD fire ta
 assert.equal(hudVmPrimary.tdc.isPrimary, true, 'HUD tdc viewmodel must have isPrimary === true');
 assert.equal(hudVmPrimary.weapons.deckGun.isPrimary, true, 'HUD deckGun viewmodel must have isPrimary === true');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5');
+// 19. Kielmarge, Dynamische Veiligheidsdrempel & Stuurvaart Preservatie (5 tests)
+const coreMod = await load('js/simulation/engine-core.js', ['CoreSystem'], {
+  clamp, distNm, normDeg, bearingBetween,
+  Bathy: { bottomType: () => 'SAND', ensure: () => {}, restable: () => true }
+});
+const simCore = Object.create(coreMod.CoreSystem);
+
+// Test 1: Geschaalde veiligheidsmarge (keelSafetyMargin)
+// Surfaced (< 12 ft): clamp(4 + spd * 0.8, 4, 16)
+assert.equal(simCore.keelSafetyMargin({ depthFeet: 0, propulsion: { speedKnots: 0 } }), 4, 'Surfaced 0 kn safety margin must be 4 ft');
+assert.equal(simCore.keelSafetyMargin({ depthFeet: 5, propulsion: { speedKnots: 5 } }), 8, 'Surfaced 5 kn safety margin must be 8 ft');
+assert.equal(simCore.keelSafetyMargin({ depthFeet: 11, propulsion: { speedKnots: 20 } }), 16, 'Surfaced high-speed safety margin clamped to 16 ft');
+// Submerged (>= 12 ft): clamp(8 + spd * 1.4, 8, 32)
+assert.equal(simCore.keelSafetyMargin({ depthFeet: 12, propulsion: { speedKnots: 0 } }), 8, 'Submerged 0 kn creep margin must be 8 ft');
+assert.equal(simCore.keelSafetyMargin({ depthFeet: 60, propulsion: { speedKnots: 5 } }), 15, 'Submerged 5 kn margin must be 15 ft');
+assert.equal(simCore.keelSafetyMargin({ depthFeet: 120, propulsion: { speedKnots: 20 } }), 32, 'Submerged high-speed margin clamped to 32 ft');
+
+// Test 2: shoalWatch behoudt stuurvaart (<= 85 RPM) i.p.v. dodelijke ALL STOP
+const notifiedShoal = [];
+const mockState = {
+  time: { elapsedSeconds: 100, timeScale: 4, transitUntil: 200 },
+  runtime: { playerSub: { _keelClosingFps: 0 } },
+  playerSub: {
+    depthFeet: 65,
+    keelClearanceFeet: 9, // under submerged margin (15 ft at 5 kn)
+    propulsion: { speedKnots: 5, orderedRpm: 240 }
+  }
+};
+simCore.state = mockState;
+simCore.notify = (msg, level, imp) => { notifiedShoal.push({ msg, level, imp }); };
+simCore.stopAutomaticTimeCompression = (_reason) => { mockState.time.timeScale = 1; mockState.time.transitUntil = 0; };
+simCore._shoalAt = 0;
+simCore._shoalLastClear = 100;
+
+simCore.shoalWatch(mockState.playerSub);
+
+assert.equal(mockState.time.timeScale, 1, 'shoalWatch must kick clock back to 1x real time');
+assert.equal(mockState.playerSub.propulsion.orderedRpm, 85, 'shoalWatch must throttle to steerageway (85 RPM), NOT ALL STOP (0 RPM)');
+assert.equal(mockState.playerSub.keelMarginAlert, true, 'shoalWatch must flag keelMarginAlert on sub');
+assert.ok(notifiedShoal.some(n => n.msg.includes('KEEL MARGIN ALERT') && n.imp === 'KRITIEK'), 'shoalWatch must raise KRITIEK KEEL MARGIN ALERT');
+
+// If already crawling slower than steerageway (e.g. 40 RPM), it should not accelerate
+mockState.playerSub.propulsion.orderedRpm = 40;
+simCore._shoalAt = 0; // reset cooldown
+simCore.shoalWatch(mockState.playerSub);
+assert.equal(mockState.playerSub.propulsion.orderedRpm, 40, 'shoalWatch must not increase RPM if skipper ordered dead slow');
+
+// Test 3: updateSeabed dynamische drempel vs starre 25 ft truncatie
+simCore.state.time.elapsedSeconds = 200;
+simCore.state.time.timeScale = 1;
+simCore.state.time.transitUntil = 0;
+simCore.state.world = { _devForcedSeabedFeet: 60 };
+simCore._depthLimAt = 0;
+
+const creepSub = {
+  depthFeet: 40,
+  orderedDepthFeet: 48,
+  seabedFeet: 60,
+  position: { xNm: 0, yNm: 0 },
+  propulsion: { speedKnots: 1.5, orderedRpm: 50 },
+  bottomed: false,
+  bottomingOrdered: false
+};
+// margin at 1.5 kn submerged = 8 + 1.5 * 1.4 = 10.1 ft. safe = 60 - 10.1 = 49.9 ft.
+simCore.updateSeabed(creepSub, 1.0);
+assert.equal(creepSub.orderedDepthFeet, 48, 'Low-speed creep (1.5 kn) preserves ordered depth of 48 ft in 60 ft water (safe margin ~10 ft vs old 25 ft cutoff)');
+
+// High speed run (10 kn): margin = 8 + 10 * 1.4 = 22 ft. safe = 60 - 22 = 38 ft.
+const fastSub = {
+  depthFeet: 30,
+  orderedDepthFeet: 48,
+  seabedFeet: 60,
+  position: { xNm: 0, yNm: 0 },
+  propulsion: { speedKnots: 10, orderedRpm: 320 },
+  bottomed: false,
+  bottomingOrdered: false
+};
+simCore._depthLimAt = 0;
+simCore.updateSeabed(fastSub, 1.0);
+assert.equal(fastSub.orderedDepthFeet, 38, 'High-speed run (10 kn) restricts ordered depth to 38 ft to guard against squat and trim dive');
+
+// Test 4: HUD viewmodel vitals.underKeel en depthNote met dynamische marge
+const hudMarginMod = await load('js/ui/hud-viewmodel.js', ['buildHudViewModel'], {
+  playerDepthDisplay: (_s, v) => `${Math.round(v)} ft`,
+  fmtDeg: v => `${Math.round(v)}°`,
+  fmtTime: v => `${Math.round(v)}s`,
+  DayNightCycle: { getTimeString: v => `${Math.round(v)}s` },
+  torpedoRangeInfo: () => null,
+  torpedoStoresStatus: () => ({ total: 4, loadShort: 'READY' }),
+  CoreSystem: coreMod.CoreSystem
+});
+// Submerged at 10 kn: margin = 22 ft. shallowDepth = Math.max(38, 22 * 1.8) = 39.6 ft.
+const fastSubHud = hudState({
+  playerSub: {
+    ...baseHud.playerSub,
+    depthFeet: 40,
+    seabedFeet: 80,
+    keelClearanceFeet: 35, // 35 < 39.6 -> critical
+    propulsion: { speedKnots: 10, orderedRpm: 320, battery: 90, fuel: 90, engineMode: 'DIESEL' }
+  }
+});
+const fastVm = hudMarginMod.buildHudViewModel(fastSubHud, {});
+assert.equal(fastVm.vitals.underKeel.state, 'critical', 'underKeel state must be critical when clearance < dynamic shallowDepth');
+assert.ok(fastVm.navigation.operation.depthNote.includes('safe to 58 ft'), 'depthNote must report safe depth (80 - 22 = 58 ft)');
+
+// Test 5: toast.js TOAST_RED categorisatie & Bodemcontactfysica
+const toastMod = await load('js/ui/toast.js', ['Toast', 'TOAST_RED'], { clamp });
+assert.ok(toastMod.TOAST_RED.test('KEEL MARGIN ALERT — only 9 ft under the keel (safe margin 15 ft). Throttled to steerageway; con her clear by hand.'), 'TOAST_RED must match KEEL MARGIN ALERT');
+
+// Bodemcontactfysica: zacht kruipen (<= 1.2 kn) vs harde impact (> 1.2 kn)
+let bottomedOutCalled = false, shockApplied = 0, escortAlerted = false;
+simCore.bottomOut = (s, _sea, _force) => { s.bottomed = true; bottomedOutCalled = true; };
+simCore.sys = {
+  damage: { applyShock: (dmg) => { shockApplied = dmg; } },
+  enemyAI: { alertEscorts: () => { escortAlerted = true; } }
+};
+const softTouchSub = {
+  depthFeet: 58,
+  seabedFeet: 60,
+  position: { xNm: 0, yNm: 0 },
+  propulsion: { speedKnots: 0.8, orderedRpm: 20 },
+  bottomType: 'SAND',
+  bottomed: false,
+  bottomingOrdered: false
+};
+simCore.updateSeabed(softTouchSub, 1.0);
+assert.equal(bottomedOutCalled, true, 'Soft touch at 0.8 kn on sand must settle cleanly via bottomOut');
+
+const hardTouchSub = {
+  depthFeet: 58,
+  seabedFeet: 60,
+  position: { xNm: 0, yNm: 0 },
+  propulsion: { speedKnots: 4.0, orderedRpm: 120 },
+  stealth: { acousticSignature: 0.2 },
+  bottomType: 'SAND',
+  bottomed: false,
+  bottomingOrdered: false
+};
+simCore.updateSeabed(hardTouchSub, 1.0);
+assert.ok(shockApplied > 0, 'Hard impact at 4.0 kn must apply shock damage to hull');
+assert.equal(escortAlerted, true, 'Hard impact at 4.0 kn must alert enemy escorts via acoustic signature surge');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5');
 

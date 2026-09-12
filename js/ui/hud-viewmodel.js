@@ -5,6 +5,7 @@
   const round=(v,d=0)=>{const p=10**d;return Math.round(n(v)*p)/p;};
   const fixed=(v,d=0)=>round(v,d).toFixed(d);
   const pct=(v)=>round(n(v),0);
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
   const stateFor=(v,caution,critical)=>n(v)>=critical?'critical':n(v)>=caution?'caution':'normal';
   const vital=(value,unit,state='normal',actionable=false,raw=null)=>({value,unit,state,actionable,raw});
   const depthText=(state,v)=>typeof playerDepthDisplay==='function'?playerDepthDisplay(state,n(v),0):`${round(v)} ft`;
@@ -19,7 +20,10 @@
   function buildHudViewModel(state,layout){
     const s=state||{},sub=s.playerSub||{},p=sub.propulsion||{},d=sub.damage||{},tdc=s.tdc||{},w=s.weapons||{},env=s.world?.environment||{},enemy=s.world?.enemy||{};
     const keel=n(sub.keelClearanceFeet), depth=n(sub.depthFeet), battery=n(p.battery), fuel=n(p.fuel), hull=n(d.hullIntegrity);
-    const shallowDepth=depth<12?18:70;
+    const dynamicMargin=(typeof CoreSystem!=='undefined'&&typeof CoreSystem.keelSafetyMargin==='function')
+      ? CoreSystem.keelSafetyMargin(sub)
+      : (depth<12?clamp(4+n(p.speedKnots)*0.8,4,16):clamp(8+n(p.speedKnots)*1.4,8,32));
+    const shallowDepth=depth<12?Math.max(16,dynamicMargin*1.5):Math.max(38,dynamicMargin*1.8);
     const tubes=Array.isArray(w.tubes)?w.tubes:[], ready=tubes.filter(t=>t.status==='READY').length;
     const range=typeof torpedoRangeInfo==='function'?torpedoRangeInfo(s,tdc.targetId):null;
     const canFire=!!tdc.targetId&&n(tdc.solutionQuality)>=.25&&ready>0;
@@ -61,7 +65,7 @@
     const dl=n(env.daylight),icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=n(env.visibilityNm),quality=vis>=8?'GOOD VIS':vis>=4?'FAIR VIS':'POOR VIS';time.clockText=`${icon} ${timeText(s.time?.elapsedSeconds)}`;time.desktopClockText=timeText(s.time?.elapsedSeconds);time.touchClockText=time.clockText;time.conditionsText=`${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${quality} VIS`;time.touchConditionsText=time.conditionsText;time.desktopConditionsText=`${icon} ${timeText(s.time?.elapsedSeconds)} · ${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis.toFixed(1)} NM ${quality}`;
     const sea=sub.seabedFeet??3000;
     const operation={depthValue:depthText(s,sub.orderedDepthFeet),speedRpm:`${fixed(p.orderedRpm,0)} rpm`,nowDepth:`now ${depthText(s,depth)} · ${sub.verticalSpeedFps>0.05?'going down':sub.verticalSpeedFps<-0.05?'coming up':'steady'}`,nowSpeed:`now ${fixed(p.speedKnots,1)} kn · ${(p.engineMode||'').toLowerCase()}`,orderedSpeedNote:`about ${fixed(p.speedKnots,1)} kn ordered · ${p.engineMode==='DIESEL'?'diesels — charging fastest at low revs':'battery '+fixed(battery,0)+'% — flank drains it fast'}`,
-      depthNote:sub.bottomed?`Lying on the bottom in ${depthText(s,sea)} of ${(sub.bottomType||'').toLowerCase()}. Order revs or a shallower depth to come off her.`:sub.cannotHoldDepth?'SHE WILL NOT ANSWER THE PLANES — blow main ballast, pumps on, get way on her.':(s.world?.aaManned||s.weapons?.deckGun?.manned)?`${s.weapons?.deckGun?.manned?'Deck-gun':'AA'} crew topside — a dive order will clear the deck automatically and wait briefly for the hatch.`:sea<3000?`Fathometer ${depthText(s,sea)}, ${(sub.bottomType||'').toLowerCase()} — safe to ${depthText(s,Math.max(0,sea-25))}. Crush depth ${depthText(s,d.crushDepthFeet)}.`:`Deep water. Periscope depth ${depthText(s,55)}. Crush depth ${depthText(s,d.crushDepthFeet)}.`};
+      depthNote:sub.bottomed?`Lying on the bottom in ${depthText(s,sea)} of ${(sub.bottomType||'').toLowerCase()}. Order revs or a shallower depth to come off her.`:sub.cannotHoldDepth?'SHE WILL NOT ANSWER THE PLANES — blow main ballast, pumps on, get way on her.':(s.world?.aaManned||s.weapons?.deckGun?.manned)?`${s.weapons?.deckGun?.manned?'Deck-gun':'AA'} crew topside — a dive order will clear the deck automatically and wait briefly for the hatch.`:sea<3000?`Fathometer ${depthText(s,sea)}, ${(sub.bottomType||'').toLowerCase()} — safe to ${depthText(s,Math.max(0,sea-Math.round(dynamicMargin)))}. Crush depth ${depthText(s,d.crushDepthFeet)}.`:`Deep water. Periscope depth ${depthText(s,55)}. Crush depth ${depthText(s,d.crushDepthFeet)}.`};
     nav.operation=operation;
     const systems={contacts:Object.keys(s.world?.contactTracks||{}).length,visibility:n(env.visibilityNm),weather:String(env.weather||'CLEAR'),seaState:n(env.seaState),alertLevel:enemy.alertState||'UNAWARE',activeDepthCharges:(s.world?.depthCharges||[]).length,noise:n(sub.stealth?.acousticSignature),shallowZone:!!sub.inShallowWater,radar:s.world?.radar?.fitLabel||'—',score:n(mission.score),area:mission.patrolArea||''};
     systems.visibilityText=`${fixed(systems.visibility,1)} nm`;systems.seaStateText=fixed(systems.seaState,2);systems.noiseText=fixed(systems.noise,2);systems.noisePercentText=`${fixed(systems.noise*100,0)}%`;systems.scoreText=systems.score.toLocaleString();systems.depthChargesText=String(systems.activeDepthCharges);systems.areaText=(typeof PATROL_AREAS!=='undefined'&&PATROL_AREAS[systems.area]?.displayName)||systems.area;

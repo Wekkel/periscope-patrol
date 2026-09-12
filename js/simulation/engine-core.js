@@ -662,7 +662,14 @@ const CoreSystem={
     sub.depthFeet=Math.max(0,Number(depthFeet)||0);
     if(Number.isFinite(Number(seabedFeet)))sub.keelClearanceFeet=Number(seabedFeet)-sub.depthFeet;
     return sub.keelClearanceFeet;
-  }
+  },
+
+  keelSafetyMargin(sub){
+    const spd=Math.max(0,Number(sub?.propulsion?.speedKnots)||0);
+    const surfaced=(Number(sub?.depthFeet)||0)<12;
+    if(surfaced) return clamp(4+spd*0.8,4,16);
+    return clamp(8+spd*1.4,8,32);
+  },
 
   /* ══ SHOAL WATCH ══════════════════════════════════════════════════════
      Running the clock forward is the player saying "nothing is happening";
@@ -671,7 +678,7 @@ const CoreSystem={
      comes up, and neither should the game. Whenever time is compressed at
      all — a transit OR any scale above 1× — genuinely dangerous or rapidly
      shoaling water hands the conn back at real time. Only immediate grounding
-     danger takes the way off her; ordinary coastal shallows do not. */,
+     danger takes the way off her; ordinary coastal shallows do not. */
   shoalWatch(sub){
     const t=this.state.time;
     const compressed=!!t.transitUntil||(t.timeScale||1)>1;
@@ -679,30 +686,42 @@ const CoreSystem={
     const clr=sub.keelClearanceFeet??3000;
     const surfaced=sub.depthFeet<12;                    // effectively on the roof / awash
     const closing=Math.max(0,this.state.runtime.playerSub._keelClosingFps||0);  // ft of clearance lost per ship-second
+    const margin=this.keelSafetyMargin(sub);
 
     /* Shallow water is not itself an emergency. A surfaced fleet boat can
-       legitimately con through twenty-something feet of water. Compression is
-       surrendered only when the margin gets genuinely tight, or the bottom is
-       rising quickly under a submerged boat. */
-    const handConnAt=surfaced?18:45;
-    const hard=surfaced?10:18;
-    const trendDanger=!surfaced&&clr<70&&closing>1.2;
-    if(clr>=handConnAt&&!trendDanger) return;
+       legitimately con through twenty-something feet of water, and a submerged
+       boat on slow creep can safely stalk over shoals with dynamic under-keel
+       margins. Compression is surrendered when clearance nears the scaled
+       speed margin or the bottom is rising quickly under the boat. */
+    const handConnAt=surfaced?Math.max(16,margin*1.5):Math.max(38,margin*1.6);
+    const hard=margin;
+    const trendDanger=!surfaced&&clr<Math.max(50,margin*2.2)&&closing>1.2;
+    if(clr>=handConnAt&&!trendDanger){
+      sub.keelMarginAlert=false;
+      return;
+    }
     const now=t.elapsedSeconds;
-    if(now-(this._shoalAt||-99)<20 && clr>=(this._shoalLastClear??Infinity)-2)return;
+    if(now-(this._shoalAt||-99)<18 && clr>=(this._shoalLastClear??Infinity)-2)return;
     this._shoalAt=now;
     this._shoalLastClear=clr;
+    sub.keelMarginAlert=true;
     if(!this._shoalTelemetryLogged){this._shoalTelemetryLogged=true;console.warn('[SHOAL TELEMETRY]',{position:{...sub.position},keelClearanceFeet:sub.keelClearanceFeet,seabedFeet:sub.seabedFeet,depthFeet:sub.depthFeet,inShallowWater:sub.inShallowWater});}
     if(compressed)this.stopAutomaticTimeCompression(clr<hard?'dangerously little water under the keel':'shoaling water — take the conn');
     if(clr<hard){
       t.stopReason='dangerously little water under the keel';t.stopReasonAt=now;
-      sub.propulsion.orderedRpm=0;
-      this.notify(`ALL STOP — only ${Math.max(0,clr).toFixed(0)} ft under the keel. Clock back to real time; con her clear by hand.`,'bad','NUTTIG');
+      // Stuurvaart-preservatie: in plaats van een starre ALL STOP die alle hydrodynamische
+      // roerdruk wegneemt waardoor de boot stuurloos op de bank drijft, schakelen we
+      // terug naar stuurvaart (<= 85 RPM / ~2.5 knopen) zodat de kapitein kan wegsturen.
+      const curRpm=Number(sub.propulsion?.orderedRpm)||0;
+      if(curRpm>85){
+        sub.propulsion.orderedRpm=85;
+      }
+      this.notify(`KEEL MARGIN ALERT — only ${Math.max(0,clr).toFixed(0)} ft under the keel (safe margin ${margin.toFixed(0)} ft). Throttled to steerageway; con her clear by hand.`,'bad', 'KRITIEK');
     }else{
       t.stopReason='shoaling water — take the conn';t.stopReasonAt=now;
-      if(!surfaced&&sub.orderedDepthFeet>Math.max(0,(sub.seabedFeet??3000)-60))
-        sub.orderedDepthFeet=Math.max(0,Math.round((sub.seabedFeet??3000)-60));
-      this.notify(`SHOALING WATER — ${Math.max(0,clr).toFixed(0)} ft under the keel. Clock back to real time; you still have way on the boat.`,'warn', 'KRITIEK');
+      if(compressed&&!surfaced&&sub.orderedDepthFeet>Math.max(0,(sub.seabedFeet??3000)-margin))
+        sub.orderedDepthFeet=Math.max(0,Math.round((sub.seabedFeet??3000)-margin));
+      this.notify(`SHOALING WATER — ${Math.max(0,clr).toFixed(0)} ft under the keel. Clock back to real time; maintain way to keep rudder authority.`,'warn', 'KRITIEK');
     }
   }
 ,
@@ -714,17 +733,17 @@ const CoreSystem={
     const prevClr=sub.keelClearanceFeet??(sea-sub.depthFeet);
     this.setDepthAndClearance(sub,sub.depthFeet,sea);
     this.state.runtime.playerSub._keelClosingFps=dt>0?(prevClr-sub.keelClearanceFeet)/dt:0;
-    const safe=Math.max(0,sea-25);
+    const margin=this.keelSafetyMargin(sub);
+    const safe=Math.max(0,sea-margin);
 
-    // Ordinary depth orders keep 25 ft under the keel. A validated bottoming
-    // evolution is the one deliberate exception: it is allowed to descend the
-    // final 25 ft under continuous fathometer supervision.
+    // Dynamische kielmarge: bij lage vaart (1-3 kn) kan de boot tot op 8-12 ft boven de bodem
+    // manoeuvreren, terwijl bij hoge vaart (8+ kn) 20-32 ft gereserveerd wordt tegen squat en trim.
     if(!sub.bottomed&&!sub.bottomingOrdered&&sub.orderedDepthFeet>safe&&sea<3000){
       sub.orderedDepthFeet=Math.round(safe);
       const now=this.state.time.elapsedSeconds;
       if(now-(this._depthLimAt||-99)>8){
         this._depthLimAt=now;
-        this.notify(`Fathometer: bottom at ${sea.toFixed(0)} ft — depth restricted to ${Math.round(safe)} ft.`,'warn', 'NUTTIG');
+        this.notify(`Fathometer: bottom at ${sea.toFixed(0)} ft — depth restricted to ${Math.round(safe)} ft (${margin.toFixed(0)} ft keel margin at ${sub.propulsion.speedKnots.toFixed(1)} kn).`,'warn', 'NUTTIG');
       }
     }
 
