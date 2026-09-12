@@ -99,7 +99,14 @@ class SimEngine {
     if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&a.seenBySub).length>w.air) return 'aircraft';
     if((s.world.aircraft||[]).filter(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'||a.state==='INVESTIGATING')).length>(w.airDanger||0)) return 'aircraft attack';
     if(s.world.ultra&&!w.ultra) return getCampaignRadioIntelProfile(s.campaign.campaignProfileId)?.shipping?.transitStopText||'a shipping intelligence intercept';
-    if(s.map.plottedCourse.length<w.wp) return 'a waypoint reached';
+    if(s.map.plottedCourse.length<w.wp){
+      const nextWp=s.map.plottedCourse[0];
+      if(nextWp&&(nextWp.navKind==='TRANSIT_LEG'||s.runtime?.campaign?._headingHome)){
+        w.wp=s.map.plottedCourse.length;
+      }else{
+        return 'a waypoint reached';
+      }
+    }
     if(s.campaign.missionStatus!==w.status) return 'new orders';
     if(s.playerSub.propulsion.battery<12&&!w.batLow) return 'the battery is low';
     if(s.playerSub.damage.oxygen<30&&!w.airLow) return 'the air is going bad';

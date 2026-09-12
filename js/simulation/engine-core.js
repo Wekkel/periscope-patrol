@@ -554,7 +554,13 @@ const CoreSystem={
             :'WAYPOINT REFUSED — no safe water route can be plotted from here.','warn', 'NUTTIG');
           break;
         }
-        for(const p of path.slice(1))if(distNm(plot.at(-1)||from,p)>.03)plot.push({...p});
+        const legs=path.slice(1);
+        for(let idx=0;idx<legs.length;idx++){
+          const p=legs[idx];
+          if(distNm(plot.at(-1)||from,p)>.03){
+            plot.push({...p,navKind:idx===legs.length-1?'WAYPOINT':'TRANSIT_LEG'});
+          }
+        }
         this.state.map.autoFollowPlot=true;
         this.log(`Water route plotted — ${plot.length} waypoint${plot.length===1?'':'s'}.`);
         break;}
@@ -1015,11 +1021,25 @@ const CoreSystem={
   headToPort(){
     const r=this.friendlyPortNav();
     if(!r){this.log('No friendly port in this area.','warn');return;}
-    this.state.map.plottedCourse=[{...r.approach.pos,navKind:'FRIENDLY_APPROACH',portName:r.port.name}];
+    const sub=this.state.playerSub;
+    const path=this.planNavigableCourse(sub.position,r.approach.pos);
+    if(path&&path.length>=2){
+      const legs=path.slice(1);
+      this.state.map.plottedCourse=legs.map((pt,idx)=>({
+        xNm:pt.xNm,
+        yNm:pt.yNm,
+        navKind:idx===legs.length-1?'FRIENDLY_APPROACH':'TRANSIT_LEG',
+        portName:r.port.name
+      }));
+      const n=this.state.map.plottedCourse.length;
+      this.notify(`Safe water route plotted for ${r.port.name} (${n} leg${n===1?'':'s'}) — ${r.rngNm.toFixed(1)} nm. Autopilot steering around hazards.`,'ok','NUTTIG');
+    }else{
+      this.state.map.plottedCourse=[{...r.approach.pos,navKind:'FRIENDLY_APPROACH',portName:r.port.name}];
+      this.notify(`Course set for ${r.port.name} rendezvous — ${r.rngNm.toFixed(1)} nm on ${fmtDeg(r.brg)}. The marker is in safe water; compressed time will hand the conn back near the approach.`,'warn', 'NUTTIG');
+    }
     this.state.map.autoFollowPlot=true;
     this.state.runtime.campaign._headingHome=true;
     this.steerWaypoint(true);
-    this.notify(`Course set for ${r.port.name} rendezvous — ${r.rngNm.toFixed(1)} nm on ${fmtDeg(r.brg)}. The marker is in safe water; compressed time will hand the conn back near the approach.`,'warn', 'NUTTIG');
   }
 ,
   nearestFriendlyPort(){
@@ -1331,11 +1351,16 @@ const CoreSystem={
     s.tdc.targetId=null;s.tactical.selectedTrackId=null;s.campaign.missionStatus='MENU';s.campaign.trainingEnded=true;s.campaign.objectives=[];return true;
   }
 ,
-  planNavigableCourse(from,to){
+  planNavigableCourse(from,to,minDepthFeet=30){
     this._lastWaypointRouteReason=null;
-    if(!this.isNavigableMapPoint(from)||!this.isNavigableMapPoint(to)){
-      this._lastWaypointRouteReason='endpoint-invalid';
-      return null;
+    let startPt=from,endPt=to;
+    if(!this.isNavigableMapPoint(startPt,minDepthFeet)){
+      startPt=this.findNavigablePointNear(from,minDepthFeet);
+      if(!startPt){this._lastWaypointRouteReason='endpoint-invalid';return null;}
+    }
+    if(!this.isNavigableMapPoint(endPt,minDepthFeet)){
+      endPt=this.findNavigablePointNear(to,minDepthFeet);
+      if(!endPt){this._lastWaypointRouteReason='endpoint-invalid';return null;}
     }
     // Direct water line check: if the straight line between from and to is
     // completely clear navigable water, use it directly without A* grid quantization.
@@ -1343,15 +1368,27 @@ const CoreSystem={
     let directSafe=true;
     for(let n=0;n<=directSteps;n++){
       const t=n/directSteps,p={xNm:lerp(from.xNm,to.xNm,t),yNm:lerp(from.yNm,to.yNm,t)};
-      if(!this.isNavigableMapPoint(p)){directSafe=false;break;}
+      if(!this.isNavigableMapPoint(p,minDepthFeet)){directSafe=false;break;}
     }
     if(directSafe)return [{...from},{...to}];
 
-    const route={from:{...from},to:{...to}},path=this.resolveWaterRoute(route);
+    const route={from:{...startPt},to:{...endPt}},path=this.resolveWaterRoute(route);
     if(!path||path.length<2){this._lastWaypointRouteReason=route.waterRouteReason||'no-path';return null;}
+    if(distNm(from,path[0])>.05&&this.isNavigableMapPoint(from,minDepthFeet)){
+      const connectSteps=Math.max(1,Math.ceil(distNm(from,path[0])/.20));
+      let connectSafe=true;
+      for(let n=0;n<=connectSteps;n++){const t=n/connectSteps,p={xNm:lerp(from.xNm,path[0].xNm,t),yNm:lerp(from.yNm,path[0].yNm,t)};if(!this.isNavigableMapPoint(p,minDepthFeet)){connectSafe=false;break;}}
+      if(connectSafe) path.unshift({...from});
+    }
+    if(distNm(to,path.at(-1))>.05&&this.isNavigableMapPoint(to,minDepthFeet)){
+      const connectSteps=Math.max(1,Math.ceil(distNm(path.at(-1),to)/.20));
+      let connectSafe=true;
+      for(let n=0;n<=connectSteps;n++){const t=n/connectSteps,p={xNm:lerp(path.at(-1).xNm,to.xNm,t),yNm:lerp(path.at(-1).yNm,to.yNm,t)};if(!this.isNavigableMapPoint(p,minDepthFeet)){connectSafe=false;break;}}
+      if(connectSafe) path.push({...to});
+    }
     for(let i=0;i<path.length-1;i++){
       const a=path[i],b=path[i+1],steps=Math.max(1,Math.ceil(distNm(a,b)/.20));
-      for(let n=0;n<=steps;n++){const t=n/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(!this.isNavigableMapPoint(p)){this._lastWaypointRouteReason='segment-invalid';return null;}}
+      for(let n=0;n<=steps;n++){const t=n/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(!this.isNavigableMapPoint(p,minDepthFeet)){this._lastWaypointRouteReason='segment-invalid';return null;}}
     }
     return path;
   }
@@ -1409,12 +1446,15 @@ const CoreSystem={
     const raw=[];let u=gi;raw.push(u);while(u!==si&&u>=0){u=parent[u];if(u>=0)raw.push(u);}raw.reverse();
     let pts=raw.map(k=>({xNm:x0+(k%nx)*cell,yNm:y0+((k/nx)|0)*cell}));
     if(Bathy.feet(route.from.xNm,route.from.yNm)>=30&&waterLine(route.from,pts[0]))pts[0]={...route.from};
+    else if(waterLine(route.from,pts[0]))pts.unshift({...route.from});
     if(Bathy.feet(route.to.xNm,route.to.yNm)>=30&&waterLine(pts[pts.length-1],route.to))pts[pts.length-1]={...route.to};
+    else if(waterLine(pts[pts.length-1],route.to))pts.push({...route.to});
     // Line-of-sight simplification removes A* stair-steps but never replaces a
     // water bend by a chord that cuts across an island.
     const simple=[];let i=0;simple.push(pts[0]);
     while(i<pts.length-1){let j=pts.length-1;while(j>i+1&&!waterLine(pts[i],pts[j]))j--;simple.push(pts[j]);i=j;}
     if(simple.length===1&&waterLine(simple[0],route.to))simple.push({...route.to});
+    else if(distNm(simple.at(-1),route.to)>.05&&waterLine(simple.at(-1),route.to))simple.push({...route.to});
     route.waterPath=simple;return route.waterPath;
   }
 ,

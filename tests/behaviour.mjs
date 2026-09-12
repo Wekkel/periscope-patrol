@@ -1771,5 +1771,122 @@ assert.equal(comp.scorePct, '+10.0%', 'Score percentage must be +10.0%');
 assert.equal(comp.renderFpsDiff, 6, 'Render FPS diff must be +6');
 assert.equal(comp.renderFpsPct, '+10.0%', 'Render FPS pct must be +10.0%');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4');
+// 23. Automatische Veilige Routeplanning & Landmassa Circumnavigatie (5 tests)
+const terrainCode = await readFile(path.join(root, 'js/data/pacific-terrain-data.js'), 'utf8');
+const geomCode = await readFile(path.join(root, 'js/rendering/world-geometry.js'), 'utf8');
+const coreCode = await readFile(path.join(root, 'js/simulation/engine-core.js'), 'utf8');
+const physCode = await readFile(path.join(root, 'js/simulation/physics-navigation.js'), 'utf8');
+const fmtDeg = d => `${Math.round(d)}°`;
+
+const navCtx = {
+  console, Math, Float32Array, Float64Array, Int32Array, Uint8Array, Set, Map, Array, Object,
+  degToRad, radToDeg, normDeg, shortDelta, knotsNmSec, clamp, distNm, lerp, bearingBetween, fmtDeg,
+  PresentationBridge: { audio: () => ({ playHelmOrder() {} }), delayedAudio: () => {}, toast: () => ({ ok() {}, warn() {} }) }
+};
+vm.createContext(navCtx);
+vm.runInContext(terrainCode, navCtx);
+vm.runInContext(`${geomCode}\n;globalThis.Bathy = Bathy;`, navCtx);
+vm.runInContext(`${coreCode}\n;globalThis.CoreSystem = CoreSystem;`, navCtx);
+vm.runInContext(`${physCode}\n;globalThis.SimEngine = SimEngine;`, navCtx);
+
+const solomonTerrain = navCtx.getPatrolTerrain('Solomon Sea');
+navCtx.Bathy.ensure(solomonTerrain);
+
+const testEngine = new navCtx.SimEngine({
+  world: { terrain: solomonTerrain, chartBounds: null, contacts: [], contactTracks: {} },
+  campaign: { patrolArea: 'solomons', friendlyPort: { name: 'Tulagi', pos: { xNm: 155, yNm: 60 } } },
+  playerSub: {
+    position: { xNm: 140, yNm: 105 },
+    depthFeet: 0,
+    heading: 0,
+    orderedHeading: 0,
+    damage: { hullIntegrity: 100, oxygen: 100 },
+    propulsion: { battery: 100, fuel: 100, speedKnots: 10, orderedRpm: 320 }
+  },
+  map: { plottedCourse: [], autoFollowPlot: false },
+  time: { elapsedSeconds: 0 },
+  runtime: { campaign: {}, time: {} },
+  log: []
+}, { dispatch() {} });
+testEngine.sys = { collision: { collisionRiskAhead: () => null } };
+
+// Test 1: Circumnavigatie rondom Guadalcanal (140, 105) -> (140, 50)
+const southPt = { xNm: 140, yNm: 105 };
+const northPt = { xNm: 140, yNm: 50 };
+assert.equal(testEngine.isNavigableMapPoint(southPt), true, 'South point must be in navigable water');
+assert.equal(testEngine.isNavigableMapPoint(northPt), true, 'North point must be in navigable water');
+
+// Direct chord goes through Guadalcanal
+let directClear = true;
+for (let t = 0; t <= 1; t += 0.02) {
+  const p = { xNm: lerp(southPt.xNm, northPt.xNm, t), yNm: lerp(southPt.yNm, northPt.yNm, t) };
+  if (!testEngine.isNavigableMapPoint(p)) { directClear = false; break; }
+}
+assert.equal(directClear, false, 'Direct line across Guadalcanal must not be clear');
+
+const safeRoute = testEngine.planNavigableCourse(southPt, northPt);
+assert.ok(safeRoute && safeRoute.length >= 3, 'Safe course around Guadalcanal must contain multi-leg path');
+for (let i = 0; i < safeRoute.length - 1; i++) {
+  const a = safeRoute[i], b = safeRoute[i+1], steps = Math.ceil(distNm(a, b) / 0.2);
+  for (let s = 0; s <= steps; s++) {
+    const p = { xNm: lerp(a.xNm, b.xNm, s/steps), yNm: lerp(a.yNm, b.yNm, s/steps) };
+    assert.equal(testEngine.isNavigableMapPoint(p), true, `All points on leg ${i}->${i+1} must be navigable (>=30ft, 0 land collisions)`);
+  }
+}
+
+// Test 2: headToPort() genereert veilige multi-leg koers naar Tulagi
+testEngine.state.playerSub.position = { xNm: 140, yNm: 105 };
+testEngine.state.map.plottedCourse = [];
+testEngine.state.map.autoFollowPlot = false;
+testEngine.headToPort();
+
+const portCourse = testEngine.state.map.plottedCourse;
+assert.ok(portCourse.length >= 2, 'headToPort() around Guadalcanal must plot multiple safe legs');
+assert.equal(portCourse.at(-1).navKind, 'FRIENDLY_APPROACH', 'Final leg must be FRIENDLY_APPROACH');
+assert.equal(portCourse[0].navKind, 'TRANSIT_LEG', 'Intermediate leg must be TRANSIT_LEG');
+assert.equal(testEngine.state.map.autoFollowPlot, true, 'Autopilot must engage for headToPort');
+assert.ok(testEngine.state.playerSub.orderedHeading > 30 && testEngine.state.playerSub.orderedHeading < 90, 'Initial steering order must steer east-northeast into open strait (not north into island)');
+
+// Test 3: Behoud van Handmatige Precisienavigatie bij vrij water (geen quantisatiefout)
+const tacticalWp = { xNm: 140, yNm: 102 };
+const precisionRoute = testEngine.planNavigableCourse(southPt, tacticalWp);
+assert.equal(precisionRoute.length, 2, 'Direct unobstructed waypoint must retain exact 2-point chord without A* grid jitter');
+assert.equal(precisionRoute[0].xNm, southPt.xNm);
+assert.equal(precisionRoute[1].yNm, tacticalWp.yNm);
+
+// Test 4: Handmatige koersorder ontkoppelt autopilot direct
+assert.equal(testEngine.state.map.autoFollowPlot, true, 'Autopilot is currently engaged on port course');
+testEngine.applyCmd({ type: 'SET_ORDERED_HEADING', heading: 270 });
+assert.equal(testEngine.state.map.autoFollowPlot, false, 'Manual SET_ORDERED_HEADING must immediately disengage autopilot');
+assert.equal(testEngine.state.playerSub.orderedHeading, 270, 'Ordered heading must obey manual helm order');
+
+// Test 5: TransitInterrupt doorloopt TRANSIT_LEG waypoints soepel zonder onderbreking
+testEngine.state.map.plottedCourse = [
+  { xNm: 178, yNm: 96, navKind: 'TRANSIT_LEG', portName: 'Tulagi' },
+  { xNm: 174, yNm: 67, navKind: 'TRANSIT_LEG', portName: 'Tulagi' },
+  { xNm: 155, yNm: 60, navKind: 'FRIENDLY_APPROACH', portName: 'Tulagi' }
+];
+testEngine.state.map.autoFollowPlot = true;
+testEngine.state.runtime.campaign._headingHome = true;
+testEngine.state.world.enemy = { alertState: 'UNAWARE' };
+testEngine.state.time = { elapsedSeconds: 100, timeScale: 1, transitUntil: 5000 };
+testEngine.snapshotWatch();
+assert.equal(testEngine.state.runtime.time.watch.wp, 3, 'Watch must record 3 waypoints initially');
+
+// Pop intermediate TRANSIT_LEG
+testEngine.state.map.plottedCourse.shift();
+assert.equal(testEngine.transitInterrupt(), null, 'Popping intermediate TRANSIT_LEG must return null (continuing transit without stop)');
+assert.equal(testEngine.state.runtime.time.watch.wp, 2, 'Watch waypoint counter must automatically advance to remaining legs');
+
+// Pop second TRANSIT_LEG
+testEngine.state.map.plottedCourse.shift();
+assert.equal(testEngine.transitInterrupt(), null, 'Popping second TRANSIT_LEG must also continue transit');
+assert.equal(testEngine.state.runtime.time.watch.wp, 1, 'Watch waypoint counter must advance to 1');
+
+// Pop final FRIENDLY_APPROACH leg (course complete)
+testEngine.state.map.plottedCourse.shift();
+assert.equal(testEngine.transitInterrupt(), 'a waypoint reached', 'Completing final approach waypoint must stop transit cleanly');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5');
+
 
