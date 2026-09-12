@@ -125,19 +125,21 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 
 ## Deel 2: Vijf Goedkope Manieren voor Meer "3D" & Mooiere UI
 
-1. **Gelaagde 2.5D-wereld**:
-   * Afzonderlijke Canvaslagen voor hemel, verre kust/bergen, middelafstand, wateroppervlak, nabije objecten en partikeleffecten.
-   * Parallax, atmosferische mist, diepteschaling en kleurverzadiging creëren overtuigende diepte zonder zware 3D-polygonen.
-2. **Silhouette-atlassen en impostors**:
-   * Per scheepstype een compacte atlas met gezichtshoeken (boeg, kwartier, dwars), schadestadia en afstands-LOD's.
-   * De renderer kiest en schaalt deze perspectivisch.
-3. **Procedurele belichting over eenvoudige vormen**:
-   * Richtingafhankelijke highlights, slagschaduwen, atmosferisch perspectief, golvende waterreflecties en een compacte dag/nacht/schemering/regen-LUT over Canvasvormen.
-4. **Begrensde screen-space effecten**:
-   * Vaste objectpools voor spray, rook, vuur, vonken, waterfonteinen en schokgolfringen.
-   * Geen run-time heap allocaties per frame; dynamisch afschalen op lichtere apparaten.
-5. **Marine-specifieke UI-skins**:
-   * Cockpit- en instrumentenpaneel gebouwd uit SVG, CSS en compacte overlays: messing wijzerplaten, stalen klinknagels, glasreflecties en achtergrondverlichting passend bij de nationaliteit.
+1. [x] **Gelaagde 2.5D-wereld**:
+   * Afzonderlijke Canvaslagen in `drawScopeScene`: `drawSky3D` $\to$ `drawSea3D` $\to$ `drawTerrain3D` $\to$ `drawWeatherCells3D` $\to$ `drawBattleAtmosphereBack` $\to$ `drawOwnWake` $\to$ `drawWakes3D` $\to$ `drawFleet3D` $\to$ `drawExplosions3D` $\to$ `drawSplashes3D` $\to$ `drawBattleAtmosphereFront` $\to$ screen overlays (`drawGulls`, `drawRain`, `drawPeriscopeDroplets`, `drawPeriscopeBroachWash`, `drawScopeSpray`, `drawNightOverlay`).
+   * Parallax op verre kustlijnen/bergen (`_landOcc`), atmosferische mist (`haze = clamp(1 - it.d / (visNm * NM_M), 0.05, 1)`), diepteschaling via `projectWorldPoint` en kleurverzadiging via `dayPhaseRgb`. — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.75/10)**
+2. [x] **Silhouette-atlassen en impostors**:
+   * Drie perspectivische afstands-LOD's in `world-3d.js`: `pxLen < 26` (LOD 0 compact impostor silhouette), `pxLen < 90` (LOD 1 gesimplificeerde opbouw), `pxLen >= 90` (LOD 2 volledige 3D deksamenstelling, masten, tuigage en roterende geschutskoepels).
+   * 23 historische scheepsklassen in `world-geometry.js` met dynamische hydrodynamische trim, compartimentale slagzij en 5 deterministische zinktrajecten. — **GOEDGEKEURD (Harry: 9.88/10, Henry: 9.80/10)**
+3. [x] **Procedurele belichting over eenvoudige vormen**:
+   * Richtingafhankelijke highlights en slagschaduwen berekend via realtime zonsverloop-vector `light = {E, N, Y}` gekoppeld aan `DayNightCycle.CYCLE_SECONDS`.
+   * Atmosferisch perspectief via `hazeCol`, dag/nacht/schemering kleurverzadiging (`dayPhaseRgb`), parachute starshells verlichting en golvende waterreflecties in `drawSea3D`. — **GOEDGEKEURD (Harry: 9.80/10, Henry: 9.78/10)**
+4. [x] **Begrensde screen-space effecten**:
+   * Vaste objectpools in `ParticleSystem` (`PARTICLE_MAX = 420`, `SPARK_MAX = 120`) met deterministische `trimBudgets()` voor spray, olie-walm, ketelstoom, vuurexplosies, vonken en dieptebom-waterfonteinen.
+   * Nul run-time heap allocaties per frame; dynamische kwaliteitsafschaling via `QualityGovernor` (`quality` factor). — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.82/10)**
+5. [x] **Marine-specifieke UI-skins**:
+   * Complete visuele en akoestische nationale cockpit-identiteiten voor 6 vloten (USN, KM, RN, IJN, RM, VMF) gebouwd uit SVG en CSS Design Tokens.
+   * Messing en bakelieten bezels met fysieke klinknagels (`drawBezelRing`), land-specifieke telegraafresonanties, metrische vs imperiale instrumentwijzers en achtergrondverlichting passend bij de nationaliteit. — **GOEDGEKEURD (Harry: 9.88/10, Henry: 9.85/10)**
 
 ---
 
