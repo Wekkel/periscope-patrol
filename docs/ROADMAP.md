@@ -133,7 +133,7 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 - [x] **Havenmissies uitbouwen**: Kades, pakhuizen, havengebouwen, kustbatterijen, schijnwerpers, lichtkogels, corridors en torpedonetten toevoegen (voltooid in Initiatief 4, inclusief *USN Chokepoint Penetration* en *HARBOR_STRIKE* Special Ops).
 - [ ] **Interne benchmark**: Gestandaardiseerde benchmark voor 3D-framerate, audioload en CPU-cycli, direct vergelijkbaar tussen apparaten en git-commits.
 - [ ] **Automatische veilige routeplanning**: Routering over lange afstanden rond landmassa's automatiseren zonder hinder bij handmatige precisienavigatie.
-- [ ] **Kaartlegenda & PRIMARY markering**: Kaartlegenda voor patrouillezones en heldere `PRIMARY`-markering op de doelwitten.
+- [x] **Kaartlegenda & PRIMARY markering**: Kaartlegenda voor patrouillezones en heldere `PRIMARY`-markering op de doelwitten (interactieve canvas legenda chip `[ℹ LEGEND]`, close `✕` glyph, 3 categorieën VESSELS, PATROL ZONES & HAZARDS, goudgele reticle brackets en `★ PRIMARY · ` prefix in map view, `★ PRIMARY OBJECTIVE ★` badge en goud vizier in 3D periscoop/brug, TDC/deck gun HUD viewmodel integratie, en patrouillezonenamen met 6 NM operationele marge).
 - [ ] **Kielmarge**: Blokkeren van de roer-/diepteorder vervangen door tijdelijk *onderbreken* met een geschaalde veiligheidsdrempel.
 - [ ] **Audio polyfonie & kraakbegrenzing**: Stemmenbegrenzing voor druk- en rompkraken (met name op de Helios) en het waypointgeluid op schonere bus/cooldown zetten.
 - [ ] **Cinematics duur**: Inkorten en vloeiender maken wanneer meerdere cinematics (zoals torpedo-inslagen of zinkende schepen) direct achter elkaar afspelen.

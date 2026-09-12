@@ -1215,6 +1215,7 @@ const World3D={
       const tr=state.world.contactTracks[c.id];
       const sinking=(c.sinkingProgress??0)>0;
       const sel=state.tactical.selectedTrackId===c.id;
+      const isPri=typeof isPrimaryMissionTarget==='function'&&isPrimaryMissionTarget(state,c.id);
       if(sel&&this.scopeLabelId!==c.id) this.revealScopeLabel(c.id);
       const fresh=sel&&performance.now()<this.scopeLabelUntil;
       // At low scope magnification a large merchant fills the optic; lift the
@@ -1222,23 +1223,31 @@ const World3D={
       const lift=sel?clamp(pxLen*0.16,9*this.k,34*this.k):0;
       const ly=top.y-lift;
       if(sel&&fresh){
-        const line2=`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${scopeMeasuredRangeNm(state,it.d/NM_M).toFixed(1)}nm`;
-        ctx.font=this.fnt(9,true);const w=ctx.measureText(line2).width+10*this.k;
-        const bw=Math.max(58*this.k,w),bh=22*this.k;
-        ctx.fillStyle='rgba(3,13,16,.72)';this.rr(ctx,top.x-bw/2,ly-15*this.k,bw,bh,3*this.k);ctx.fill();
-        ctx.textAlign='center';ctx.font=this.fnt(10,true);ctx.fillStyle=sinking?'rgba(239,106,88,.96)':'rgba(226,255,240,.98)';
-        ctx.fillText(sinking?`${c.id} SINKING`:c.id,top.x,ly-6*this.k);
-        ctx.font=this.fnt(8.5);ctx.fillStyle='rgba(210,240,228,.94)';ctx.fillText(line2,top.x,ly+3*this.k);
+        const priBadge=isPri?'★ PRIMARY TARGET · ':'';
+        const line2=`${priBadge}${tr?tr.typeEstimate:(c.displayType||c.type)} · ${scopeMeasuredRangeNm(state,it.d/NM_M).toFixed(1)}nm`;
+        ctx.font=this.fnt(9,true);const w=ctx.measureText(line2).width+12*this.k;
+        const bw=Math.max(68*this.k,w),bh=(isPri?28:22)*this.k;
+        ctx.fillStyle='rgba(3,13,16,.78)';this.rr(ctx,top.x-bw/2,ly-(isPri?20:15)*this.k,bw,bh,3*this.k);ctx.fill();
+        if(isPri){
+          ctx.strokeStyle='rgba(255,208,67,.65)';ctx.lineWidth=1;ctx.stroke();
+          ctx.textAlign='center';ctx.font=this.fnt(7.8,true);ctx.fillStyle='#ffd043';
+          ctx.fillText('★ PRIMARY OBJECTIVE ★',top.x,ly-11*this.k);
+        }
+        ctx.textAlign='center';ctx.font=this.fnt(10,true);ctx.fillStyle=sinking?'rgba(239,106,88,.96)':isPri?'#ffd043':'rgba(226,255,240,.98)';
+        ctx.fillText(sinking?`${c.id} SINKING`:c.id,top.x,isPri?ly-2*this.k:ly-6*this.k);
+        ctx.font=this.fnt(8.5);ctx.fillStyle='rgba(210,240,228,.94)';ctx.fillText(line2,top.x,isPri?ly+7*this.k:ly+3*this.k);
       }else{
         // After a few seconds the information recedes to quiet glass-writing.
         // Tap the selected ship again to reveal the full card for another beat.
-        ctx.textAlign='center';ctx.font=this.fnt(sel?8.5:9,sel);ctx.fillStyle=sinking?'rgba(239,106,88,.78)':sel?'rgba(210,240,228,.28)':'rgba(245,198,92,.85)';
-        ctx.fillText(sinking?`${c.id} SINKING`:c.id,top.x,ly-4*this.k);
-        if(!sel){ctx.font=this.fnt(7.5);ctx.fillStyle='rgba(220,236,230,.62)';ctx.fillText(`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${scopeMeasuredRangeNm(state,it.d/NM_M).toFixed(1)}nm`,top.x,ly+6*this.k);}
+        ctx.textAlign='center';ctx.font=this.fnt(sel?8.5:9,sel||isPri);
+        ctx.fillStyle=sinking?'rgba(239,106,88,.78)':isPri?'#ffd043':sel?'rgba(210,240,228,.28)':'rgba(245,198,92,.85)';
+        const priTxt=isPri?'★ PRIMARY ':'';
+        ctx.fillText(sinking?`${c.id} SINKING`:`${priTxt}${c.id}`,top.x,ly-4*this.k);
+        if(!sel){ctx.font=this.fnt(7.5);ctx.fillStyle=isPri?'rgba(255,220,110,.85)':'rgba(220,236,230,.62)';ctx.fillText(`${tr?tr.typeEstimate:(c.displayType||c.type)} · ${scopeMeasuredRangeNm(state,it.d/NM_M).toFixed(1)}nm`,top.x,ly+6*this.k);}
       }
       ctx.textAlign='left';
       if(sel){
-        ctx.strokeStyle=`rgba(111,224,143,${fresh ? .55 : .22})`;ctx.lineWidth=1;
+        ctx.strokeStyle=isPri?`rgba(255,208,67,${fresh?.8:.4})`:`rgba(111,224,143,${fresh ? .55 : .22})`;ctx.lineWidth=isPri?Math.max(1.2,1.5*this.k):1;
         const half=Math.max(8,realLen/it.d*cam.f*0.55);
         ctx.strokeRect(top.x-half,top.y-2*this.k,half*2,Math.max(10,half*0.5));
       }

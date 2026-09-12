@@ -1266,4 +1266,240 @@ aircraftMod.AircraftSystem.updateAircraft.call(airCtx, 0.2);
 assert.equal(testAir.state, 'ORBIT', 'Aircraft arriving at datum after submarine submerged must switch to ORBIT instead of attacking');
 assert.ok(loggedAir.some(l => l.msg.includes('boat has submerged') && l.msg.includes('Circling')), 'Log must confirm boat submerged and aircraft is circling');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5');
+// ═══════════════════════════════════════════════════ 18. MAP LEGEND & PRIMARY TARGET MARKING
+// Test 1: isPrimaryMissionTarget classification across mission roles & campaign descriptors
+const utilMod = await load('js/core/utilities.js', ['isPrimaryMissionTarget'], {
+  clamp, lerp, degToRad, radToDeg, normDeg, shortDelta, knotsNmSec, bearingBetween, distNm
+});
+const mockStateMission = {
+  world: {
+    contacts: [
+      { id: 'T-01', missionRole: 'HIGH_VALUE_TARGET' },
+      { id: 'T-02', missionRole: 'HARBOR_STRIKE_TARGET' },
+      { id: 'T-03', missionRole: 'ESCORT_HUNT_TARGET' },
+      { id: 'T-04', missionRole: 'RECON_TARGET' },
+      { id: 'T-05', missionRole: 'SURVIVOR' },
+      { id: 'T-06', harborTarget: true },
+      { id: 'T-07' },
+      { id: 'T-08' },
+      { id: 'T-09' }
+    ]
+  },
+  campaign: {
+    primaryMission: {
+      type: 'HARBOR_STRIKE',
+      targetId: 'T-07',
+      targetIds: ['T-08'],
+      survivorId: 'T-09'
+    }
+  }
+};
+
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-01'), true, 'HIGH_VALUE_TARGET must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-02'), true, 'HARBOR_STRIKE_TARGET must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-03'), true, 'ESCORT_HUNT_TARGET must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-04'), true, 'RECON_TARGET must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-05'), true, 'SURVIVOR must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-06'), true, 'harborTarget during HARBOR_STRIKE mission must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-07'), true, 'Explicit mission targetId must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-08'), true, 'targetIds array element must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'T-09'), true, 'survivorId must be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(mockStateMission, 'OTHER-99'), false, 'Non-objective contact must not be flagged as primary');
+assert.equal(utilMod.isPrimaryMissionTarget(null, 'T-01'), false, 'Null state must safely return false');
+
+// Test 2: MapStation Chart Legend Layout & Multi-Category Presentation
+const mapMod = await load('js/rendering/map.js', ['MapStation'], {
+  clamp, degToRad, radToDeg, normDeg, shortDelta, knotsNmSec, distNm, bearingBetween, lerp,
+  fmtDeg: d => `${Math.round(d)}°`, NM_M: 1852,
+  shipVisualLengthM: () => 180, shipVisualLengthNm: () => 0.1,
+  CanvasViewCore: class {}, TacticalStation: {}, BridgeStation: {}, SoundStation: {}, PeriscopeStation: {}, DeckGunStation: {}, World3D: {}, BattleAtmosphere: {},
+  isPrimaryMissionTarget: utilMod.isPrimaryMissionTarget,
+  crewCanSeeSurfaceHull: () => true,
+  PATROL_AREAS: { solomons: { displayName: 'Solomon Sea' } }
+});
+
+const legendRecordedText = [];
+const mockLegendCtx = {
+  save() {}, restore() {}, beginPath() {}, closePath() {}, fill() {}, stroke() {},
+  moveTo() {}, lineTo() {}, rect() {}, strokeRect() {}, fillRect() {}, setLineDash() {},
+  measureText: () => ({ width: 100 }),
+  fillText(txt) { legendRecordedText.push(txt); }
+};
+
+mapMod.MapStation.k = 1.0;
+mapMod.MapStation.fnt = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px sans-serif`;
+mapMod.MapStation.rr = function(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.rect(x, y, w, h); ctx.closePath();
+};
+
+mapMod.MapStation.drawMapLegend(mockLegendCtx, 1280, 800);
+assert.ok(mapMod.MapStation._legendCardRect, 'Legend card rect must be calculated');
+assert.ok(mapMod.MapStation._legendCardRect.w >= 200 && mapMod.MapStation._legendCardRect.h >= 200, 'Legend card dimensions must accommodate multi-category layout');
+assert.ok(legendRecordedText.includes('CHART SYMBOLS & PATROL ZONES'), 'Legend must feature title header');
+assert.ok(legendRecordedText.includes('✕'), 'Legend must display interactive close button');
+assert.ok(legendRecordedText.includes('VESSELS & TARGETS'), 'Legend must feature Vessels & Targets category');
+assert.ok(legendRecordedText.includes('PRIMARY objective target'), 'Legend must display PRIMARY objective target symbol row');
+assert.ok(legendRecordedText.includes('PATROL ZONES & LANES'), 'Legend must feature Patrol Zones & Lanes category');
+assert.ok(legendRecordedText.includes('patrol area boundary (6nm margin)'), 'Legend must describe patrol area boundary with 6nm margin');
+assert.ok(legendRecordedText.includes('HAZARDS & PORTS'), 'Legend must feature Hazards & Ports category');
+assert.ok(legendRecordedText.includes('4-fathom grounding danger'), 'Legend must feature 4-fathom grounding danger');
+
+// Test 3: Primary Target Reticle Brackets & Map Contact High-Contrast Labeling
+const bracketStrokes = [];
+const bracketRects = [];
+const mockBracketCtx = {
+  save() {}, restore() {}, beginPath() {},
+  stroke() { bracketStrokes.push(this.strokeStyle); },
+  moveTo() {}, lineTo() {},
+  fillRect(x, y, w, h) { bracketRects.push({ x, y, w, h, fill: this.fillStyle }); }
+};
+mapMod.MapStation.drawPrimaryTargetBrackets(mockBracketCtx, 150, 150, 25, 1.0);
+assert.ok(bracketStrokes.includes('#ffd043'), 'Primary brackets must be stroked in gold (#ffd043)');
+assert.equal(bracketRects.length, 4, 'Must draw 4 cardinal pip fillRects');
+assert.ok(bracketRects.every(r => r.fill === '#ffd043'), 'All 4 cardinal pips must be gold (#ffd043)');
+
+const contactRecordedText = [];
+const contactRecordedColors = [];
+const mockContactCtx = {
+  save() {}, restore() {}, beginPath() {}, closePath() {}, fill() {}, stroke() {},
+  moveTo() {}, lineTo() {}, rect() {}, strokeRect() {}, fillRect() {}, setLineDash() {}, arc() {},
+  measureText: () => ({ width: 80 }),
+  fillText(txt) { contactRecordedText.push(txt); contactRecordedColors.push(this.fillStyle); }
+};
+mapMod.MapStation.drawContactUncertaintyGlyph = () => {};
+mapMod.MapStation.courseVector = () => {};
+mapMod.MapStation.shipIcon = () => {};
+mapMod.MapStation._mapIconType = () => 'CARRIER';
+
+const mapContactsState = {
+  playerSub: { position: { xNm: 0, yNm: 0 }, heading: 0 },
+  world: {
+    contacts: [
+      { id: 'T-01', missionRole: 'HIGH_VALUE_TARGET', position: { xNm: 2, yNm: 2 }, type: 'CARRIER', speedKnots: 15, heading: 90 },
+      { id: 'T-99', position: { xNm: 4, yNm: 4 }, type: 'MERCHANT', speedKnots: 10, heading: 45 }
+    ],
+    contactTracks: {
+      'T-01': { id: 'T-01', typeEstimate: 'CARRIER', courseEstimate: 90, speedEstimateKnots: 15, staleSeconds: 0, visualDetected: true, plotPosition: { xNm: 2, yNm: 2 } },
+      'T-99': { id: 'T-99', typeEstimate: 'FREIGHTER', courseEstimate: 45, speedEstimateKnots: 10, staleSeconds: 0, visualDetected: true, plotPosition: { xNm: 4, yNm: 4 } }
+    }
+  },
+  tactical: { selectedTrackId: 'T-01' },
+  time: { elapsedSeconds: 50 },
+  campaign: { primaryMission: { targetId: 'T-01' } }
+};
+const w2s = (x, y) => ({ x: 300 + x * 20, y: 300 + y * 20 });
+mapMod.MapStation.drawMapContacts(mockContactCtx, mapContactsState.world.contactTracks, w2s, 50, mapContactsState.playerSub.position, 'T-01', mapContactsState);
+assert.ok(contactRecordedText.some(t => t.startsWith('★ PRIMARY · T-01')), 'Primary mission target contact must be prefixed with ★ PRIMARY ·');
+assert.ok(!contactRecordedText.some(t => t.startsWith('★ PRIMARY · T-99')), 'Ordinary contact must not carry PRIMARY prefix');
+const priIndex = contactRecordedText.findIndex(t => t.startsWith('★ PRIMARY · T-01'));
+assert.equal(contactRecordedColors[priIndex], '#ffd043', 'Primary mission target title must be rendered in gold (#ffd043)');
+
+// Test 4: 3D Optics PRIMARY TARGET Badge & Golden Reticle Projection
+const opticsW3dCtx = {
+  console, Math, performance: { now: () => 1000 },
+  clamp, degToRad, radToDeg, normDeg, shortDelta, knotsNmSec, distNm, bearingBetween, lerp,
+  EARTH_R: 6371000, NM_M: 1852,
+  weatherIsWet: () => false,
+  dayPhaseRgb: () => [100, 100, 100],
+  rgbCss: arr => `rgb(${arr[0]},${arr[1]},${arr[2]})`,
+  projectAzimuthElevation: () => ({ x: 0, y: 0 }),
+  DayNightCycle: { CYCLE_SECONDS: 86400 },
+  phaseSmooth01: x => x,
+  seaSurfaceY: () => 400,
+  projectWorldPoint: () => ({ x: 640, y: 380, d: 2000 }),
+  scopeMeasuredRangeNm: () => 2.0,
+  isPrimaryMissionTarget: utilMod.isPrimaryMissionTarget
+};
+opticsW3dCtx.globalThis = opticsW3dCtx;
+vm.createContext(opticsW3dCtx);
+const geomSrcOptics = await readFile(path.join(root, 'js/rendering/world-geometry.js'), 'utf8');
+const w3dSrcOptics = await readFile(path.join(root, 'js/rendering/world-3d.js'), 'utf8');
+vm.runInContext(geomSrcOptics, opticsW3dCtx);
+vm.runInContext(w3dSrcOptics + '\n;globalThis.World3D = World3D;', opticsW3dCtx);
+
+const opticsRecordedText = [];
+const opticsRecordedStrokes = [];
+const mockOpticsCtx = {
+  save() {}, restore() {}, beginPath() {}, closePath() {},
+  stroke() { opticsRecordedStrokes.push(this.strokeStyle); },
+  fill() {}, moveTo() {}, lineTo() {}, arc() {}, clip() {}, rect() {}, ellipse() {},
+  strokeRect() {}, fillRect() {}, quadraticCurveTo() {},
+  measureText: () => ({ width: 120 }),
+  fillText(txt) { opticsRecordedText.push(txt); },
+  createRadialGradient: () => ({ addColorStop() {} }),
+  createLinearGradient: () => ({ addColorStop() {} })
+};
+const opticsSimState = {
+  playerSub: { position: { xNm: 0, yNm: 0 }, heading: 0 },
+  world: {
+    environment: { seaState: 1 },
+    contacts: [
+      { id: 'T-01', missionRole: 'HIGH_VALUE_TARGET', position: { xNm: 0, yNm: 2 }, type: 'CARRIER', speedKnots: 15, heading: 90, displayType: 'Shokaku' }
+    ],
+    contactTracks: {
+      'T-01': { id: 'T-01', typeEstimate: 'AIRCRAFT CARRIER', rangeEstimateNm: 2 }
+    }
+  },
+  tactical: { selectedTrackId: 'T-01' },
+  campaign: { primaryMission: { targetId: 'T-01' } }
+};
+const opticsCam = { cx: 640, cy: 400, r: 350, f: 800, h: 4.5, bearingDeg: 0, E: 0, N: 0 };
+opticsW3dCtx.World3D.k = 1.0;
+opticsW3dCtx.World3D.w = 1280;
+opticsW3dCtx.World3D.h = 800;
+opticsW3dCtx.World3D.fnt = (sz, bold) => `${bold ? 'bold ' : ''}${sz}px sans-serif`;
+opticsW3dCtx.World3D.rr = () => {};
+opticsW3dCtx.World3D.scopeLabelId = 'T-01';
+opticsW3dCtx.World3D.scopeLabelUntil = 5000;
+opticsW3dCtx.World3D.drawShip3D(mockOpticsCtx, opticsCam, {
+  c: opticsSimState.world.contacts[0],
+  d: 3704,
+  E: 0,
+  N: 3704,
+  relBrg: 0
+}, opticsSimState, 1.0, { E: 0.5, N: 0.5, Y: 0.7 }, 20, 10);
+assert.ok(opticsRecordedText.includes('★ PRIMARY OBJECTIVE ★'), 'Optics selected card must render ★ PRIMARY OBJECTIVE ★ badge');
+assert.ok(opticsRecordedText.some(t => t.includes('★ PRIMARY TARGET · ')), 'Optics subtitle must state ★ PRIMARY TARGET ·');
+assert.ok(opticsRecordedStrokes.some(s => s.includes('255,208,67')), 'Selected primary target reticle must be stroked in gold (255,208,67)');
+
+// Test 5: Patrol Area Boundary Naming, 6 NM Margin & HUD Viewmodel PRIMARY Flagging
+const areaRecordedText = [];
+const mockAreaCtx = {
+  save() {}, restore() {}, beginPath() {}, stroke() {}, fill() {}, rect() {}, setLineDash() {}, strokeRect() {},
+  fillText(txt) { areaRecordedText.push(txt); }
+};
+const areaState = {
+  world: {},
+  campaign: { patrolArea: 'solomons' }
+};
+mapMod.MapStation._bathy = { x0: -50, y0: -50, nx: 100, ny: 100, cell: 1 };
+mapMod.MapStation.drawAreaBounds(mockAreaCtx, areaState, w2s);
+assert.ok(areaRecordedText.some(t => t.includes('SOLOMON SEA · PATROL AREA BOUNDARY')), 'drawAreaBounds must include display name and boundary title');
+assert.ok(areaRecordedText.some(t => t.includes('6 NM OPERATIONAL MARGIN')), 'drawAreaBounds must explicitly declare 6 NM OPERATIONAL MARGIN');
+
+// HUD viewmodel PRIMARY integration
+const hudPriMod = await load('js/ui/hud-viewmodel.js', ['buildHudViewModel'], {
+  playerDepthDisplay: (_s, v) => `${Math.round(v)} ft`,
+  fmtDeg: v => `${Math.round(v)}°`,
+  fmtTime: v => `${Math.round(v)}s`,
+  DayNightCycle: { getTimeString: v => `${Math.round(v)}s` },
+  torpedoRangeInfo: () => null,
+  torpedoStoresStatus: () => ({ total: 4, loadShort: 'READY' }),
+  isPrimaryMissionTarget: utilMod.isPrimaryMissionTarget
+});
+const hudPrimaryState = hudState({
+  tdc: { targetId: 'T-01', status: 'TRACKING' },
+  weapons: { deckGun: { targetId: 'T-01', manned: true, ammo: 40 } },
+  world: {
+    ...baseHud.world,
+    contacts: [{ id: 'T-01', missionRole: 'HIGH_VALUE_TARGET', name: 'Yamato' }],
+    contactTracks: { 'T-01': { id: 'T-01', identifiedClassName: 'Yamato' } }
+  }
+});
+const hudVmPrimary = hudPriMod.buildHudViewModel(hudPrimaryState, {});
+assert.ok(hudVmPrimary.fire.targetLabel.startsWith('★ PRIMARY '), 'HUD fire target label must be prefixed with ★ PRIMARY');
+assert.equal(hudVmPrimary.tdc.isPrimary, true, 'HUD tdc viewmodel must have isPrimary === true');
+assert.equal(hudVmPrimary.weapons.deckGun.isPrimary, true, 'HUD deckGun viewmodel must have isPrimary === true');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5');
+

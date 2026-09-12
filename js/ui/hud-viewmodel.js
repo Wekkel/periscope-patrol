@@ -12,8 +12,9 @@
   const targetLabel=(state,id)=>{
     if(!id)return '';
     const t=state.world?.contactTracks?.[id]||state.world?.contacts?.find?.(x=>x.id===id);
-    if(t?.identifiedClassName)return `${id} [${t.identifiedClassName}]`;
-    return t?.name||t?.label||id;
+    const pri=typeof isPrimaryMissionTarget==='function'&&isPrimaryMissionTarget(state,id)?'★ PRIMARY ':'';
+    if(t?.identifiedClassName)return `${pri}${id} [${t.identifiedClassName}]`;
+    return `${pri}${t?.name||t?.label||id}`;
   };
   function buildHudViewModel(state,layout){
     const s=state||{},sub=s.playerSub||{},p=sub.propulsion||{},d=sub.damage||{},tdc=s.tdc||{},w=s.weapons||{},env=s.world?.environment||{},enemy=s.world?.enemy||{};
@@ -83,7 +84,8 @@
     else if(n(env.seaState)>.82)aaReason='Sea state is too high to man the AA gun.';
     else if(aaAmmo<=0)aaReason='AA ready-use ammunition is exhausted.';
     else if(deckGun.manned)aaReason='Deck-gun crew currently occupies the deck.';
-    const weapons={tubes:tubeViews,deckGun:{manned:!!deckGun.manned,hasAmmo:n(deckGun.ammo)>0,trainText:Number.isFinite(deckGun.trainDeg)?`${deckGun.trainDeg.toFixed(1)}°`:'--',elevationText:Number.isFinite(deckGun.elevationDeg)?`${deckGun.elevationDeg.toFixed(1)}°`:'--',ammo:String(deckGun.ammo??0),statusText:deckGun.manned?'MANNED':'SECURED',loadStatusText:gunReloadLeft>0?`LOADING ${fixed(gunReloadLeft,1)}s`:'READY',targetText:gunTarget},aa:{manned:aaManned,reason:aaManned?'Crew engaging observed aircraft.':aaReason,ammoText:String(aaAmmo)}};
+    const isPriGun=typeof isPrimaryMissionTarget==='function'&&isPrimaryMissionTarget(s,gunTargetId);
+    const weapons={tubes:tubeViews,deckGun:{manned:!!deckGun.manned,hasAmmo:n(deckGun.ammo)>0,trainText:Number.isFinite(deckGun.trainDeg)?`${deckGun.trainDeg.toFixed(1)}°`:'--',elevationText:Number.isFinite(deckGun.elevationDeg)?`${deckGun.elevationDeg.toFixed(1)}°`:'--',ammo:String(deckGun.ammo??0),statusText:deckGun.manned?'MANNED':'SECURED',loadStatusText:gunReloadLeft>0?`LOADING ${fixed(gunReloadLeft,1)}s`:'READY',targetText:gunTarget,isPrimary:isPriGun},aa:{manned:aaManned,reason:aaManned?'Crew engaging observed aircraft.':aaReason,ammoText:String(aaAmmo)}};
     const localWeather=(typeof weatherAtPosition==='function'&&s.world?.weatherSystem)?weatherAtPosition(s,sub.position):{stage:env.weather||'CLEAR',visibilityNm:env.visibilityNm};
     const bridgeZoom=typeof bridgeZoomAmount==='function'?bridgeZoomAmount(s):0;
     const display={deckGunStatus:`${weapons.deckGun.manned?'CREW TOPSIDE — automatic':'crew secured — enter GUN station to man automatically'} · train ${weapons.deckGun.trainText} · elev ${weapons.deckGun.elevationText} · ammo ${weapons.deckGun.ammo} · drag 3D view to aim`,bridgeBinoText:bridgeZoom>.05&&typeof bridgeMagnification==='function'?`Binos ${bridgeMagnification(s).toFixed(1)}×`:'Binoculars',weatherLabel:`WX ${String(localWeather.stage||'CLEAR').replace(/_/g,' ')} · ${fixed(localWeather.visibilityNm,1)} NM`};
@@ -108,7 +110,8 @@
     const targetContact=s.world?.contacts?.find?.(x=>x.id===tdc.targetId);
     const targetAtt=targetContact&&typeof shipAttitude==='function'?shipAttitude(targetContact):null;
     const targetIdent=track?.identifiedClassId?{classId:track.identifiedClassId,className:track.identifiedClassName||track.identifiedClassId,status:track.identificationStatus||'IDENTIFIED',code:track.identifiedCompositeCode||'',category:track.identifiedCategory||'',mastheadFt:Number(track.identifiedMastheadFt)||0,draftFt:Number(track.identifiedDraftFt)||0,optDepthFt:Number(track.recommendedTorpedoDepthFt)||0}:null;
-    const tdcView={status:String(tdc.status||'NO SOLUTION'),targetLabel:fire.targetLabel||'No target',identification:targetIdent,attitude:targetAtt?{listText:targetAtt.listText,trimText:targetAtt.trimText,summary:targetAtt.conditionSummary}:null,bearingText:track&&Number.isFinite(track.brg)?`${track.brg.toFixed(0)}°`:'--',rangeText:range?`${range.rangeNm.toFixed(1)} nm`:(Number.isFinite(tdc.rangeNm)?`${tdc.rangeNm.toFixed(1)} nm`:'--'),courseText:track&&Number.isFinite(track.courseDeg)?(typeof fmtDeg==='function'?fmtDeg(track.courseDeg):`${round(track.courseDeg)}°`):'--',speedText:track&&Number.isFinite(track.speedKn)?`${track.speedKn.toFixed(0)} kn`:'--',aobText:fire.aobText,gyroText:fire.gyroText,runText:fire.ttiText,qualityText:fire.solutionText,sourceText:track?.source||track?.kind||'—',modeText:tdc.manual?'MANUAL':'AUTO'};
+    const isPriTdc=typeof isPrimaryMissionTarget==='function'&&isPrimaryMissionTarget(s,tdc.targetId);
+    const tdcView={status:String(tdc.status||'NO SOLUTION'),targetLabel:fire.targetLabel||'No target',isPrimary:isPriTdc,identification:targetIdent,attitude:targetAtt?{listText:targetAtt.listText,trimText:targetAtt.trimText,summary:targetAtt.conditionSummary}:null,bearingText:track&&Number.isFinite(track.brg)?`${track.brg.toFixed(0)}°`:'--',rangeText:range?`${range.rangeNm.toFixed(1)} nm`:(Number.isFinite(tdc.rangeNm)?`${tdc.rangeNm.toFixed(1)} nm`:'--'),courseText:track&&Number.isFinite(track.courseDeg)?(typeof fmtDeg==='function'?fmtDeg(track.courseDeg):`${round(track.courseDeg)}°`):'--',speedText:track&&Number.isFinite(track.speedKn)?`${track.speedKn.toFixed(0)} kn`:'--',aobText:fire.aobText,gyroText:fire.gyroText,runText:fire.ttiText,qualityText:fire.solutionText,sourceText:track?.source||track?.kind||'—',modeText:tdc.manual?'MANUAL':'AUTO'};
     tdcView.summaryText=tdc.targetId?`${tdcView.targetLabel} · ${tdcView.qualityText} · ${ready} READY`:'NO TARGET';
     systems.intelSummaryText=`${systems.contacts} CONTACT${systems.contacts===1?'':'S'} · ${systems.alertLevel}`;
     const missionSummary=missionProgress||String(mission.missionStatus||missionTitle);

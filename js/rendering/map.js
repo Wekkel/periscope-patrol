@@ -142,6 +142,20 @@ const MapStation={
 
     const wall=typeof performance!=='undefined'?performance.now():Date.now();
     if(this._intelFocusUntil>wall){const label='MAP FOCUS · OWN BOAT + INTEL ESTIMATE';ctx.font=this.fnt(7.5,true);const bw=ctx.measureText(label).width+14*k,x=(w-bw)/2,y=8*k;ctx.fillStyle='rgba(4,15,18,.88)';this.rr(ctx,x,y,bw,19*k,4*k);ctx.fill();ctx.strokeStyle='rgba(111,224,143,.45)';ctx.stroke();ctx.fillStyle='rgba(190,240,215,.95)';ctx.textAlign='center';ctx.fillText(label,w/2,y+13*k);ctx.textAlign='left';}
+    const legW=Math.round(72*k), legH=Math.round(18*k);
+    const legX=pad, legY=h-Math.round(22*k);
+    this._legendChipRect={x:legX,y:legY,w:legW,h:legH};
+    ctx.save();
+    ctx.fillStyle=this.showLegend?'rgba(22,60,48,0.92)':'rgba(4,15,18,0.84)';
+    this.rr(ctx,legX,legY,legW,legH,4*k);ctx.fill();
+    ctx.strokeStyle=this.showLegend?'#6fe08f':'rgba(47,95,86,0.7)';
+    ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=this.showLegend?'#d7f5e7':'rgba(180,215,200,0.85)';
+    ctx.font=this.fnt(7.5,true);ctx.textAlign='center';
+    ctx.fillText('ℹ LEGEND',legX+legW/2,legY+12*k);
+    ctx.textAlign='left';
+    ctx.restore();
+
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
   },
 
@@ -350,21 +364,84 @@ const MapStation={
     }
   },
 
+  drawPrimaryTargetBrackets(ctx,x,y,r,K){
+    const gap=r*.45;
+    ctx.save();
+    ctx.strokeStyle='#ffd043';ctx.lineWidth=Math.max(1.4,1.8*K);
+    ctx.beginPath();
+    ctx.moveTo(x-r,y-gap);ctx.lineTo(x-r,y-r);ctx.lineTo(x-gap,y-r);
+    ctx.moveTo(x+gap,y-r);ctx.lineTo(x+r,y-r);ctx.lineTo(x+r,y-gap);
+    ctx.moveTo(x+r,y+gap);ctx.lineTo(x+r,y+r);ctx.lineTo(x+gap,y+r);
+    ctx.moveTo(x-gap,y+r);ctx.lineTo(x-r,y+r);ctx.lineTo(x-r,y+gap);
+    ctx.stroke();
+    ctx.fillStyle='#ffd043';
+    ctx.fillRect(x-1.5*K,y-r-2*K,3*K,3*K);
+    ctx.fillRect(x-1.5*K,y+r-K,3*K,3*K);
+    ctx.fillRect(x-r-2*K,y-1.5*K,3*K,3*K);
+    ctx.fillRect(x+r-K,y-1.5*K,3*K,3*K);
+    ctx.restore();
+  },
+
   drawMapLegend(ctx,w,h){
-    const k=this.k, lw=Math.round(196*k), lh=Math.round(140*k);
-    const lx=Math.round(10*k), ly=h-lh-Math.round(28*k);
-    ctx.fillStyle='rgba(6,16,18,0.86)';this.rr(ctx,lx,ly,lw,lh,5*k);ctx.fill();
-    ctx.strokeStyle='rgba(47,95,86,0.6)';ctx.lineWidth=1;ctx.stroke();
-    const rows=[['#6fe08f','▲','your submarine'],['#f5c65c','▲','enemy ship (confirmed)'],
-      ['#f5c65c','◌','estimated position'],['#6fe08f','⚓','friendly port'],['#ef6a58','⚓','enemy port'],
-      ['rgba(150,200,214,0.9)','┄','100-fathom curve'],['rgba(235,195,125,0.9)','┄','10-fathom danger line'],
-      ['rgba(239,106,88,0.9)','━','4-fathom grounding danger'],['rgba(245,198,92,0.7)','▭','patrol area boundary']];
-    ctx.font=this.fnt(8.5);
-    rows.forEach((r,i)=>{
-      const y=ly+Math.round((14+i*14)*k);
-      ctx.fillStyle=r[0];ctx.fillText(r[1],lx+Math.round(8*k),y);
-      ctx.fillStyle='#82a89a';ctx.fillText(r[2],lx+Math.round(24*k),y);
-    });
+    const k=this.k, lw=Math.round(234*k), lh=Math.round(236*k);
+    const lx=Math.round(10*k), ly=clamp(h-lh-Math.round(28*k),Math.round(44*k),h-lh);
+    this._legendCardRect={x:lx,y:ly,w:lw,h:lh,closeX:lx+lw-24*k,closeY:ly+4*k,closeW:20*k,closeH:20*k};
+    ctx.save();
+    ctx.fillStyle='rgba(4,14,18,0.94)';this.rr(ctx,lx,ly,lw,lh,6*k);ctx.fill();
+    ctx.strokeStyle='rgba(47,95,86,0.85)';ctx.lineWidth=1.2;ctx.stroke();
+
+    ctx.fillStyle='#6fe08f';ctx.font=this.fnt(9.5,true);
+    ctx.fillText('CHART SYMBOLS & PATROL ZONES',lx+Math.round(10*k),ly+Math.round(15*k));
+    ctx.fillStyle='rgba(180,215,200,0.7)';ctx.font=this.fnt(11,true);ctx.textAlign='center';
+    ctx.fillText('✕',lx+lw-Math.round(14*k),ly+Math.round(15*k));ctx.textAlign='left';
+
+    const sections=[
+      {
+        title:'VESSELS & TARGETS',
+        rows:[
+          ['#6fe08f','▲','your submarine'],
+          ['#ffd043','⬦★','PRIMARY objective target'],
+          ['#f5c65c','▲','enemy ship (confirmed)'],
+          ['#ef6a58','▲','active threat / escort hunting'],
+          ['#f5c65c','◌','estimated plot (hydrophone/radar)'],
+          ['#f5c65c','✈','aircraft (patrol / recon / attack)']
+        ]
+      },
+      {
+        title:'PATROL ZONES & LANES',
+        rows:[
+          ['rgba(245,198,92,0.85)','▭','patrol area boundary (6nm margin)'],
+          ['rgba(111,224,143,0.85)','◎','patrol station / objective zone'],
+          ['rgba(245,198,92,0.65)','═','convoy route / swept channel']
+        ]
+      },
+      {
+        title:'HAZARDS & PORTS',
+        rows:[
+          ['#6fe08f','⚓','friendly port / service water'],
+          ['#ef6a58','⚓','enemy port / defended anchorage'],
+          ['rgba(150,200,214,0.9)','┄','100-fathom (600 ft) curve'],
+          ['rgba(235,195,125,0.9)','┄','10-fathom (60 ft) danger line'],
+          ['rgba(239,106,88,0.9)','━','4-fathom grounding danger'],
+          ['rgba(245,198,92,0.85)','⊗','net / mine barrier belt']
+        ]
+      }
+    ];
+
+    let y=ly+Math.round(28*k);
+    for(const sec of sections){
+      ctx.fillStyle='rgba(111,224,143,0.65)';ctx.font=this.fnt(7.2,true);
+      ctx.fillText(sec.title,lx+Math.round(10*k),y);
+      y+=Math.round(11*k);
+      ctx.font=this.fnt(8);
+      for(const r of sec.rows){
+        ctx.fillStyle=r[0];ctx.fillText(r[1],lx+Math.round(10*k),y);
+        ctx.fillStyle='#8eb5a6';ctx.fillText(r[2],lx+Math.round(28*k),y);
+        y+=Math.round(12.5*k);
+      }
+      y+=Math.round(3*k);
+    }
+    ctx.restore();
   },
 
   _ensureBathy(state){ return (this._bathy=Bathy.ensure(state.world.terrain)); },
@@ -386,10 +463,15 @@ const MapStation={
     ctx.lineWidth=1.5; ctx.setLineDash([9,6]);
     ctx.strokeRect(p.x,p.y,q.x-p.x,q.y-p.y);
     ctx.setLineDash([]);
-    ctx.fillStyle='rgba(245,198,92,.6)';
-    ctx.font=this.fnt(8.5);
+    ctx.fillStyle='rgba(245,198,92,.75)';
+    ctx.font=this.fnt(8.5,true);
     ctx.textAlign='left';
-    ctx.fillText('PATROL AREA BOUNDARY',p.x+8,p.y+14);
+    const areaDef=typeof PATROL_AREAS!=='undefined'&&PATROL_AREAS[state.campaign?.patrolArea];
+    const areaName=areaDef?.displayName||state.campaign?.patrolArea||'PATROL AREA';
+    ctx.fillText(`${areaName.toUpperCase()} · PATROL AREA BOUNDARY`,p.x+8,p.y+14);
+    ctx.fillStyle='rgba(245,198,92,.45)';
+    ctx.font=this.fnt(7.5);
+    ctx.fillText('6 NM OPERATIONAL MARGIN',m0.x+8,m0.y+12);
     ctx.restore();
   },
 
@@ -1042,6 +1124,7 @@ const MapStation={
       const uncertaintyR=clamp(Math.max(10+(1-posConf)*30,sensorUncPx)+Math.min(36,(tr.staleSeconds||0)*0.06),8,72)*K;
       const ownScreen=w2s(ownPos.xNm,ownPos.yNm);
 
+      const isPri=typeof isPrimaryMissionTarget==='function'&&isPrimaryMissionTarget(state,tr.id);
       if(pt){
         // Acquisition is a symbol transition, not a 150-knot lateral manoeuvre.
         const transAge=Number.isFinite(tr.visualTransitionAt)?now-tr.visualTransitionAt:99;
@@ -1059,14 +1142,16 @@ const MapStation={
         const shipCol=tr.affiliation==='FRIENDLY'?'#6fe08f':tr.affiliation==='NEUTRAL'?'#9ec9d3':activeThreat?'#ef6a58':isEsc?'#e6a055':'#f5c65c';
         if(isSelected)this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
           '#6fe08f',K,`${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
-        const lenNm=shipVisualLengthNm(tr,isEsc?300:450);
+        const lenNm=typeof shipVisualLengthNm==='function'?shipVisualLengthNm(tr,isEsc?300:450):0.1;
         const iconLen=clamp(lenNm*this.zoom,15*K,52*K);
+        if(isPri)this.drawPrimaryTargetBrackets(ctx,pt.x,pt.y,iconLen*.95+6*K,K);
         if(isSelected){ctx.strokeStyle='rgba(111,224,143,.8)';ctx.lineWidth=Math.max(1.5,2*K);ctx.beginPath();ctx.arc(pt.x,pt.y,iconLen*.8,0,Math.PI*2);ctx.stroke();}
         this.shipIcon(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,iconType,shipCol,
           isSelected?'#eafff0':'rgba(12,20,18,.9)',clamp(a,0.45,1));
         if(isSelected&&Math.abs(tr.turnRateEstimateDegSec||0)>.12)this.turnCue(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,tr.turnRateEstimateDegSec,'#6fe08f');
       }else{
         this.drawContactUncertaintyGlyph(ctx,pe,tr,uncertaintyR,K,isSelected,a,ownScreen);
+        if(isPri)this.drawPrimaryTargetBrackets(ctx,pe.x,pe.y,Math.max(16*K,uncertaintyR*1.12),K);
         // Course is advisory for a plot, not a drawn hull trajectory.
         if(isSelected&&Number.isFinite(tr.courseEstimate)&&!(tr.positionSource==='HYDROPHONE'||tr.positionSource==='SOUND BEARING')){
           const cRad=degToRad(tr.courseEstimate);ctx.strokeStyle=isSelected?'rgba(245,198,92,.75)':`rgba(245,198,92,${a*.48})`;ctx.lineWidth=Math.max(1,K);
@@ -1088,7 +1173,8 @@ const MapStation={
       // 'FRIENDLY FRIENDLY TRANSPORT' once the visual watch identified side.
       const affPrefix=(aff&&!rawType.toUpperCase().startsWith(aff))?aff+' ':'';
       const compactAff=(aff&&!String(compactType).toUpperCase().startsWith(aff))?aff+' ':'';
-      const title=isSelected?`${tr.id} ${affPrefix}${rawType}`:`${tr.id} ${dense?compactType:(compactAff+compactType)}`;
+      const priPrefix=isPri?'★ PRIMARY · ':'';
+      const title=isSelected?`${priPrefix}${tr.id} ${affPrefix}${rawType}`:`${priPrefix}${tr.id} ${dense?compactType:(compactAff+compactType)}`;
       const lines=[title.trim()];
       if(isSelected&&liveVisual&&contact){
         const visualRange=distNm(ownPos,contact.position),visualBearing=bearingBetween(ownPos,contact.position);
@@ -1112,8 +1198,9 @@ const MapStation={
       if(Math.hypot(leadX-labelPos.x,leadY-labelPos.y)>16*K){ctx.strokeStyle=`rgba(245,198,92,${isSelected?'.44':'.18'})`;ctx.lineWidth=Math.max(.6,.8*K);ctx.beginPath();ctx.moveTo(labelPos.x,labelPos.y);ctx.lineTo(leadX,leadY);ctx.stroke();}
       for(let li=0;li<lines.length;li++){
         const damage=isSelected&&li===lines.length-1&&tr.damageEstimate;
-        ctx.fillStyle=damage&&(tr.damageEstimate==='BURNING'||tr.damageEstimate==='FOUNDERING')?'rgba(239,106,88,.96)':`rgba(245,198,92,${isSelected?1:Math.max(.62,a*.82)})`;
-        ctx.font=this.fnt(li===0?fs:(fs-1),li===0||!!damage);ctx.fillText(lines[li],lx,ly+li*lh);
+        const isPriTitle=isPri&&li===0;
+        ctx.fillStyle=damage&&(tr.damageEstimate==='BURNING'||tr.damageEstimate==='FOUNDERING')?'rgba(239,106,88,.96)':isPriTitle?'#ffd043':`rgba(245,198,92,${isSelected?1:Math.max(.62,a*.82)})`;
+        ctx.font=this.fnt(li===0?fs:(fs-1),li===0||!!damage||isPriTitle);ctx.fillText(lines[li],lx,ly+li*lh);
       }
     }
   },

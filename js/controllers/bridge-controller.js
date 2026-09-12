@@ -129,6 +129,7 @@ class BridgeController{
     btn('plotInterceptButton',()=>this.game.dispatch({type:'PLOT_INTERCEPT_ADVISORY'}));
     btn('followPlotButton', ()=>this.game.dispatch({type:'MAP_STEER_TO_NEXT_WAYPOINT'}));
     btn('mapWeatherButton',()=>this.game.dispatch({type:'TOGGLE_MAP_WEATHER'}));
+    btn('mapLegendBtn',    ()=>{this.cv.showLegend=!this.cv.showLegend;});
     btn('portButton',       ()=>this.game.dispatch({type:'HEAD_TO_PORT'}));
     btn('radioReportButton',()=>this.game.dispatch({type:'RADIO_AUTHORIZE_REPORT'}));
     btn('radioSilenceButton',()=>this.game.dispatch({type:'RADIO_TOGGLE_SILENCE'}));
@@ -154,6 +155,26 @@ class BridgeController{
     btn('deckGunUpButton',()=>this.game.dispatch({type:'ADJUST_DECK_GUN',deltaElevDeg:.2}));
     btn('deckGunDownButton',()=>this.game.dispatch({type:'ADJUST_DECK_GUN',deltaElevDeg:-.2}));
     btn('tdcSetManualButton',()=>this.game.dispatch({type:'APPLY_TDC_MANUAL'}));
+    const mainCanvas=document.getElementById('mainCanvas');
+    if(mainCanvas){
+      mainCanvas.addEventListener('pointerdown',e=>{
+        const snap=this.game.getSnapshot();
+        if(snap.tactical.activeStation!=='MAP')return;
+        const pLoc=this.cv.toLocal?this.cv.toLocal(e.clientX,e.clientY):null;
+        if(pLoc&&this.cv.showLegend&&this.cv._legendCardRect){
+          const cr=this.cv._legendCardRect;
+          if(pLoc.x>=cr.x&&pLoc.x<=cr.x+cr.w&&pLoc.y>=cr.y&&pLoc.y<=cr.y+cr.h){
+            this.cv.showLegend=false;e.stopPropagation();return;
+          }
+        }
+        if(pLoc&&this.cv._legendChipRect){
+          const lr=this.cv._legendChipRect;
+          if(pLoc.x>=lr.x&&pLoc.x<=lr.x+lr.w&&pLoc.y>=lr.y&&pLoc.y<=lr.y+lr.h){
+            this.cv.showLegend=!this.cv.showLegend;e.stopPropagation();return;
+          }
+        }
+      },{capture:true});
+    }
     btn('briefingDismiss',  ()=>{document.getElementById('briefingOverlay').style.display='none';});
 
     // TDC manual sliders
@@ -189,6 +210,7 @@ class BridgeController{
       if(k==='p'&&!e.repeat){this.game.dispatch({type:'TOGGLE_PUMPS'});return;}
       if(k==='h'&&!e.repeat){this.game.dispatch({type:'HEAD_TO_PORT'});return;}
       const a=snap.tactical.activeStation;
+      if(k==='l'&&!e.repeat&&a==='MAP'){this.cv.showLegend=!this.cv.showLegend;return;}
       if(k==='arrowleft'||k==='arrowright'){
         const d=k==='arrowleft'?-5:5;
         if(a==='BRIDGE')this.game.dispatch({type:'ROTATE_BRIDGE',deltaDeg:d});

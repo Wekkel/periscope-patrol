@@ -246,7 +246,7 @@ class DomView{
     if(ne){
       ne.style.color=viewModel.fire.rangeBand?(viewModel.fire.rangeBand==='IN'?'var(--ok)':viewModel.fire.rangeBand==='BORDERLINE'?'var(--alert)':'var(--danger)'):(viewModel.fire.solutionNumber>70?'var(--ok)':viewModel.fire.solutionNumber>40?'var(--alert)':'var(--danger)');
       ne.textContent=tdc.targetId
-        ?`${tdc.status} — Sol:${viewModel.fire.solutionText} · ${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'} · tube ${viewModel.fire.tubeTurnText} · ${viewModel.fire.rangeText}Dud:${viewModel.fire.dudText} · ${tdc.torpedoType}`
+        ?`${viewModel.tdc?.isPrimary?'★ PRIMARY · ':''}${tdc.status} — Sol:${viewModel.fire.solutionText} · ${tdc.launchBank||'FWD'} · ${tdc.launchGeometry||'--'} · tube ${viewModel.fire.tubeTurnText} · ${viewModel.fire.rangeText}Dud:${viewModel.fire.dudText} · ${tdc.torpedoType}`
         :'No target.';
     }
 

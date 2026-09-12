@@ -11,6 +11,20 @@ const knotsNmSec=k=>k/3600;
 const bearingBetween=(a,b)=>normDeg(radToDeg(Math.atan2(b.xNm-a.xNm,-(b.yNm-a.yNm))));
 const distNm=(a,b)=>Math.hypot(a.xNm-b.xNm,a.yNm-b.yNm);
 const fmtTime=s=>{const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;};
+const isPrimaryMissionTarget=(state,targetIdOrContact)=>{
+  if(!state||!targetIdOrContact)return false;
+  const id=typeof targetIdOrContact==='string'?targetIdOrContact:targetIdOrContact.id;
+  const c=typeof targetIdOrContact==='object'&&targetIdOrContact.missionRole?targetIdOrContact:(state.world?.contacts||[]).find(x=>x.id===id);
+  if(c?.missionRole==='HIGH_VALUE_TARGET'||c?.missionRole==='HARBOR_STRIKE_TARGET'||c?.missionRole==='ESCORT_HUNT_TARGET'||c?.missionRole==='RECON_TARGET'||c?.missionRole==='SURVIVOR')return true;
+  if(c?.harborTarget&&state.campaign?.primaryMission?.type==='HARBOR_STRIKE')return true;
+  const m=state.campaign?.primaryMission;
+  if(m){
+    if(m.targetId&&m.targetId===id)return true;
+    if(Array.isArray(m.targetIds)&&m.targetIds.includes(id))return true;
+    if(m.survivorId&&m.survivorId===id)return true;
+  }
+  return false;
+};
 
 
 /* ═══════════════════════════════════════════════════ BUILD CHANNEL
