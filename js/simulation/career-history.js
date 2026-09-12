@@ -95,7 +95,7 @@ function _careerEngagements(state){
   return out.sort((a,b)=>(b.status==='SUNK')-(a.status==='SUNK')||b.rarityScore-a.rarityScore||b.difficultyScore-a.difficultyScore||b.tons-a.tons);
 }
 
-function _careerOwnBoat(state){const s=state.playerSub,p=s.propulsion||{},d=s.damage||{},W=state.weapons||{};return{profileId:s.profileId||null,hullIntegrity:Number(d.hullIntegrity)||0,flooding:Number(d.flooding)||0,battery:Number(p.battery)||0,fuel:Number(p.fuel)||0,oxygen:Number(d.oxygen)||0,crewFatigue:Number(d.crewFatigue)||0,torpedoReserve:Number(W.torpedoInventory)||0,loadedTubes:(W.tubes||[]).filter(t=>t.status!=='EMPTY').length,deckGunAmmo:Number(W.deckGun?.ammo)||0,aircraftKills:Number(state.world?.aaKills)||0};}
+function _careerOwnBoat(state){const s=state.playerSub,p=s.propulsion||{},d=s.damage||{},W=state.weapons||{};return{profileId:s.profileId||null,hullIntegrity:Number(d.hullIntegrity)||0,flooding:Number(d.flooding)||0,battery:Number(p.battery)||0,fuel:Number(p.fuel)||0,oxygen:Number(d.oxygen)||0,crewFatigue:Number(d.crewFatigue)||0,veteranLevel:Number(d.veteranLevel)||0,veteranRank:d.veteranRank||'GREEN',torpedoReserve:Number(W.torpedoInventory)||0,loadedTubes:(W.tubes||[]).filter(t=>t.status!=='EMPTY').length,deckGunAmmo:Number(W.deckGun?.ammo)||0,aircraftKills:Number(state.world?.aaKills)||0};}
 function _careerLessons(state,engagements){
   const A=state.campaign?.afterAction||{},torps=A.torpedoes||[],guns=A.gunRounds||[],responses=A.enemyResponses||[],out=[];
   if(torps.length){const hits=torps.filter(t=>t.status==='HIT').length,duds=torps.filter(t=>t.status==='DUD').length,misses=torps.filter(t=>!['HIT','DUD','DEFLECTED','NETTED'].includes(t.status)).filter(t=>t.status!=='RUNNING'),low=torps.filter(t=>Number(t.solutionQuality)<.55).length,cpa=misses.map(t=>t.intendedCpaNm).filter(Number.isFinite).sort((a,b)=>a-b)[0];out.push(`${hits}/${torps.length} torpedoes hit${duds?`; ${duds} failed as duds`:''}${low?`; ${low} left the tubes below 55% solution quality`:''}${Number.isFinite(cpa)?`; best intended-target miss was ${Math.round(cpa*2025)} yd`:''}.`);}
@@ -193,6 +193,123 @@ function _careerDeclassifiedIntel(state,engagements,truthComparison){
   return out;
 }
 
+function _careerCalculateRefitTurnaround(lastRecord,options={}){
+  const r=lastRecord||null,hp=options.historicalProfile||r?.historicalProfile||null;
+  const campaignProfileId=options.campaignProfileId||r?.campaignProfileId||(typeof DEFAULT_GAME_IDENTITY!=='undefined'?DEFAULT_GAME_IDENTITY.campaignProfileId:'us-pacific');
+  const subProfileId=options.submarineProfileId||r?.submarineProfileId||(typeof DEFAULT_GAME_IDENTITY!=='undefined'?DEFAULT_GAME_IDENTITY.submarineProfileId:'gato');
+  const subProf=typeof getSubmarineProfile==='function'?getSubmarineProfile(subProfileId):null;
+  const nominalCrush=subProf?.damage?.crushDepthFeet||400;
+  const prevPatrol=r?.patrolNumber||1;
+  const patrolScore=Number(r?.patrolScore)||0;
+  const totalScore=Number(options.totalScore!==undefined?options.totalScore:(r?.careerTotalScore||patrolScore));
+  const outcome=String(r?.outcome||'COMPLETED').toUpperCase();
+
+  const returnedHull=clamp(Number(r?.hullAtEnd!==undefined?r.hullAtEnd:100),0,100);
+  let hullRestored=100,residualStress=false,hullCeiling=100;
+  const refitNotes=[];
+
+  if(!r||outcome==='TRAINING'){
+    hullRestored=100;residualStress=false;
+    refitNotes.push('Commissioning trials completed: Pressure hull and machinery certified 100% sound.');
+  }else if(returnedHull>=85){
+    hullRestored=100;residualStress=false;
+    refitNotes.push('Drydock maintenance and hull overhaul completed. Pressure bulkheads certified 100% sound.');
+  }else{
+    const scoreBonus=clamp(Math.floor(patrolScore/250),0,15);
+    const candidateHull=returnedHull+40+scoreBonus;
+    if(returnedHull<50){
+      hullCeiling=clamp(85+Math.floor(scoreBonus*0.5),85,92);
+      hullRestored=clamp(candidateHull,78,hullCeiling);
+      residualStress=true;
+      refitNotes.push(`Heavy battle damage repairs completed at base yard. Framing and pressure bulkheads hydraulic-jacked; residual stress limits certified hull integrity to ${hullRestored}%.`);
+    }else{
+      hullRestored=clamp(candidateHull,85,100);
+      residualStress=hullRestored<95;
+      refitNotes.push(`Drydock plating and machinery repairs completed. Submarine restored to ${hullRestored}% hull integrity.`);
+    }
+  }
+
+  hullRestored=Math.max(78,hullRestored);
+  const crushDepthRatedFeet=residualStress?Math.round(nominalCrush*(0.85+(hullRestored/100)*0.15)):nominalCrush;
+
+  const lastFatigue=Number(r?.ownBoat?.crewFatigue)||0;
+  let crewFatigueResidual=(lastFatigue>0.70&&options.shortTurnaround)?0.08:0;
+  if(crewFatigueResidual>0)refitNotes.push('Short turnaround: Crew carries slight residual combat fatigue (8%).');
+
+  let prevVet=Number(options.prevVeteranLevel??(r?.ownBoat?.veteranLevel||0));
+  let veteranLevel=clamp(prevVet,0,3);
+  const isSuccess=patrolScore>=1200||(r?.shipsSunk||0)>=2||(r?.tonnage||0)>=8000||(r?.harborOperation?.stealthPenetration);
+  const isDisaster=outcome==='FAILED'||(returnedHull<=20&&(r?.shipsSunk||0)===0);
+  if(isSuccess&&veteranLevel<3){
+    veteranLevel++;
+    const rankNames=['GREEN','SEASONED','VETERAN','ELITE'];
+    refitNotes.push(`Crew commended for combat excellence: Rated ${rankNames[veteranLevel]} status.`);
+  }else if(isDisaster&&veteranLevel>0){
+    veteranLevel--;
+    refitNotes.push('Heavy casualties and draft replacements: Crew experience rating reduced.');
+  }
+  const crewRankTitle=['GREEN','SEASONED','VETERAN','ELITE'][veteranLevel]||'GREEN';
+
+  const freshSub=typeof materializeFreshSubmarine==='function'?materializeFreshSubmarine(subProfileId):null;
+  const nominalInventory=freshSub?.weapons?.torpedoInventory||16;
+  let reserveCount=nominalInventory,priorityStock=false,logisticsMemo='';
+  if(!r||outcome==='TRAINING'){
+    reserveCount=nominalInventory;
+  }else if(patrolScore>=1500||veteranLevel>=2){
+    reserveCount=nominalInventory;priorityStock=true;
+    logisticsMemo=`Priority ordnance requisition approved: Full magazine complement (${reserveCount} reserve torpedoes).`;
+    refitNotes.push(logisticsMemo);
+  }else if(patrolScore<800&&returnedHull<60){
+    reserveCount=Math.max(12,nominalInventory-4);
+    logisticsMemo=`Forward logistics restricted: Standard wartime quota issued (${reserveCount} reserve torpedoes).`;
+    refitNotes.push(logisticsMemo);
+  }else{
+    reserveCount=Math.max(14,nominalInventory-2);
+    logisticsMemo=`Standard ordnance requisition issued (${reserveCount} reserve torpedoes).`;
+  }
+
+  const unlockedForwardBases=[];
+  const isPacific=/PACIFIC|USA|IJN/i.test(campaignProfileId);
+  if(isPacific){
+    unlockedForwardBases.push('Pearl Harbor');
+    if(totalScore>=1200||prevPatrol>=2)unlockedForwardBases.push('Midway');
+    if(totalScore>=2500||prevPatrol>=3)unlockedForwardBases.push('Tulagi');
+    if(totalScore>=4500||prevPatrol>=4)unlockedForwardBases.push('Fremantle');
+  }else{
+    unlockedForwardBases.push('Kiel');
+    if(totalScore>=1200||prevPatrol>=2)unlockedForwardBases.push('Lorient');
+    if(totalScore>=2500||prevPatrol>=3)unlockedForwardBases.push('Brest');
+    if(totalScore>=4500||prevPatrol>=4)unlockedForwardBases.push('La Spezia');
+  }
+
+  let recommendedPatrolType='STANDARD_PATROL';
+  let patrolRecommendationText='Command cleared submarine for unrestricted combat patrol.';
+  if(hullRestored<88||residualStress){
+    recommendedPatrolType='RECOVERY_PATROL';
+    patrolRecommendationText='COMMAND ADVISORY: Working-up / coastal patrol recommended to verify frame repairs and shake down replacement crew.';
+    refitNotes.push(patrolRecommendationText);
+  }else if(veteranLevel>=2&&hullRestored>=95){
+    recommendedPatrolType='PRIORITY_INTERCEPTION';
+    patrolRecommendationText='COMMAND ADVISORY: Veteran crew assigned priority choke-point convoy interdiction.';
+    refitNotes.push(patrolRecommendationText);
+  }
+
+  return Object.freeze({
+    hullRestored,
+    hullCeiling,
+    residualStress,
+    crushDepthRatedFeet,
+    crewFatigueResidual,
+    crewVeteranLevel:veteranLevel,
+    crewRankTitle,
+    torpedoAllocation:Object.freeze({reserveCount,priorityStock,memo:logisticsMemo}),
+    unlockedForwardBases:Object.freeze(unlockedForwardBases),
+    recommendedPatrolType,
+    patrolRecommendationText,
+    refitNotes:Object.freeze(refitNotes)
+  });
+}
+
 const CareerSystem={
   ensureCareerPatrolState(){
     const c=this.state.campaign,R=this.state.runtime.campaign;
@@ -260,6 +377,27 @@ const CareerSystem={
     const declassifiedIntel=_careerDeclassifiedIntel(s,engagements,truthComparison);
     const pacingSummary=_careerClone(s.campaign?.pacingSummary||c.afterAction?.pacingSummary||null);
     const decisions=_careerClone(c.afterAction?.decisions||[]);
+    const patrolScoreVal=Number(meta.patrolScore!==undefined?meta.patrolScore:c.score)+(harborOp?.specialIntelBonus||0);
+    const hullAtEndVal=Number(meta.hullAtEnd!==undefined?meta.hullAtEnd:s.playerSub.damage.hullIntegrity);
+    const refitTurnaround=_careerCalculateRefitTurnaround({
+      outcome:String(outcome||c.missionStatus||'UNKNOWN'),
+      patrolNumber:c.patrolNumber||1,
+      patrolScore:patrolScoreVal,
+      careerTotalScore:Number(c.totalScore)||0,
+      hullAtEnd:hullAtEndVal,
+      shipsSunk:sunk.length,
+      tonnage:Number(c.tonnageSunk)||0,
+      ownBoat,
+      campaignProfileId:c.campaignProfileId||null,
+      submarineProfileId:s.playerSub?.profileId||null,
+      historicalProfile:c.historicalProfile||null,
+      harborOperation:harborOp
+    },{
+      totalScore:Number(c.totalScore)||0,
+      campaignProfileId:c.campaignProfileId||null,
+      submarineProfileId:s.playerSub?.profileId||null,
+      prevVeteranLevel:s.playerSub?.damage?.veteranLevel||0
+    });
     return Object.freeze({
       version:CAREER_RECORD_VERSION,id:c.historyId,
       patrolNumber:c.patrolNumber||1,area:c.patrolArea||'UNKNOWN',missionName:c.missionName||c.primaryMission?.title||null,
@@ -270,7 +408,7 @@ const CareerSystem={
       startDate:R._careerStartDate,
       endDate:_careerStampFrom(R._careerStartDate,c.patrolDuration||0),
       durationSeconds:Math.round(c.patrolDuration||0),outcome:String(outcome||c.missionStatus||'UNKNOWN'),
-      patrolScore:Number(meta.patrolScore!==undefined?meta.patrolScore:c.score)+(harborOp?.specialIntelBonus||0),
+      patrolScore:patrolScoreVal,
       careerTotalScore:Number(c.totalScore)||0,
       shipsSunk:sunk.length,sunkShips:_careerClone(sunk),
       tonnage:Number(c.tonnageSunk)||0,
@@ -280,7 +418,7 @@ const CareerSystem={
       optionalObjectives:_careerClone(opts),
       specialOperationId:I?.operationId||null,harborRaid:I?.raid?_careerClone(I.raid):null,
       harborOperation:harborOp?_careerClone(harborOp):null,
-      hullAtEnd:Number(meta.hullAtEnd!==undefined?meta.hullAtEnd:s.playerSub.damage.hullIntegrity),
+      hullAtEnd:hullAtEndVal,
       aircraftEvaded:Number(c.afterAction?.aircraftEvaded)||0,
       importantEvents:_careerClone(c.importantEvents),
       engagements:_careerClone(engagements),
@@ -290,6 +428,7 @@ const CareerSystem={
       pacingSummary,
       aircraftEncounters:_careerClone(aircraftEncounters),
       ownBoat:_careerClone(ownBoat),lessons:_careerClone(lessons),historicalContext:{era:hp.era||null,date:hp.date||c.startDate||null,area:c.patrolArea||null,equipment:_careerClone(hp.equipment||c.equipment||[])},
+      refitTurnaround,
       // Keep the compact recorder payload for save compatibility and for the
       // static per-engagement mini maps. The AAR UI no longer runs an animated replay.
       replay:this.aar.buildReplay?.()||null,
@@ -299,6 +438,7 @@ const CareerSystem={
 
   buildTruthComparison(state){return _careerTruthComparison(state||this.state);},
   buildDeclassifiedIntel(state,engagements,truthComparison){return _careerDeclassifiedIntel(state||this.state,engagements||_careerEngagements(state||this.state),truthComparison||_careerTruthComparison(state||this.state));},
+  calculateRefitTurnaround(lastRecord,options={}){return _careerCalculateRefitTurnaround(lastRecord,options);},
 
   finalizePatrol(outcome,meta={}){
     const c=this.state.campaign,R=this.state.runtime.campaign;this.ensureCareerPatrolState();
@@ -310,6 +450,10 @@ const CareerSystem={
       R._historyRecorded=false;R._historyRecordId=null;
     }
     const rec=this.buildPatrolRecord(outcome,meta);
+    if(rec?.refitTurnaround){
+      c.pendingRefit=rec.refitTurnaround;
+      if(R)R.pendingRefit=rec.refitTurnaround;
+    }
     const records=this.state.runtime.careerRecords=this.state.runtime.careerRecords||[];
     records.push(rec);if(records.length>24)records.shift();
     PresentationBridge.emit(this.state,'save',{method:'recordPatrol',args:[rec]});

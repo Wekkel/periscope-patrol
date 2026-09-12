@@ -162,7 +162,8 @@ const DamageSystem={
     }else if(!d.pumpActive)d.pumpLoadSec=Math.max(0,(d.pumpLoadSec||0)-dt*.25);
 
     if(d.damageControlActive&&sub.mode!=='SUNK'){
-      const fatigue=1-d.crewFatigue*.65,base=dt/420*fatigue;
+      const vetMod=1+clamp(Number(d.veteranLevel)||0,0,3)*0.06;
+      const fatigue=1-d.crewFatigue*.65,base=dt/420*fatigue*vetMod;
       const P=d.repairPriority;
       // Stabilization is deliberately small: the chosen priority must matter.
       const mult={

@@ -34,18 +34,19 @@ function bridgeVisualLimitNm(state,contact){
   const sub=state?.playerSub,env=state?.world?.environment||{};
   const vis=Math.max(.5,sub&&contact?weatherVisibilityBetween(state,sub.position,contact.position):(Number(env.visibilityNm)||.5));
   if(!sub)return 0;
+  const vetLookout=1+clamp(Number(sub.damage?.veteranLevel)||0,0,3)*0.04;
   if(contact?.type==='RAFT'){
-    if((sub.depthFeet||0)<8)return Math.min(3.2,vis*.30);
-    if((sub.depthFeet||0)<=65)return Math.min(1.8,vis*.17);
+    if((sub.depthFeet||0)<8)return Math.min(3.2,vis*.30*vetLookout);
+    if((sub.depthFeet||0)<=65)return Math.min(1.8,vis*.17*vetLookout);
     return 0;
   }
   if((sub.depthFeet||0)<8){
     let smoke=(contact&&!contact.stationary&&(contact.speedKnots||0)>=4)
       ?(contact.type==='TANKER'?1.20:isSurfaceCombatant(contact)?1.10:1.16):1.04;
     if(contact?.shipDamage){const D=ensureShipDamage(contact);smoke*=1+clamp(D.fire*.42+D.propulsion*.12,0,.52);}
-    return vis*smoke;
+    return vis*smoke*vetLookout;
   }
-  if((sub.depthFeet||0)<=65)return vis*.86;
+  if((sub.depthFeet||0)<=65)return vis*.86*vetLookout;
   return 0;
 }
 

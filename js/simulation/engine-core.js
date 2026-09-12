@@ -1162,6 +1162,7 @@ const CoreSystem={
     this.ctx.captainLog?.('RETURNED_TO_PORT',`Returned to ${portName}.`,{portName,hull:hullAtReturn},'returned-to-port');
     this.updateAfterActionRecorder?.(999);
     const patrolRecord=this.sys.career.finalizePatrol('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
+    if(patrolRecord?.refitTurnaround) camp.pendingRefit=patrolRecord.refitTurnaround;
     if(typeof historicalNextPatrolDate==='function'){
       const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(this.state.runtime.campaign._careerStartDate,camp.patrolDuration):camp.startDate);
       camp.nextPatrolDate=historicalNextPatrolDate(endDate,camp.patrolNumber,camp.scenarioSeed);
@@ -1204,6 +1205,12 @@ const CoreSystem={
     const prevHistoricalProfile=identityChanged?null:(s.campaign.historicalProfile||null);
     const pristineBootstrap=prevPatrol===1&&s.campaign.missionStatus==='PATROL'&&(s.time.elapsedSeconds||0)===0&&!s.campaign.primaryMission;
     const nextPatrol=training?prevPatrol:(pristineBootstrap?1:prevPatrol+1);
+    const lastCareerRecord=(Array.isArray(s.runtime?.careerRecords)&&s.runtime.careerRecords.length)
+      ?s.runtime.careerRecords[s.runtime.careerRecords.length-1]:null;
+    const pendingRefit=options.refitState||s.campaign?.pendingRefit||s.runtime?.campaign?.pendingRefit||null;
+    const refitState=(!training&&!identityChanged)
+      ?(pendingRefit||(lastCareerRecord&&typeof _careerCalculateRefitTurnaround==='function'?_careerCalculateRefitTurnaround(lastCareerRecord,{totalScore:prevTotal,campaignProfileId:identity.campaignProfileId,submarineProfileId:subProfile.id}):null))
+      :null;
     const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||campaignProfile.defaultStartDate;
     const careerStart=`${patrolStartDate} 06:00`;
 
@@ -1290,15 +1297,22 @@ const CoreSystem={
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
     sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;this.state.runtime.playerSub._nhdWarned=false;
     sub.stealth.silentRunning=false;sub.stealth.acousticSignature=0;
-    Object.assign(sub.damage,{hullIntegrity:100,crushDepthFeet:subProfile.damage.crushDepthFeet,flooding:0,ballastDamage:0,motorDamage:0,
+    const startingHull=(!training&&refitState)?refitState.hullRestored:100;
+    const startingCrush=(!training&&refitState)?refitState.crushDepthRatedFeet:subProfile.damage.crushDepthFeet;
+    const startingFatigue=(!training&&refitState)?refitState.crewFatigueResidual:0;
+    const startingVetLevel=(!training&&refitState)?refitState.crewVeteranLevel:0;
+    const startingVetRank=(!training&&refitState)?refitState.crewRankTitle:'GREEN';
+    const startingTorps=(!training&&refitState)?refitState.torpedoAllocation.reserveCount:weaponProfile.torpedoInventory;
+
+    Object.assign(sub.damage,{hullIntegrity:startingHull,crushDepthFeet:startingCrush,flooding:0,ballastDamage:0,motorDamage:0,
       rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
-      crewFatigue:0,oxygen:100,airCriticalSec:0,pumpActive:false,pumpTripped:false,pumpLoadSec:0,
+      crewFatigue:startingFatigue,veteranLevel:startingVetLevel,veteranRank:startingVetRank,oxygen:100,airCriticalSec:0,pumpActive:false,pumpTripped:false,pumpLoadSec:0,
       damageControlActive:false,repairPriority:'FLOODING',driveBankOffline:false,damageEventSeq:0,
       repairFloor:{},instrumentBias:{},warnings:[]});
     sub.inShallowWater=false;sub.groundingRisk=false;sub.inShallowWarned=false;
     s.map.estimatedPosition={...sub.position};
     sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.suction=0;this.state.runtime.playerSub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
-    s.weapons.torpedoInventory=weaponProfile.torpedoInventory;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
+    s.weapons.torpedoInventory=startingTorps;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
     s.weapons.deckGun={manned:false,ammo:weaponProfile.deckGun.ammo,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
     // Rebuild the tube bank from the profile at the patrol lifecycle boundary.
     // This is behavior-neutral for Silversides but prevents future boats from
@@ -1328,6 +1342,14 @@ const CoreSystem={
     this.ensureAfterActionReport?.(true);
     this.configureMission?.(options.missionType||'AUTO',options);
     this.ensureTrafficDirector?.(true);
+    if(refitState){
+      s.campaign.refitTurnaround=refitState;
+      s.campaign.recommendedPatrolType=refitState.recommendedPatrolType;
+      s.campaign.refitMessages=[...(s.campaign.refitMessages||[]),...(refitState.refitNotes||[])];
+      if(refitState.recommendedPatrolType==='RECOVERY_PATROL'){
+        this.notify?.('RECOVERY PATROL: Frame stress limits certified depth. Low-threat patrol recommended.','warn','NUTTIG');
+      }
+    }
     this.log(`=== PATROL #${nextPatrol} — ${key} ===`,'warn');
     this.log(`${area.description}`);
     for(const msg of s.campaign.refitMessages||[])this.log(msg,'warn');

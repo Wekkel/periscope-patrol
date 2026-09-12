@@ -59,7 +59,7 @@ function createLeafSystemContext(engine){
   ctx.sys.escorts={alert:(...args)=>EnemyAISystem.alertEscorts.call(ctx,...args)};
   ctx.sys.collision=api(CollisionSystem,['collisionPrevFor','ensureCollisionState','captureCollisionFrame','surfaceAvoidance','collisionRiskAhead','collisionRiskText','compressedCollisionWatch','vesselMotionVelocity','collisionImpact','resolveSubShipCollision','resolveShipShipCollision','updateVesselCollisions']);
   ctx.sys.damage=api(DamageSystem,['ensureDamageState','_fieldRepairFloor','applyShock','setRepairPriority','updateDmgCtrl']);
-  ctx.sys.career=api(CareerSystem,['ensureCareerPatrolState','captainLog','buildPatrolRecord','finalizePatrol']);
+  ctx.sys.career=api(CareerSystem,['ensureCareerPatrolState','captainLog','buildPatrolRecord','finalizePatrol','calculateRefitTurnaround']);
   ctx.sys.battleAtmosphere={noteSurfaceGunfire:(...args)=>engine.noteSurfaceGunfire(...args),noteTacticalSignal:(...args)=>engine.noteTacticalSignal(...args)};
   ctx.sys.deckOperations={clearForDive:(...args)=>engine.clearDeckForDive(...args)};
   ctx.sys.mission={checkObjectives:(...args)=>engine.checkMissionObjectives(...args)};
@@ -80,6 +80,6 @@ function createLeafSystemContext(engine){
   for(const name of ['updateLookouts','updateSonar'])bindLeafMethod(ctx,SensorsSystem,name);
   for(const name of ['collisionPrevFor','ensureCollisionState','captureCollisionFrame','surfaceAvoidance','collisionRiskAhead','collisionRiskText','compressedCollisionWatch','vesselMotionVelocity','collisionImpact','resolveSubShipCollision','resolveShipShipCollision','updateVesselCollisions'])bindLeafMethod(ctx,CollisionSystem,name);
   for(const name of ['ensureDamageState','_fieldRepairFloor','applyShock','setRepairPriority','updateDmgCtrl'])bindLeafMethod(ctx,DamageSystem,name);
-  for(const name of ['ensureCareerPatrolState','captainLog','buildPatrolRecord','finalizePatrol'])bindLeafMethod(ctx,CareerSystem,name);
+  for(const name of ['ensureCareerPatrolState','captainLog','buildPatrolRecord','finalizePatrol','calculateRefitTurnaround'])bindLeafMethod(ctx,CareerSystem,name);
   return ctx;
 }

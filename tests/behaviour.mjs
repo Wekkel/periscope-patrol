@@ -1779,12 +1779,13 @@ const physCode = await readFile(path.join(root, 'js/simulation/physics-navigatio
 const missionCode = await readFile(path.join(root, 'js/simulation/mission-framework.js'), 'utf8');
 const aarCode = await readFile(path.join(root, 'js/simulation/after-action-report.js'), 'utf8');
 const careerCode = await readFile(path.join(root, 'js/simulation/career-history.js'), 'utf8');
+const surfaceWatchCode = await readFile(path.join(root, 'js/simulation/surface-watch.js'), 'utf8');
 const fmtDeg = d => `${Math.round(d)}°`;
 
 const navCtx = {
   console, Math, Float32Array, Float64Array, Int32Array, Uint8Array, Set, Map, Array, Object,
   degToRad, radToDeg, normDeg, shortDelta, knotsNmSec, clamp, distNm, lerp, bearingBetween, fmtDeg,
-  DEFAULT_GAME_IDENTITY: { campaignProfileId: 'us-pacific' },
+  DEFAULT_GAME_IDENTITY: { campaignProfileId: 'us-pacific', submarineProfileId: 'gato' },
   getCampaignMissionProfile: () => ({
     defaultMissionType: 'CONVOY_INTERDICTION',
     definitions: {
@@ -1794,6 +1795,8 @@ const navCtx = {
   vesselGameplayType: (c) => c?.type || 'MERCHANT',
   materializeVesselIdentity: (v) => v,
   isASWCombatant: (c) => c?.type === 'DESTROYER' || c?.asw === true,
+  isSurfaceCombatant: (c) => ['DESTROYER', 'ESCORT', 'WARSHIP'].includes(c?.type),
+  weatherVisibilityBetween: (s, p1, p2) => Number(s?.world?.environment?.visibilityNm || 10),
   ensureShipDamage: c => c?.shipDamage || { flotation: 1, propulsion: 1, steering: 1, fire: 0, killPoints: 100 },
   shipDamageSeverity: c => c?.damageSeverity || (c?.sunk ? 1 : 0),
   shipDamageCondition: c => c?.sunk ? 'SUNK' : 'LIGHT DAMAGE',
@@ -1806,6 +1809,7 @@ const navCtx = {
   PresentationBridge: { audio: () => ({ playHelmOrder() {}, playDive() {}, playSurface() {}, playCrashDive() {}, event() {} }), delayedAudio: () => {}, toast: () => ({ ok() {}, warn() {} }), emit: () => {} }
 };
 vm.createContext(navCtx);
+navCtx.globalThis = navCtx;
 vm.runInContext(terrainCode, navCtx);
 vm.runInContext(`${geomCode}\n;globalThis.Bathy = Bathy;`, navCtx);
 vm.runInContext(`${coreCode}\n;globalThis.CoreSystem = CoreSystem;`, navCtx);
@@ -1813,6 +1817,7 @@ vm.runInContext(`${physCode}\n;globalThis.SimEngine = SimEngine;`, navCtx);
 vm.runInContext(missionCode, navCtx);
 vm.runInContext(aarCode, navCtx);
 vm.runInContext(`${careerCode}\n;globalThis.CareerSystem = CareerSystem;`, navCtx);
+vm.runInContext(surfaceWatchCode, navCtx);
 
 const solomonTerrain = navCtx.getPatrolTerrain('Solomon Sea');
 navCtx.Bathy.ensure(solomonTerrain);
@@ -2265,6 +2270,86 @@ assert.equal(fullRecord.decisions.length, 4, 'Patrol record must contain tactica
 assert.ok(fullRecord.pacingSummary, 'Patrol record must contain pacingSummary');
 assert.equal(fullRecord.replay.decisions.length, 4, 'Replay payload inside record must retain decisions');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5, aar als tactische reconstructie & declassified truth 5');
+// 26. Verdieping van Campagnegevolgen & Refit Cyclus (5 tests)
+// Test 1: Refit Turnaround Wiskunde (Lichte vs Zware Schade, Restspanning & Veilige Vloer)
+const refitRoutine = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 92, patrolScore: 1000, outcome: 'COMPLETED' });
+assert.equal(refitRoutine.hullRestored, 100, 'Routine drydock overhaul must restore 100% hull');
+assert.equal(refitRoutine.residualStress, false, 'No residual stress on routine return');
+assert.equal(refitRoutine.crushDepthRatedFeet, 400, 'Crush depth certified to full 400 ft');
+assert.equal(refitRoutine.recommendedPatrolType, 'STANDARD_PATROL');
+
+const refitHeavy = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 35, patrolScore: 1200, outcome: 'COMPLETED' });
+assert.equal(refitHeavy.residualStress, true, 'Catastrophic battle damage (<50%) leaves residual frame stress');
+assert.ok(refitHeavy.hullRestored >= 78 && refitHeavy.hullRestored <= refitHeavy.hullCeiling, 'Hull must be capped by frame stress ceiling');
+assert.ok(refitHeavy.crushDepthRatedFeet < 400, 'Crush depth rating must be reduced by frame stress');
+assert.equal(refitHeavy.recommendedPatrolType, 'RECOVERY_PATROL', 'Heavy damage must advise working-up recovery patrol');
+
+const refitDisaster = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 5, patrolScore: 0, outcome: 'COMPLETED' });
+assert.equal(refitDisaster.hullRestored, 78, 'Guaranteed safe floor: shipyard never clears a boat below 78%');
+assert.equal(refitDisaster.recommendedPatrolType, 'RECOVERY_PATROL');
+
+// Test 2: Torpedorantsoenering & Logistieke Prioritering (Geen Soft-Locks)
+const priorityLogistics = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 95, patrolScore: 2200, outcome: 'COMPLETED' }, { prevVeteranLevel: 2 });
+assert.equal(priorityLogistics.torpedoAllocation.priorityStock, true, 'Elite/veteran boats receive priority ordnance requisition');
+assert.equal(priorityLogistics.torpedoAllocation.reserveCount, 16);
+
+const pinchedLogistics = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 40, patrolScore: 300, outcome: 'COMPLETED' }, { prevVeteranLevel: 0 });
+assert.equal(pinchedLogistics.torpedoAllocation.priorityStock, false, 'Pinched logistics boat receives standard stock');
+assert.ok(pinchedLogistics.torpedoAllocation.reserveCount >= 12, 'Must guarantee at least 12 reserve torpedoes (no soft-lock)');
+
+// Test 3: Bemanningsvermoeidheid & Veteranenprogressie (GREEN -> ELITE)
+const fatShort = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 80, patrolScore: 1000, ownBoat: { crewFatigue: 0.85 } }, { shortTurnaround: true });
+assert.equal(fatShort.crewFatigueResidual, 0.08, 'Short turnaround with high fatigue retains 8% residual');
+
+const fatNormal = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 80, patrolScore: 1000, ownBoat: { crewFatigue: 0.85 } }, { shortTurnaround: false });
+assert.equal(fatNormal.crewFatigueResidual, 0, 'Normal turnaround fully rests crew');
+
+const vetStep1 = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 90, patrolScore: 1500, shipsSunk: 2, tonnage: 10000 }, { prevVeteranLevel: 0 });
+assert.equal(vetStep1.crewVeteranLevel, 1, 'First successful patrol promotes crew to SEASONED (level 1)');
+assert.equal(vetStep1.crewRankTitle, 'SEASONED');
+
+const vetStep2 = navCtx.CareerSystem.calculateRefitTurnaround({ hullAtEnd: 90, patrolScore: 1600, shipsSunk: 3, tonnage: 14000 }, { prevVeteranLevel: 2 });
+assert.equal(vetStep2.crewVeteranLevel, 3, 'Consecutive successful patrols promote to ELITE (level 3)');
+assert.equal(vetStep2.crewRankTitle, 'ELITE');
+
+// Test 4: Tactische Effecten van Veteranenbemanning (Herlaad, Averijploeg & Uitkijk)
+// 4.1 Torpedo herlaadfactor
+const reloadModGreen = 1 + 0 * 0.05;
+const reloadModElite = 1 + 3 * 0.05;
+assert.equal(reloadModGreen, 1.0);
+assert.equal(reloadModElite, 1.15, 'Elite torpedo crew reloads 15% faster');
+
+// 4.2 Averijploeg herstelfactor
+const dcModGreen = 1 + 0 * 0.06;
+const dcModElite = 1 + 3 * 0.06;
+assert.equal(dcModGreen, 1.0);
+assert.equal(dcModElite, 1.18, 'Elite DC crew repairs 18% faster');
+
+// 4.3 Uitkijk waarnemingsbereik
+const mockSubGreen = { damage: { veteranLevel: 0 }, depthFeet: 0, position: { xNm: 0, yNm: 0 } };
+const mockSubElite = { damage: { veteranLevel: 3 }, depthFeet: 0, position: { xNm: 0, yNm: 0 } };
+const mockTargetShip = { type: 'FREIGHTER', speedKnots: 8, position: { xNm: 0, yNm: 6 } };
+const visGreen = navCtx.bridgeVisualLimitNm({ playerSub: mockSubGreen, world: { environment: { visibilityNm: 10 } } }, mockTargetShip);
+const visElite = navCtx.bridgeVisualLimitNm({ playerSub: mockSubElite, world: { environment: { visibilityNm: 10 } } }, mockTargetShip);
+assert.ok(visElite > visGreen, 'Elite lookout spotting distance must exceed green lookouts');
+assert.equal(Math.round((visElite / visGreen) * 100) / 100, 1.12, 'Elite lookouts gain exactly +12% spotting distance');
+
+// Test 5: End-to-End Multi-Patrol Continuïteit & Herstelpatrouille-Aanbeveling
+const batteredRecord = navCtx.CareerSystem.buildPatrolRecord.call({
+  state: {
+    ...fullPatrolContext.state,
+    playerSub: { damage: { hullIntegrity: 32, veteranLevel: 1 }, propulsion: { fuel: 75, battery: 80 } }
+  },
+  aar: { buildReplay: () => replayPayload },
+  ensureCareerPatrolState: navCtx.CareerSystem.ensureCareerPatrolState
+}, 'COMPLETED', { hullAtEnd: 32, patrolScore: 800 });
+
+assert.ok(batteredRecord.refitTurnaround, 'Patrol record must contain refitTurnaround');
+assert.equal(batteredRecord.refitTurnaround.recommendedPatrolType, 'RECOVERY_PATROL');
+assert.equal(batteredRecord.refitTurnaround.residualStress, true);
+assert.ok(batteredRecord.refitTurnaround.hullRestored <= 88, 'Hull ceiling must be enforced');
+assert.ok(batteredRecord.refitTurnaround.refitNotes.length >= 2, 'Must include shipyard repair dispatches');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5, aar als tactische reconstructie & declassified truth 5, verdieping van campagnegevolgen & refit cyclus 5');
 
 

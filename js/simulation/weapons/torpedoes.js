@@ -354,7 +354,10 @@ const TorpedoSystem={
       if(c.sunk) c.sinkingProgress=clamp((c.sinkingProgress??0)+dt/(c.sinkDurationSec||45),0,1);
     for(const tube of W.tubes){
       if(tube.status==='EMPTY'){
-        tube.reloadProgress=clamp(tube.reloadProgress+dt/120,0,1);
+        const fatigueMod=1-clamp(Number(this.state.playerSub?.damage?.crewFatigue)||0,0,1)*0.45;
+        const vetLevel=clamp(Number(this.state.playerSub?.damage?.veteranLevel)||0,0,3);
+        const vetMod=1+vetLevel*0.05;
+        tube.reloadProgress=clamp(tube.reloadProgress+(dt/120)*fatigueMod*vetMod,0,1);
         if(tube.reloadProgress>=1&&W.torpedoInventory>0){
           tube.status='LOADED_DRY';
           tube.specKey=this.state.tdc.torpedoSpecKey;
