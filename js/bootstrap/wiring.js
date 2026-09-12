@@ -23,7 +23,12 @@ globalThis.processPresentationEffects=()=>{
       if(e.payload.queued){if(q.length<2)q.push(snap);continue;}
       const startImpact=s=>{const token=s.token;p.impactStartedWall=performance.now();p.impactToken=token;p.impactQueue=q;game.state.tactical.impactObservation=s;
         setTimeout(()=>{if(game.state.tactical?.impactObservation?.token===token){const method=String(s.weapon||'').toUpperCase()==='TORPEDO'?'playTorpedoHit':'playHit';game.dispatch({type:'PLAY_AUDIO',method});}},Math.max(0,s.preImpactMs||0));
-        p.impactTimer=setTimeout(()=>{if(p.impactToken!==token)return;const next=q.shift();if(next){startImpact(next);}else{
+        p.impactTimer=setTimeout(()=>{if(p.impactToken!==token)return;const next=q.shift();if(next){
+          // Salvo pacing: subsequent queued hits run snappier (3400ms vs 5000ms, 450ms preImpact)
+          if(!next.durationMs||next.durationMs>3800)next.durationMs=3400;
+          if(!next.preImpactMs||next.preImpactMs>600)next.preImpactMs=450;
+          startImpact(next);
+        }else{
           /* END must see the matching observation; clearing it first leaves
              modalPauses stuck and produces a black paused frame. */
           game.dispatch({type:'END_IMPACT_OBSERVATION',token});
@@ -54,7 +59,7 @@ globalThis.processPresentationEffects=()=>{
     if(e.type==='ui'&&e.payload.method==='resumeHide')document.getElementById('resumeBar')?.classList.remove('on');
   }
 };
-globalThis.skipImpactObservation=()=>{const p=game.state.runtime?.presentation;if(!p?.impactToken||performance.now()-Number(p.impactStartedWall||0)<900)return false;clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{const token=p.impactToken;game.dispatch({type:'END_IMPACT_OBSERVATION',token});p.impactToken=null;p.impactQueue=[];p.impactStartedWall=null;}return true;};
+globalThis.skipImpactObservation=()=>{const p=game.state.runtime?.presentation;if(!p?.impactToken||performance.now()-Number(p.impactStartedWall||0)<350)return false;clearTimeout(p.impactTimer);p.impactTimer=null;const next=p.impactQueue?.shift();if(next){if(!next.durationMs||next.durationMs>3800)next.durationMs=3400;if(!next.preImpactMs||next.preImpactMs>600)next.preImpactMs=450;p.impactStartedWall=performance.now();p.impactToken=next.token;game.state.tactical.impactObservation=next;processPresentationEffects();}else{const token=p.impactToken;game.dispatch({type:'END_IMPACT_OBSERVATION',token});p.impactToken=null;p.impactQueue=[];p.impactStartedWall=null;}return true;};
 document.addEventListener('pointerdown',e=>{if(e.target?.closest?.('#toastContainer,button,a,input,select,textarea'))return;globalThis.skipImpactObservation?.();},{capture:true});
 showBriefing(game.getSnapshot().campaign.patrolArea,game.getSnapshot());
 

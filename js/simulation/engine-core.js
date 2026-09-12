@@ -41,6 +41,9 @@ const CoreSystem={
     const originFov=originStation==='PERISCOPE'
       ?((typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[T.periscopeZoom===1?0:1]?.fov:null)||(T.periscopeZoom===1?32:8))
       :(originStation==='BRIDGE'&&typeof bridgeFovDeg==='function'?bridgeFovDeg(this.state):82);
+    const isSubsequent=Number(meta.hitIndex||0)>0||!!this.state.tactical?.impactObservation||((this.state.runtime?.presentation?.impactQueue?.length||0)>0);
+    const preImpactMs=Number.isFinite(meta.preImpactMs)?meta.preImpactMs:(isSubsequent?450:1100);
+    const durationMs=Number.isFinite(meta.durationMs)?meta.durationMs:(isSubsequent?3400:5000);
     return{
       token:++this._impactSeq,contactId:c.id,name:c.name||c.id,type:c.type,displayType:c.displayType||c.type,
       lengthYards:c.lengthYards,tonsFactor:c.tonsFactor||0,heading:targetHeading,speedKnots:c.speedKnots||0,
@@ -48,7 +51,7 @@ const CoreSystem={
       hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1,stationary:!!c.stationary,beforeShip:clone(meta.beforeShip||null),
       impactPosition:clone(meta.impactPosition||null),viewerPos:{...sub.position},viewerDepth:sub.depthFeet||0,viewerHeading:sub.heading||0,
       originStation,viewBearing,originFov,targetBearing,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
-      condition:meta.condition||null,rangeNm:distNm(sub.position,targetPosition),preImpactMs:1500,durationMs:9000,
+      condition:meta.condition||null,rangeNm:distNm(sub.position,targetPosition),preImpactMs,durationMs,
       torpedoHeading:Number.isFinite(meta.torpedoHeading)?normDeg(meta.torpedoHeading):null,
       impactSide:meta.impactSide===-1?-1:1,incidenceDeg:Number.isFinite(meta.incidenceDeg)?meta.incidenceDeg:null,warheadKg:Number(meta.warheadKg)||null,
       torpedoWakePath:clone(meta.torpedoWakePath||[]),torpedoWakeNm:Number.isFinite(meta.torpedoWakeNm)?Math.max(0,meta.torpedoWakeNm):0,torpedoWakeVisible:!!meta.torpedoWakeVisible

@@ -1706,5 +1706,34 @@ assert.equal(testAudio._tryHybrid('HULL_CREAK'), true);
 assert.equal(testAudio.hybridVoices.length, 1, 'HULL_CREAK must never stack multiple active voices');
 assert.equal(testAudio.hybridMeta.get('HULL_CREAK').activeVoices, 1, 'HULL_CREAK activeVoices must remain exactly 1');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3');
+// 21. Cinematics Duur & Salvo Pacing (3 tests)
+const mockContactTarget = {
+  id: 'TARGET-01',
+  name: 'Maru Maru',
+  type: 'MERCHANT',
+  position: { xNm: 10, yNm: 10 },
+  heading: 90,
+  speedKnots: 8,
+  shipDamage: {}
+};
+simCore.state.playerSub = { position: { xNm: 10, yNm: 8 }, depthFeet: 55, heading: 0 };
+simCore.state.tactical = { activeStation: 'PERISCOPE', periscopeBearing: 0, periscopeZoom: 1, impactObservation: null };
+simCore.state.runtime = { presentation: { impactQueue: [] } };
+
+// Test 1: First isolated hit default duration and anticipation
+const snapSingle = simCore.impactObservationSnapshot(mockContactTarget, {});
+assert.equal(snapSingle.durationMs, 5000, 'Single hit cinematic duration must be 5000ms (reduced from old 9000ms)');
+assert.equal(snapSingle.preImpactMs, 1100, 'Single hit pre-impact anticipation must be 1100ms');
+
+// Test 2: Subsequent salvo hit gets streamlined duration and anticipation
+const snapSubsequent = simCore.impactObservationSnapshot(mockContactTarget, { hitIndex: 1 });
+assert.equal(snapSubsequent.durationMs, 3400, 'Subsequent salvo hit must be streamlined to 3400ms');
+assert.equal(snapSubsequent.preImpactMs, 450, 'Subsequent salvo hit pre-impact must be fast 450ms cut');
+
+// Test 3: Explicit overrides are strictly preserved
+const snapCustom = simCore.impactObservationSnapshot(mockContactTarget, { durationMs: 9000, preImpactMs: 1500 });
+assert.equal(snapCustom.durationMs, 9000, 'Explicit custom durationMs must be preserved');
+assert.equal(snapCustom.preImpactMs, 1500, 'Explicit custom preImpactMs must be preserved');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3');
 
