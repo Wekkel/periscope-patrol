@@ -143,6 +143,20 @@ class AudioEngine{
     return (this.hybridDecodedBytes+neededBytes<=this.hybridBudgetBytes);
   }
 
+  _applyHannTaper(buffer){
+    if(!buffer)return buffer;
+    const taperLen=Math.min(Math.floor(buffer.sampleRate*0.008),Math.floor(buffer.length/2));
+    if(taperLen>0){
+      for(let ch=0;ch<buffer.numberOfChannels;ch++){
+        const d=buffer.getChannelData(ch);
+        for(let i=0;i<taperLen;i++)d[i]*=0.5*(1-Math.cos((Math.PI*i)/taperLen));
+        const tailStart=buffer.length-taperLen;
+        for(let i=0;i<taperLen;i++)d[tailStart+i]*=0.5*(1+Math.cos((Math.PI*i)/taperLen));
+      }
+    }
+    return buffer;
+  }
+
   async _loadHybrid(id){
     const spec=this.hybridManifest[id];
     if(!this.ctx||!spec?.url)return null;
@@ -167,16 +181,7 @@ class AudioEngine{
         if(!fits){
           throw new Error(`Hybrid audio ${id} (${bytes} B) cannot fit; active voices occupy remaining budget`);
         }
-        // Bidirectional anti-click Hann window: 8ms fade-in and 8ms fade-out eliminates zero-crossing clicks
-        const taperLen=Math.min(Math.floor(buffer.sampleRate*0.008),Math.floor(buffer.length/2));
-        if(taperLen>0){
-          for(let ch=0;ch<buffer.numberOfChannels;ch++){
-            const d=buffer.getChannelData(ch);
-            for(let i=0;i<taperLen;i++)d[i]*=0.5*(1-Math.cos((Math.PI*i)/taperLen));
-            const tailStart=buffer.length-taperLen;
-            for(let i=0;i<taperLen;i++)d[tailStart+i]*=0.5*(1+Math.cos((Math.PI*i)/taperLen));
-          }
-        }
+        this._applyHannTaper(buffer);
         this.hybridBuffers.set(id,buffer);
         this.hybridMeta.set(id,{bytes,lastUsed:performance.now(),activeVoices:0});
         this.hybridDecodedBytes+=bytes;
@@ -232,6 +237,7 @@ class AudioEngine{
             existing.gain.gain.cancelScheduledValues(nowFade);
             existing.gain.gain.setValueAtTime(Math.max(0.0001,existing.gain.gain.value||0.0001),nowFade);
             existing.gain.gain.linearRampToValueAtTime(0.0001,nowFade+0.012);
+            existing.source.onended=null;
             existing.source.stop(nowFade+0.015);
           }catch(_){}
           this.hybridVoices=this.hybridVoices.filter(v=>v!==existing);
@@ -250,6 +256,7 @@ class AudioEngine{
           oldest.gain.gain.cancelScheduledValues(nowVoice);
           oldest.gain.gain.setValueAtTime(Math.max(0.0001,oldest.gain.gain.value||0.0001),nowVoice);
           oldest.gain.gain.linearRampToValueAtTime(0.0001,nowVoice+0.008);
+          oldest.source.onended=null;
           oldest.source.stop(nowVoice+0.010);
         }catch(_){}
         const oldMeta=this.hybridMeta.get(oldest.id);
@@ -980,11 +987,16 @@ class AudioEngine{
 
 
   _aircraftAudioProfile(a){
+    // Voorkeur: het echte, per-vliegtuig audioprofiel uit de catalogus
+    // (AIRCRAFT_PROFILES/MULTI_AIRCRAFT_PROFILES), zodat elk vliegtuigtype
+    // zijn eigen motorgeluid heeft i.p.v. te vertrouwen op naam-substring-
+    // matching die stilzwijgend faalt zodra een nieuw vliegtuig of nieuwe
+    // marine wordt toegevoegd.
+    const catalogProfile=typeof getAircraftProfile==='function'?getAircraftProfile(a?.aircraftProfileId):null;
+    if(catalogProfile?.audio)return catalogProfile.audio;
+    // Fallback voor vliegtuigen zonder catalogus-audioblok (bijv. oude saves
+    // die naar een profileId verwijzen dat niet meer bestaat).
     const name=String(a?.name||'').toUpperCase(),kind=String(a?.kind||'').toUpperCase();
-    // The exact engine note is intentionally impressionistic: the useful cues
-    // are mass, propeller blade-pass and multiple engines beating against one
-    // another. Keeping profiles data-driven lets future aircraft reuse this
-    // engine without adding samples or bespoke audio code.
     if(name.includes('PBY')||name.includes('CATALINA'))return{key:'PBY',engines:2,rpm:2050,blades:3,weight:1.10,dark:.88};
     if(name.includes('TYPE 97')||name.includes('H6K'))return{key:'H6K',engines:4,rpm:2180,blades:3,weight:1.22,dark:.84};
     if(kind==='FLYING_BOAT')return{key:'FLYING_BOAT',engines:4,rpm:2100,blades:3,weight:1.18,dark:.86};

@@ -101,8 +101,19 @@ class CanvasViewCore{
       ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
       stationView.drawHitFlash(ctx,w,h,state);
       stationView.drawOwnBoatImpact(ctx,w,h,state);
-      if(state.tactical.impactObservation&&registry.stationContext('PERISCOPE').drawImpactObservation)registry.stationContext('PERISCOPE').drawImpactObservation(ctx,w,h,state);
-      else{
+      if(state.tactical.impactObservation){
+        const periscopeCtx=registry.stationContext('PERISCOPE');
+        if(periscopeCtx.drawImpactObservation){
+          // De impact-cinematic kan vanaf elk station afvuren, maar deze context
+          // se cached dpr/k/portrait worden alleen ververst wanneer PERISCOPE
+          // zelf het laatst-getekende station was (zie drawStation hierboven).
+          // Zonder deze sync kan de cinematic met een verouderde schaal/transform
+          // tekenen als de speler nooit de periscoop heeft geopend en het
+          // viewport intussen is veranderd.
+          if(station!=='PERISCOPE')Object.assign(periscopeCtx,registry.core);
+          periscopeCtx.drawImpactObservation(ctx,w,h,state);
+        }
+      }else{
         stationView.drawAirAlarm(ctx,w,h,state);
         stationView.drawSoundCallout(ctx,w,h,state,layout);
       }

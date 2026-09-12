@@ -420,6 +420,34 @@ const PeriscopeStation={
     ctx.fillText('SCOPE BELOW SURFACE',cx,cy-8*this.k);
     ctx.font=this.fnt(10);ctx.fillStyle='rgba(245,198,92,.7)';
     ctx.fillText('rise to 55 ft for a look',cx,cy+10*this.k);ctx.textAlign='left';
+  },
+
+  pickScopeContact(state,clientX,clientY){
+    const core=this.core,rect=core.canvas.getBoundingClientRect();
+    const p={x:(clientX-rect.left)*(core.w/(rect.width||core.w)),y:(clientY-rect.top)*(core.h/(rect.height||core.h))};
+    const cam=this.core?.cam??this.cam;
+    if(!cam) return null;
+    const fov=SCOPE_OPTICS[state.tactical.periscopeZoom===1?0:1].fov;
+    let best=null,bd=Infinity;
+    for(const c of state.world.contacts){
+      if(c.sunk&&(c.sinkingProgress??0)>=1) continue;
+      if(typeof scopeCanResolveHull==='function'&&!scopeCanResolveHull(state,c,{fovPad:.60}))continue;
+      const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);
+      if(!scr) continue;
+      const d=Math.abs(scr.x-p.x);
+      if(d<bd){bd=d;best=c.id;}
+    }
+    if(best===null){
+      for(const tr of Object.values(state.world.contactTracks)){
+        if(tr.confidence<0.12||tr.sunk) continue;
+        const bd2=shortDelta(state.tactical.periscopeBearing,tr.bearing);
+        if(Math.abs(bd2)>fov/2) continue;
+        const x=cam.cx+Math.tan(degToRad(bd2))*cam.f;
+        const d=Math.abs(x-p.x);
+        if(d<bd){bd=d;best=tr.id;}
+      }
+    }
+    return bd<Math.max(46,60*this.k)?best:null;
   }
 };
 

@@ -21,27 +21,69 @@ const DeckGunStation={
 
      It is still cheap Canvas2D vector geometry, but perspective is now the
      same operation at 0°, 90°, 180° and every bearing between. */
+  // Eén tabel per rompmodel voor de geometrie die van BUITEN deze functie
+  // wordt aangeroepen (ownshipSurfaceSections/ownshipDeckGunForwardM/
+  // ownshipCameraPose). De puur cosmetische coördinaten verderop in
+  // drawOwnshipSurfaceDeck3D (seamF/posts/fittings/deckRect/barrel) blijven
+  // bewust een viic-ternary: die vereisen echte referentiematen per romp en
+  // kunnen niet veilig automatisch worden gegenereerd voor een nieuw
+  // rompmodel — werk die per nieuw model handmatig uit zodra er echte
+  // ontwerpdata is, in plaats van een geraden default te laten renderen.
+  OWNSHIP_VISUAL_MODELS:{
+    'TYPE_VIIC_1941':{
+      surfaceSections:[
+        {f:-33.2,w:.12,z:.50},{f:-29,w:1.35,z:.67},{f:-23,w:2.35,z:.84},{f:-15,w:2.75,z:1.00},
+        {f:-7,w:2.92,z:1.12},{f:0,w:3.02,z:1.18},{f:8,w:2.96,z:1.12},{f:16,w:2.72,z:.98},
+        {f:24,w:2.18,z:.80},{f:30,w:1.12,z:.62},{f:33.8,w:.10,z:.48}
+      ],
+      deckGunForwardM:8.5,
+      bridgeCameraFwdM:-2.0
+    },
+    'GATO_FLEET_BOAT':{
+      surfaceSections:[
+        {f:-47,w:.18,z:.68},{f:-41,w:2.35,z:.96},{f:-32,w:3.15,z:1.20},{f:-22,w:3.55,z:1.43},
+        {f:-12,w:3.82,z:1.67},{f:-5,w:3.90,z:1.82},{f:4,w:3.92,z:1.88},{f:11,w:4.00,z:1.73},
+        {f:22,w:3.72,z:1.47},{f:35,w:3.05,z:1.18},{f:48,w:1.58,z:.90},{f:55,w:.16,z:.67}
+      ],
+      deckGunForwardM:12.0,
+      bridgeCameraFwdM:0.0
+    }
+  },
   ownshipVisualModelKey(state){
     const p=typeof getSubmarineProfile==='function'?getSubmarineProfile(state?.playerSub?.profileId):null;
     return p?.visualModelKey||'GATO_FLEET_BOAT';
   },
-  ownshipSurfaceSections(state=null){
-    if(this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941')return[
-      {f:-33.2,w:.12,z:.50},{f:-29,w:1.35,z:.67},{f:-23,w:2.35,z:.84},{f:-15,w:2.75,z:1.00},
-      {f:-7,w:2.92,z:1.12},{f:0,w:3.02,z:1.18},{f:8,w:2.96,z:1.12},{f:16,w:2.72,z:.98},
-      {f:24,w:2.18,z:.80},{f:30,w:1.12,z:.62},{f:33.8,w:.10,z:.48}
-    ];
-    return[
-      {f:-47,w:.18,z:.68},{f:-41,w:2.35,z:.96},{f:-32,w:3.15,z:1.20},{f:-22,w:3.55,z:1.43},
-      {f:-12,w:3.82,z:1.67},{f:-5,w:3.90,z:1.82},{f:4,w:3.92,z:1.88},{f:11,w:4.00,z:1.73},
-      {f:22,w:3.72,z:1.47},{f:35,w:3.05,z:1.18},{f:48,w:1.58,z:.90},{f:55,w:.16,z:.67}
-    ];
+  ownshipVisualModel(state){
+    const key=this.ownshipVisualModelKey(state),model=this.OWNSHIP_VISUAL_MODELS[key];
+    if(model)return model;
+    // Onbekend rompmodel: nooit stilzwijgend als Gato renderen — waarschuw
+    // luid zodat dit tijdens ontwikkeling opvalt, val dan pas terug.
+    console.warn(`[DeckGunStation] Unknown visualModelKey "${key}" — no OWNSHIP_VISUAL_MODELS entry; falling back to GATO_FLEET_BOAT geometry.`);
+    return this.OWNSHIP_VISUAL_MODELS.GATO_FLEET_BOAT;
   },
-  ownshipDeckGunForwardM(state){return this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941'?8.5:12.0;},
+  ownshipSurfaceSections(state=null){
+    return this.ownshipVisualModel(state).surfaceSections;
+  },
+  ownshipDeckGunForwardM(state){return this.ownshipVisualModel(state).deckGunForwardM;},
+  pickGunContact(state,clientX,clientY){
+    // toLocal() bestaat alleen op MapStation (map.js) en is dus niet
+    // bereikbaar als this.toLocal vanuit de DECK_GUN-context — bereken het
+    // lokale punt daarom rechtstreeks via de gedeelde core, net als de
+    // bestaande fix voor pickBridgeContact in bridge-3d.js.
+    const core=this.core,rect=core.canvas.getBoundingClientRect();
+    const p={x:(clientX-rect.left)*(core.w/(rect.width||core.w)),y:(clientY-rect.top)*(core.h/(rect.height||core.h))};
+    const cam=this.core?.gunCam??this.gunCam;if(!cam)return null;
+    let best=null,bd=Infinity;
+    for(const c of state.world.contacts){
+      if(c.sunk)continue;const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
+      const d=Math.hypot(scr.x-p.x,(scr.y-p.y)*0.7);if(d<bd){bd=d;best=c.id;}
+    }
+    return bd<Math.max(50,65*this.k)?best:null;
+  },
   ownshipCameraPose(cam,state,opts={}){
     // Fairwater/bridge is close to amidships. The gun sight lives on the
     // forward gun mount, not at the centre of the submarine.
-    const fwd=opts.gun?this.ownshipDeckGunForwardM(state):(this.ownshipVisualModelKey(state)==='TYPE_VIIC_1941'?-2.0:0.0),side=0;
+    const fwd=opts.gun?this.ownshipDeckGunForwardM(state):this.ownshipVisualModel(state).bridgeCameraFwdM,side=0;
     cam.ownshipCameraFwdM=fwd;cam.ownshipCameraSideM=side;
     return{fwd,side};
   },

@@ -131,11 +131,11 @@ const MULTI_ASW_TACTICS=_mtFreeze({
   italy:{id:'italy',searchPattern:'SECTOR',prosecutionFactor:.82,searchGrowthFactor:.80,speculativeAttackFactor:.72,attackSpeedFactor:.92,depthErrorFactor:1.24,training:.74,yearBands:[{from:1943,prosecutionFactor:.90,searchGrowthFactor:.88,depthErrorFactor:1.13,training:.82}]},
   soviet:{id:'soviet',searchPattern:'CIRCULAR',prosecutionFactor:.86,searchGrowthFactor:.84,speculativeAttackFactor:.76,attackSpeedFactor:.94,depthErrorFactor:1.20,training:.72,yearBands:[{from:1944,prosecutionFactor:.96,searchGrowthFactor:.94,depthErrorFactor:1.08,training:.84}]}
 });
-const MULTI_AIRCRAFT_PROFILES=_mtFreeze(Object.fromEntries(Object.entries({usa:'US Navy patrol aircraft',japan:'IJN maritime patrol aircraft',germany:'Luftwaffe maritime patrol aircraft',britain:'RAF Coastal Command aircraft',italy:'Regia Aeronautica maritime aircraft',soviet:'Soviet naval patrol aircraft'}).map(([f,name])=>[`${f}-maritime-air`,{id:`${f}-maritime-air`,factionId:f,name,kind:'BOMBER',availableFrom:19400101,engines:2,spanM:24,lengthM:18,speedKnots:[150,220],ordnance:'DEPTH_CHARGE',recognition:`${name}; identification remains sensor-dependent`,doctrine:'Area/date patrol, report, attack and re-attack.'}])));
+const MULTI_AIRCRAFT_PROFILES=_mtFreeze(Object.fromEntries(Object.entries({usa:'US Navy patrol aircraft',japan:'IJN maritime patrol aircraft',germany:'Luftwaffe maritime patrol aircraft',britain:'RAF Coastal Command aircraft',italy:'Regia Aeronautica maritime aircraft',soviet:'Soviet naval patrol aircraft'}).map(([f,name])=>[`${f}-maritime-air`,{id:`${f}-maritime-air`,factionId:f,name,kind:'BOMBER',availableFrom:19400101,engines:2,spanM:24,lengthM:18,speedKnots:[150,220],ordnance:'DEPTH_CHARGE',recognition:`${name}; identification remains sensor-dependent`,doctrine:'Area/date patrol, report, attack and re-attack.',audio:{key:'TWIN_BOMBER',engines:2,rpm:2200,blades:3,weight:1.05,dark:.90}}])));
 
 const MISSION_MECHANICS=['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','SHADOW_REPORT','RECONNAISSANCE','MINELAYING','SPECIAL_TRANSPORT','HARBOR_STRIKE','LIFEGUARD','ESCORT_HUNT','WEATHER_AMBUSH'];
 const MISSION_LABELS={CONVOY_INTERDICTION:'Area Patrol',HIGH_VALUE_INTERCEPT:'Priority Intercept',SHADOW_REPORT:'Shadow and Report',RECONNAISSANCE:'Coastal Reconnaissance',MINELAYING:'Mine Operation',SPECIAL_TRANSPORT:'Clandestine Transport',HARBOR_STRIKE:'Chokepoint Penetration',LIFEGUARD:'Rescue Coordination',ESCORT_HUNT:'Warship Intercept',WEATHER_AMBUSH:'Campaign Climax'};
-function _missionProfile(id,party,base,opponent){
+function _missionProfile(id,party,base,opponent,specialOpsProfile){
   const content=Object.assign(_mtClone(US_PACIFIC_MISSION_PROFILE.content),_mtClone(base.content||{})),defs={};
   for(const [i,type] of MISSION_MECHANICS.entries())defs[type]={
     id:`${id}-${String(i+1).padStart(2,'0')}`,title:`${party.shortName} ${MISSION_LABELS[type].toUpperCase()}`,reward:1200+i*140,
@@ -145,7 +145,16 @@ function _missionProfile(id,party,base,opponent){
     seedVariants:[`${type}-A`,`${type}-B`,`${type}-C`],expectedDurationMin:[24,36],failStates:['assigned target or window irrecoverably lost','boat lost','return condition abandoned'],returnCriteria:['primary result resolved','friendly return area reached surfaced and stopped'],
     aarQuestions:['What did you actually know before committing?','Which choice changed enemy reaction?'],aarLessons:[`Review ${party.doctrine}.`,'Separate plotted estimates from simulation truth.','Preserve fuel, battery and an escape route.']};
   const walk=x=>{if(!x||typeof x!=='object')return;for(const [k,v] of Object.entries(x)){if(k==='vesselProfileId'){const p=x.side==='FRIENDLY'?party.factionId:opponent,g=String(x.gameplayType||x.type||'MERCHANT').toUpperCase();x[k]=`${p}-${g==='TANKER'?'tanker':g==='DESTROYER'?'destroyer':['ESCORT','WARSHIP','PATROL_CRAFT'].includes(g)?'escort':g==='RAFT'?'raft':'merchant'}`;}else walk(v);}};walk(content);
-  return _mtFreeze({id:`${id}-missions-v2`,defaultMissionType:MISSION_MECHANICS[0],autoDescription:`Ten distinct ${party.shortName} operations; AUTO follows area, date and seed.`,definitions:defs,missionPoolsByArea:Object.fromEntries(party.patrolAreaIds.map(a=>[a,[...MISSION_MECHANICS]])),defaultMissionPool:[...MISSION_MECHANICS],content});
+  // HARBOR_STRIKE vereist echte havengeometrie (mijnen, net, vaargeul) via
+  // HarborSystem.setupHarbor(), die alleen vult wanneer areaKey exact
+  // overeenkomt met specialOpsProfile.harborRaid.areaKey. Zonder die match
+  // valt de missie terug op een lege ankerplaats-fallback zonder enige
+  // verdediging — dus HARBOR_STRIKE hoort niet in de pool van een gebied dat
+  // niet die exacte harborRaid-areaKey is.
+  const harborAreaKey=specialOpsProfile?.harborRaid?.areaKey||null;
+  const poolForArea=a=>a===harborAreaKey?[...MISSION_MECHANICS]:MISSION_MECHANICS.filter(m=>m!=='HARBOR_STRIKE');
+  const defaultPool=MISSION_MECHANICS.filter(m=>m!=='HARBOR_STRIKE');
+  return _mtFreeze({id:`${id}-missions-v2`,defaultMissionType:MISSION_MECHANICS[0],autoDescription:`Ten distinct ${party.shortName} operations; AUTO follows area, date and seed.`,definitions:defs,missionPoolsByArea:Object.fromEntries(party.patrolAreaIds.map(a=>[a,poolForArea(a)])),defaultMissionPool:defaultPool,content});
 }
 
 const WAR_PARTY_PROFILES={
@@ -181,7 +190,7 @@ function _runtimeProfile(party){
   const opponent=(CAMPAIGN_DEFINITIONS[party.campaignId].hostilePairs[0]||'').split(':').find(x=>x!==party.factionId)||'unknown',sub=MULTI_SUBMARINE_PROFILES[party.submarineProfileId]||SUBMARINE_PROFILES[party.submarineProfileId],torp=sub.weapons.defaultTorpedoSpecKey;
   const x=_mtClone(base);Object.assign(x,{id:party.runtimeCampaignProfileId,displayName:isAuthored?base.displayName:`${CAMPAIGN_DEFINITIONS[party.campaignId].displayName} — ${party.shortName}`,theaterId:CAMPAIGN_DEFINITIONS[party.campaignId].theaterId,playerFactionId:party.factionId,opposingFactionIds:[opponent],submarineProfileId:party.submarineProfileId,commandName:party.commandName,defaultArea:party.patrolAreaIds[0],patrolAreaIds:isAuthored?[...base.patrolAreaIds]:[...party.patrolAreaIds],defaultStartDate:party.dateWindow[0],campaignId:party.campaignId,warPartyId:party.id,devSelectable:true,developmentStage:isAuthored?(base.developmentStage||'COMPLETE_VERTICAL_SLICE'):'COMPLETE_VERTICAL_SLICE'});
   x.doctrineProfile.asw.tactics=_mtClone(MULTI_ASW_TACTICS[opponent]||MULTI_ASW_TACTICS.japan);
-  x.missionProfile=isAuthored?_mtClone(base.missionProfile):_missionProfile(party.id,party,base.missionProfile||US_PACIFIC_MISSION_PROFILE,opponent);x.historicalModel=_historical(base.historicalModel,party,torp);x.verticalSliceAcceptance=_mtClone(VERTICAL_SLICE_ACCEPTED);
+  x.missionProfile=isAuthored?_mtClone(base.missionProfile):_missionProfile(party.id,party,base.missionProfile||US_PACIFIC_MISSION_PROFILE,opponent,base.specialOperationsProfile);x.historicalModel=_historical(base.historicalModel,party,torp);x.verticalSliceAcceptance=_mtClone(VERTICAL_SLICE_ACCEPTED);
   // Preserve campaign-authored harbor operations in the identity-specific
   // runtime profile; otherwise Truk selections silently lose their harbor data.
   x.specialOperationsProfile=base.specialOperationsProfile?_mtClone(base.specialOperationsProfile):null;

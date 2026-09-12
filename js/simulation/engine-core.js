@@ -1481,9 +1481,7 @@ const CoreSystem={
     const raw=[];let u=gi;raw.push(u);while(u!==si&&u>=0){u=parent[u];if(u>=0)raw.push(u);}raw.reverse();
     let pts=raw.map(k=>({xNm:x0+(k%nx)*cell,yNm:y0+((k/nx)|0)*cell}));
     if(Bathy.feet(route.from.xNm,route.from.yNm)>=30&&waterLine(route.from,pts[0]))pts[0]={...route.from};
-    else if(waterLine(route.from,pts[0]))pts.unshift({...route.from});
     if(Bathy.feet(route.to.xNm,route.to.yNm)>=30&&waterLine(pts[pts.length-1],route.to))pts[pts.length-1]={...route.to};
-    else if(waterLine(pts[pts.length-1],route.to))pts.push({...route.to});
     // Line-of-sight simplification removes A* stair-steps but never replaces a
     // water bend by a chord that cuts across an island.
     const simple=[];let i=0;simple.push(pts[0]);

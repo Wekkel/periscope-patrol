@@ -16540,7 +16540,7 @@
           "definedBy": {
             "class": "CoreSystem",
             "file": "js/simulation/engine-core.js",
-            "line": 1528
+            "line": 1526
           },
           "relation": "system"
         },
@@ -17121,7 +17121,7 @@
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
       "line": 1434,
-      "end": 1494,
+      "end": 1492,
       "callDetails": [
         {
           "name": "checkTerrainCollision",
@@ -17172,14 +17172,14 @@
       "name": "validateActiveWaterNetwork",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1496,
-      "end": 1526,
+      "line": 1494,
+      "end": 1524,
       "callDetails": [
         {
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1498,
+          "line": 1496,
           "offset": 279,
           "definedBy": {
             "class": "CoreSystem",
@@ -17192,7 +17192,7 @@
           "name": "resolveWaterRoute",
           "kind": "direct",
           "unresolved": false,
-          "line": 1501,
+          "line": 1499,
           "offset": 574,
           "definedBy": {
             "class": "CoreSystem",
@@ -17205,7 +17205,7 @@
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1502,
+          "line": 1500,
           "offset": 1018,
           "definedBy": {
             "class": "CoreSystem",
@@ -17218,7 +17218,7 @@
           "name": "findNavigablePointNear",
           "kind": "direct",
           "unresolved": false,
-          "line": 1510,
+          "line": 1508,
           "offset": 1648,
           "definedBy": {
             "class": "CoreSystem",
@@ -17231,7 +17231,7 @@
           "name": "checkTerrainCollision",
           "kind": "direct",
           "unresolved": false,
-          "line": 1519,
+          "line": 1517,
           "offset": 2320,
           "definedBy": {
             "class": "CoreSystem",
@@ -17244,7 +17244,7 @@
           "name": "friendlyPortApproach",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 1524,
+          "line": 1522,
           "offset": 2588,
           "definedBy": {
             "class": "CoreSystem",
@@ -17258,47 +17258,47 @@
         {
           "path": "state.world",
           "access": "read",
-          "line": 1497
+          "line": 1495
         },
         {
           "path": "state.campaign.patrolArea",
           "access": "read",
-          "line": 1497
+          "line": 1495
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1498
+          "line": 1496
         },
         {
           "path": "resolveWaterRoute",
           "access": "read",
-          "line": 1501
+          "line": 1499
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1502
+          "line": 1500
         },
         {
           "path": "findNavigablePointNear",
           "access": "read",
-          "line": 1510
+          "line": 1508
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 1519
+          "line": 1517
         },
         {
           "path": "friendlyPortApproach",
           "access": "read",
-          "line": 1524
+          "line": 1522
         },
         {
           "path": "state.campaign.friendlyPort",
           "access": "read",
-          "line": 1524
+          "line": 1522
         }
       ]
     },
@@ -17306,14 +17306,14 @@
       "name": "makeConvoy",
       "class": "CoreSystem",
       "file": "js/simulation/engine-core.js",
-      "line": 1528,
-      "end": 1614,
+      "line": 1526,
+      "end": 1612,
       "callDetails": [
         {
           "name": "resolveWaterRoute",
           "kind": "direct",
           "unresolved": false,
-          "line": 1530,
+          "line": 1528,
           "offset": 81,
           "definedBy": {
             "class": "CoreSystem",
@@ -17327,22 +17327,32 @@
         {
           "path": "resolveWaterRoute",
           "access": "read",
-          "line": 1530
+          "line": 1528
         },
         {
           "path": "state.playerSub.position",
           "access": "read",
-          "line": 1535
+          "line": 1533
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 1535
+          "line": 1533
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 1540
+          "line": 1538
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 1550
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 1551
         },
         {
           "path": "state.campaign",
@@ -17350,34 +17360,24 @@
           "line": 1552
         },
         {
-          "path": "state.campaign",
-          "access": "read",
-          "line": 1553
-        },
-        {
-          "path": "state.campaign",
-          "access": "read",
-          "line": 1554
-        },
-        {
           "path": "state.time",
           "access": "read",
-          "line": 1554
+          "line": 1552
         },
         {
           "path": "state.campaign.patrolArea",
           "access": "read",
-          "line": 1594
+          "line": 1592
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 1595
+          "line": 1593
         },
         {
           "path": "state",
           "access": "read",
-          "line": 1612
+          "line": 1610
         }
       ]
     },

@@ -71,6 +71,21 @@ for(const a of nonHarborAreas){
   assert.ok(!pool.includes('HARBOR_STRIKE'),`Area ${a} must NOT have HARBOR_STRIKE`);
 }
 
+const generatedWarPartyIds=['pacific-japan','atlantic-britain','med-italy','med-britain','baltic-germany','baltic-soviet','indian-japan','indian-britain'];
+for(const partyId of generatedWarPartyIds){
+  const party=evalCtx(`getWarPartyProfile(${JSON.stringify(partyId)})`);
+  assert.ok(party,`War party ${partyId} must exist`);
+  const runtime=evalCtx(`getCampaignProfile(${JSON.stringify(party.runtimeCampaignProfileId)})`);
+  assert.ok(runtime,`Runtime profile for ${partyId} must exist`);
+  assert.ok(runtime.missionProfile,`Mission profile for ${partyId} must exist`);
+  assert.ok(!runtime.missionProfile.defaultMissionPool?.includes('HARBOR_STRIKE'),
+    `defaultMissionPool for generated party ${partyId} must NOT include HARBOR_STRIKE`);
+  for(const [area,pool] of Object.entries(runtime.missionProfile.missionPoolsByArea||{})){
+    assert.ok(!pool.includes('HARBOR_STRIKE'),
+      `Area ${area} pool for generated party ${partyId} must NOT include HARBOR_STRIKE`);
+  }
+}
+
 // 3. Check German Atlantic Campaign Profile
 const gerAtlantic=evalCtx('getCampaignProfile("german-atlantic-1941")');
 assert.ok(gerAtlantic,'getCampaignProfile("german-atlantic-1941") must return a profile');

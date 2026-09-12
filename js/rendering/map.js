@@ -1407,55 +1407,6 @@ const MapStation={
       if(d<bd){bd=d;best=i;}
     });
     return bd<Math.max(30,36*this.k)?best:-1;
-  },
-
-  pickGunContact(state,clientX,clientY){
-    // this.gunCam (not this.core.gunCam) is only live while DECK_GUN is the
-    // context that most recently drew — stale/undefined otherwise, which
-    // used to make a gun-sight tap silently do nothing until the player had
-    // happened to visit DECK_GUN at least once this session.
-    const p=this.toLocal(clientX,clientY),cam=this.core?.gunCam??this.gunCam;if(!cam)return null;
-    let best=null,bd=Infinity;
-    for(const c of state.world.contacts){
-      if(c.sunk)continue;const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
-      const d=Math.hypot(scr.x-p.x,(scr.y-p.y)*0.7);if(d<bd){bd=d;best=c.id;}
-    }
-    return bd<Math.max(50,65*this.k)?best:null;
-  },
-
-  pickScopeContact(state,clientX,clientY){
-    const p=this.toLocal(clientX,clientY);
-    // Same staleness issue as pickGunContact above: this.cam only reflects
-    // the periscope camera once PERISCOPE itself has drawn through this
-    // exact context. this.core.cam is refreshed every frame PERISCOPE is
-    // the active station, which is what a tap while looking through the
-    // scope should actually be tested against.
-    const cam=this.core?.cam??this.cam;
-    if(!cam) return null;
-    const fov=SCOPE_OPTICS[state.tactical.periscopeZoom===1?0:1].fov;
-    let best=null,bd=Infinity;
-    // Prefer a real hull only when the same canonical visual test says the
-    // periscope can actually resolve it. A tap on that hull can then become a
-    // VISUAL map fix instead of selecting an unrelated hydrophone plot.
-    for(const c of state.world.contacts){
-      if(c.sunk&&(c.sinkingProgress??0)>=1) continue;
-      if(typeof scopeCanResolveHull==='function'&&!scopeCanResolveHull(state,c,{fovPad:.60}))continue;
-      const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);
-      if(!scr) continue;
-      const d=Math.abs(scr.x-p.x);
-      if(d<bd){bd=d;best=c.id;}
-    }
-    if(best===null){
-      for(const tr of Object.values(state.world.contactTracks)){
-        if(tr.confidence<0.12||tr.sunk) continue;
-        const bd2=shortDelta(state.tactical.periscopeBearing,tr.bearing);
-        if(Math.abs(bd2)>fov/2) continue;
-        const x=cam.cx+Math.tan(degToRad(bd2))*cam.f;
-        const d=Math.abs(x-p.x);
-        if(d<bd){bd=d;best=tr.id;}
-      }
-    }
-    return bd<Math.max(46,60*this.k)?best:null;
   }
 };
 
@@ -1478,7 +1429,7 @@ class CanvasView{
   // that plain doesn't exist there ("this.contexts.MAP.pickBridgeContact is
   // not a function"), so tapping a ship while on the bridge always threw and
   // silently did nothing.
-  pickBridgeContact(...a){return this.contexts.BRIDGE.pickBridgeContact(...a);} pickGunContact(...a){return this.contexts.MAP.pickGunContact(...a);} pickScopeContact(...a){return this.contexts.MAP.pickScopeContact(...a);}
+  pickBridgeContact(...a){return this.contexts.BRIDGE.pickBridgeContact(...a);} pickGunContact(...a){return this.contexts.DECK_GUN.pickGunContact(...a);} pickScopeContact(...a){return this.contexts.PERISCOPE.pickScopeContact(...a);}
   revealScopeLabel(...a){return this.contexts.PERISCOPE.revealScopeLabel(...a);}
   get canvas(){return this.core.canvas;} get ctx(){return this.core.ctx;} get w(){return this.core.w;} get h(){return this.core.h;} get dpr(){return this.core.dpr;} get k(){return this.core.k;} get minZoom(){return this.core.minZoom;} get maxZoom(){return this.core.maxZoom;}
   get zoom(){return this.contexts.MAP.zoom;} set zoom(v){this.contexts.MAP.zoom=v;this.core.zoom=v;} get mapCenter(){return this.contexts.MAP.mapCenter;} set mapCenter(v){this.contexts.MAP.mapCenter=v;this.core.mapCenter=v;} get follow(){return this.contexts.MAP.follow;} set follow(v){this.contexts.MAP.follow=v;} get mapLabelStrategy(){return this.contexts.MAP.mapLabelStrategy;} set mapLabelStrategy(v){this.contexts.MAP.mapLabelStrategy=v;}
