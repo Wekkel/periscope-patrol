@@ -106,18 +106,19 @@ const World3D={
         }
       }
     }
-    // lightning under a storm sky — a rare, brief, world-anchored bolt
+    // lightning under storm & squall skies — rare, brief, world-anchored bolt
     this._flash=0;
-    if(wx==='STORM'){
+    const isStormWx=wx==='STORM'||wx==='TROPICAL SQUALLS'||wx==='MONSOON SQUALLS'||((state?.world?.environment?.precipitation||0)>0.45);
+    if(isStormWx){
       const ph=Math.sin(t*1.13+7)*Math.sin(t*0.71+2.4);
-      if(ph>0.982){
-        const fa=(ph-0.982)/0.018;
-        this._flash=fa*0.30;
+      if(ph>0.980){
+        const fa=(ph-0.980)/0.020;
+        this._flash=fa*0.45;
         const az=normDeg(Math.floor(t/4)*97.3);
         const bp=projectAzimuthElevation(cam,az,degToRad(13));
         if(bp&&bp.y<hy){
-          ctx.strokeStyle=`rgba(235,240,255,${fa*0.9})`;
-          ctx.lineWidth=Math.max(1,1.6*this.k);
+          ctx.strokeStyle=`rgba(235,240,255,${fa*0.95})`;
+          ctx.lineWidth=Math.max(1,1.8*this.k);
           ctx.beginPath();ctx.moveTo(bp.x,bp.y);
           let bx=bp.x, by=bp.y;
           const hsh2=i=>{const v=Math.sin(i*57.1+Math.floor(t/4)*17.7)*43758.5;return v-Math.floor(v);};
@@ -564,15 +565,35 @@ const World3D={
     }
   },
 
-  drawGulls(ctx,w,h,cam,t,dl){
-    for(let i=0;i<GULLS.length;i++){
-      const b=GULLS[i];
-      const az=normDeg(b.az+t*b.spd);
-      const el=degToRad(b.el+Math.sin(t*0.6+i)*1.3);
+  drawGulls(ctx,w,h,cam,t,dl,state=null){
+    const own=state?.playerSub?.position;
+    let target=null,isWreck=false;
+    if(own&&state?.world){
+      for(const c of state.world.contacts||[]){
+        if(c.sunk&&distNm(own,c.position)<4.8){target=c.position;isWreck=true;break;}
+      }
+      if(!target&&state.world.terrain){
+        let minD=6.5;
+        for(const f of state.world.terrain){
+          if(!f.points||!f.points.length)continue;
+          const d=distNm(own,f.points[0]);
+          if(d<minD){minD=d;target=f.points[0];}
+        }
+      }
+    }
+    const count=target?(isWreck?6:4):2;
+    const baseAz=target?bearingBetween(own,target):((state?.playerSub?.heading||0)+42);
+    const distFactor=target?clamp(distNm(own,target),0.6,6.5):3.0;
+    const spread=target?(18/distFactor):32;
+
+    for(let i=0;i<count;i++){
+      const orbit=t*(isWreck?1.3:0.75)+i*(Math.PI*2/count);
+      const az=normDeg(baseAz+Math.sin(orbit)*spread);
+      const el=degToRad(Math.max(0.6,1.4+Math.cos(orbit*0.7+i)*(isWreck?0.7:1.2)));
       const p=projectAzimuthElevation(cam,az,el);
-      if(!p||p.y>cam.horizonY) continue;
-      const s=cam.r*0.012*b.s*(cam.fovDeg<15?3:1);
-      const flap=Math.sin(t*6+i*2.1);
+      if(!p||p.y>cam.horizonY)continue;
+      const s=cam.r*0.012*(0.8+(i%3)*0.25)*(cam.fovDeg<15?2.8:1);
+      const flap=Math.sin(t*(isWreck?8:6)+i*2.1);
       ctx.strokeStyle=`rgba(240,244,248,${0.55*dl})`;
       ctx.lineWidth=Math.max(1,s*0.22);
       ctx.beginPath();
@@ -581,11 +602,38 @@ const World3D={
       ctx.quadraticCurveTo(p.x+s*0.3,p.y-s*0.35,p.x+s,p.y+flap*s*0.45);
       ctx.stroke();
     }
+
+    // Porpoises riding bow wave when surfaced at speed in daylight
+    const sub=state?.playerSub;
+    if(sub&&sub.depthFeet<12&&(sub.propulsion?.speedKnots||0)>8.5&&dl>0.4&&this.quality>0.5){
+      const porpoiseCycle=(t*0.16)%1;
+      if(porpoiseCycle<0.22){
+        const pPhase=porpoiseCycle/0.22;
+        const side=Math.sin(t*0.04)>0?1:-1;
+        const bAz=normDeg((sub.heading||0)+side*(7+Math.sin(t*0.25)*4));
+        const pBreach=projectAzimuthElevation(cam,bAz,degToRad(0.25));
+        if(pBreach&&Math.abs(pBreach.y-cam.horizonY)<cam.r*0.30){
+          const pArchY=pBreach.y-Math.sin(pPhase*Math.PI)*14*this.k;
+          const pLen=15*this.k;
+          ctx.strokeStyle=`rgba(42,58,72,${0.78*dl})`;
+          ctx.lineWidth=Math.max(1.2,2.0*this.k);
+          ctx.beginPath();
+          ctx.arc(pBreach.x,pArchY+6*this.k,pLen*0.45,Math.PI*1.15,Math.PI*1.85);
+          ctx.stroke();
+          if(pPhase>0.82){
+            ctx.fillStyle=`rgba(235,248,255,${0.32*dl})`;
+            ctx.beginPath();
+            ctx.ellipse(pBreach.x,pBreach.y+2,4*this.k,1.5*this.k,0,0,Math.PI*2);
+            ctx.fill();
+          }
+        }
+      }
+    }
   },
 
   drawWeatherCells3D(ctx,cam,state,dl,t){
     const cells=state.world.weatherSystem?.cells||[];if(!cells.length||this.quality<.28)return;
-    const own=state.playerSub.position;
+    const own=state.playerSub.position,hy=cam.horizonY;
     for(const c of cells){
       const rng=distNm(own,c.center);if(rng>34)continue;
       const br=bearingBetween(own,c.center),d=Math.abs(shortDelta(cam.bearingDeg,br));if(d>cam.fovDeg*.72)continue;
@@ -594,6 +642,37 @@ const World3D={
       const ww=Math.max(24*this.k,cam.f*Math.tan(degToRad(Math.min(angular,38))));
       const hh=Math.max(18*this.k,cam.r*(.10+.10*clamp(1-rng/30,0,1)));
       const a=clamp(.10+.34*(1-rng/34),.08,.42)*(state.world.environment.cloudCover||.5);
+
+      // Rain squall curtain (vertical precipitation shaft connecting cloud base to horizon)
+      const baseCy=p.y+hh*0.35;
+      if(hy>baseCy&&rng<28){
+        const tilt=c.heading!==undefined?Math.sin(degToRad(c.heading-cam.bearingDeg))*(hy-baseCy)*0.16:0;
+        const gShaft=ctx.createLinearGradient(0,baseCy,0,hy);
+        gShaft.addColorStop(0,`rgba(26,32,38,${a*0.75})`);
+        gShaft.addColorStop(0.7,`rgba(40,50,58,${a*0.48})`);
+        gShaft.addColorStop(1,`rgba(155,182,198,${a*0.24})`);
+        ctx.fillStyle=gShaft;
+        ctx.beginPath();
+        ctx.moveTo(p.x-ww*0.36,baseCy);
+        ctx.lineTo(p.x+ww*0.36,baseCy);
+        ctx.lineTo(p.x+ww*0.44+tilt,hy);
+        ctx.lineTo(p.x-ww*0.44+tilt,hy);
+        ctx.closePath();
+        ctx.fill();
+        if(this.quality>0.5&&rng<20){
+          ctx.strokeStyle=`rgba(195,218,232,${a*0.22})`;ctx.lineWidth=Math.max(1,this.k*0.9);
+          ctx.beginPath();
+          const nLines=this.lowSpec?3:6;
+          for(let li=0;li<nLines;li++){
+            const lx=p.x+(li/(nLines-1)-0.5)*ww*0.60+(Math.sin(t*3+li)*ww*0.04);
+            ctx.moveTo(lx,baseCy+hh*0.1);
+            ctx.lineTo(lx+tilt*0.8,hy);
+          }
+          ctx.stroke();
+        }
+      }
+
+      // Storm cloud body
       const g=ctx.createLinearGradient(0,p.y-hh,0,p.y+hh);g.addColorStop(0,'rgba(35,43,50,0)');g.addColorStop(.45,`rgba(42,50,56,${a})`);g.addColorStop(1,'rgba(80,88,92,0)');
       ctx.fillStyle=g;ctx.beginPath();ctx.ellipse(p.x,p.y,ww,hh,0,0,Math.PI*2);ctx.fill();
     }
@@ -703,6 +782,39 @@ const World3D={
     }
   },
 
+  drawWreckDebris3D(ctx,cam,state,dl,t){
+    const contacts=state.world?.contacts||[];
+    const own=state.playerSub.position,k=this.k;
+    for(const c of contacts){
+      if(!c.sunk) continue;
+      const d=distNm(own,c.position);
+      if(d>5.5) continue;
+      const p=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);
+      if(!p||p.y<cam.horizonY-2) continue;
+      const scale=cam.f/Math.max(120,p.d);
+      const slickW=clamp(240*scale,8*k,110*k),slickH=Math.max(2*k,slickW*0.25);
+      const gSlick=ctx.createRadialGradient(p.x,p.y,0,p.x,p.y,slickW);
+      gSlick.addColorStop(0,`rgba(18,25,28,${0.52*dl+0.12})`);
+      gSlick.addColorStop(0.65,`rgba(32,45,48,${0.28*dl+0.06})`);
+      gSlick.addColorStop(1,'rgba(24,34,36,0)');
+      ctx.fillStyle=gSlick;ctx.beginPath();ctx.ellipse(p.x,p.y,slickW,slickH,0,0,Math.PI*2);ctx.fill();
+
+      ctx.fillStyle=`rgba(78,60,42,${0.62*dl+0.15})`;
+      for(let i=0;i<4;i++){
+        const cxOff=((i*47)%83-41)*scale*0.6;
+        const cyOff=((i*31)%59-29)*scale*0.25;
+        const bob=Math.sin(t*2.2+i*1.7)*1.4*k;
+        const crW=Math.max(1.5,3.5*scale*k),crH=Math.max(1.2,2.8*scale*k);
+        ctx.fillRect(p.x+cxOff-crW/2,p.y+cyOff+bob-crH,crW,crH);
+      }
+      const rW=Math.max(3,8*scale*k),rH=Math.max(1.5,4*scale*k);
+      const rBob=Math.sin(t*1.9+2.4)*1.6*k;
+      ctx.fillStyle=`rgba(120,112,98,${0.58*dl+0.12})`;
+      ctx.strokeStyle=`rgba(52,46,38,${0.65*dl+0.15})`;ctx.lineWidth=Math.max(1,k);
+      ctx.beginPath();ctx.ellipse(p.x+slickW*0.22,p.y+rBob,rW,rH,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+    }
+  },
+
   drawShip3D(ctx,cam,it,state,dl,light,visNm,t){
     const c=it.c;
     const model=SHIP_MODELS[typeof shipVisualModelKey==='function'?shipVisualModelKey(c):c.type]||SHIP_MODELS.MERCHANT;
@@ -713,6 +825,8 @@ const World3D={
     const seed=(c.id||'X').split('').reduce((a,ch)=>a+ch.charCodeAt(0),0);
     const haze=clamp(1-it.d/(visNm*NM_M),0.05,1);
     const hazeCol=dayPhaseRgb(dl,[16,26,44],[110,100,112],[188,212,228]);
+    const backDot=it.d>1?((it.E-cam.E)*light.E+(it.N-cam.N)*light.N)/it.d:0;
+    const backlit=backDot>0.30?clamp((backDot-0.30)/0.60,0,1)*clamp(dl*1.2,0.15,1):0;
 
     // angular size guard — skip anything smaller than a couple of pixels
     const pxLen=realLen/it.d*cam.f;
@@ -720,7 +834,8 @@ const World3D={
     const lod=pxLen<26?0:pxLen<90?1:2;
 
     const paint=(rgb,sh)=>{
-      const r=clamp(rgb[0]*sh,0,255), g=clamp(rgb[1]*sh,0,255), b=clamp(rgb[2]*sh,0,255);
+      const sSh=this._flash>0.05?sh*(1-this._flash*0.65):(backlit>0?sh*(1-backlit*0.38):sh);
+      const r=clamp(rgb[0]*sSh,0,255), g=clamp(rgb[1]*sSh,0,255), b=clamp(rgb[2]*sSh,0,255);
       const m=1-haze;
       return `rgb(${Math.round(r*haze+hazeCol[0]*m)},${Math.round(g*haze+hazeCol[1]*m)},${Math.round(b*haze+hazeCol[2]*m)})`;
     };
@@ -742,36 +857,51 @@ const World3D={
     const passes=[];
     const rollSide=(c.hitSide!==undefined?c.hitSide:(seed%2?1:-1));
     if(sinkP>0&&style===2){
-      // stagger: one half hangs on a little (deterministic per ship)
+      // BREAK_MIDSHIPS:
+      // Phase A (sinkP < 0.28): Midships sagging & settling before structural collapse
+      // Phase B (sinkP >= 0.28): Keel structural break, broken ends submerge first, bow & stern rear up
       const lead=seed%2===0;
-      const pF=clamp(sinkP*(lead?1.22:1.0)+(lead?0:-0.10),0,1);   // forward half
-      const pA=clamp(sinkP*(lead?1.0:1.22)+(lead?-0.10:0),0,1);   // after half
-      const brk=.82;                                              // dramatic only once she is truly going
-      const sep=model.len*.035,sepF=phaseSmooth01(clamp((sinkP-.66)/.34,0,1));
-      // the drop starts slow so the halves first REAR UP at bow and stern
-      // while the broken ends flood and go under — then both slide down
-      const dropF=realLen*0.60*Math.pow(pF,2.4);
-      const dropA=realLen*0.60*Math.pow(pA,2.4);
-      // Forward half: pivot near the BOW so the broken end (z≈0) rotates down.
-      passes.push({zMin:0,zMax:1,sink:{p:pF,pitch:brk,pitchP:Math.pow(pF,1.45),
-        pivot:model.len*.34,roll:rollSide*.22,drop:dropF,shift:sep*sepF}});
-      // After half: pivot near the STERN, opposite rotation — break end down.
-      passes.push({zMin:-1,zMax:0,sink:{p:pA,pitch:-brk,pitchP:Math.pow(pA,1.45),
-        pivot:-model.len*.34,roll:-rollSide*.28,drop:dropA,shift:-sep*sepF}});
+      const pF=clamp(sinkP*(lead?1.20:1.0)+(lead?0:-0.08),0,1);
+      const pA=clamp(sinkP*(lead?1.0:1.20)+(lead?-0.08:0),0,1);
+      const breakProg=phaseSmooth01(clamp((sinkP-0.26)/0.74,0,1));
+      const brk=0.84*breakProg;
+      const sep=model.len*0.035,sepF=phaseSmooth01(clamp((sinkP-0.52)/0.48,0,1));
+      const dropF=realLen*(0.028*phaseSmooth01(clamp(pF/0.28,0,1))+0.56*Math.pow(pF,2.2));
+      const dropA=realLen*(0.028*phaseSmooth01(clamp(pA/0.28,0,1))+0.56*Math.pow(pA,2.2));
+      passes.push({zMin:0,zMax:1,sink:{p:pF,pitch:brk,pitchP:1.0,
+        pivot:model.len*0.34,roll:rollSide*0.22*breakProg,drop:dropF,shift:sep*sepF}});
+      passes.push({zMin:-1,zMax:0,sink:{p:pA,pitch:-brk,pitchP:1.0,
+        pivot:-model.len*0.34,roll:-rollSide*0.28*breakProg,drop:dropA,shift:-sep*sepF}});
     }else if(sinkP>0&&style===3){
-      // even keel, listing over, slight trim towards the wound
-      const trim=(c.hitFrac??0)*0.5;
+      // SETTLE_LIST: gradual settling amidships on even keel with increasing list
+      const trim=(c.hitFrac??0)*0.45;
+      const settleDrop=realLen*(0.032*phaseSmooth01(clamp(sinkP/0.25,0,1))+0.48*Math.pow(sinkP,1.6));
       passes.push({zMin:-1,zMax:1,sink:{p:sinkP,pitch:-trim,pitchP:Math.pow(sinkP,1.35),
-        pivot:0,roll:rollSide*0.95,drop:realLen*0.5*Math.pow(sinkP,1.5),shift:0}});
+        pivot:0,roll:rollSide*(0.25+0.72*phaseSmooth01(sinkP)),drop:settleDrop,shift:0}});
     }else if(sinkP>0&&style===4){
-      // CAPSIZE: tanker or heavy-listing vessel rolling onto beam ends / past 90°–135°
-      const trim=(c.hitFrac??0)*0.22;
+      // CAPSIZE:
+      // Phase A (sinkP < 0.25): Heavy listing, deck edge immersion
+      // Phase B (sinkP 0.25..0.65): Vanishing metacentric stability, roll accelerates past 90° (keel exposed)
+      // Phase C (sinkP > 0.65): Overturned hull settles beneath the waves
+      const trim=(c.hitFrac??0)*0.20;
+      const rollDynamic=rollSide*(0.30+1.85*phaseSmooth01(clamp((sinkP-0.18)/0.58,0,1)));
+      const capsizeDrop=realLen*(0.03*phaseSmooth01(clamp(sinkP/0.26,0,1))+0.44*Math.pow(sinkP,1.7));
       passes.push({zMin:-1,zMax:1,sink:{p:sinkP,pitch:-trim,pitchP:Math.pow(sinkP,1.2),
-        pivot:0,roll:rollSide*2.15,drop:realLen*0.42*Math.pow(sinkP,1.6),shift:0}});
+        pivot:0,roll:rollDynamic,drop:capsizeDrop,shift:0}});
     }else{
-      const bowFirst=style===0,sinkPitchP=Math.pow(sinkP,1.72);
-      const sinkDrop=realLen*(.018*phaseSmooth01(clamp(sinkP/.30,0,1))+.50*Math.pow(sinkP,2.05));
-      passes.push({zMin:-1,zMax:1,sink:sinkP>0?{p:sinkP,pitch:bowFirst?-.92:.92,pitchP:sinkPitchP,pivot:0,roll:rollSide*.34,drop:sinkDrop,shift:0}:null});
+      // PLUNGE_BOW (style 0) & PLUNGE_STERN (style 1):
+      // Phase A (sinkP < 0.26): Settling into the sea, damaged compartment floods and submerges forecastle/deck
+      // Phase B (sinkP 0.26..0.72): Buoyancy shifts to intact quarter; intact end/propellers emerge from water
+      // Phase C (sinkP > 0.72): Final slip beneath the surface
+      const bowFirst=style===0;
+      const pitchCurve=Math.pow(clamp((sinkP-0.10)/0.90,0,1),1.55);
+      const targetPitch=(bowFirst?-0.96:0.96)*pitchCurve;
+      const pivotZ=(bowFirst?-model.len*0.26:model.len*0.26)*phaseSmooth01(clamp(sinkP/0.45,0,1));
+      const sinkDrop=realLen*(0.026*phaseSmooth01(clamp(sinkP/0.26,0,1))+0.48*Math.pow(sinkP,2.1));
+      passes.push({zMin:-1,zMax:1,sink:sinkP>0?{
+        p:sinkP,pitch:targetPitch,pitchP:1.0,
+        pivot:pivotZ,roll:rollSide*(0.10+0.25*Math.pow(sinkP,1.25)),drop:sinkDrop,shift:0
+      }:null});
     }
     const seaLine=seaSurfaceY(cam,it.d);
     ctx.save();
@@ -784,7 +914,7 @@ const World3D={
       let initialRoll=0, initialPitch=0;
       const SD=c.shipDamage;
       if(SD){
-        const att=typeof shipAttitude==='function'?shipAttitude(c):null;
+        const att=typeof shipAttitude==='function'?shipAttitude(c,true):null;
         initialRoll=att?att.rollRad:(clamp(SD.list||0,-1,1)*.32);
         initialPitch=att?att.pitchRad:(-clamp(SD.trim||0,-1,1)*.18);
         if(!sink){
@@ -872,6 +1002,15 @@ const World3D={
       const baseHull=(()=>{const H=model.hull;if(H.some(q=>Math.abs(q[0])<1e-7))return H;const out=[];for(let j=0;j<H.length-1;j++){const a=H[j],b=H[j+1];out.push(a);if(a[0]<0&&b[0]>0){const f=(-a[0])/(b[0]-a[0]);out.push([0,lerp(a[1],b[1],f)]);}}out.push(H[H.length-1]);return out;})();
       const hullSec=lod===0?baseHull.filter((_,i)=>i%2===0||i===baseHull.length-1||Math.abs(baseHull[i][0])<1e-7):baseHull;
       const deckY=(zf)=>model.fb*(1+0.14*Math.pow(Math.abs(zf)*2,2.4));
+      const spdFactor=clamp((c.speedKnots||0)/14,0,1.3);
+      const wlY=(zf)=>{
+        if(sink)return 0;
+        const waveSlosh=Math.sin(t*2.2+(seed%10)+zf*6.28)*0.08;
+        const bowWave=zf>0.25?0.36*spdFactor*Math.pow((zf-0.25)/0.25,1.4):0;
+        const sternWave=zf<-0.30?-0.10*spdFactor:0;
+        const midTrough=Math.abs(zf)<0.20?-0.06*spdFactor:0;
+        return bowWave+sternWave+midTrough+waveSlosh;
+      };
       for(let i=0;i<hullSec.length-1;i++){
         const [z0,b0]=hullSec[i], [z1,b1]=hullSec[i+1];
         if(z0*2<pass.zMin*1.001||z1*2>pass.zMax*1.001){
@@ -879,16 +1018,23 @@ const World3D={
         }
         const L=model.len, B=model.beam/2;
         const y0=deckY(z0), y1=deckY(z1);
+        const wy0=wlY(z0), wy1=wlY(z1);
         const zz0=z0*L, zz1=z1*L, bb0=b0*B, bb1=b1*B;
-        quad([[bb0,0,zz0],[bb0,y0,zz0],[bb1,y1,zz1],[bb1,0,zz1]],pal.hull);           // starboard
-        quad([[-bb1,0,zz1],[-bb1,y1,zz1],[-bb0,y0,zz0],[-bb0,0,zz0]],pal.hull);       // port
+        quad([[bb0,wy0,zz0],[bb0,y0,zz0],[bb1,y1,zz1],[bb1,wy1,zz1]],pal.hull);           // starboard
+        quad([[-bb1,wy1,zz1],[-bb1,y1,zz1],[-bb0,y0,zz0],[-bb0,wy0,zz0]],pal.hull);       // port
         quad([[bb1,y1,zz1],[-bb1,y1,zz1],[-bb0,y0,zz0],[bb0,y0,zz0]],pal.deck);       // deck
-        quad([[bb0,0,zz0],[bb1,0,zz1],[-bb1,0,zz1],[-bb0,0,zz0]],pal.boot||pal.hull); // bottom / keel
+        quad([[bb0,wy0,zz0],[bb1,wy1,zz1],[-bb1,wy1,zz1],[-bb0,wy0,zz0]],pal.boot||pal.hull); // bottom / keel
+        if(lod>0&&spdFactor>0.15&&z1>0.20&&!sink){
+          const foamA=clamp(0.35*spdFactor*dl,0.08,0.45);
+          const foamCol=`rgba(235,248,255,${foamA})`;
+          line([bb0,wy0+0.12,zz0],[bb1,wy1+0.12,zz1],Math.max(1,this.k*1.2),foamCol);
+          line([-bb0,wy0+0.12,zz0],[-bb1,wy1+0.12,zz1],Math.max(1,this.k*1.2),foamCol);
+        }
       }
       // transom
-      const st=hullSec[0];
-      quad([[-st[1]*model.beam/2,0,st[0]*model.len],[-st[1]*model.beam/2,deckY(st[0]),st[0]*model.len],
-            [st[1]*model.beam/2,deckY(st[0]),st[0]*model.len],[st[1]*model.beam/2,0,st[0]*model.len]],pal.hull);
+      const st=hullSec[0], wstY=wlY(st[0]);
+      quad([[-st[1]*model.beam/2,wstY,st[0]*model.len],[-st[1]*model.beam/2,deckY(st[0]),st[0]*model.len],
+            [st[1]*model.beam/2,deckY(st[0]),st[0]*model.len],[st[1]*model.beam/2,wstY,st[0]*model.len]],pal.hull);
 
       // ── superstructure ──
       for(const p of model.parts){
@@ -1339,7 +1485,9 @@ const World3D={
 
   drawOwnWake(ctx,cam,state,t,dl){
     const sub=state.playerSub,spd=Math.max(0,sub.propulsion.speedKnots||0);
-    if(spd<.8||dl<0.12) return;
+    const isWarm=state?.world?.environment?.weather?.includes('TROPICAL')||state?.campaign?.theater==='PACIFIC'||state?.world?.environment?.weather?.includes('MONSOON');
+    const bioLuminescent=dl<0.24&&isWarm&&spd>2.8;
+    if(spd<.8||(dl<0.12&&!bioLuminescent)) return;
     const surfaced=sub.depthFeet<12;if(!surfaced&&sub.depthFeet>70)return;
     const back=normDeg(sub.heading+180),viewBearing=cam.bearingDeg??state.tactical.periscopeBearing;
     if(Math.abs(shortDelta(viewBearing,back))>cam.fovDeg*0.98)return;
@@ -1357,9 +1505,13 @@ const World3D={
     ctx.save();ctx.beginPath();ctx.rect(0,cam.horizonY,this.w,this.h-cam.horizonY);ctx.clip();
 
     // Turbulent centre wake: narrow at manoeuvring speed, longer/brighter as
-    // shaft power rises. It fades continuously rather than ending in a blunt V.
-    const baseA=(surfaced?lerp(.10,.31,speedN):.10)*dl,g=ctx.createLinearGradient(left[0].x,left[0].y,left.at(-1).x,left.at(-1).y);
-    g.addColorStop(0,`rgba(240,248,251,${baseA})`);g.addColorStop(.32,`rgba(229,242,248,${baseA*.72})`);g.addColorStop(.72,`rgba(220,236,244,${baseA*.28})`);g.addColorStop(1,'rgba(216,232,242,0)');ctx.fillStyle=g;
+    // shaft power rises. In warm night waters, bioluminescence glows emerald-cyan.
+    const baseA=bioLuminescent?clamp((spd-2.5)/11,.16,.44):(surfaced?lerp(.10,.31,speedN):.10)*dl;
+    const col0=bioLuminescent?`rgba(96,248,208,${baseA})`:`rgba(240,248,251,${baseA})`;
+    const col1=bioLuminescent?`rgba(68,222,185,${baseA*.68})`:`rgba(229,242,248,${baseA*.72})`;
+    const col2=bioLuminescent?`rgba(45,188,158,${baseA*.28})`:`rgba(220,236,244,${baseA*.28})`;
+    const g=ctx.createLinearGradient(left[0].x,left[0].y,left.at(-1).x,left.at(-1).y);
+    g.addColorStop(0,col0);g.addColorStop(.32,col1);g.addColorStop(.72,col2);g.addColorStop(1,'rgba(216,232,242,0)');ctx.fillStyle=g;
     ctx.beginPath();ctx.moveTo(left[0].x,left[0].y);for(let i=1;i<left.length;i++)ctx.lineTo(left[i].x,left[i].y);for(let i=right.length-1;i>=0;i--)ctx.lineTo(right[i].x,right[i].y);ctx.closePath();ctx.fill();
 
     if(surfaced){

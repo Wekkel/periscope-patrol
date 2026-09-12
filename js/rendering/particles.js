@@ -15,13 +15,15 @@ class ParticleSystem {
     for (let i = 0; i < count; i++) {
       const angle = Math.random() * Math.PI * 2;
       const speed = (0.3 + Math.random() * 0.8) * scale;
+      const rnd = Math.random();
+      const type = isHit ? (rnd < 0.40 ? 'water_geyser' : rnd < 0.70 ? 'smoke' : 'fire') : 'dc';
       this.particles.push({
         xNm, yNm,
-        vx: Math.cos(angle) * speed * 0.0008,
-        vy: Math.sin(angle) * speed * 0.0008,
-        life: 1, maxLife: 0.6 + Math.random() * 0.8,
+        vx: Math.cos(angle) * speed * (type === 'water_geyser' ? 0.00045 : 0.0008),
+        vy: Math.sin(angle) * speed * (type === 'water_geyser' ? 0.00045 : 0.0008),
+        life: 1, maxLife: type === 'water_geyser' ? (1.0 + Math.random() * 0.8) : (0.6 + Math.random() * 0.8),
         size: (1 + Math.random() * 2.5) * scale,
-        type: isHit ? (Math.random() < 0.3 ? 'smoke' : 'fire') : 'dc',
+        type,
         ageSec: 0
       });
     }
@@ -131,10 +133,11 @@ class ParticleSystem {
         g.addColorStop(0.5, `rgba(240,100,30,${p.life * 0.7})`);
         g.addColorStop(1, `rgba(220,50,0,0)`);
         ctx.fillStyle = g;
-      } else if (p.type === 'steam') {
+      } else if (p.type === 'steam' || p.type === 'water_geyser') {
+        const isGeyser = p.type === 'water_geyser';
         const g = ctx.createRadialGradient(pos.x, pos.y, 0, pos.x, pos.y, sz * 7);
-        g.addColorStop(0, `rgba(242,246,250,${p.life * 0.65})`);
-        g.addColorStop(0.5, `rgba(210,222,230,${p.life * 0.35})`);
+        g.addColorStop(0, isGeyser ? `rgba(240,248,255,${p.life * 0.80})` : `rgba(242,246,250,${p.life * 0.65})`);
+        g.addColorStop(0.5, isGeyser ? `rgba(200,225,238,${p.life * 0.45})` : `rgba(210,222,230,${p.life * 0.35})`);
         g.addColorStop(1, `rgba(180,195,205,0)`);
         ctx.fillStyle = g;
       } else if (p.type === 'oil_smoke') {
@@ -155,7 +158,7 @@ class ParticleSystem {
         ctx.fillStyle = g;
       }
       ctx.beginPath();
-      const mult = p.type === 'oil_smoke' ? 9 : p.type === 'smoke' ? 8 : (p.type === 'steam' || p.type === 'fire_burst') ? 7 : 6;
+      const mult = p.type === 'oil_smoke' ? 9 : p.type === 'smoke' ? 8 : (p.type === 'steam' || p.type === 'water_geyser' || p.type === 'fire_burst') ? 7 : 6;
       ctx.arc(pos.x, pos.y, sz * mult, 0, Math.PI * 2);
       ctx.fill();
     }

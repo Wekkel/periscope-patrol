@@ -149,7 +149,7 @@ const SensorsSystem={
       esc.pingTimer=interval;esc.lastPingAt=now;pinged++;
       const rng=distNm(esc.position,sub.position),sea=clamp(env.seaState||0,0,1),audibleRange=clamp(8.5*(1-sea*.22)*(belowLayer?.68:1),4.2,8.8),depthHear=sub.depthFeet>8?1:.32;
       if(rng<audibleRange){
-        const brg=bearingBetween(sub.position,esc.position),lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear;
+        const brg=bearingBetween(sub.position,esc.position),lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear*(belowLayer?.42:1);
         W.sound=W.sound||{};W.sound.lastEnemyPingVisual={t:now,escortId:esc.id,position:{...esc.position},bearing:brg,rangeNm:rng};
       PresentationBridge.audio(this.state).playSonarPing(brg,sub.heading,undefined,lvl);
       }

@@ -73,7 +73,30 @@ const PeriscopeStation={
     // pre-hit ship AT the true impact geometry instead of trying to rewind it.
     // Target, wake and camera therefore share one coherent world snapshot:
     // cut to impact framing -> hold -> boom -> resolved damage state.
-    const shipState=beforeImpact&&obs.beforeShip?obs.beforeShip:obs;
+    let shipState=obs;
+    if(obs.beforeShip&&obs.beforeShip.shipDamage&&obs.shipDamage){
+      const bD=obs.beforeShip.shipDamage, aD=obs.shipDamage;
+      const progress=beforeImpact?0:clamp(impactAge/5.5,0,1);
+      const interp=typeof phaseSmooth01==='function'?phaseSmooth01(progress):(progress*progress*(3-2*progress));
+      const shudder=impactAge>=0&&impactAge<1.4?Math.sin(impactAge*18.0)*Math.exp(-impactAge*3.5)*0.45:0;
+      const blendDamage={
+        ...aD,
+        trim:lerp(bD.trim||0,aD.trim||0,interp)+shudder*0.06,
+        list:lerp(bD.list||0,aD.list||0,interp)+(obs.impactSide||1)*shudder*0.10,
+        flotation:lerp(bD.flotation||0,aD.flotation||0,interp),
+        propulsion:lerp(bD.propulsion||0,aD.propulsion||0,interp),
+        fire:lerp(bD.fire||0,aD.fire||0,interp)
+      };
+      shipState=beforeImpact?obs.beforeShip:{
+        ...obs,
+        speedKnots:lerp(obs.beforeShip.speedKnots||0,obs.speedKnots||0,interp),
+        shipDamage:blendDamage,
+        sunk:obs.sunk&&impactAge>4.5,
+        sinkingProgress:obs.sunk&&impactAge>4.5?clamp((impactAge-4.5)/12,0,1):0
+      };
+    }else if(beforeImpact&&obs.beforeShip){
+      shipState=obs.beforeShip;
+    }
     const displayPos={...obs.position};
     const target={...(live||{}),id:obs.contactId,name:obs.name||obs.contactId,type:obs.type||'MERCHANT',displayType:obs.displayType||obs.type,
       lengthYards:obs.lengthYards||live?.lengthYards||300,tonsFactor:obs.tonsFactor||live?.tonsFactor||0,heading:shipState.heading||0,speedKnots:shipState.speedKnots||0,
@@ -206,10 +229,11 @@ const PeriscopeStation={
     this.drawOwnWake(ctx,cam,state,t,dl);
     this.drawWakes3D(ctx,cam,state,t,dl);
     this.drawFleet3D(ctx,cam,state,dl,env,t);
+    this.drawWreckDebris3D?.(ctx,cam,state,dl,t);
     this.drawExplosions3D(ctx,cam,state,dl);
     this.drawSplashes3D(ctx,cam,state,dl);
     this.drawBattleAtmosphereFront?.(ctx,cam,state,dl,t);
-    if(dl>0.3&&this.quality>0.5) this.drawGulls(ctx,w,h,cam,t,dl);
+    if(dl>0.3&&this.quality>0.5) this.drawGulls(ctx,w,h,cam,t,dl,state);
     if((env.precipitation||0)>.04||weatherIsWet(wx)) this.drawRain(ctx,w,h,sea,t,wx,env.precipitation||.25);
     if((env.precipitation||0)>.12) this.drawPeriscopeDroplets(ctx,w,h,t,env.precipitation||0);
     this.drawPeriscopeBroachWash?.(ctx,w,h,state,t);

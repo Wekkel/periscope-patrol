@@ -2429,7 +2429,57 @@ if (existsSync(baselinePath)) {
   assert.ok(bData.render.stats.p95 <= 16.67, `Render frametime p95 must meet 60 FPS SLA <= 16.67ms (actual: ${bData.render.stats.p95}ms)`);
 }
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5, aar als tactische reconstructie & declassified truth 5, verdieping van campagnegevolgen & refit cyclus 5, automatisch footprint- en performancebudget 5');
+// ─── [TEST SECTION 28] Dynamische Atmosfeer, Maritieme Fauna & Periscoop-Optiek ───
+console.log('\n[TEST SECTION 28] Dynamische Atmosfeer, Maritieme Fauna & Periscoop-Optiek (Grafische Verfraaiing)');
 
+const w3dSrc = await readFile(path.join(root, 'js/rendering/world-3d.js'), 'utf8');
+const p3dSrc = await readFile(path.join(root, 'js/rendering/periscope-3d.js'), 'utf8');
+const atmSrc = await readFile(path.join(root, 'js/rendering/battle-atmosphere.js'), 'utf8');
 
+// Test 1: Squall neerslagschacht & Bliksem uitbreiding
+assert.ok(/isStormWx=wx==='STORM'\|\|wx==='TROPICAL SQUALLS'\|\|wx==='MONSOON SQUALLS'/.test(w3dSrc), 'Bliksem moet geactiveerd worden voor STORM, TROPICAL SQUALLS en MONSOON SQUALLS');
+assert.ok(/gShaft=ctx\.createLinearGradient\(0,baseCy,0,hy\)/.test(w3dSrc), 'Weather cells moeten een verticale neerslagschacht (regengordijn) van wolkbasis naar horizon renderen');
+assert.ok(/tilt=c\.heading!==undefined\?Math\.sin\(degToRad\(c\.heading-cam\.bearingDeg\)\)/.test(w3dSrc), 'Regengordijn moet wind-afhankelijke afwijking berekenen op basis van koers en zichtpeiling');
+assert.ok(/sSh=this\._flash>0\.05\?sh\*\(1-this\._flash\*0\.65\)/.test(w3dSrc), 'Schepen moeten als donker silhouet afsteken tijdens bliksemflitsen (this._flash > 0.05)');
 
+// Test 2: Maritieme Fauna (Zeevogels verankerd aan Kust & Wrakken + Boegdolfijnen)
+assert.ok(/drawGulls\(ctx,w,h,cam,t,dl,state=null\)/.test(w3dSrc), 'drawGulls moet de state ontvangen voor contextuele plaatsing');
+assert.ok(/this\.drawGulls\(ctx,w,h,cam,t,dl,state\)/.test(p3dSrc), 'periscope-3d.js moet state doorgeven aan drawGulls');
+assert.ok(/c\.sunk&&distNm\(own,c\.position\)<4\.8/.test(w3dSrc), 'Zeevogels moeten cirkelen boven recente scheepswrakken binnen 4.8 NM');
+assert.ok(/minD=6\.5[\s\S]*f\.points/.test(w3dSrc), 'Zeevogels moeten cirkelen boven nabijgelegen eilandkusten binnen 6.5 NM als natuurlijk navigatiebaken');
+assert.ok(/sub\.depthFeet<12&&\(sub\.propulsion\?\.speedKnots\|\|0\)>8\.5[\s\S]*porpoiseCycle=/.test(w3dSrc), 'Boegdolfijnen moeten verschijnen bij snelle vaart aan de oppervlakte in daglicht');
+
+// Test 3: Periscoop-Optiek (Lensspoeling & Beaded Droplets)
+assert.ok(/broachBand=clamp\(1-Math\.abs\(depth-46\)\/8,0,1\)/.test(atmSrc), 'drawPeriscopeBroachWash moet activeren rond de werkelijke periscoopdiepte (40-52 ft)');
+assert.ok(/g\.addColorStop\(0,`rgba\(110,168,188,/.test(atmSrc), 'Periscoopdoorbraak moet een oceaan-waterfilm renderen');
+assert.ok(/quadraticCurveTo[\s\S]*dripSpeed/.test(atmSrc), 'Aflopende waterrivulets moeten omlaag stromen over de periscooplens');
+assert.ok(/arc\(x\+\(i%2\?2:-2\)\*k,y\+len,Math\.max\(1,1\.8\*k\)/.test(atmSrc), 'Waterrivulets moeten kraaldruppels vormen aan de uiteinden');
+
+// ─── [TEST SECTION 29] ASW Bathythermograaf, Wolfpack Coördinatie & Wrakresten/Bioluminescentie ───
+console.log('\n[TEST SECTION 29] ASW Bathythermograaf, Wolfpack Coördinatie & Wrakresten/Bioluminescentie (Opties 1-3)');
+
+const soundSrc = await readFile(path.join(root, 'js/rendering/sound-room.js'), 'utf8');
+const sensorsSrc = await readFile(path.join(root, 'js/simulation/sensors.js'), 'utf8');
+const missionSrc = await readFile(path.join(root, 'js/simulation/mission-framework.js'), 'utf8');
+
+// Test 1: Bathythermograaf (BT) Display & Thermocline Akoestische Demping
+assert.ok(/BT TRACE \(GRADIENT\)/.test(soundSrc), 'Sound station moet Bathythermograph (BT-Trace) paneel renderen');
+assert.ok(/LAYER \$\{layer\}FT/.test(soundSrc), 'BT Trace moet de actuele thermoclinelaag in feet markeren');
+assert.ok(/▼ SHIELDED \(REFRACTING\)[\s\S]*▲ IN SURFACE DUCT/.test(soundSrc), 'BT Trace moet refractiestatus tonen op basis van duikdiepte t.o.v. layer');
+assert.ok(/belowLayer\?\.42:1/.test(sensorsSrc), 'Sensorsysteem moet actieve sonar ping audio dempen wanneer de speler onder de thermocline ligt');
+
+// Test 2: Wolfpack Coördinatie, Gevechtscues op Afstand & Flank Diversion
+assert.ok(/W\.cooperativeSubmarines&&\[['"]ATTACK_RELEASED['"],['"]ATTACK_IN_PROGRESS['"]\]\.includes\(W\.cooperativeSubmarines\.status\)/.test(missionSrc), 'Mission framework moet actieve wolfpack status controleren voor gevechtscues');
+assert.ok(/A\.starshells\.push\(\{id:`COOP-SS-/.test(missionSrc), 'Coöperatieve wolfpack aanval moet afstand-starshells afvuren om escortes af te leiden');
+assert.ok(/A\.muzzleFlashes\.push\(\{id:`COOP-MF-/.test(missionSrc), 'Coöperatieve wolfpack aanval moet mondingsflitsen op de horizon projecteren');
+assert.ok(/subName=c\.campaignProfileId\?\.includes\('KM'\)\?'U-552'/.test(missionSrc), 'Radioberichten van historische zusterboten moeten theater-specifiek zijn (bijv. U-552, USS Barb, HMS Safari, I-26)');
+assert.ok(/diverting convoy escorts/i.test(missionSrc), 'Radiobericht moet de afleidingsactie op het escorte bevestigen');
+
+// Test 3: Wrakresten (Drijvende kratten, vlotten, olievlekken) & Tropische Nachtelijke Bioluminescentie
+assert.ok(/drawWreckDebris3D\(ctx,cam,state,dl,t\)/.test(w3dSrc), 'world-3d.js moet drijvende wrakresten renderen bij gezonken schepen');
+assert.ok(/this\.drawWreckDebris3D\?\.\(ctx,cam,state,dl,t\)/.test(p3dSrc), 'periscope-3d.js moet drawWreckDebris3D aanroepen in de periscoopscene');
+assert.ok(/gSlick=ctx\.createRadialGradient/.test(w3dSrc), 'Wrakresten moeten een radiale olievlek renderen op het zeeoppervlak');
+assert.ok(/isWarm=[\s\S]*bioLuminescent=dl<0\.24&&isWarm&&spd>2\.8/.test(w3dSrc), 'Bioluminescent boeg- en hekgolfschuim moet triggeren in warme wateren bij nacht');
+assert.ok(/rgba\(96,248,208,/.test(w3dSrc), 'Bioluminescent schuim moet oplichten in fosforescerend smaragd-cyaan (zeevonk)');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5, aar als tactische reconstructie & declassified truth 5, verdieping van campagnegevolgen & refit cyclus 5, automatisch footprint- en performancebudget 5, dynamische atmosfeer & fauna 3, asw bathythermograaf & wolfpack & wrakresten 3');

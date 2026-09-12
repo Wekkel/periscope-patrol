@@ -574,7 +574,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 663
+            "line": 684
           },
           "relation": "same"
         }
@@ -748,7 +748,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 663
+            "line": 684
           },
           "relation": "same"
         }
@@ -817,7 +817,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 621
+            "line": 642
           },
           "relation": "same"
         },
@@ -4094,7 +4094,7 @@
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
       "line": 548,
-      "end": 619,
+      "end": 640,
       "callDetails": [
         {
           "name": "ensureMissionFramework",
@@ -4384,117 +4384,24 @@
           "relation": "same"
         },
         {
-          "name": "captainLog",
-          "kind": "context-path",
+          "name": "ensureBattleAtmosphereState",
+          "kind": "optional-direct",
           "unresolved": false,
-          "line": 588,
-          "offset": 10610,
-          "object": "this.ctx",
-          "definedBy": null,
-          "relation": "unresolved"
+          "line": 592,
+          "offset": 10114,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/battle-atmosphere.js",
+            "line": 21
+          },
+          "relation": "same"
         },
         {
           "name": "notify",
-          "kind": "direct",
+          "kind": "optional-direct",
           "unresolved": false,
-          "line": 588,
-          "offset": 10814,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "_missionStopTransit",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 588,
-          "offset": 10920,
-          "definedBy": {
-            "class": "SimEngine",
-            "file": "js/simulation/mission-framework.js",
-            "line": 532
-          },
-          "relation": "same"
-        },
-        {
-          "name": "captainLog",
-          "kind": "context-path",
-          "unresolved": false,
-          "line": 589,
-          "offset": 11289,
-          "object": "this.ctx",
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "notify",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 589,
-          "offset": 11465,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "_missionStopTransit",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 589,
-          "offset": 11571,
-          "definedBy": {
-            "class": "SimEngine",
-            "file": "js/simulation/mission-framework.js",
-            "line": 532
-          },
-          "relation": "same"
-        },
-        {
-          "name": "captainLog",
-          "kind": "context-path",
-          "unresolved": false,
-          "line": 591,
-          "offset": 11849,
-          "object": "this.ctx",
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "notify",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 591,
-          "offset": 11983,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "_missionStopTransit",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 591,
-          "offset": 12080,
-          "definedBy": {
-            "class": "SimEngine",
-            "file": "js/simulation/mission-framework.js",
-            "line": 532
-          },
-          "relation": "same"
-        },
-        {
-          "name": "captainLog",
-          "kind": "context-path",
-          "unresolved": false,
-          "line": 598,
-          "offset": 12875,
-          "object": "this.ctx",
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "notify",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 598,
-          "offset": 13049,
+          "line": 605,
+          "offset": 11309,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4502,86 +4409,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 600,
-          "offset": 13657,
-          "object": "this.ctx",
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "notify",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 600,
-          "offset": 13874,
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "_missionFinish",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 600,
-          "offset": 13993,
-          "definedBy": {
-            "class": "SimEngine",
-            "file": "js/simulation/mission-framework.js",
-            "line": 533
-          },
-          "relation": "same"
-        },
-        {
-          "name": "captainLog",
-          "kind": "context-path",
-          "unresolved": false,
-          "line": 601,
-          "offset": 14615,
-          "object": "this.ctx",
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "_missionFinish",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 601,
-          "offset": 14784,
-          "definedBy": {
-            "class": "SimEngine",
-            "file": "js/simulation/mission-framework.js",
-            "line": 533
-          },
-          "relation": "same"
-        },
-        {
-          "name": "captainLog",
-          "kind": "context-path",
-          "unresolved": false,
-          "line": 603,
-          "offset": 15678,
-          "object": "this.ctx",
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "_missionFinish",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 603,
-          "offset": 15815,
-          "definedBy": {
-            "class": "SimEngine",
-            "file": "js/simulation/mission-framework.js",
-            "line": 533
-          },
-          "relation": "same"
-        },
-        {
-          "name": "captainLog",
-          "kind": "context-path",
-          "unresolved": false,
-          "line": 608,
-          "offset": 16152,
+          "line": 609,
+          "offset": 12261,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4591,16 +4420,29 @@
           "kind": "direct",
           "unresolved": false,
           "line": 609,
-          "offset": 16309,
+          "offset": 12465,
           "definedBy": null,
           "relation": "unresolved"
+        },
+        {
+          "name": "_missionStopTransit",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 609,
+          "offset": 12571,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 532
+          },
+          "relation": "same"
         },
         {
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 615,
-          "offset": 16765,
+          "line": 610,
+          "offset": 12940,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4609,8 +4451,188 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 616,
-          "offset": 16932,
+          "line": 610,
+          "offset": 13116,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "_missionStopTransit",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 610,
+          "offset": 13222,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 532
+          },
+          "relation": "same"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 612,
+          "offset": 13500,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 612,
+          "offset": 13634,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "_missionStopTransit",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 612,
+          "offset": 13731,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 532
+          },
+          "relation": "same"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 619,
+          "offset": 14526,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 619,
+          "offset": 14700,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 621,
+          "offset": 15308,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 621,
+          "offset": 15525,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "_missionFinish",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 621,
+          "offset": 15644,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 533
+          },
+          "relation": "same"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 622,
+          "offset": 16266,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "_missionFinish",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 622,
+          "offset": 16435,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 533
+          },
+          "relation": "same"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 624,
+          "offset": 17329,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "_missionFinish",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 624,
+          "offset": 17466,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 533
+          },
+          "relation": "same"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 629,
+          "offset": 17803,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 630,
+          "offset": 17960,
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 636,
+          "offset": 18416,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 637,
+          "offset": 18583,
           "definedBy": null,
           "relation": "unresolved"
         }
@@ -4747,99 +4769,19 @@
           "line": 587
         },
         {
-          "path": "ctx.captainLog",
+          "path": "ensureBattleAtmosphereState",
           "access": "read",
-          "line": 588
+          "line": 592
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 588
-        },
-        {
-          "path": "_missionStopTransit",
-          "access": "read",
-          "line": 588
+          "line": 605
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 589
-        },
-        {
-          "path": "notify",
-          "access": "read",
-          "line": 589
-        },
-        {
-          "path": "_missionStopTransit",
-          "access": "read",
-          "line": 589
-        },
-        {
-          "path": "ctx.captainLog",
-          "access": "read",
-          "line": 591
-        },
-        {
-          "path": "notify",
-          "access": "read",
-          "line": 591
-        },
-        {
-          "path": "_missionStopTransit",
-          "access": "read",
-          "line": 591
-        },
-        {
-          "path": "ctx.captainLog",
-          "access": "read",
-          "line": 598
-        },
-        {
-          "path": "notify",
-          "access": "read",
-          "line": 598
-        },
-        {
-          "path": "ctx.captainLog",
-          "access": "read",
-          "line": 600
-        },
-        {
-          "path": "notify",
-          "access": "read",
-          "line": 600
-        },
-        {
-          "path": "_missionFinish",
-          "access": "read",
-          "line": 600
-        },
-        {
-          "path": "ctx.captainLog",
-          "access": "read",
-          "line": 601
-        },
-        {
-          "path": "_missionFinish",
-          "access": "read",
-          "line": 601
-        },
-        {
-          "path": "ctx.captainLog",
-          "access": "read",
-          "line": 603
-        },
-        {
-          "path": "_missionFinish",
-          "access": "read",
-          "line": 603
-        },
-        {
-          "path": "ctx.captainLog",
-          "access": "read",
-          "line": 608
+          "line": 609
         },
         {
           "path": "notify",
@@ -4847,14 +4789,104 @@
           "line": 609
         },
         {
+          "path": "_missionStopTransit",
+          "access": "read",
+          "line": 609
+        },
+        {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 615
+          "line": 610
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 616
+          "line": 610
+        },
+        {
+          "path": "_missionStopTransit",
+          "access": "read",
+          "line": 610
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 612
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 612
+        },
+        {
+          "path": "_missionStopTransit",
+          "access": "read",
+          "line": 612
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 619
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 619
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 621
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 621
+        },
+        {
+          "path": "_missionFinish",
+          "access": "read",
+          "line": 621
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 622
+        },
+        {
+          "path": "_missionFinish",
+          "access": "read",
+          "line": 622
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 624
+        },
+        {
+          "path": "_missionFinish",
+          "access": "read",
+          "line": 624
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 629
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 630
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 636
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 637
         }
       ]
     },
@@ -4862,14 +4894,14 @@
       "name": "checkPrimaryMission",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 621,
-      "end": 658,
+      "line": 642,
+      "end": 679,
       "callDetails": [
         {
           "name": "ensureMissionFramework",
           "kind": "direct",
           "unresolved": false,
-          "line": 622,
+          "line": 643,
           "offset": 144,
           "definedBy": {
             "class": "SimEngine",
@@ -4882,7 +4914,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 624,
+          "line": 645,
           "offset": 648,
           "object": "this.ctx",
           "definedBy": null,
@@ -4892,7 +4924,7 @@
           "name": "primaryConvoyExists",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 624,
+          "line": 645,
           "offset": 1271,
           "definedBy": {
             "class": "SimEngine",
@@ -4905,7 +4937,7 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 624,
+          "line": 645,
           "offset": 1443,
           "definedBy": {
             "class": "SimEngine",
@@ -4918,7 +4950,7 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 627,
+          "line": 648,
           "offset": 1914,
           "definedBy": {
             "class": "SimEngine",
@@ -4931,7 +4963,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 630,
+          "line": 651,
           "offset": 2239,
           "object": "this.ctx",
           "definedBy": null,
@@ -4941,7 +4973,7 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 630,
+          "line": 651,
           "offset": 2572,
           "definedBy": {
             "class": "SimEngine",
@@ -4954,7 +4986,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 633,
+          "line": 654,
           "offset": 2986,
           "definedBy": null,
           "relation": "unresolved"
@@ -4963,7 +4995,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 647,
+          "line": 668,
           "offset": 3954,
           "object": "this.ctx",
           "definedBy": null,
@@ -4973,7 +5005,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 648,
+          "line": 669,
           "offset": 4124,
           "definedBy": null,
           "relation": "unresolved"
@@ -4982,7 +5014,7 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 652,
+          "line": 673,
           "offset": 4367,
           "definedBy": {
             "class": "SimEngine",
@@ -4996,62 +5028,62 @@
         {
           "path": "state",
           "access": "read",
-          "line": 622
+          "line": 643
         },
         {
           "path": "ensureMissionFramework",
           "access": "read",
-          "line": 622
+          "line": 643
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 624
+          "line": 645
         },
         {
           "path": "primaryConvoyExists",
           "access": "read",
-          "line": 624
+          "line": 645
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 624
+          "line": 645
         },
         {
           "path": "_missionFinish",
-          "access": "read",
-          "line": 627
-        },
-        {
-          "path": "ctx.captainLog",
-          "access": "read",
-          "line": 630
-        },
-        {
-          "path": "_missionFinish",
-          "access": "read",
-          "line": 630
-        },
-        {
-          "path": "notify",
-          "access": "read",
-          "line": 633
-        },
-        {
-          "path": "ctx.captainLog",
-          "access": "read",
-          "line": 647
-        },
-        {
-          "path": "notify",
           "access": "read",
           "line": 648
         },
         {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 651
+        },
+        {
           "path": "_missionFinish",
           "access": "read",
-          "line": 652
+          "line": 651
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 654
+        },
+        {
+          "path": "ctx.captainLog",
+          "access": "read",
+          "line": 668
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 669
+        },
+        {
+          "path": "_missionFinish",
+          "access": "read",
+          "line": 673
         }
       ]
     },
@@ -5059,14 +5091,14 @@
       "name": "getMissionPacingSummary",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 659,
-      "end": 662,
+      "line": 680,
+      "end": 683,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 660
+          "line": 681
         }
       ]
     },
@@ -5074,14 +5106,14 @@
       "name": "missionPrimaryTarget",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 663,
-      "end": 665,
+      "line": 684,
+      "end": 686,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 664
+          "line": 685
         }
       ]
     },
@@ -19967,7 +19999,7 @@
           "kind": "system-path",
           "unresolved": false,
           "line": 174,
-          "offset": 4229,
+          "offset": 4248,
           "object": "this.sys.aswBrain",
           "definedBy": null,
           "relation": "unresolved"
@@ -19977,7 +20009,7 @@
           "kind": "direct",
           "unresolved": false,
           "line": 175,
-          "offset": 4304,
+          "offset": 4323,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -19986,7 +20018,7 @@
           "kind": "system-path",
           "unresolved": false,
           "line": 190,
-          "offset": 5725,
+          "offset": 5744,
           "object": "this.sys.aswBrain",
           "definedBy": null,
           "relation": "unresolved"
@@ -19996,7 +20028,7 @@
           "kind": "system-path",
           "unresolved": false,
           "line": 197,
-          "offset": 6281,
+          "offset": 6300,
           "object": "this.sys.aswBrain",
           "definedBy": null,
           "relation": "unresolved"

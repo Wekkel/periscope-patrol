@@ -25,6 +25,11 @@ function ensureShipDamage(c){
   D.fireRate=Number.isFinite(D.fireRate)?D.fireRate:0;  // + grows, - is being contained
   D.trim=clamp(Number(D.trim)||0,-1,1);                 // + down by bow, - down by stern
   D.list=clamp(Number(D.list)||0,-1,1);
+  D.visualTrim=Number.isFinite(D.visualTrim)?D.visualTrim:D.trim;
+  D.visualList=Number.isFinite(D.visualList)?D.visualList:D.list;
+  D.visualFlotation=Number.isFinite(D.visualFlotation)?D.visualFlotation:D.flotation;
+  D.shudderAmp=Number.isFinite(D.shudderAmp)?D.shudderAmp:0;
+  D.shudderTime=Number.isFinite(D.shudderTime)?D.shudderTime:0;
   if(!D.compartments||typeof D.compartments!=='object'){
     D.compartments={bow:0,forwardHold:0,midships:0,afterHold:0,stern:0};
   }
@@ -109,22 +114,31 @@ function shipTorpedoHitLocation(hitFrac){
   if(hitFrac<-.12)return 'AFTER_HOLD';
   return 'MIDSHIPS';
 }
-function shipAttitude(c){
+function shipAttitude(c, visual=false){
   const D=ensureShipDamage(c);
   if(!D)return {rollRad:0,pitchRad:0,draftOffsetM:0,listDeg:0,trimFt:0,listText:'EVEN KEEL',trimText:'EVEN KEEL',conditionSummary:'INTACT'};
+  const effectiveList=visual&&Number.isFinite(D.visualList)?D.visualList:D.list;
+  const effectiveTrim=visual&&Number.isFinite(D.visualTrim)?D.visualTrim:D.trim;
+  let shudderRoll=0, shudderPitch=0;
+  if(visual&&(D.shudderAmp||0)>0.005){
+    const osc=Math.sin((D.shudderTime||0)*16.0)*D.shudderAmp*0.035;
+    shudderRoll=osc*0.6;
+    shudderPitch=osc*0.4;
+  }
   const maxRollRad=0.436; // ~25 deg
-  const rollRad=clamp(D.list*maxRollRad,-maxRollRad,maxRollRad);
+  const rollRad=clamp(effectiveList*maxRollRad+shudderRoll,-maxRollRad,maxRollRad);
   const listDegVal=Math.round((rollRad*180)/Math.PI);
   const listText=Math.abs(listDegVal)<2?'EVEN KEEL':`LIST ${Math.abs(listDegVal)}° ${listDegVal>0?'STBD':'PORT'}`;
 
   const maxPitchRad=0.209; // ~12 deg
-  const pitchRad=clamp(-D.trim*maxPitchRad,-maxPitchRad,maxPitchRad);
+  const pitchRad=clamp(-effectiveTrim*maxPitchRad+shudderPitch,-maxPitchRad,maxPitchRad);
   const lenFt=(c.lengthYards||400)*3;
-  const trimFtVal=Math.round(D.trim*(lenFt*0.04));
-  const trimText=Math.abs(D.trim)<0.10?'EVEN KEEL':D.trim>0?`TRIM ${Math.abs(trimFtVal)}FT HEAD`:`TRIM ${Math.abs(trimFtVal)}FT STERN`;
+  const trimFtVal=Math.round(effectiveTrim*(lenFt*0.04));
+  const trimText=Math.abs(effectiveTrim)<0.10?'EVEN KEEL':effectiveTrim>0?`TRIM ${Math.abs(trimFtVal)}FT HEAD`:`TRIM ${Math.abs(trimFtVal)}FT STERN`;
 
   const baseDraftM=(c.dimensions?.draftFt?c.dimensions.draftFt*0.3048:(c.lengthYards||400)*0.02);
-  const draftOffsetM=clamp(D.flotation*baseDraftM*0.75,0,baseDraftM*1.5);
+  const effectiveFlot=visual&&Number.isFinite(D.visualFlotation)?D.visualFlotation:D.flotation;
+  const draftOffsetM=clamp(effectiveFlot*baseDraftM*0.75,0,baseDraftM*1.5);
   const conditionSummary=listText==='EVEN KEEL'&&trimText==='EVEN KEEL'?'EVEN KEEL':`${listText} · ${trimText}`;
   return {rollRad,pitchRad,draftOffsetM,listDeg:listDegVal,trimFt:trimFtVal,listText,trimText,conditionSummary};
 }
@@ -142,7 +156,10 @@ function _shipSetDamage(c,D,key,add){D[key]=clamp(D[key]+Math.max(0,add),0,1);}
 function _shipScheduleOutcome(engine,c,D,impactKey){
   const now=engine.state.time.elapsedSeconds||0;
   const h=_shipHash01(`${c.id}:${impactKey}:outcome`);
-  if(D.flotation>=.985){D.founderingAt=now;return;}
+  if(D.flotation>=.985){
+    if(D.founderingAt===null)D.founderingAt=now+14+h*10;
+    return;
+  }
   if(D.flotation>.86&&D.founderingAt===null){
     const delay=50+(1-D.flotation)*520+h*80;
     D.founderingAt=now+clamp(delay,35,190);
@@ -192,6 +209,8 @@ function applyTorpedoShipDamage(engine,c,impact){
   D.hitSide=hitSide;
   D.trim=clamp(D.trim+trim*p,-1,1);
   D.list=clamp(D.list+hitSide*(.14+.20*f*p),-1,1);
+  D.shudderAmp=Math.min(1.0,(D.shudderAmp||0)+0.85*p);
+  D.shudderTime=0;
   D.hitCount++;D.lastHitAt=now;D.lastHitLocation=location;D.lastHitFrac=impact.hitFrac;
   D.lastWeapon='TORPEDO';D.lastWeaponId=impact.torpedoId||null;D.lastAttackerSide='PLAYER';D.lastAttackerId='PLAYER_SUB';
   if(D.steering>.62&&Math.abs(D.rudderBiasDeg)<1){
@@ -395,6 +414,17 @@ function updateShipDamage(engine,c,dt){
         return;
       }
     }
+    if((D.shudderAmp||0)>0.005){
+      D.shudderTime=(D.shudderTime||0)+dt;
+      D.shudderAmp*=Math.exp(-dt/1.15);
+    }else{
+      D.shudderAmp=0;D.shudderTime=0;
+    }
+    const tau=Math.max(10,((c.lengthYards||400)/400)*16);
+    const frac=1-Math.exp(-dt/tau);
+    if(Number.isFinite(D.visualTrim))D.visualTrim+=(D.trim-D.visualTrim)*frac;
+    if(Number.isFinite(D.visualList))D.visualList+=(D.list-D.visualList)*frac;
+    if(Number.isFinite(D.visualFlotation))D.visualFlotation+=(D.flotation-D.visualFlotation)*frac;
   }
   if(dt>0&&D.compartments){
     const targetTrim=clamp((D.compartments.bow*.85+D.compartments.forwardHold*.45)-(D.compartments.stern*.80+D.compartments.afterHold*.40),-1,1);

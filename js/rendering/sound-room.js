@@ -49,6 +49,29 @@ const SoundStation={
     ctx.fillStyle=sig.strength>.10?'#f5c65c':'#71988c';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(line,cx,Math.min(h-20*k,my+31*k));
     if(state.playerSub.propulsion.speedKnots>7){ctx.fillStyle='rgba(239,106,88,.86)';ctx.font=this.fnt(8.5,true);ctx.fillText('OWN SCREW NOISE MASKING CONTACTS — SLOW OR STOP TO LISTEN',cx,Math.min(h-7*k,my+47*k));}
     ctx.textAlign='left';
+
+    // Bathythermograph (BT) Gradient Trace
+    const layer=state.world.environment.layerDepthFt||190,subD=state.playerSub.depthFeet||0;
+    const btW=Math.min(108*k,w*0.24),btH=Math.min(135*k,h*0.38);
+    const btX=w-btW-12*k,btY=16*k;
+    if(btW>55&&btH>70){
+      ctx.fillStyle='rgba(6,18,22,0.85)';ctx.fillRect(btX,btY,btW,btH);
+      ctx.strokeStyle='rgba(70,125,110,0.7)';ctx.lineWidth=Math.max(1,1.2*k);ctx.strokeRect(btX,btY,btW,btH);
+      ctx.fillStyle=pal.ink||'#d7f5e7';ctx.font=this.fnt(7.2,true);ctx.fillText('BT TRACE (GRADIENT)',btX+4*k,btY+11*k);
+      const maxPlotD=320,kneeNorm=clamp(layer/maxPlotD,0.15,0.85);
+      const kneeY=btY+16*k+kneeNorm*(btH-24*k);
+      const warmX=btX+btW*0.78,coldX=btX+btW*0.26;
+      ctx.strokeStyle='rgba(80,195,225,0.75)';ctx.setLineDash([3,3]);
+      ctx.beginPath();ctx.moveTo(btX+2,kneeY);ctx.lineTo(btX+btW-2,kneeY);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='rgba(100,210,235,0.85)';ctx.font=this.fnt(6.5);ctx.fillText(`LAYER ${layer}FT`,btX+4*k,kneeY-2*k);
+      ctx.strokeStyle='rgba(245,198,92,0.85)';ctx.lineWidth=Math.max(1,1.5*k);
+      ctx.beginPath();ctx.moveTo(warmX,btY+16*k);ctx.lineTo(warmX-2*k,kneeY-4*k);ctx.lineTo(coldX,kneeY+10*k);ctx.lineTo(coldX-4*k,btY+btH-8*k);ctx.stroke();
+      const curNorm=clamp(subD/maxPlotD,0,1),curY=btY+16*k+curNorm*(btH-24*k);
+      ctx.fillStyle='#ff7359';ctx.beginPath();ctx.arc(btX+6*k,curY,2.5*k,0,Math.PI*2);ctx.fill();
+      const below=subD>layer+15;
+      ctx.fillStyle=below?'#6fe08f':'rgba(235,195,125,0.85)';ctx.font=this.fnt(6.2,true);
+      ctx.fillText(below?'▼ SHIELDED (REFRACTING)':'▲ IN SURFACE DUCT',btX+4*k,btY+btH-4*k);
+    }
   },
 
   drawSurfaceRadarPlot(ctx,w,h,state){

@@ -208,7 +208,39 @@ const BattleAtmosphere={
     },
 
     drawPeriscopeBroachWash(ctx,w,h,state,t){
-      const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),depth=sub.depthFeet||0,band=clamp(1-Math.abs(depth-58)/14,0,1),wave=.5+.5*Math.sin(t*(1.05+sea*.55)+depth*.11),vertical=clamp(Math.abs(sub.verticalSpeedFps||0)/3,0,1),a=band*(.16+sea*.64)*(wave*.75+vertical*.35);if(a<.08)return;
-      const k=this.k,n=this.lowSpec?4:7;ctx.save();const g=ctx.createLinearGradient(0,0,0,h);g.addColorStop(0,`rgba(130,178,194,${.20*a})`);g.addColorStop(.38,`rgba(35,84,104,${.11*a})`);g.addColorStop(1,'rgba(20,55,70,0)');ctx.fillStyle=g;ctx.fillRect(0,0,w,h*.62);ctx.strokeStyle=`rgba(215,237,242,${.18*a})`;ctx.lineWidth=Math.max(1,1.2*k);for(let i=0;i<n;i++){const x=((i*.173+t*.037)%1)*w,y=((i*.281+t*.11)%1)*h*.58;ctx.beginPath();ctx.moveTo(x,y);ctx.quadraticCurveTo(x+10*k,y+18*k,x+4*k,y+42*k);ctx.stroke();}ctx.restore();
+      const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),depth=sub.depthFeet||0;
+      const broachBand=clamp(1-Math.abs(depth-46)/8,0,1);
+      const deepBroach=clamp(1-Math.abs(depth-58)/14,0,1);
+      const band=Math.max(broachBand,deepBroach);
+      const wave=.5+.5*Math.sin(t*(1.05+sea*.55)+depth*.11);
+      const vertical=clamp(Math.abs(sub.verticalSpeedFps||0)/2.5,0,1);
+      const a=band*(.22+sea*.68)*(wave*.75+vertical*.45);
+      if(a<.06)return;
+      const k=this.k,n=this.lowSpec?5:9;
+      ctx.save();
+      const g=ctx.createLinearGradient(0,0,0,h);
+      g.addColorStop(0,`rgba(110,168,188,${.28*a})`);
+      g.addColorStop(.35,`rgba(30,78,98,${.16*a})`);
+      g.addColorStop(.75,`rgba(18,50,65,${.06*a})`);
+      g.addColorStop(1,'rgba(10,35,45,0)');
+      ctx.fillStyle=g;ctx.fillRect(0,0,w,h*.75);
+      ctx.strokeStyle=`rgba(220,242,248,${.24*a})`;
+      ctx.lineWidth=Math.max(1,1.3*k);
+      for(let i=0;i<n;i++){
+        const seed=i*0.173;
+        const x=((seed+t*0.045)%1)*w;
+        const dripSpeed=1.8+((i%3)*0.6);
+        const y=((i*0.281+t*dripSpeed*0.12)%1)*h*0.72;
+        const len=(24+i*6)*k;
+        ctx.beginPath();
+        ctx.moveTo(x,y);
+        ctx.quadraticCurveTo(x+(i%2?1:-1)*8*k,y+len*0.5,x+(i%2?2:-2)*k,y+len);
+        ctx.stroke();
+        ctx.fillStyle=`rgba(235,250,255,${.35*a})`;
+        ctx.beginPath();
+        ctx.arc(x+(i%2?2:-2)*k,y+len,Math.max(1,1.8*k),0,Math.PI*2);
+        ctx.fill();
+      }
+      ctx.restore();
     }
 };
