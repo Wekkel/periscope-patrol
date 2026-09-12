@@ -11,6 +11,7 @@ const hasEslint=existsSync(eslintScript);
 const checks=[
   ['call-graph generation',process.execPath,['tests/generate-call-graph.mjs','.']],
   ['quality gates',process.execPath,['tests/quality-gates.mjs','.']],
+  ['footprint & performance budget',process.execPath,['tests/footprint-budget.mjs','.']],
   ['HUD presenter measurement',process.execPath,['tests/measure-hud-presenters.mjs']],
   ['behaviour tests',process.execPath,['tests/behaviour.mjs']],
   ['hybrid audio pipeline',process.execPath,['tests/audio-pipeline.mjs']],

@@ -171,6 +171,7 @@ function _missionCheckPacingIntelAdvisory(engine,m,p,min,target){
   };
   R.inbox=Array.isArray(R.inbox)?R.inbox:[];
   R.inbox.push(radioItem);
+  if(R.inbox.length>16)R.inbox.splice(0,R.inbox.length-16);
   R.unread=(R.unread||0)+1;
 
   engine.ctx.captainLog?.('RADIO_INTELLIGENCE',msg,advisoryDatum,`pacing-advisory:${p.advisoriesDispatched+1}`);

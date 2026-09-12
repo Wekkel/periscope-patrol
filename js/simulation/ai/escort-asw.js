@@ -219,6 +219,7 @@ const ASWSystem={
       }
     }
     W.depthCharges=W.depthCharges.filter(dc=>dc.status==='SINKING'||dc.ageSec<dc.fuseSec+6);
+    if(W.depthCharges.length>32)W.depthCharges.splice(0,W.depthCharges.length-32);
   }
 
   /* Remember what the world looked like, so a transit can be broken off the

@@ -333,6 +333,7 @@ const CareerSystem={
     };
     if(key)ev.key=key;
     c.importantEvents.push(ev);
+    if(c.importantEvents.length>150)c.importantEvents.splice(0,c.importantEvents.length-150);
     const aarTrack=ev.data?.contactId?this.state.world.contactTracks?.[ev.data.contactId]:null;
     this.aar.recordEvent?.(ev.type,ev.text,{...ev.data,aarKey:key||null},this.state.playerSub?.position,aarTrack?.plotPosition||aarTrack?.lastFixPosition||null);
     return ev;

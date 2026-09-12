@@ -348,8 +348,12 @@ const TorpedoSystem={
       }
     }
     W.activeTorpedoes=W.activeTorpedoes.filter(t=>t.status==='RUNNING'||t.ageSec<8);
+    if(W.activeTorpedoes.length>16)W.activeTorpedoes.splice(0,W.activeTorpedoes.length-16);
     for(const e of W.explosions) e.ageSec+=dt;
     W.explosions=W.explosions.filter(e=>e.ageSec<e.maxAgeSec);
+    if(W.explosions.length>24)W.explosions.splice(0,W.explosions.length-24);
+    if(W.hits&&W.hits.length>50)W.hits.splice(0,W.hits.length-50);
+    if(W.duds&&W.duds.length>30)W.duds.splice(0,W.duds.length-30);
     for(const c of this.state.world.contacts)
       if(c.sunk) c.sinkingProgress=clamp((c.sinkingProgress??0)+dt/(c.sinkDurationSec||45),0,1);
     for(const tube of W.tubes){

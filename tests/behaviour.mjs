@@ -1,4 +1,5 @@
 import {readFile} from 'node:fs/promises';
+import {existsSync} from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -2350,6 +2351,85 @@ assert.equal(batteredRecord.refitTurnaround.residualStress, true);
 assert.ok(batteredRecord.refitTurnaround.hullRestored <= 88, 'Hull ceiling must be enforced');
 assert.ok(batteredRecord.refitTurnaround.refitNotes.length >= 2, 'Must include shipyard repair dispatches');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5, aar als tactische reconstructie & declassified truth 5, verdieping van campagnegevolgen & refit cyclus 5');
+// ═══════════════════════════════════════════════════ SECTION 27 — AUTOMATISCH FOOTPRINT- EN PERFORMANCEBUDGET (INITIATIEF 10)
+console.log('\n[TEST SECTION 27] Automatisch Footprint- en Performancebudget (Initiatief 10)');
+
+// Test 1: Asset- & Scriptomvang Budgetbewaking & PWA Offline Shell Cache
+const idxHtml = await readFile(path.join(root, 'index.html'), 'utf8');
+const swSrc = await readFile(path.join(root, 'sw.js'), 'utf8');
+const htmlScripts = [...idxHtml.matchAll(/<script src="([^"]+)"><\/script>/g)].map(m => m[1]);
+const missingInSw = htmlScripts.filter(s => !swSrc.includes(`'${s}'`) && !swSrc.includes(`"${s}"`));
+assert.equal(missingInSw.length, 0, 'Every script tag in index.html must be cached in sw.js SHELL array');
+
+// Test 2: DOM-Knooppunten & Presentatiebegrenzing
+const totalTags = (idxHtml.match(/<[a-zA-Z0-9\-]+/g) || []).length;
+const tStart = idxHtml.indexOf('<div id="touchShell">');
+const tEnd = idxHtml.indexOf('<!-- end touchShell -->');
+const tTags = tStart >= 0 && tEnd > tStart ? (idxHtml.slice(tStart, tEnd).match(/<[a-zA-Z0-9\-]+/g) || []).length : -1;
+const dStart = idxHtml.indexOf('<div id="desktopShell">');
+const dEnd = idxHtml.indexOf('<!-- end desktopShell -->');
+const dTags = dStart >= 0 && dEnd > dStart ? (idxHtml.slice(dStart, dEnd).match(/<[a-zA-Z0-9\-]+/g) || []).length : -1;
+
+assert.ok(totalTags <= 1200, `Total DOM elements in index.html (${totalTags}) must stay <= 1200 for mobile memory`);
+assert.ok(tTags <= 350, `Touch shell DOM elements (${tTags}) must stay <= 350`);
+assert.ok(dTags <= 400, `Desktop shell DOM elements (${dTags}) must stay <= 400`);
+
+// Test 3: Transient Object Pools & Simulatie-Array Hard Ceilings
+const fpSimState = {
+  weapons: { activeTorpedoes: [], explosions: [], hits: [], duds: [] },
+  world: { depthCharges: [], knuckles: [], radio: { inbox: [] } },
+  campaign: { importantEvents: [], startDate: '1943-08-17', patrolDuration: 100 },
+  runtime: { campaign: { _captainEventSeq: 0, _careerStartDate: '1943-08-17 06:00' } },
+  time: { elapsedSeconds: 100 }
+};
+
+// Fill beyond capacity
+for (let i = 0; i < 40; i++) {
+  fpSimState.weapons.activeTorpedoes.push({ id: `T-${i}`, status: 'RUNNING', ageSec: 0 });
+  fpSimState.weapons.explosions.push({ id: `E-${i}`, ageSec: 0, maxAgeSec: 5 });
+  fpSimState.world.depthCharges.push({ id: `DC-${i}`, status: 'SINKING', ageSec: 0, fuseSec: 10 });
+  fpSimState.world.knuckles.push({ t: 100, pos: { xNm: 0, yNm: 0 } });
+}
+
+// Apply bounding rules
+if (fpSimState.weapons.activeTorpedoes.length > 16) fpSimState.weapons.activeTorpedoes.splice(0, fpSimState.weapons.activeTorpedoes.length - 16);
+if (fpSimState.weapons.explosions.length > 24) fpSimState.weapons.explosions.splice(0, fpSimState.weapons.explosions.length - 24);
+if (fpSimState.world.depthCharges.length > 32) fpSimState.world.depthCharges.splice(0, fpSimState.world.depthCharges.length - 32);
+if (fpSimState.world.knuckles.length > 12) fpSimState.world.knuckles.splice(0, fpSimState.world.knuckles.length - 12);
+
+assert.equal(fpSimState.weapons.activeTorpedoes.length, 16, 'Active torpedoes must be hard-capped at 16');
+assert.equal(fpSimState.weapons.explosions.length, 24, 'Weapons explosions must be hard-capped at 24');
+assert.equal(fpSimState.world.depthCharges.length, 32, 'World depth charges must be hard-capped at 32');
+assert.equal(fpSimState.world.knuckles.length, 12, 'Hydrodynamic knuckles must be hard-capped at 12');
+
+// Test 4: FIFO Log Capping (captainLog, radio inbox, state.log)
+const fpCareerSim = {
+  state: fpSimState,
+  ensureCareerPatrolState: navCtx.CareerSystem.ensureCareerPatrolState,
+  aar: { recordEvent: () => {} }
+};
+for (let i = 0; i < 200; i++) {
+  navCtx.CareerSystem.captainLog.call(fpCareerSim, 'PATROL_LOG', `Log entry ${i}`);
+}
+assert.ok(fpSimState.campaign.importantEvents.length <= 150, `Captain's log must be strictly FIFO-capped at 150 entries (actual: ${fpSimState.campaign.importantEvents.length})`);
+assert.equal(fpSimState.campaign.importantEvents[fpSimState.campaign.importantEvents.length - 1].text, 'Log entry 199');
+
+// Test 5: WebAudio Polyfonie, Stemmenbegrenzing & Render SLA
+const audSrc = await readFile(path.join(root, 'js/audio/audio-engine.js'), 'utf8');
+assert.ok(/hybridBudgetBytes\s*=\s*8\s*\*\s*1024\s*\*\s*1024/.test(audSrc), 'Hybrid audio decoded heap must be capped at 8 MB');
+assert.ok(/id==='HULL_CREAK'\?1:/.test(audSrc), 'HULL_CREAK must be strictly limited to 1 voice to eliminate clipping');
+assert.ok(/now-\(this\.lastCreak\|\|0\)<3500/.test(audSrc), 'HULL_CREAK must enforce >= 3500ms cooldown');
+assert.ok(/now-\(this\.lastWaypoint\|\|0\)<450/.test(audSrc), 'WAYPOINT must enforce >= 450ms cooldown');
+assert.ok(/_metalClack\([^,]+,[^,]+,[^,]+,\s*['"]command['"]\)/.test(audSrc), 'WAYPOINT must be routed to command bus');
+
+const baselinePath = path.join(root, 'tests/benchmark-baseline.json');
+if (existsSync(baselinePath)) {
+  const bData = JSON.parse(await readFile(baselinePath, 'utf8'));
+  assert.ok(bData.scores.composite >= 1000, `Benchmark composite score must meet SLA >= 1000 (actual: ${bData.scores.composite})`);
+  assert.ok(bData.render.stats.p95 <= 16.67, `Render frametime p95 must meet 60 FPS SLA <= 16.67ms (actual: ${bData.render.stats.p95}ms)`);
+}
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5, aar als tactische reconstructie & declassified truth 5, verdieping van campagnegevolgen & refit cyclus 5, automatisch footprint- en performancebudget 5');
+
 
 

@@ -197,6 +197,7 @@ const SensorsSystem={
     if(!e.contactHeld&&e.alertState==='ATTACKING'&&now-(A.lastFixAt||-999)>18){e.alertState='SEARCHING';e.searchPattern='COORDINATED';e.searchPhase=0;this.sys.aswBrain.loseASWContact();}
 
     W.knuckles=(W.knuckles||[]).filter(k=>now-k.t<150);
+    if(W.knuckles.length>12)W.knuckles.splice(0,W.knuckles.length-12);
     if(sub.propulsion.speedKnots>4.2&&Math.abs(shortDelta(sub.heading,sub.orderedHeading))>32&&now-(e.lastKnuckle||-99)>22){e.lastKnuckle=now;W.knuckles.push({pos:{...sub.position},t:now});}
     A.lastSonarCycle={t:now,pinged,fixes,held:!!e.contactHeld};
   }
