@@ -11,6 +11,7 @@ import {createMissionLifecycleScenario} from './scenarios/mission-lifecycle-scen
 import {createEnduranceScenario} from './scenarios/endurance-scenario.mjs';
 import {createNationalStationsScenario} from './scenarios/national-stations-scenario.mjs';
 import {createShipRecognitionScenario} from './scenarios/ship-recognition-scenario.mjs';
+import {createBenchmarkScenario} from './scenarios/benchmark-scenario.mjs';
 
 export async function runMissionScenario({
   scenario,
@@ -165,6 +166,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(currentFil
       scenario = createShipRecognitionScenario(profile);
     } else if (scenarioArg === 'endurance') {
       scenario = createEnduranceScenario(profile, { iterations });
+    } else if (scenarioArg === 'benchmark' || scenarioArg === 'perf') {
+      scenario = createBenchmarkScenario(profile);
     } else {
       scenario = createSmokeScenario(profile);
     }

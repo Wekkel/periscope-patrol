@@ -1735,5 +1735,41 @@ const snapCustom = simCore.impactObservationSnapshot(mockContactTarget, { durati
 assert.equal(snapCustom.durationMs, 9000, 'Explicit custom durationMs must be preserved');
 assert.equal(snapCustom.preImpactMs, 1500, 'Explicit custom preImpactMs must be preserved');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3');
+// 22. Interne Benchmark & Performance Metrics (4 tests)
+const { calculatePercentile, computeStats, computeBenchmarkScores, formatComparison } = await import('./benchmark.mjs');
+
+// Test 1: Percentile interpolation mathematics
+const testSamples = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+assert.equal(calculatePercentile(testSamples, 50), 5.5, 'p50 of 1..10 must be 5.5');
+assert.equal(calculatePercentile(testSamples, 0), 1, 'p0 must be minimum');
+assert.equal(calculatePercentile(testSamples, 100), 10, 'p100 must be maximum');
+
+// Test 2: Statistical aggregation (mean, stddev, percentiles)
+const stats = computeStats([10, 20, 30, 40, 50]);
+assert.equal(stats.mean, 30, 'Mean of 10..50 must be 30');
+assert.equal(stats.p50, 30, 'p50 of 10..50 must be 30');
+assert.equal(stats.min, 10, 'Min must be 10');
+assert.equal(stats.max, 50, 'Max must be 50');
+
+// Test 3: Benchmark score calibration
+const mockScores = computeBenchmarkScores({
+  render: { stats: { p95: 16.67 } },
+  simulation: { stats: { p95: 5000 } },
+  audio: { stats: { p95: 500 } }
+});
+assert.equal(mockScores.render, 1000, 'Render at 16.67ms p95 must equal exactly 1000 pts');
+assert.equal(mockScores.simulation, 1000, 'Simulation at 5000us p95 must equal exactly 1000 pts');
+assert.equal(mockScores.audio, 1000, 'Audio at 500us p95 must equal exactly 1000 pts');
+assert.equal(mockScores.composite, 1000, 'Composite score at reference points must equal exactly 1000 pts');
+
+// Test 4: Format comparison delta calculations
+const baseResult = { scores: { composite: 1000 }, render: { fps: 60, stats: { mean: 16.67 } }, simulation: { ticksPerSecond: 200, stats: { mean: 5000 } }, audio: { stats: { mean: 500 } } };
+const newResult = { scores: { composite: 1100 }, render: { fps: 66, stats: { mean: 15.15 } }, simulation: { ticksPerSecond: 220, stats: { mean: 4500 } }, audio: { stats: { mean: 450 } } };
+const comp = formatComparison(newResult, baseResult);
+assert.equal(comp.scoreDiff, 100, 'Score difference must be +100');
+assert.equal(comp.scorePct, '+10.0%', 'Score percentage must be +10.0%');
+assert.equal(comp.renderFpsDiff, 6, 'Render FPS diff must be +6');
+assert.equal(comp.renderFpsPct, '+10.0%', 'Render FPS pct must be +10.0%');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4');
 

@@ -2,6 +2,7 @@
 const game=new Game();
 globalThis.game=game;
 const canvasView=new CanvasView(document.getElementById('mainCanvas'));
+globalThis.canvasView=canvasView;
 const domView=new DomView();
 globalThis.domView=domView;
 const gyroIndicator=new GyroIndicator(document.getElementById('gyroIndicator'));

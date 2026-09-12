@@ -15,6 +15,7 @@ const checks=[
   ['behaviour tests',process.execPath,['tests/behaviour.mjs']],
   ['hybrid audio pipeline',process.execPath,['tests/audio-pipeline.mjs']],
   ['campaign & scenario validation',process.execPath,['tests/test-campaign-and-scenarios.mjs']],
+  ['standardized internal benchmark',process.execPath,['tests/benchmark.mjs','--quiet']],
   ...(hasJsdom ? [['boot harness',process.execPath,['tests/boot-harness.mjs','.']]] : []),
   ['ESLint globals',process.execPath,['tests/generate-eslint-globals.mjs','.']],
   ...(hasEslint ? [['ESLint no-undef',process.execPath,[eslintScript,'.']]] : []),
