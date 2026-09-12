@@ -48,7 +48,8 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       const tri=u<.5?u*2:2-u*2,dir=sw.phase?1:-1;
       H.searchlightBearing=normDeg(sw.centerBearing+dir*lerp(-sw.spanDeg,sw.spanDeg,tri));
       H.searchlightActiveUntil=sw.startedAt+sw.duration;
-      if(sub.depthFeet>=12)return;
+      const periFeather=sub.depthFeet<=48&&(sub.propulsion?.speedKnots||0)>3.2;
+      if(sub.depthFeet>=12&&!periFeather)return;
       const wx=weatherBetween(this.state,H.center,sub.position),rng=distNm(H.center,sub.position);
       if(rng>4.4*wx.searchlightFactor)return;
       const trueB=bearingBetween(H.center,sub.position),half=(H.searchlightWidthDeg||12)*.5;
@@ -79,11 +80,20 @@ function battlePredictPosition(p,heading,speedKnots,sec){
     resolveBattleShell(ev){
       if(ev.resolved)return;ev.resolved=true;const A=this.ensureBattleAtmosphereState(),s=this.state,sub=s.playerSub,now=s.time.elapsedSeconds;
       const miss=distNm(sub.position,ev.impactPosition),hit=sub.depthFeet<12&&miss<.020;
+      const periNearMiss=!hit&&sub.depthFeet>=12&&sub.depthFeet<=48&&miss<.035;
       if(hit){
         this.sys.damage.applyShock(ev.damage);s.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
         this.notify(`COASTAL BATTERY HIT — ${ev.damage.toFixed(0)}% damage. The battery has the range; get below or spoil the solution.`,'bad', 'KRITIEK');
         PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,ev.origin),sub.heading,.9);this.shake?.(1.2);
         if(s.world.harbor)s.world.harbor.batteryCorrection=.46;
+      }else if(periNearMiss){
+        const shockDmg=Math.max(1,ev.damage*.35);
+        this.sys.damage.applyShock(shockDmg);
+        s.weapons.explosions.push({position:{...ev.impactPosition},ageSec:0,maxAgeSec:4,label:'NEAR MISS'});
+        A.splashes.push({id:`SP-${ev.id}`,position:{...ev.impactPosition},at:now,until:now+4,size:1.35,kind:'COASTAL'});if(A.splashes.length>BATTLE_MAX_SPLASHES)A.splashes.shift();
+        this.notify(`NEAR MISS AT PERISCOPE DEPTH — concussive shockwave! Shell detonation overhead.`,'warn', 'KRITIEK');
+        PresentationBridge.audio(this.state).playShellSplash?.(.12,bearingBetween(sub.position,ev.impactPosition),sub.heading);this.shake?.(.75);
+        if(s.world.harbor)s.world.harbor.batteryCorrection=clamp((s.world.harbor.batteryCorrection||1)*.82,.4,1);
       }else{
         A.splashes.push({id:`SP-${ev.id}`,position:{...ev.impactPosition},at:now,until:now+4,size:1.0,kind:'COASTAL'});if(A.splashes.length>BATTLE_MAX_SPLASHES)A.splashes.shift();
         const close=miss<.12;if(close)PresentationBridge.audio(this.state).playShellPass?.(bearingBetween(sub.position,ev.origin),sub.heading);

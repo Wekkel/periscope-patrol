@@ -45,6 +45,13 @@ const HarborSystem={
       suspicion:0,alert:0,entered:false,inside:false,lastGunAt:-999,lastSweepAt:-999,
       mines:[]
     };
+    const portScene=(W.portScenes||[]).find(ps=>ps.name===port.name);
+    const rHead=degToRad(H.channelBearing),sinH=Math.sin(rHead),cosH=Math.cos(rHead);
+    const bFeats=(portScene?.features||[]).filter(f=>f.kind==='coastal_battery');
+    H.batterySites=bFeats.length?bFeats.map(f=>({xNm:H.center.xNm+sinH*f.alongNm+cosH*f.lateralNm,yNm:H.center.yNm-cosH*f.alongNm+sinH*f.lateralNm,id:f.id||'BATTERY'})):[
+      {xNm:H.center.xNm+sinH*.46-cosH*.54,yNm:H.center.yNm-cosH*.46-sinH*.54,id:'BATTERY-A'},
+      {xNm:H.center.xNm+sinH*.46+cosH*.54,yNm:H.center.yNm-cosH*.46+sinH*.54,id:'BATTERY-B'}
+    ];
     const approach=this.validateHarborApproachWater(H);
     if(!approach.ok){H.approachStatus='LIMITED';H.approachLimitNm=approach.lastSafeNm;H.mineOuterNm=Math.min(H.mineOuterNm,Math.max(H.mineInnerNm+.4,approach.lastSafeNm-.55));}
     else H.approachStatus='CLEAR';
@@ -97,6 +104,15 @@ const HarborSystem={
     if(H.channelDepthFeet==null)H.channelDepthFeet=g.channelDepthFeet;
     if(H.innerBasinDepthFeet==null)H.innerBasinDepthFeet=g.innerBasinDepthFeet;
     if(H.netMaxDepthFt==null)H.netMaxDepthFt=g.netMaxDepthFt;
+    if(!H.batterySites||!H.batterySites.length){
+      const portScene=(W.portScenes||[]).find(ps=>ps.name===H.name);
+      const rHead=degToRad(H.channelBearing),sinH=Math.sin(rHead),cosH=Math.cos(rHead);
+      const bFeats=(portScene?.features||[]).filter(f=>f.kind==='coastal_battery');
+      H.batterySites=bFeats.length?bFeats.map(f=>({xNm:H.center.xNm+sinH*f.alongNm+cosH*f.lateralNm,yNm:H.center.yNm-cosH*f.alongNm+sinH*f.lateralNm,id:f.id||'BATTERY'})):[
+        {xNm:H.center.xNm+sinH*.46-cosH*.54,yNm:H.center.yNm-cosH*.46-sinH*.54,id:'BATTERY-A'},
+        {xNm:H.center.xNm+sinH*.46+cosH*.54,yNm:H.center.yNm-cosH*.46+sinH*.54,id:'BATTERY-B'}
+      ];
+    }
     if(!Array.isArray(C.optionalObjectives)) C.optionalObjectives=[];
     let I=W.harborIntel;
     if(!I||fresh){
@@ -388,7 +404,10 @@ const HarborSystem={
       else this.log('Harbour searchlights continue sweeping the entrance.','warn');
       H.suspicion=clamp(H.suspicion+5,0,100);
     }
-    if(H.alert>=2&&sub.depthFeet<12&&rng<H.batteryRangeNm&&now-H.lastGunAt>11){
+    const lit=now<(H.searchlightContactUntil||-1),litStarshell=(W.environment?.harborIllumination||0)>0.35;
+    const daylight=clamp(W.environment?.daylight||0,0,1),periWake=daylight>0.25&&sub.depthFeet<=48&&(sub.propulsion?.speedKnots||0)>3.5;
+    const targetAcquired=sub.depthFeet<12||(sub.depthFeet<=48&&(lit||litStarshell||periWake));
+    if(H.alert>=2&&targetAcquired&&rng<H.batteryRangeNm&&now-H.lastGunAt>11){
       H.lastGunAt=now;
       this.sys.harbor.recordHarborBatteryFire(H);
       if(this.scheduleCoastalBatteryShot){

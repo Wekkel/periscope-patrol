@@ -593,11 +593,39 @@ const MapStation={
       }
       path();ctx.strokeStyle='rgba(120,175,150,0.16)';ctx.lineWidth=Math.max(6,14*K);ctx.lineJoin='round';ctx.stroke();
       ctx.strokeStyle='rgba(190,205,120,0.14)';ctx.lineWidth=Math.max(3,7*K);ctx.stroke();
+      // Warm sand beach shoreline fringe
+      ctx.strokeStyle='rgba(235,215,145,0.42)';ctx.lineWidth=Math.max(1.2,2.0*K);ctx.stroke();
       ctx.fillStyle=landGradient;ctx.fill();
       ctx.strokeStyle=this.zoom>=70?'rgba(239,106,88,0.72)':'rgba(214,228,150,0.55)';ctx.lineWidth=this.zoom>=70?Math.max(1.4,1.8*K):Math.max(1,1.3*K);ctx.stroke();
+
+      // Topographic elevation contour rings for high islands when zoomed in
+      if(this.zoom>=2.5&&f.peakM>=400&&pts.length>=6){
+        const steps=f.peakM>=1200?2:1;
+        for(let s=1;s<=steps;s++){
+          const fScale=s===1?(f.peakM>=1200?0.68:0.55):0.38;
+          ctx.strokeStyle='rgba(175,195,120,0.18)';ctx.lineWidth=Math.max(0.8,K);
+          ctx.beginPath();
+          pts.forEach((p,i)=>{
+            const qx=b.cx+(p.xNm-b.cx)*fScale,qy=b.cy+(p.yNm-b.cy)*fScale,sp=w2s(qx,qy);
+            if(i===0)ctx.moveTo(sp.x,sp.y);else ctx.lineTo(sp.x,sp.y);
+          });
+          ctx.closePath();ctx.stroke();
+        }
+      }
+
       if(f.areaNm2>25){
         const c=w2s(b.cx,b.cy),cx=c.x,cy=c.y;
-        if(cx>-120&&cx<this.w+120&&cy>-60&&cy<this.h+60){ctx.fillStyle='rgba(226,238,180,0.8)';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(f.name.toUpperCase(),cx,cy);if(f.peakM>500){ctx.fillStyle='rgba(226,238,180,0.5)';ctx.font=this.fnt(7.5);ctx.fillText(`▲ ${f.peakM} m`,cx,cy+10*K);}ctx.textAlign='left';}
+        if(cx>-120&&cx<this.w+120&&cy>-60&&cy<this.h+60){
+          ctx.fillStyle='rgba(226,238,180,0.8)';ctx.font=this.fnt(9,true);ctx.textAlign='center';
+          ctx.fillText(f.name.toUpperCase(),cx,cy);
+          if(f.peakM>500){
+            const isVolcano=f.peakM>=1000||/volcan|crater|claro|kolombangara|savo/i.test(f.name);
+            ctx.fillStyle=isVolcano?'rgba(255,185,125,0.85)':'rgba(226,238,180,0.5)';
+            ctx.font=this.fnt(7.5);
+            ctx.fillText(isVolcano?`🌋 ${f.peakM} m`:`▲ ${f.peakM} m`,cx,cy+10*K);
+          }
+          ctx.textAlign='left';
+        }
       }
     }
   },
@@ -717,6 +745,43 @@ const MapStation={
           const s=Math.max(2,Math.min(6,(f.sizeM||14)/12*K));
           ctx.lineWidth=Math.max(1,K);
           ctx.beginPath();ctx.moveTo(x-s*.5,y);ctx.lineTo(x+s*.5,y);ctx.moveTo(x,y);ctx.lineTo(x+s*.4,y-s*.6);ctx.stroke();
+        }else if(f.kind==='breakwater'){
+          const bLen=Math.max(5,(f.sizeM||300)/NM_M*this.zoom),bAngle=a+degToRad(f.headingOffset||0);
+          const bx1=x-Math.sin(bAngle)*bLen*.5,by1=y+Math.cos(bAngle)*bLen*.5;
+          const bx2=x+Math.sin(bAngle)*bLen*.5,by2=y-Math.cos(bAngle)*bLen*.5;
+          ctx.strokeStyle='rgba(160,165,170,.85)';ctx.lineWidth=Math.max(2,2.8*K);
+          ctx.beginPath();ctx.moveTo(bx1,by1);ctx.lineTo(bx2,by2);ctx.stroke();
+          ctx.strokeStyle='rgba(75,80,85,.9)';ctx.lineWidth=Math.max(1,1.4*K);
+          ctx.beginPath();ctx.moveTo(bx1,by1);ctx.lineTo(bx2,by2);ctx.stroke();
+        }else if(f.kind==='quay'){
+          const qLen=Math.max(4,(f.sizeM||240)/NM_M*this.zoom),qAngle=a+degToRad(f.headingOffset||0);
+          const qx1=x-Math.sin(qAngle)*qLen*.5,qy1=y+Math.cos(qAngle)*qLen*.5;
+          const qx2=x+Math.sin(qAngle)*qLen*.5,qy2=y-Math.cos(qAngle)*qLen*.5;
+          ctx.strokeStyle='rgba(140,144,148,.85)';ctx.lineWidth=Math.max(1.8,2.2*K);
+          ctx.beginPath();ctx.moveTo(qx1,qy1);ctx.lineTo(qx2,qy2);ctx.stroke();
+        }else if(f.kind==='lighthouse'){
+          const r=Math.max(2.5,3.6*K);
+          ctx.fillStyle='rgba(245,215,95,.85)';ctx.strokeStyle='rgba(40,40,40,.8)';ctx.lineWidth=Math.max(.8,K);
+          ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+          ctx.fillStyle='rgba(245,215,95,.22)';ctx.beginPath();ctx.arc(x,y,r*2.2,0,Math.PI*2);ctx.fill();
+        }else if(f.kind==='control_tower'){
+          const s=Math.max(3,3.8*K);
+          ctx.fillStyle='rgba(130,135,140,.75)';ctx.strokeStyle='rgba(40,40,40,.8)';ctx.lineWidth=Math.max(.8,K);
+          ctx.fillRect(x-s*.5,y-s*.5,s,s);ctx.strokeRect(x-s*.5,y-s*.5,s,s);
+        }else if(f.kind==='coastal_battery'){
+          const r=Math.max(2.5,3.8*K);
+          ctx.fillStyle=scene.side==='FRIENDLY'?'rgba(95,185,120,.8)':'rgba(215,75,65,.8)';
+          ctx.strokeStyle='rgba(30,30,30,.85)';ctx.lineWidth=Math.max(.8,K);
+          ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+          const bAngle=a+(f.alongNm>=0?0:Math.PI);
+          ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(bAngle)*r*1.8,y-Math.cos(bAngle)*r*1.8);ctx.stroke();
+        }else if(f.kind==='channel_buoy'){
+          const isPort=f.buoySide==='PORT',r=Math.max(1.8,2.4*K);
+          ctx.fillStyle=isPort?'rgba(227,85,75,.9)':'rgba(65,205,105,.9)';
+          ctx.strokeStyle='rgba(20,20,20,.8)';ctx.lineWidth=Math.max(.6,K*.8);
+          ctx.beginPath();
+          if(isPort){ctx.fillRect(x-r,y-r,r*2,r*2);ctx.strokeRect(x-r,y-r,r*2,r*2);}
+          else{ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();}
         }else{
           const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));
           ctx.fillStyle='rgba(205,215,190,.30)';ctx.fillRect(x-s*.5,y-s*.35,s,s*.7);

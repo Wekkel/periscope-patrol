@@ -339,6 +339,19 @@ const harnessBlackout = createAtmosphereHarness(2, 0.1);
 battleAtm.BattleAtmosphere.drawPortScenes3D.call({ k: 1, lowSpec: false, battlePoint: battleAtm.BattleAtmosphere.battlePoint }, harnessBlackout.ctx, harnessBlackout.cam, harnessBlackout.state, harnessBlackout.dl);
 assert.ok(!harnessBlackout.ctx.fills.some(f => String(f.style).includes('255,185,75')), 'Dock lanterns must be extinguished during harbor alarm (blackout discipline)');
 
+// Test 2.5D new harbor structures: breakwater, quay, lighthouse, battery, buoy
+const harnessFeatures = createAtmosphereHarness(0, 0.1);
+harnessFeatures.state.world.portScenes[0].features.push(
+  { kind: 'breakwater', alongNm: 0.4, lateralNm: 0.1, heightM: 3, sizeM: 200 },
+  { kind: 'quay', alongNm: 0.5, lateralNm: 0.1, heightM: 3, sizeM: 150 },
+  { kind: 'lighthouse', alongNm: 0.6, lateralNm: 0.1, heightM: 14, sizeM: 6 },
+  { kind: 'coastal_battery', alongNm: 0.7, lateralNm: 0.1, heightM: 8, sizeM: 20 },
+  { kind: 'channel_buoy', buoySide: 'PORT', alongNm: 0.8, lateralNm: 0.1, heightM: 3, sizeM: 3 }
+);
+battleAtm.BattleAtmosphere.drawPortScenes3D.call({ k: 1, lowSpec: false, battlePoint: () => ({ x: 320, y: 240, d: 500 }) }, harnessFeatures.ctx, harnessFeatures.cam, harnessFeatures.state, harnessFeatures.dl);
+assert.ok(harnessFeatures.ctx.fills.some(f => String(f.style).includes('125,122,115')), 'Breakwater concrete fill rendered');
+assert.ok(harnessFeatures.ctx.fills.some(f => String(f.style).includes('185,45,40')), 'Channel buoy port red fill rendered');
+
 // 10. Harbor Nets, Starshells, Indicator Loops & Tidal Drift Tests
 // Test 1: Starshell schedule & illumination
 const starshellHarness = createHarborHarness();
@@ -1118,7 +1131,8 @@ const mockCtx = {
   },
   createRadialGradient() { return { addColorStop() {} }; },
   fillRect() {},
-  fillText() {}
+  fillText() {},
+  arc() {}
 };
 
 world3dMod.World3D.w = 1280;

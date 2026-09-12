@@ -526,6 +526,24 @@ const World3D={
         for(let i=0;i<R.length;i++){const y=topY(R[i]); if(i===0)ctx.moveTo(R[i].x,y);else ctx.lineTo(R[i].x,y);}
         ctx.stroke();
 
+        // ── volcanic summit fumarole / steam plume ──
+        if(peak>=950&&nearest<16*NM_M&&this.quality>0.45){
+          const isVolcano=peak>=1200||/volcan|crater|claro|kolombangara|savo|pagan|etna/i.test(f.name);
+          if(isVolcano){
+            let best=R[0],bestY=topY(R[0]);
+            for(let i=1;i<R.length;i++){const y=topY(R[i]);if(y<bestY){bestY=y;best=R[i];}}
+            const scale=cam.f/Math.max(250,best.d);
+            const drift=((t*0.8+F.seed)%35)*scale;
+            ctx.fillStyle=`rgba(${Math.round(230*fade+hazeCol[0]*hzMix)},${Math.round(235*fade+hazeCol[1]*hzMix)},${Math.round(240*fade+hazeCol[2]*hzMix)},${0.14*fade})`;
+            for(let p=0;p<3;p++){
+              const pf=(p+1)/3,pr=Math.max(1.8*this.k,(8+p*10)*scale);
+              ctx.beginPath();
+              if(ctx.arc)ctx.arc(best.x+drift*pf+p*3*scale,bestY-pf*26*scale,pr,0,Math.PI*2);
+              ctx.fill();
+            }
+          }
+        }
+
         // ── sand beach edge accent for nearby land ──
         if(nearest<7*NM_M&&this.quality>0.5){
           ctx.strokeStyle=`rgba(${Math.round((lum+38)*fade+hazeCol[0]*hzMix)},${Math.round((lum+34)*fade+hazeCol[1]*hzMix)},${Math.round((lum+20)*fade+hazeCol[2]*hzMix)},${fade*0.45})`;
