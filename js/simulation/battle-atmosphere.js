@@ -21,10 +21,10 @@ function battlePredictPosition(p,heading,speedKnots,sec){
     ensureBattleAtmosphereState(reset=false){
       const W=this.state.world;
       if(reset||!W.atmosphere||W.atmosphere.version!==BATTLE_ATMOSPHERE_VERSION){
-        W.atmosphere={version:BATTLE_ATMOSPHERE_VERSION,nextId:1,shells:[],tracers:[],splashes:[],muzzleFlashes:[],signals:[],
+        W.atmosphere={version:BATTLE_ATMOSPHERE_VERSION,nextId:1,shells:[],tracers:[],splashes:[],muzzleFlashes:[],signals:[],starshells:[],
           lastSignalAt:-999,lastAmbientGunAt:-999};
       }
-      const A=W.atmosphere;A.shells=A.shells||[];A.tracers=A.tracers||[];A.splashes=A.splashes||[];A.muzzleFlashes=A.muzzleFlashes||[];A.signals=A.signals||[];
+      const A=W.atmosphere;A.shells=A.shells||[];A.tracers=A.tracers||[];A.splashes=A.splashes||[];A.muzzleFlashes=A.muzzleFlashes||[];A.signals=A.signals||[];A.starshells=A.starshells||[];
       const H=W.harbor;
       if(H){
         H.searchlightWidthDeg=H.searchlightWidthDeg||12;
@@ -35,17 +35,11 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       return A;
     },
 
-    startHarborSearchlightSweep(H){
-      if(!H)return null;const now=this.state.time.elapsedSeconds,W=this.state.world,sub=this.state.playerSub;
-      const datum=W.enemy?.searchCenter||sub.position,center=bearingBetween(H.center,datum),span=H.alert>=2?32:44;
-      H.searchlightSweep={startedAt:now,duration:H.alert>=2?13:16,centerBearing:center,spanDeg:span,phase:Math.random()<.5?0:1};
-      H.searchlightActiveUntil=now+H.searchlightSweep.duration;H.searchlightBearing=normDeg(center-span);
-      H.searchlightContactUntil=Math.min(H.searchlightContactUntil||-1,now);
-      return H.searchlightSweep;
-    },
 
     updateHarborSearchlight(dt){
       const W=this.state.world,H=W.harbor,sub=this.state.playerSub;if(!H)return;
+      const isDark=(W.environment?.daylight??1)<0.35;
+      if(!isDark){H.searchlightActiveUntil=0;H.searchlightSweep=null;return;}
       const now=this.state.time.elapsedSeconds,sw=H.searchlightSweep;
       if(!sw||now>sw.startedAt+sw.duration)return;
       const u=clamp((now-sw.startedAt)/Math.max(.1,sw.duration),0,1);
@@ -54,7 +48,8 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       const tri=u<.5?u*2:2-u*2,dir=sw.phase?1:-1;
       H.searchlightBearing=normDeg(sw.centerBearing+dir*lerp(-sw.spanDeg,sw.spanDeg,tri));
       H.searchlightActiveUntil=sw.startedAt+sw.duration;
-      if(sub.depthFeet>=12)return;
+      const periFeather=sub.depthFeet<=48&&(sub.propulsion?.speedKnots||0)>3.2;
+      if(sub.depthFeet>=12&&!periFeather)return;
       const wx=weatherBetween(this.state,H.center,sub.position),rng=distNm(H.center,sub.position);
       if(rng>4.4*wx.searchlightFactor)return;
       const trueB=bearingBetween(H.center,sub.position),half=(H.searchlightWidthDeg||12)*.5;
@@ -64,30 +59,12 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       W.enemy.searchCenter={...sub.position};W.enemy.lastKnownSubPosition={...sub.position};W.enemy.lastKnownConfidence=Math.max(W.enemy.lastKnownConfidence||0,.88);H.alert=2;
       if(!wasLit&&now-(H.lastSearchlightContactAt||-999)>45){
         H.lastSearchlightContactAt=now;
-        const T=this.state.time;if((T.timeScale||1)>1||T.transitUntil){T.timeScale=1;T.transitUntil=0;T.transitOpen=false;T.stopReason='searchlight contact';T.stopReasonAt=now;}
-        this.notify('SEARCHLIGHT CONTACT — the beam has you. Dive, turn hard or run out of it before the batteries correct.','bad');
-        audio.event?.('SEARCHLIGHT_CONTACT');this.aarRecordEvent?.('SEARCHLIGHT_CONTACT','Caught in a harbour searchlight.',{},sub.position,H.center);
+        this.stopAutomaticTimeCompression?.('searchlight contact');
+        this.notify('SEARCHLIGHT CONTACT — the beam has you. Dive, turn hard or run out of it before the batteries correct.','bad', 'KRITIEK');
+        PresentationBridge.audio(this.state).event?.('SEARCHLIGHT_CONTACT');this.aarRecordEvent?.('SEARCHLIGHT_CONTACT','Caught in a harbour searchlight.',{},sub.position,H.center);
       }
     },
 
-    scheduleCoastalBatteryShot(H,harborWx){
-      const A=this.ensureBattleAtmosphereState(),s=this.state,sub=s.playerSub,now=s.time.elapsedSeconds;if(!H)return null;
-      const sites=H.batterySites||[H.center],site=sites[(H._batterySiteCursor=(H._batterySiteCursor||0)+1)%sites.length],rng=distNm(site,sub.position);
-      const flight=clamp(1.5+rng*1.25,2.0,8.5),lit=now<(H.searchlightContactUntil||-1),day=clamp(s.world.environment.daylight||0,0,1);
-      const predicted=battlePredictPosition(sub.position,sub.heading,sub.propulsion.speedKnots,flight);
-      let correction=clamp(H.batteryCorrection||1,.32,1.25);
-      if(!lit)correction=Math.max(correction,.85);
-      const baseErr=(lit?.012:.065)+(1-harborWx.searchlightFactor)*.08+harborWx.seaState*.025+(1-day)*.012;
-      const err=baseErr*correction,ang=Math.random()*Math.PI*2,rad=err*(.25+Math.sqrt(Math.random())*.95);
-      const impact={xNm:predicted.xNm+Math.cos(ang)*rad,yNm:predicted.yNm+Math.sin(ang)*rad};
-      const id=`CB-${A.nextId++}`,ev={id,kind:'COASTAL',sourceId:'SHORE BATTERY',origin:{...site},targetAtFire:{...sub.position},impactPosition:impact,
-        fireAt:now,impactAt:now+flight,damage:5+Math.random()*12,litAtFire:lit,resolved:false};
-      A.shells.push(ev);if(A.shells.length>20)A.shells.shift();
-      A.muzzleFlashes.push({id:`MF-${id}`,position:{...site},at:now,until:now+.34,power:1.0,kind:'COASTAL'});if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
-      const br=bearingBetween(sub.position,site);audio.playDistantGunfire?.(br,sub.heading,clamp(1-rng/7,.25,1));
-      this.aarRecordEvent?.('COASTAL_GUNFIRE','Coastal battery opened fire.',{batteryShot:id,illuminated:lit},site,impact);
-      return ev;
-    },
 
     noteSurfaceGunfire(shooter,target,hit=false){
       if(!shooter?.position||!target?.position)return;const A=this.ensureBattleAtmosphereState(),now=this.state.time.elapsedSeconds;
@@ -96,22 +73,31 @@ function battlePredictPosition(p,heading,speedKnots,sec){
       A.tracers.push({id,start:{...shooter.position},end:{...target.position},at:now,until:now+dur,kind:'SURFACE_GUN',hit:!!hit});
       if(A.tracers.length>BATTLE_MAX_TRACERS)A.tracers.shift();if(A.muzzleFlashes.length>BATTLE_MAX_FLASHES)A.muzzleFlashes.shift();
       if(!hit){A.splashes.push({id:`SP-${id}`,position:{...target.position},at:now+dur*.86,until:now+dur*.86+3.0,size:.65,kind:'SHELL'});if(A.splashes.length>BATTLE_MAX_SPLASHES)A.splashes.shift();}
-      const sub=this.state.playerSub,rng=distNm(sub.position,shooter.position);audio.playDistantGunfire?.(bearingBetween(sub.position,shooter.position),sub.heading,clamp(1-rng/8,.12,.72));
-      if(!hit&&distNm(sub.position,target.position)<.10)audio.playShellPass?.(bearingBetween(sub.position,shooter.position),sub.heading);
+      const sub=this.state.playerSub,rng=distNm(sub.position,shooter.position);PresentationBridge.audio(this.state).playDistantGunfire?.(bearingBetween(sub.position,shooter.position),sub.heading,clamp(1-rng/8,.12,.72));
+      if(!hit&&distNm(sub.position,target.position)<.10)PresentationBridge.audio(this.state).playShellPass?.(bearingBetween(sub.position,shooter.position),sub.heading);
     },
 
     resolveBattleShell(ev){
       if(ev.resolved)return;ev.resolved=true;const A=this.ensureBattleAtmosphereState(),s=this.state,sub=s.playerSub,now=s.time.elapsedSeconds;
       const miss=distNm(sub.position,ev.impactPosition),hit=sub.depthFeet<12&&miss<.020;
+      const periNearMiss=!hit&&sub.depthFeet>=12&&sub.depthFeet<=48&&miss<.035;
       if(hit){
-        this.applyShock(ev.damage);s.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
-        this.notify(`COASTAL BATTERY HIT — ${ev.damage.toFixed(0)}% damage. The battery has the range; get below or spoil the solution.`,'bad');
-        audio.playShellImpact?.(bearingBetween(sub.position,ev.origin),sub.heading,.9);this.shake?.(1.2);
+        this.sys.damage.applyShock(ev.damage);s.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHORE BATTERY'});
+        this.notify(`COASTAL BATTERY HIT — ${ev.damage.toFixed(0)}% damage. The battery has the range; get below or spoil the solution.`,'bad', 'KRITIEK');
+        PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,ev.origin),sub.heading,.9);this.shake?.(1.2);
         if(s.world.harbor)s.world.harbor.batteryCorrection=.46;
+      }else if(periNearMiss){
+        const shockDmg=Math.max(1,ev.damage*.35);
+        this.sys.damage.applyShock(shockDmg);
+        s.weapons.explosions.push({position:{...ev.impactPosition},ageSec:0,maxAgeSec:4,label:'NEAR MISS'});
+        A.splashes.push({id:`SP-${ev.id}`,position:{...ev.impactPosition},at:now,until:now+4,size:1.35,kind:'COASTAL'});if(A.splashes.length>BATTLE_MAX_SPLASHES)A.splashes.shift();
+        this.notify(`NEAR MISS AT PERISCOPE DEPTH — concussive shockwave! Shell detonation overhead.`,'warn', 'KRITIEK');
+        PresentationBridge.audio(this.state).playShellSplash?.(.12,bearingBetween(sub.position,ev.impactPosition),sub.heading);this.shake?.(.75);
+        if(s.world.harbor)s.world.harbor.batteryCorrection=clamp((s.world.harbor.batteryCorrection||1)*.82,.4,1);
       }else{
         A.splashes.push({id:`SP-${ev.id}`,position:{...ev.impactPosition},at:now,until:now+4,size:1.0,kind:'COASTAL'});if(A.splashes.length>BATTLE_MAX_SPLASHES)A.splashes.shift();
-        const close=miss<.12;if(close)audio.playShellPass?.(bearingBetween(sub.position,ev.origin),sub.heading);
-        audio.playShellSplash?.(clamp(miss/.3,0,1));
+        const close=miss<.12;if(close)PresentationBridge.audio(this.state).playShellPass?.(bearingBetween(sub.position,ev.origin),sub.heading);
+        PresentationBridge.audio(this.state).playShellSplash?.(clamp(miss/.3,0,1),bearingBetween(sub.position,ev.impactPosition),sub.heading);
         const H=s.world.harbor;if(H){const lit=now<(H.searchlightContactUntil||-1);H.batteryCorrection=lit?clamp((H.batteryCorrection||1)*.76,.34,1):clamp((H.batteryCorrection||1)*.96,.7,1.15);}
       }
     },

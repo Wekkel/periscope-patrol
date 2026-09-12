@@ -3,10 +3,23 @@
 // plot kinematic and let new observations pull it toward a solution at a
 // source-appropriate rate.  This prevents a new hydrophone/radar noise sample
 // from making a 10-knot merchant appear to teleport hundreds of metres.
+// Generic fix-source IDs are deliberately equipment-neutral.  Old saves may
+// still contain the former US-set labels; normalize them at the boundary rather
+// than requiring a destructive save migration.
+const CONTACT_FIX_SOURCE=Object.freeze({ACTIVE_ECHO:'ACTIVE_ECHO',SURFACE_RADAR:'SURFACE_RADAR'});
+function isSurfaceRadarFixSource(source){return source===CONTACT_FIX_SOURCE.SURFACE_RADAR;}
+function isElectronicRangeFixSource(source){return source===CONTACT_FIX_SOURCE.ACTIVE_ECHO||source===CONTACT_FIX_SOURCE.SURFACE_RADAR;}
+function contactFixSourceDisplayLabel(state,source){
+  const s=source,ui=getPlayerSensorPresentation(state);
+  if(s===CONTACT_FIX_SOURCE.ACTIVE_ECHO)return ui.activeEcho?.fixLabel||ui.activeEcho?.label||'ACTIVE ECHO';
+  if(s===CONTACT_FIX_SOURCE.SURFACE_RADAR)return ui.surfaceSearchRadar?.fixLabel||ui.surfaceSearchRadar?.label||'SURFACE RADAR';
+  return source;
+}
+
 const CONTACT_PLOT_PROFILE={
   VISUAL:{rank:5,holdSec:10,tauSec:.01,maxCorrectionNmSec:9,posConf:.97,uncertaintyNm:.018},
-  'QC ECHO':{rank:5,holdSec:12,tauSec:.7,maxCorrectionNmSec:.055,posConf:.92,uncertaintyNm:.030},
-  'SJ RADAR':{rank:4,holdSec:6,tauSec:3.0,maxCorrectionNmSec:.0025,posConf:.78,uncertaintyNm:.075},
+  ACTIVE_ECHO:{rank:5,holdSec:12,tauSec:.7,maxCorrectionNmSec:.055,posConf:.92,uncertaintyNm:.030},
+  SURFACE_RADAR:{rank:4,holdSec:6,tauSec:3.0,maxCorrectionNmSec:.0025,posConf:.78,uncertaintyNm:.075},
   'SOUND TRIANGULATION':{rank:3,holdSec:24,tauSec:7,maxCorrectionNmSec:.004,posConf:.66,uncertaintyNm:.22},
   'SOUND BEARING':{rank:2,holdSec:0,tauSec:30,maxCorrectionNmSec:0,posConf:.28,uncertaintyNm:.8},
   HYDROPHONE:{rank:1,holdSec:0,tauSec:30,maxCorrectionNmSec:.0035,posConf:.30,uncertaintyNm:.75}
@@ -55,7 +68,7 @@ function updateStableContactPlot(state,tr,measurement,source,quality,dt){
     tr.positionConfidence=Number.isFinite(tr.positionConfidence)?lerp(tr.positionConfidence,targetConf,.16):targetConf;
     let targetUnc=incoming.uncertaintyNm;
     if(source==='HYDROPHONE')targetUnc*=lerp(1.8,.65,q);
-    else if(source==='SJ RADAR')targetUnc*=lerp(1.45,.72,q);
+    else if(isSurfaceRadarFixSource(source))targetUnc*=lerp(1.45,.72,q);
     tr.positionUncertaintyNm=Number.isFinite(tr.positionUncertaintyNm)?lerp(tr.positionUncertaintyNm,targetUnc,.20):targetUnc;
   }
   tr.plotPosition={...pos};tr.plotUpdatedAt=now;
@@ -67,7 +80,7 @@ function updateStableContactPlot(state,tr,measurement,source,quality,dt){
   return tr;
 }
 
-class SimEngineSensors extends SimEngineIntel {
+const SensorsSystem={
   updateLookouts(dt){
     const W=this.state.world,e=W.enemy,sub=this.state.playerSub,env=W.environment,hist=this.state.campaign?.historicalProfile||null;
     const escorts=W.contacts.filter(c=>isASWCombatant(c)),day=clamp(env.daylight,0,1),sea=clamp(env.seaState,0,1);
@@ -88,26 +101,26 @@ class SimEngineSensors extends SimEngineIntel {
       reach*=clamp(env.visibilityNm/12,.35,1.35)*(1-sea*.40)*enemyVisualFactor;if(rng>reach)continue;
       const p=clamp(1-rng/reach,0,1)*dt*.55*enemyVisualFactor;if(Math.random()<p){anySeen=true;if(!nearestSeen||rng<nearestSeen.r)nearestSeen={esc,r:rng,what};}
     }
-    const now=this.state.time.elapsedSeconds;if(anySeen)e.visualHoldUntil=now+25;
+    const now=this.state.time.elapsedSeconds,wasSeen=now<(e.visualHoldUntil||0);if(anySeen)e.visualHoldUntil=now+25;
     e.visualOnSub=now<(e.visualHoldUntil||0)&&sub.depthFeet<30;e.periscopeSighted=now<(e.visualHoldUntil||0)&&sub.depthFeet>=30;
     if(anySeen){
-      const {esc,r,what}=nearestSeen,hull=sub.depthFeet<30,err=hull?.02:.055;this.markEscortAlerted?.(esc);
+      const {esc,r,what}=nearestSeen,hull=sub.depthFeet<30,err=hull?.02:.055;this.sys.enemyAI.markEscortAlerted(esc);
       e.solution={xNm:sub.position.xNm+(Math.random()-.5)*2*err,yNm:sub.position.yNm+(Math.random()-.5)*2*err,
         courseDeg:normDeg(sub.heading+(hull?(Math.random()-.5)*5:(Math.random()-.5)*40)),speedKn:clamp(sub.propulsion.speedKnots*(.88+Math.random()*.24),0,12),
         depthFt:hull?clamp(sub.depthFeet+(Math.random()-.5)*8,0,40):sub.depthFeet+(Math.random()-.5)*50,errNm:err,ageSec:0,source:'VISUAL'};
       e.lastKnownSubPosition={xNm:e.solution.xNm,yNm:e.solution.yNm};e.searchCenter={xNm:e.solution.xNm,yNm:e.solution.yNm};
       e.alertTimerSec=Math.max(e.alertTimerSec,hull?240:150);e.alertState='ATTACKING';
-      if(hull){this.noteASWFix?.(esc,'VISUAL',.96);e.contactHeld=true;esc.sonarContact=false;}
+      if(hull){this.sys.aswBrain.noteASWFix(esc,'VISUAL',.96);e.contactHeld=true;esc.sonarContact=false;}
       else{
-        const A=this.ensureASWState?.();if(A){A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:err,source:'VISUAL'};A.datumAt=now;A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;this.assignASWRoles?.(esc.id,true);}
+        const A=this.sys.aswBrain.ensureASWState();if(A){A.datum={xNm:e.solution.xNm,yNm:e.solution.yNm,errNm:err,source:'VISUAL'};A.datumAt=now;A.estimatedCourseDeg=e.solution.courseDeg;A.estimatedSpeedKn=e.solution.speedKn;this.sys.aswBrain.assignASWRoles(esc.id,true);}
         this.log(`${esc.name} lookouts sighted a ${what} at ${(r*2025).toFixed(0)} yards.`);
       }
-      audio.event?.('SUB_DETECTED');
+      if(!wasSeen)PresentationBridge.audio(this.state).event?.('SUB_DETECTED');
     }
     if(day<.25&&e.alertState==='ATTACKING'&&e.visualOnSub&&this.state.time.elapsedSeconds>(e.starShellUntil||0)+70&&Math.random()<dt*.06){
       e.starShellUntil=this.state.time.elapsedSeconds+45;this.log('STAR SHELL — the sea around you is lit up like day.','bad');
     }
-  }
+  },
 
   /* Active sonar is a cycle, not a continuous oracle. Each escort owns its
      ping clock and short-lived local contact. The shared ASW plot is built from
@@ -115,7 +128,7 @@ class SimEngineSensors extends SimEngineIntel {
   updateSonar(dt){
     const W=this.state.world,e=W.enemy,sub=this.state.playerSub,env=W.environment,now=this.state.time.elapsedSeconds,hist=this.state.campaign?.historicalProfile||null;
     if(e.alertState==='UNAWARE')return;
-    const A=this.ensureASWState?.()||{},layer=env.layerDepthFt||200,belowLayer=sub.depthFeet>layer+15;e.belowLayer=belowLayer;
+    const A=this.sys.aswBrain.ensureASWState()||{},layer=env.layerDepthFt||200,belowLayer=sub.depthFeet>layer+15;e.belowLayer=belowLayer;
     if(e.solution){
       const s=e.solution,r=degToRad(s.courseDeg||0),d=knotsNmSec(s.speedKn||0)*dt;s.xNm+=Math.sin(r)*d;s.yNm-=Math.cos(r)*d;
       s.errNm=(s.errNm||.03)+dt*.0055;s.ageSec=(s.ageSec||0)+dt;
@@ -128,7 +141,7 @@ class SimEngineSensors extends SimEngineIntel {
     for(const esc of escorts){
       if(esc.sonarContact&&now>(esc.sonarContactUntil||-1))esc.sonarContact=false;
       esc.pingTimer=(Number.isFinite(esc.pingTimer)?esc.pingTimer:Math.random()*7)-dt;if(esc.pingTimer>0)continue;
-      const plotted=this.aswDatum?.()||e.solution||e.searchCenter,estRng=plotted?distNm(esc.position,plotted):SONAR.maxRangeNm;
+      const plotted=this.sys.aswBrain.aswDatum()||e.solution||e.searchCenter,estRng=plotted?distNm(esc.position,plotted):SONAR.maxRangeNm;
       const q=e.solution?clamp(1-(e.solution.errNm||.2)/.45,0,1):0;
       const ranging=!!(esc.sonarContact||e.contactHeld);
       const baseInterval=ranging?clamp(3.2+estRng*.45+(1-q)*2.0,3.0,7.5):clamp(9.5+Math.random()*4.5+(esc.aswRole==='CONVOY_GUARD'?2:0),8.5,16);
@@ -136,9 +149,9 @@ class SimEngineSensors extends SimEngineIntel {
       esc.pingTimer=interval;esc.lastPingAt=now;pinged++;
       const rng=distNm(esc.position,sub.position),sea=clamp(env.seaState||0,0,1),audibleRange=clamp(8.5*(1-sea*.22)*(belowLayer?.68:1),4.2,8.8),depthHear=sub.depthFeet>8?1:.32;
       if(rng<audibleRange){
-        const brg=bearingBetween(sub.position,esc.position),lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear;
-        W.sound=W.sound||{};W.sound.lastEnemyPingVisual={t:now,wallAt:(typeof performance!=='undefined'?performance.now():Date.now()),escortId:esc.id,position:{...esc.position},bearing:brg,rangeNm:rng};
-        audio.playSonarPing(brg,sub.heading,undefined,lvl);
+        const brg=bearingBetween(sub.position,esc.position),lvl=clamp((1-rng/audibleRange)*.92+.10,.10,1)*depthHear*(belowLayer?.42:1);
+        W.sound=W.sound||{};W.sound.lastEnemyPingVisual={t:now,escortId:esc.id,position:{...esc.position},bearing:brg,rangeNm:rng};
+      PresentationBridge.audio(this.state).playSonarPing(brg,sub.heading,undefined,lvl);
       }
       A.pingEvents=A.pingEvents||[];A.pingEvents.push({t:now,escortId:esc.id,intervalSec:interval,mode:ranging?'RANGING':'SEARCH',role:esc.aswRole||'SCREEN'});if(A.pingEvents.length>80)A.pingEvents.shift();
 
@@ -152,13 +165,13 @@ class SimEngineSensors extends SimEngineIntel {
         const bottomReturn=sub.bottomed?(sub.bottomType==='MUD'?.42:sub.bottomType==='SAND'?.54:.68):1;
         p=.94*clamp(1-(rng-SONAR.deadZoneNm)/(SONAR.maxRangeNm-SONAR.deadZoneNm),0,1)*layerFactor*activeEcho*bottomReturn
           *(1-clamp(env.seaState,0,1)*.30)*(sub.stealth.silentRunning?.96:1)*ownship;
-        esc.sonarBaffled=ownship<.42;
+        esc.sonarBaffled=ownship<.25||(Math.abs(shortDelta(esc.heading||0,bearingBetween(esc.position,sub.position)))>=140&&(esc.speedKnots||0)>4);
       }else esc.sonarBaffled=false;
       p=clamp(p*(hist?.aswSkill||1),0,.98);
       const kn=(W.knuckles||[]).find(k=>{const kr=distNm(esc.position,k.pos);return kr<rng&&kr<SONAR.maxRangeNm&&Math.abs(shortDelta(bearingBetween(esc.position,k.pos),bearingBetween(esc.position,sub.position)))<14;});
       if(kn&&Math.random()<.5&&p>0){
         e.solution={xNm:kn.pos.xNm,yNm:kn.pos.yNm,courseDeg:0,speedKn:0,depthFt:120+(Math.random()-.5)*100,errNm:.04,ageSec:0,decoy:true,sourceEscortId:esc.id};
-        esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.6;esc.sonarMisses=0;fixes++;this.noteASWFix?.(esc,'ACTIVE',.62);e.contactHeld=true;
+        esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.6;esc.sonarMisses=0;fixes++;this.sys.aswBrain.noteASWFix(esc,'ACTIVE',.62);e.contactHeld=true;
         this.log(`${esc.name} is echo-ranging on a knuckle.`);continue;
       }
       if(Math.random()<p){
@@ -170,20 +183,22 @@ class SimEngineSensors extends SimEngineIntel {
           crs=prev.courseDeg===undefined?rawC:normDeg(prev.courseDeg+shortDelta(prev.courseDeg,rawC)*.5);spd=prev.speedKn===undefined?rawS:lerp(prev.speedKn,rawS,.5);
         }
         if(!Number.isFinite(crs))crs=Math.random()*360;if(!Number.isFinite(spd))spd=1+Math.random()*6;
-        e.solution={xNm:nx,yNm:ny,courseDeg:normDeg(crs),speedKn:clamp(spd,0,12),depthFt:clamp(sub.depthFeet+(Math.random()-.5)*2*(16+(belowLayer?58:0)),0,420),
+        const layerBias=belowLayer?-clamp((sub.depthFeet-(env.layerDepthFt||200))*0.38,18,60):0;
+        e.solution={xNm:nx,yNm:ny,courseDeg:normDeg(crs),speedKn:clamp(spd,0,12),depthFt:clamp(sub.depthFeet+layerBias+(Math.random()-.5)*2*(16+(belowLayer?58:0)),0,420),
           errNm:err,ageSec:0,sourceEscortId:esc.id};
         e.alertTimerSec=Math.max(e.alertTimerSec,190);e.alertState='ATTACKING';
-        const wasHeld=!!e.contactHeld;esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.7;esc.sonarMisses=0;this.noteASWFix?.(esc,'ACTIVE',clamp(p,0,1));e.contactHeld=true;fixes++;
+        const wasHeld=!!e.contactHeld;esc.sonarContact=true;esc.sonarContactUntil=now+interval*1.7;esc.sonarMisses=0;this.sys.aswBrain.noteASWFix(esc,'ACTIVE',clamp(p,0,1));e.contactHeld=true;fixes++;
         if(wasHeld)A.lastFixAt=now;
       }else{esc.sonarContact=false;esc.sonarMisses=(esc.sonarMisses||0)+1;}
     }
     const held=escorts.some(x=>x.sonarContact&&now<=(x.sonarContactUntil||-1))||!!e.visualOnSub;
     if(held)e.contactHeld=true;
     else if(e.contactHeld&&now-(A.lastFixAt||-999)>14)e.contactHeld=false;
-    if(!e.contactHeld&&e.alertState==='ATTACKING'&&now-(A.lastFixAt||-999)>18){e.alertState='SEARCHING';e.searchPattern='COORDINATED';e.searchPhase=0;this.loseASWContact?.();}
+    if(!e.contactHeld&&e.alertState==='ATTACKING'&&now-(A.lastFixAt||-999)>18){e.alertState='SEARCHING';e.searchPattern='COORDINATED';e.searchPhase=0;this.sys.aswBrain.loseASWContact();}
 
     W.knuckles=(W.knuckles||[]).filter(k=>now-k.t<150);
+    if(W.knuckles.length>12)W.knuckles.splice(0,W.knuckles.length-12);
     if(sub.propulsion.speedKnots>4.2&&Math.abs(shortDelta(sub.heading,sub.orderedHeading))>32&&now-(e.lastKnuckle||-99)>22){e.lastKnuckle=now;W.knuckles.push({pos:{...sub.position},t:now});}
     A.lastSonarCycle={t:now,pinged,fixes,held:!!e.contactHeld};
   }
-}
+};

@@ -30,7 +30,18 @@ class CanvasViewCore{
     dpr=Math.min(dpr, mem<=4?1.5:2);
     const BUDGET=2200000;                       // ≈2.2 MP ceiling
     if(cw*ch*dpr*dpr>BUDGET) dpr=Math.sqrt(BUDGET/(cw*ch));
-    dpr=Math.max(1,Math.round(dpr*20)/20);
+    // A floor of 1 here used to defeat the BUDGET cap outright on any large,
+    // low-DPI canvas (e.g. a maximized window on a 4K desktop monitor,
+    // devicePixelRatio 1): cw*ch alone already exceeds BUDGET, the line
+    // above asks for dpr well under 1 to compensate, and then this floor
+    // snapped it straight back up to 1 — silently rendering ~4x the
+    // intended pixel count every frame, which is what made the game feel
+    // slow specifically on large desktop screens. The backing store is
+    // free to shrink below the CSS size now (down to 0.5x); the canvas is
+    // styled width:100%/height:100% in CSS, so the browser upscales the
+    // smaller buffer to fill the same on-screen area — a little softer,
+    // but back to the ~2.2 MP/frame the quality budget was meant to cap.
+    dpr=Math.max(0.5,Math.round(dpr*20)/20);
     const bw=Math.round(cw*dpr), bh=Math.round(ch*dpr);
     const changed=(c.width!==bw||c.height!==bh);
     if(force||changed){c.width=bw;c.height=bh;}
@@ -50,8 +61,29 @@ class CanvasViewCore{
   }
   revealScopeLabel(id,ms=3200){this.scopeLabelId=id;this.scopeLabelUntil=performance.now()+ms;}
 
-  render(state){
+  render(state,layout,registry){
+    if(!layout){
+      if(!this._missingLayoutWarned){this._missingLayoutWarned=true;console.warn('[CanvasView] missing layout parameter; fallback path: CanvasView.render');}
+      layout=LayoutService.get();
+    }
+    // A skipped or expired impact must never leave a blank, paused canvas.
+    // Presentation normally closes the modal through END_IMPACT_OBSERVATION;
+    // this render-side guard is the final recovery path for a stale token or
+    // an empty queue between two presentation ticks.
+    const impactQueue=state.runtime?.presentation?.impactQueue;
+    if(!state.tactical?.impactObservation&&(!Array.isArray(impactQueue)||impactQueue.length===0)&&((state.time?.modalPauses||0)>0)){
+      if(typeof globalThis.game?.dispatch==='function'){
+        while((state.time?.modalPauses||0)>0)globalThis.game.dispatch({type:'RESUME_FROM_MODAL'});
+      }
+      if(state.runtime?.presentation){
+        state.runtime.presentation.impactToken=null;
+        state.runtime.presentation.impactStartedWall=null;
+        state.runtime.presentation.impactQueue=[];
+      }
+    }
     const ctx=this.ctx,w=this.w,h=this.h,station=state?.tactical?.activeStation||'TACTICAL';
+    if(!registry||typeof registry.drawStation!=='function')throw new Error('CanvasView registry is required');
+    const stationView=registry.stationContext(station);
     this._lastRenderError=null;
     try{
       // the whole view jolts when something goes off nearby
@@ -65,19 +97,25 @@ class CanvasViewCore{
       }
       ctx.setTransform(this.dpr,0,0,this.dpr,sx*this.dpr,sy*this.dpr);
       ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.globalAlpha=1;ctx.setLineDash([]);
-      if(station==='MAP') this.drawMap(ctx,w,h,state);
-      else if(station==='PERISCOPE') this.drawPeriscope(ctx,w,h,state);
-      else if(station==='BRIDGE') this.drawBridge(ctx,w,h,state);
-      else if(station==='SOUND') this.drawSound(ctx,w,h,state);
-      else if(station==='DECK_GUN') this.drawDeckGun(ctx,w,h,state);
-      else this.drawTactical(ctx,w,h,state);
+      registry.drawStation(station,ctx,w,h,state,layout);
       ctx.setTransform(this.dpr,0,0,this.dpr,0,0);   // HUD stays put
-      this.drawHitFlash(ctx,w,h,state);
-      this.drawOwnBoatImpact(ctx,w,h,state);
-      if(state.tactical.impactObservation&&this.drawImpactObservation)this.drawImpactObservation(ctx,w,h,state);
-      else{
-        this.drawAirAlarm(ctx,w,h,state);
-        this.drawSoundCallout(ctx,w,h,state);
+      stationView.drawHitFlash(ctx,w,h,state);
+      stationView.drawOwnBoatImpact(ctx,w,h,state);
+      if(state.tactical.impactObservation){
+        const periscopeCtx=registry.stationContext('PERISCOPE');
+        if(periscopeCtx.drawImpactObservation){
+          // De impact-cinematic kan vanaf elk station afvuren, maar deze context
+          // se cached dpr/k/portrait worden alleen ververst wanneer PERISCOPE
+          // zelf het laatst-getekende station was (zie drawStation hierboven).
+          // Zonder deze sync kan de cinematic met een verouderde schaal/transform
+          // tekenen als de speler nooit de periscoop heeft geopend en het
+          // viewport intussen is veranderd.
+          if(station!=='PERISCOPE')Object.assign(periscopeCtx,registry.core);
+          periscopeCtx.drawImpactObservation(ctx,w,h,state);
+        }
+      }else{
+        stationView.drawAirAlarm(ctx,w,h,state);
+        stationView.drawSoundCallout(ctx,w,h,state,layout);
       }
       if(mag>1.6&&!state.tactical.impactObservation){ // dust and flakes shaken loose
         ctx.fillStyle=`rgba(255,235,200,${clamp(mag/26,0,0.10)})`;
@@ -109,7 +147,7 @@ class CanvasViewCore{
   }
 
   drawOwnBoatImpact(ctx,w,h,state){
-    const q=state.world?.ownHitVisual;if(!q?.wallAt)return;const wall=typeof performance!=='undefined'?performance.now():Date.now(),age=(wall-q.wallAt)/1000;if(age<0||age>.9)return;
+    const q=state.world?.ownHitVisual;if(!q?.t)return;const age=(state.time.elapsedSeconds||0)-q.t;if(age<0||age>.9)return;
     const u=clamp(age/.9,0,1),a=(1-u)*clamp(.25+(Number(q.amount)||0)/38,.28,.78),K=this.k;ctx.save();
     // On MAP show exactly what happened to ownship; elsewhere use a restrained
     // edge concussion that remains visible with the device muted.
@@ -117,10 +155,10 @@ class CanvasViewCore{
     const g=ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*.18,w/2,h/2,Math.hypot(w,h)*.62);g.addColorStop(0,'rgba(110,20,12,0)');g.addColorStop(.68,`rgba(170,42,25,${a*.12})`);g.addColorStop(1,`rgba(239,106,88,${a*.42})`);ctx.fillStyle=g;ctx.fillRect(0,0,w,h);ctx.restore();
   }
 
-  drawSoundCallout(ctx,w,h,state){
+  drawSoundCallout(ctx,w,h,state,layout=LayoutService.get()){
     const r=state.world.sound?.lastOperatorReport,wall=typeof performance!=='undefined'?performance.now():Date.now();
     if(!r||(state.time.elapsedSeconds>(r.until||0)&&wall>(r.wallUntil||0))||state.tactical.activeStation==='SOUND')return;
-    const k=this.k,touch=typeof document!=='undefined'&&document.documentElement?.dataset?.lay==='touch';
+    const k=this.k,touch=layout?.shell==='touch';
     const side=touch?Math.min(96*k,w*.23):10*k,x=side,bw=Math.max(132*k,Math.min(w-side*2,430*k));
     ctx.font=this.fnt(8.4,true);const words=String(r.text||'').split(/\s+/),lines=[''];
     for(const word of words){const test=(lines.at(-1)+' '+word).trim();if(lines.length<2&&lines.at(-1)&&ctx.measureText(test).width>bw-16*k)lines.push(word);else lines[lines.length-1]=test;}
@@ -135,12 +173,13 @@ class CanvasViewCore{
       &&distNm(state.playerSub.position,a.position)<12);
     const orbiting=known.some(a=>a.state==='ORBIT');
     if(!known.length) return;
-    const inbound=known.some(a=>a.state==='ATTACKING');
+    const inbound=known.some(a=>a.state==='ATTACKING'||a.state==='STRAFING');
+    const investigating=known.some(a=>a.state==='INVESTIGATING');
     const t=state.time.elapsedSeconds;
-    const pulse=0.55+0.45*Math.sin(t*(inbound?9:4));
+    const pulse=0.55+0.45*Math.sin(t*(inbound?9:investigating?6.5:4));
     const bh=Math.round(26*this.k);
     const y=h-bh;
-    ctx.fillStyle=inbound?`rgba(190,36,30,${0.85*pulse})`:`rgba(150,96,10,${0.8*pulse})`;
+    ctx.fillStyle=inbound?`rgba(190,36,30,${0.85*pulse})`:investigating?`rgba(215,115,18,${0.85*pulse})`:`rgba(150,96,10,${0.8*pulse})`;
     ctx.fillRect(0,y,w,bh);
     const near=known.reduce((a,b)=>distNm(state.playerSub.position,a.position)
                                   <distNm(state.playerSub.position,b.position)?a:b);
@@ -148,9 +187,11 @@ class CanvasViewCore{
     ctx.fillStyle='#fff3ef';ctx.font=this.fnt(11,true);ctx.textAlign='center';
     const sub=state.playerSub,diveUnderway=(sub.orderedDepthFeet||0)>Math.max(12,(sub.depthFeet||0)+4)||sub.mode==='DIVING'||sub.mode==='CRASH_DIVING';
     const action=inbound?'TAKE HER DOWN'
+      :investigating?'EMERGENCY DIVE'
       :orbiting?'STAY DOWN'
       :(sub.depthFeet>=12?'STAY SUBMERGED':diveUnderway?'CONTINUE THE DIVE':'CLEAR THE BRIDGE');
     ctx.fillText(inbound?`✈ AIRCRAFT ATTACKING — ${rng.toFixed(1)} nm — ${action}`
+                :investigating?`✈ AIRCRAFT INVESTIGATING — ${rng.toFixed(1)} nm — ${action}`
                 :orbiting?`✈ AIRCRAFT CIRCLING OVERHEAD ${rng.toFixed(1)} nm — ${action}`
                         :`✈ AIR CONTACT ${rng.toFixed(1)} nm — ${action}`,w/2,y+bh*0.7);
     ctx.textAlign='left';
@@ -158,7 +199,7 @@ class CanvasViewCore{
 
   drawHitFlash(ctx,w,h,state){
     const station=state.tactical.activeStation;
-    if(!['DECK_GUN','PERISCOPE','BRIDGE'].includes(station)||typeof this.proj!=='function')return;
+    if(!['DECK_GUN','PERISCOPE','BRIDGE'].includes(station)||typeof projectWorldPoint!=='function')return;
     const cam=station==='DECK_GUN'?this.gunCam:station==='BRIDGE'?this.bridgeCam:this.cam;
     if(!cam)return;
     const now=state.time.elapsedSeconds,k=this.k;
@@ -173,7 +214,7 @@ class CanvasViewCore{
       const f=1-e.ageSec/.8;if(f>fade){hit=e.position;fade=f;power=/GUN/.test(e.label||'')?.9:1.15;zM=Math.max(.5,Number(e.zM)||3);}
     }
     if(!hit||fade<=0)return;
-    const p=this.proj(cam,hit.xNm*NM_M,-hit.yNm*NM_M,zM);if(!p)return;
+    const p=projectWorldPoint(cam,hit.xNm*NM_M,-hit.yNm*NM_M,zM);if(!p)return;
     const rr=clamp((48+10200/Math.max(90,p.d))*k,42*k,175*k),a=clamp(fade*power,0,1);
     ctx.save();ctx.globalCompositeOperation='screen';
 
@@ -207,17 +248,16 @@ class CanvasViewCore{
     // sheet of reflected light.
     const ey=Math.min(h,p.y+Math.max(92*k,(h-p.y)*.90));
     if(ey>p.y+8*k){
-      const dy=ey-p.y,endX=w/2,rg=ctx.createLinearGradient(p.x,p.y,endX,ey);
-      rg.addColorStop(0,`rgba(255,226,158,${a*.135})`);
-      rg.addColorStop(.30,`rgba(255,174,88,${a*.064})`);
-      rg.addColorStop(.66,`rgba(255,132,54,${a*.021})`);
+      const dy=ey-p.y,endX=lerp(p.x,w/2,0.35),rg=ctx.createLinearGradient(p.x,p.y,endX,ey);
+      rg.addColorStop(0,`rgba(255,226,158,${a*.145})`);
+      rg.addColorStop(.30,`rgba(255,174,88,${a*.070})`);
+      rg.addColorStop(.66,`rgba(255,132,54,${a*.024})`);
       rg.addColorStop(1,'rgba(255,118,42,0)');
       for(const pass of [
-        // Start wide at the strike point and flare rapidly. The previous narrow
-        // apex read as a directional beam/torpedo trail instead of reflected light.
-        {near:Math.max(34*k,rr*.48),half:clamp(dy*.78,108*k,w*.66),alpha:.42},
-        {near:Math.max(50*k,rr*.68),half:clamp(dy*1.04,148*k,w*.84),alpha:.19},
-        {near:Math.max(68*k,rr*.88),half:Math.max(w*.98,dy*1.30),alpha:.065}
+        // Tightly focused apex right at the strike point (p.x, p.y) flaring down across the water
+        {near:clamp(rr*.08,3*k,12*k),half:clamp(dy*.72,96*k,w*.60),alpha:.45},
+        {near:clamp(rr*.14,5*k,18*k),half:clamp(dy*.98,136*k,w*.78),alpha:.22},
+        {near:clamp(rr*.22,8*k,26*k),half:Math.max(w*.92,dy*1.24),alpha:.075}
       ]){
         ctx.globalAlpha=pass.alpha;ctx.fillStyle=rg;ctx.beginPath();
         ctx.moveTo(p.x-pass.near,p.y);ctx.lineTo(endX-pass.half,ey);ctx.lineTo(endX+pass.half,ey);ctx.lineTo(p.x+pass.near,p.y);ctx.closePath();ctx.fill();

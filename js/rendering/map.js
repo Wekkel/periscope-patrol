@@ -71,7 +71,7 @@ const MapStation={
     this.drawMapPortScenes(ctx,state.world.portScenes||[],w2s);
     this.drawMapPorts(ctx,state.world.ports,w2s);
     this.drawFriendlyApproach(ctx,state,w2s);
-    this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds,state.campaign);
+    this.drawMapHarbor(ctx,state.world.harbor,state.world.harborIntel,w2s,state.time.elapsedSeconds,state.campaign,state.world.environment?.daylight);
     this.drawMissionOverlay(ctx,state,w2s);
     this.drawMapTrail(ctx,map.ownshipTrail,w2s);
     this.drawMapPlot(ctx,map.plottedCourse,w2s,sub.position,map.autoFollowPlot);
@@ -142,6 +142,20 @@ const MapStation={
 
     const wall=typeof performance!=='undefined'?performance.now():Date.now();
     if(this._intelFocusUntil>wall){const label='MAP FOCUS · OWN BOAT + INTEL ESTIMATE';ctx.font=this.fnt(7.5,true);const bw=ctx.measureText(label).width+14*k,x=(w-bw)/2,y=8*k;ctx.fillStyle='rgba(4,15,18,.88)';this.rr(ctx,x,y,bw,19*k,4*k);ctx.fill();ctx.strokeStyle='rgba(111,224,143,.45)';ctx.stroke();ctx.fillStyle='rgba(190,240,215,.95)';ctx.textAlign='center';ctx.fillText(label,w/2,y+13*k);ctx.textAlign='left';}
+    const legW=Math.round(72*k), legH=Math.round(18*k);
+    const legX=pad, legY=h-Math.round(22*k);
+    this._legendChipRect={x:legX,y:legY,w:legW,h:legH};
+    ctx.save();
+    ctx.fillStyle=this.showLegend?'rgba(22,60,48,0.92)':'rgba(4,15,18,0.84)';
+    this.rr(ctx,legX,legY,legW,legH,4*k);ctx.fill();
+    ctx.strokeStyle=this.showLegend?'#6fe08f':'rgba(47,95,86,0.7)';
+    ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle=this.showLegend?'#d7f5e7':'rgba(180,215,200,0.85)';
+    ctx.font=this.fnt(7.5,true);ctx.textAlign='center';
+    ctx.fillText('ℹ LEGEND',legX+legW/2,legY+12*k);
+    ctx.textAlign='left';
+    ctx.restore();
+
     if(this.showLegend) this.drawMapLegend(ctx,w,h);
   },
 
@@ -306,7 +320,7 @@ const MapStation={
     for(const a of list){
       if(!a.seenBySub) continue;                       // only what the boat knows about
       const p=w2s(a.position.xNm,a.position.yNm);
-      const col=a.side==='FRIENDLY'?'#6fe08f':a.state==='ATTACKING'||a.state==='STRAFING'?'#ef6a58':'#f5c65c';
+      const col=a.side==='FRIENDLY'?'#6fe08f':a.state==='ATTACKING'||a.state==='STRAFING'?'#ef6a58':a.state==='INVESTIGATING'?'#ff9d42':'#f5c65c';
       const S=Math.max(4.5,6*K);                       // a chart symbol, smaller than the boat
       ctx.save();ctx.translate(p.x,p.y);ctx.rotate(degToRad(a.heading));
       ctx.fillStyle=col;ctx.strokeStyle=col;
@@ -342,29 +356,92 @@ const MapStation={
       }
       ctx.restore();
       ctx.fillStyle=col;ctx.font=this.fnt(7.5,true);
-      ctx.fillText(a.state==='ATTACKING'?'ATTACKING':(a.name||'AIRCRAFT'),p.x+S*1.4,p.y+3*K);
-      if(a.state==='ATTACKING'){
-        ctx.strokeStyle='rgba(239,106,88,.30)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
-        ctx.beginPath();ctx.arc(p.x,p.y,16*K,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillText(a.state==='ATTACKING'?'ATTACKING':a.state==='INVESTIGATING'?'INVESTIGATING':(a.name||'AIRCRAFT'),p.x+S*1.4,p.y+3*K);
+      if(a.state==='ATTACKING'||a.state==='INVESTIGATING'){
+        ctx.strokeStyle=a.state==='ATTACKING'?'rgba(239,106,88,.30)':'rgba(255,157,66,.28)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+        ctx.beginPath();ctx.arc(p.x,p.y,(a.state==='ATTACKING'?16:22)*K,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
       }
     }
   },
 
+  drawPrimaryTargetBrackets(ctx,x,y,r,K){
+    const gap=r*.45;
+    ctx.save();
+    ctx.strokeStyle='#ffd043';ctx.lineWidth=Math.max(1.4,1.8*K);
+    ctx.beginPath();
+    ctx.moveTo(x-r,y-gap);ctx.lineTo(x-r,y-r);ctx.lineTo(x-gap,y-r);
+    ctx.moveTo(x+gap,y-r);ctx.lineTo(x+r,y-r);ctx.lineTo(x+r,y-gap);
+    ctx.moveTo(x+r,y+gap);ctx.lineTo(x+r,y+r);ctx.lineTo(x+gap,y+r);
+    ctx.moveTo(x-gap,y+r);ctx.lineTo(x-r,y+r);ctx.lineTo(x-r,y+gap);
+    ctx.stroke();
+    ctx.fillStyle='#ffd043';
+    ctx.fillRect(x-1.5*K,y-r-2*K,3*K,3*K);
+    ctx.fillRect(x-1.5*K,y+r-K,3*K,3*K);
+    ctx.fillRect(x-r-2*K,y-1.5*K,3*K,3*K);
+    ctx.fillRect(x+r-K,y-1.5*K,3*K,3*K);
+    ctx.restore();
+  },
+
   drawMapLegend(ctx,w,h){
-    const k=this.k, lw=Math.round(196*k), lh=Math.round(140*k);
-    const lx=Math.round(10*k), ly=h-lh-Math.round(28*k);
-    ctx.fillStyle='rgba(6,16,18,0.86)';this.rr(ctx,lx,ly,lw,lh,5*k);ctx.fill();
-    ctx.strokeStyle='rgba(47,95,86,0.6)';ctx.lineWidth=1;ctx.stroke();
-    const rows=[['#6fe08f','▲','your submarine'],['#f5c65c','▲','enemy ship (confirmed)'],
-      ['#f5c65c','◌','estimated position'],['#6fe08f','⚓','friendly port'],['#ef6a58','⚓','enemy port'],
-      ['rgba(150,200,214,0.9)','┄','100-fathom curve'],['rgba(235,195,125,0.9)','┄','10-fathom danger line'],
-      ['rgba(239,106,88,0.9)','━','4-fathom grounding danger'],['rgba(245,198,92,0.7)','▭','patrol area boundary']];
-    ctx.font=this.fnt(8.5);
-    rows.forEach((r,i)=>{
-      const y=ly+Math.round((14+i*14)*k);
-      ctx.fillStyle=r[0];ctx.fillText(r[1],lx+Math.round(8*k),y);
-      ctx.fillStyle='#82a89a';ctx.fillText(r[2],lx+Math.round(24*k),y);
-    });
+    const k=this.k, lw=Math.round(234*k), lh=Math.round(236*k);
+    const lx=Math.round(10*k), ly=clamp(h-lh-Math.round(28*k),Math.round(44*k),h-lh);
+    this._legendCardRect={x:lx,y:ly,w:lw,h:lh,closeX:lx+lw-24*k,closeY:ly+4*k,closeW:20*k,closeH:20*k};
+    ctx.save();
+    ctx.fillStyle='rgba(4,14,18,0.94)';this.rr(ctx,lx,ly,lw,lh,6*k);ctx.fill();
+    ctx.strokeStyle='rgba(47,95,86,0.85)';ctx.lineWidth=1.2;ctx.stroke();
+
+    ctx.fillStyle='#6fe08f';ctx.font=this.fnt(9.5,true);
+    ctx.fillText('CHART SYMBOLS & PATROL ZONES',lx+Math.round(10*k),ly+Math.round(15*k));
+    ctx.fillStyle='rgba(180,215,200,0.7)';ctx.font=this.fnt(11,true);ctx.textAlign='center';
+    ctx.fillText('✕',lx+lw-Math.round(14*k),ly+Math.round(15*k));ctx.textAlign='left';
+
+    const sections=[
+      {
+        title:'VESSELS & TARGETS',
+        rows:[
+          ['#6fe08f','▲','your submarine'],
+          ['#ffd043','⬦★','PRIMARY objective target'],
+          ['#f5c65c','▲','enemy ship (confirmed)'],
+          ['#ef6a58','▲','active threat / escort hunting'],
+          ['#f5c65c','◌','estimated plot (hydrophone/radar)'],
+          ['#f5c65c','✈','aircraft (patrol / recon / attack)']
+        ]
+      },
+      {
+        title:'PATROL ZONES & LANES',
+        rows:[
+          ['rgba(245,198,92,0.85)','▭','patrol area boundary (6nm margin)'],
+          ['rgba(111,224,143,0.85)','◎','patrol station / objective zone'],
+          ['rgba(245,198,92,0.65)','═','convoy route / swept channel']
+        ]
+      },
+      {
+        title:'HAZARDS & PORTS',
+        rows:[
+          ['#6fe08f','⚓','friendly port / service water'],
+          ['#ef6a58','⚓','enemy port / defended anchorage'],
+          ['rgba(150,200,214,0.9)','┄','100-fathom (600 ft) curve'],
+          ['rgba(235,195,125,0.9)','┄','10-fathom (60 ft) danger line'],
+          ['rgba(239,106,88,0.9)','━','4-fathom grounding danger'],
+          ['rgba(245,198,92,0.85)','⊗','net / mine barrier belt']
+        ]
+      }
+    ];
+
+    let y=ly+Math.round(28*k);
+    for(const sec of sections){
+      ctx.fillStyle='rgba(111,224,143,0.65)';ctx.font=this.fnt(7.2,true);
+      ctx.fillText(sec.title,lx+Math.round(10*k),y);
+      y+=Math.round(11*k);
+      ctx.font=this.fnt(8);
+      for(const r of sec.rows){
+        ctx.fillStyle=r[0];ctx.fillText(r[1],lx+Math.round(10*k),y);
+        ctx.fillStyle='#8eb5a6';ctx.fillText(r[2],lx+Math.round(28*k),y);
+        y+=Math.round(12.5*k);
+      }
+      y+=Math.round(3*k);
+    }
+    ctx.restore();
   },
 
   _ensureBathy(state){ return (this._bathy=Bathy.ensure(state.world.terrain)); },
@@ -386,10 +463,15 @@ const MapStation={
     ctx.lineWidth=1.5; ctx.setLineDash([9,6]);
     ctx.strokeRect(p.x,p.y,q.x-p.x,q.y-p.y);
     ctx.setLineDash([]);
-    ctx.fillStyle='rgba(245,198,92,.6)';
-    ctx.font=this.fnt(8.5);
+    ctx.fillStyle='rgba(245,198,92,.75)';
+    ctx.font=this.fnt(8.5,true);
     ctx.textAlign='left';
-    ctx.fillText('PATROL AREA BOUNDARY',p.x+8,p.y+14);
+    const areaDef=typeof PATROL_AREAS!=='undefined'&&PATROL_AREAS[state.campaign?.patrolArea];
+    const areaName=areaDef?.displayName||state.campaign?.patrolArea||'PATROL AREA';
+    ctx.fillText(`${areaName.toUpperCase()} · PATROL AREA BOUNDARY`,p.x+8,p.y+14);
+    ctx.fillStyle='rgba(245,198,92,.45)';
+    ctx.font=this.fnt(7.5);
+    ctx.fillText('6 NM OPERATIONAL MARGIN',m0.x+8,m0.y+12);
     ctx.restore();
   },
 
@@ -511,11 +593,39 @@ const MapStation={
       }
       path();ctx.strokeStyle='rgba(120,175,150,0.16)';ctx.lineWidth=Math.max(6,14*K);ctx.lineJoin='round';ctx.stroke();
       ctx.strokeStyle='rgba(190,205,120,0.14)';ctx.lineWidth=Math.max(3,7*K);ctx.stroke();
+      // Warm sand beach shoreline fringe
+      ctx.strokeStyle='rgba(235,215,145,0.42)';ctx.lineWidth=Math.max(1.2,2.0*K);ctx.stroke();
       ctx.fillStyle=landGradient;ctx.fill();
       ctx.strokeStyle=this.zoom>=70?'rgba(239,106,88,0.72)':'rgba(214,228,150,0.55)';ctx.lineWidth=this.zoom>=70?Math.max(1.4,1.8*K):Math.max(1,1.3*K);ctx.stroke();
+
+      // Topographic elevation contour rings for high islands when zoomed in
+      if(this.zoom>=2.5&&f.peakM>=400&&pts.length>=6){
+        const steps=f.peakM>=1200?2:1;
+        for(let s=1;s<=steps;s++){
+          const fScale=s===1?(f.peakM>=1200?0.68:0.55):0.38;
+          ctx.strokeStyle='rgba(175,195,120,0.18)';ctx.lineWidth=Math.max(0.8,K);
+          ctx.beginPath();
+          pts.forEach((p,i)=>{
+            const qx=b.cx+(p.xNm-b.cx)*fScale,qy=b.cy+(p.yNm-b.cy)*fScale,sp=w2s(qx,qy);
+            if(i===0)ctx.moveTo(sp.x,sp.y);else ctx.lineTo(sp.x,sp.y);
+          });
+          ctx.closePath();ctx.stroke();
+        }
+      }
+
       if(f.areaNm2>25){
         const c=w2s(b.cx,b.cy),cx=c.x,cy=c.y;
-        if(cx>-120&&cx<this.w+120&&cy>-60&&cy<this.h+60){ctx.fillStyle='rgba(226,238,180,0.8)';ctx.font=this.fnt(9,true);ctx.textAlign='center';ctx.fillText(f.name.toUpperCase(),cx,cy);if(f.peakM>500){ctx.fillStyle='rgba(226,238,180,0.5)';ctx.font=this.fnt(7.5);ctx.fillText(`▲ ${f.peakM} m`,cx,cy+10*K);}ctx.textAlign='left';}
+        if(cx>-120&&cx<this.w+120&&cy>-60&&cy<this.h+60){
+          ctx.fillStyle='rgba(226,238,180,0.8)';ctx.font=this.fnt(9,true);ctx.textAlign='center';
+          ctx.fillText(f.name.toUpperCase(),cx,cy);
+          if(f.peakM>500){
+            const isVolcano=f.peakM>=1000||/volcan|crater|claro|kolombangara|savo/i.test(f.name);
+            ctx.fillStyle=isVolcano?'rgba(255,185,125,0.85)':'rgba(226,238,180,0.5)';
+            ctx.font=this.fnt(7.5);
+            ctx.fillText(isVolcano?`🌋 ${f.peakM} m`:`▲ ${f.peakM} m`,cx,cy+10*K);
+          }
+          ctx.textAlign='left';
+        }
       }
     }
   },
@@ -615,19 +725,78 @@ const MapStation={
 
   drawMapPortScenes(ctx,scenes,w2s){
     const K=this.k;for(const scene of scenes){if(!scene.known)continue;const c=w2s(scene.position.xNm,scene.position.yNm),a=degToRad(scene.heading||0),sin=Math.sin(a),cos=Math.cos(a);
-      ctx.save();ctx.strokeStyle=scene.side==='FRIENDLY'?'rgba(111,224,143,.38)':'rgba(227,107,93,.38)';ctx.fillStyle='rgba(205,215,190,.30)';ctx.lineWidth=Math.max(1,K);
-      for(const f of scene.features||[]){const x=c.x+(sin*f.alongNm+cos*f.lateralNm)*this.zoom,y=c.y+(-cos*f.alongNm+sin*f.lateralNm)*this.zoom;
-        if(f.kind==='pier'){ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(x,y);ctx.stroke();}
-        else{const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));ctx.fillRect(x-s*.5,y-s*.35,s,s*.7);}}
+      ctx.save();
+      const strokeColor=scene.side==='FRIENDLY'?'rgba(111,224,143,.45)':'rgba(227,107,93,.45)';
+      ctx.strokeStyle=strokeColor;
+      for(const f of scene.features||[]){
+        const x=c.x+(sin*f.alongNm+cos*f.lateralNm)*this.zoom,y=c.y+(-cos*f.alongNm+sin*f.lateralNm)*this.zoom;
+        if(f.kind==='pier'){
+          ctx.lineWidth=Math.max(1.5,2.2*K);
+          ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(x,y);ctx.stroke();
+        }else if(f.kind==='tank'){
+          const r=Math.max(1.5,Math.min(5,(f.sizeM||12)/16*K));
+          ctx.fillStyle='rgba(165,170,160,.38)';ctx.lineWidth=Math.max(1,K);
+          ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+        }else if(f.kind==='warehouse'){
+          const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));
+          ctx.fillStyle='rgba(180,165,145,.36)';ctx.lineWidth=Math.max(1,K);
+          ctx.fillRect(x-s*.6,y-s*.35,s*1.2,s*.7);ctx.strokeRect(x-s*.6,y-s*.35,s*1.2,s*.7);
+        }else if(f.kind==='crane'){
+          const s=Math.max(2,Math.min(6,(f.sizeM||14)/12*K));
+          ctx.lineWidth=Math.max(1,K);
+          ctx.beginPath();ctx.moveTo(x-s*.5,y);ctx.lineTo(x+s*.5,y);ctx.moveTo(x,y);ctx.lineTo(x+s*.4,y-s*.6);ctx.stroke();
+        }else if(f.kind==='breakwater'){
+          const bLen=Math.max(5,(f.sizeM||300)/NM_M*this.zoom),bAngle=a+degToRad(f.headingOffset||0);
+          const bx1=x-Math.sin(bAngle)*bLen*.5,by1=y+Math.cos(bAngle)*bLen*.5;
+          const bx2=x+Math.sin(bAngle)*bLen*.5,by2=y-Math.cos(bAngle)*bLen*.5;
+          ctx.strokeStyle='rgba(160,165,170,.85)';ctx.lineWidth=Math.max(2,2.8*K);
+          ctx.beginPath();ctx.moveTo(bx1,by1);ctx.lineTo(bx2,by2);ctx.stroke();
+          ctx.strokeStyle='rgba(75,80,85,.9)';ctx.lineWidth=Math.max(1,1.4*K);
+          ctx.beginPath();ctx.moveTo(bx1,by1);ctx.lineTo(bx2,by2);ctx.stroke();
+        }else if(f.kind==='quay'){
+          const qLen=Math.max(4,(f.sizeM||240)/NM_M*this.zoom),qAngle=a+degToRad(f.headingOffset||0);
+          const qx1=x-Math.sin(qAngle)*qLen*.5,qy1=y+Math.cos(qAngle)*qLen*.5;
+          const qx2=x+Math.sin(qAngle)*qLen*.5,qy2=y-Math.cos(qAngle)*qLen*.5;
+          ctx.strokeStyle='rgba(140,144,148,.85)';ctx.lineWidth=Math.max(1.8,2.2*K);
+          ctx.beginPath();ctx.moveTo(qx1,qy1);ctx.lineTo(qx2,qy2);ctx.stroke();
+        }else if(f.kind==='lighthouse'){
+          const r=Math.max(2.5,3.6*K);
+          ctx.fillStyle='rgba(245,215,95,.85)';ctx.strokeStyle='rgba(40,40,40,.8)';ctx.lineWidth=Math.max(.8,K);
+          ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+          ctx.fillStyle='rgba(245,215,95,.22)';ctx.beginPath();ctx.arc(x,y,r*2.2,0,Math.PI*2);ctx.fill();
+        }else if(f.kind==='control_tower'){
+          const s=Math.max(3,3.8*K);
+          ctx.fillStyle='rgba(130,135,140,.75)';ctx.strokeStyle='rgba(40,40,40,.8)';ctx.lineWidth=Math.max(.8,K);
+          ctx.fillRect(x-s*.5,y-s*.5,s,s);ctx.strokeRect(x-s*.5,y-s*.5,s,s);
+        }else if(f.kind==='coastal_battery'){
+          const r=Math.max(2.5,3.8*K);
+          ctx.fillStyle=scene.side==='FRIENDLY'?'rgba(95,185,120,.8)':'rgba(215,75,65,.8)';
+          ctx.strokeStyle='rgba(30,30,30,.85)';ctx.lineWidth=Math.max(.8,K);
+          ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();
+          const bAngle=a+(f.alongNm>=0?0:Math.PI);
+          ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(bAngle)*r*1.8,y-Math.cos(bAngle)*r*1.8);ctx.stroke();
+        }else if(f.kind==='channel_buoy'){
+          const isPort=f.buoySide==='PORT',r=Math.max(1.8,2.4*K);
+          ctx.fillStyle=isPort?'rgba(227,85,75,.9)':'rgba(65,205,105,.9)';
+          ctx.strokeStyle='rgba(20,20,20,.8)';ctx.lineWidth=Math.max(.6,K*.8);
+          ctx.beginPath();
+          if(isPort){ctx.fillRect(x-r,y-r,r*2,r*2);ctx.strokeRect(x-r,y-r,r*2,r*2);}
+          else{ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();ctx.stroke();}
+        }else{
+          const s=Math.max(2,Math.min(7,(f.sizeM||12)/10*K));
+          ctx.fillStyle='rgba(205,215,190,.30)';ctx.fillRect(x-s*.5,y-s*.35,s,s*.7);
+        }
+      }
       ctx.restore();
     }
   },
 
-  drawMapHarbor(ctx,H,I,w2s,now,campaign=null){
+  drawMapHarbor(ctx,H,I,w2s,now,campaign=null,daylight=null){
     if(!H) return;
     const K=this.k,c=w2s(H.center.xNm,H.center.yNm), mine=I?.minefield, ch=I?.channel;
     const hasKnowledge=!!I&&(mine?.level!=='NONE'||ch?.level!=='NONE'||I.net?.known||(I.batteries||[]).length);
-    const lightActive=(H.searchlightActiveUntil||-1)>(now||0);
+    const isDark=(daylight??0)<0.35;
+    const lightActive=(H.searchlightActiveUntil||-1)>(now||0)&&isDark;
     if(!hasKnowledge&&!lightActive&&H.alert<=0) return; // before intel: the port symbol is all the chart knows
     ctx.save();
 
@@ -1020,6 +1189,7 @@ const MapStation={
       const uncertaintyR=clamp(Math.max(10+(1-posConf)*30,sensorUncPx)+Math.min(36,(tr.staleSeconds||0)*0.06),8,72)*K;
       const ownScreen=w2s(ownPos.xNm,ownPos.yNm);
 
+      const isPri=typeof isPrimaryMissionTarget==='function'&&isPrimaryMissionTarget(state,tr.id);
       if(pt){
         // Acquisition is a symbol transition, not a 150-knot lateral manoeuvre.
         const transAge=Number.isFinite(tr.visualTransitionAt)?now-tr.visualTransitionAt:99;
@@ -1037,14 +1207,16 @@ const MapStation={
         const shipCol=tr.affiliation==='FRIENDLY'?'#6fe08f':tr.affiliation==='NEUTRAL'?'#9ec9d3':activeThreat?'#ef6a58':isEsc?'#e6a055':'#f5c65c';
         if(isSelected)this.courseVector(ctx,pt,tr.courseEstimate,tr.speedEstimateKnots,w2s,est,
           '#6fe08f',K,`${fmtDeg(tr.courseEstimate)} · ${tr.speedEstimateKnots.toFixed(0)}kn`);
-        const lenNm=shipVisualLengthNm(tr,isEsc?300:450);
+        const lenNm=typeof shipVisualLengthNm==='function'?shipVisualLengthNm(tr,isEsc?300:450):0.1;
         const iconLen=clamp(lenNm*this.zoom,15*K,52*K);
+        if(isPri)this.drawPrimaryTargetBrackets(ctx,pt.x,pt.y,iconLen*.95+6*K,K);
         if(isSelected){ctx.strokeStyle='rgba(111,224,143,.8)';ctx.lineWidth=Math.max(1.5,2*K);ctx.beginPath();ctx.arc(pt.x,pt.y,iconLen*.8,0,Math.PI*2);ctx.stroke();}
         this.shipIcon(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,iconType,shipCol,
           isSelected?'#eafff0':'rgba(12,20,18,.9)',clamp(a,0.45,1));
         if(isSelected&&Math.abs(tr.turnRateEstimateDegSec||0)>.12)this.turnCue(ctx,pt.x,pt.y,tr.courseEstimate,iconLen,tr.turnRateEstimateDegSec,'#6fe08f');
       }else{
         this.drawContactUncertaintyGlyph(ctx,pe,tr,uncertaintyR,K,isSelected,a,ownScreen);
+        if(isPri)this.drawPrimaryTargetBrackets(ctx,pe.x,pe.y,Math.max(16*K,uncertaintyR*1.12),K);
         // Course is advisory for a plot, not a drawn hull trajectory.
         if(isSelected&&Number.isFinite(tr.courseEstimate)&&!(tr.positionSource==='HYDROPHONE'||tr.positionSource==='SOUND BEARING')){
           const cRad=degToRad(tr.courseEstimate);ctx.strokeStyle=isSelected?'rgba(245,198,92,.75)':`rgba(245,198,92,${a*.48})`;ctx.lineWidth=Math.max(1,K);
@@ -1066,7 +1238,8 @@ const MapStation={
       // 'FRIENDLY FRIENDLY TRANSPORT' once the visual watch identified side.
       const affPrefix=(aff&&!rawType.toUpperCase().startsWith(aff))?aff+' ':'';
       const compactAff=(aff&&!String(compactType).toUpperCase().startsWith(aff))?aff+' ':'';
-      const title=isSelected?`${tr.id} ${affPrefix}${rawType}`:`${tr.id} ${dense?compactType:(compactAff+compactType)}`;
+      const priPrefix=isPri?'★ PRIMARY · ':'';
+      const title=isSelected?`${priPrefix}${tr.id} ${affPrefix}${rawType}`:`${priPrefix}${tr.id} ${dense?compactType:(compactAff+compactType)}`;
       const lines=[title.trim()];
       if(isSelected&&liveVisual&&contact){
         const visualRange=distNm(ownPos,contact.position),visualBearing=bearingBetween(ownPos,contact.position);
@@ -1090,8 +1263,9 @@ const MapStation={
       if(Math.hypot(leadX-labelPos.x,leadY-labelPos.y)>16*K){ctx.strokeStyle=`rgba(245,198,92,${isSelected?'.44':'.18'})`;ctx.lineWidth=Math.max(.6,.8*K);ctx.beginPath();ctx.moveTo(labelPos.x,labelPos.y);ctx.lineTo(leadX,leadY);ctx.stroke();}
       for(let li=0;li<lines.length;li++){
         const damage=isSelected&&li===lines.length-1&&tr.damageEstimate;
-        ctx.fillStyle=damage&&(tr.damageEstimate==='BURNING'||tr.damageEstimate==='FOUNDERING')?'rgba(239,106,88,.96)':`rgba(245,198,92,${isSelected?1:Math.max(.62,a*.82)})`;
-        ctx.font=this.fnt(li===0?fs:(fs-1),li===0||!!damage);ctx.fillText(lines[li],lx,ly+li*lh);
+        const isPriTitle=isPri&&li===0;
+        ctx.fillStyle=damage&&(tr.damageEstimate==='BURNING'||tr.damageEstimate==='FOUNDERING')?'rgba(239,106,88,.96)':isPriTitle?'#ffd043':`rgba(245,198,92,${isSelected?1:Math.max(.62,a*.82)})`;
+        ctx.font=this.fnt(li===0?fs:(fs-1),li===0||!!damage||isPriTitle);ctx.fillText(lines[li],lx,ly+li*lh);
       }
     }
   },
@@ -1237,9 +1411,16 @@ const MapStation={
   },
 
   toLocal(clientX,clientY){
-    const rect=this.canvas.getBoundingClientRect();
-    return{x:(clientX-rect.left)*(this.w/(rect.width||this.w)),
-           y:(clientY-rect.top)*(this.h/(rect.height||this.h))};
+    // Read canvas/w/h off the shared core, not off whichever station context
+    // this happens to be called through. this.canvas/this.w/this.h are only
+    // as fresh as the last time THIS context's own station was the one being
+    // drawn — fine for MAP calling its own toLocal, but pickBridgeContact/
+    // pickGunContact/pickScopeContact below reuse this same helper while a
+    // *different* station is active, where those copies can be stale. core.*
+    // is kept current every frame regardless of which station is on screen.
+    const core=this.core||this,rect=core.canvas.getBoundingClientRect();
+    return{x:(clientX-rect.left)*(core.w/(rect.width||core.w)),
+           y:(clientY-rect.top)*(core.h/(rect.height||core.h))};
   },
 
   zoomAt(factor,clientX,clientY){
@@ -1291,49 +1472,38 @@ const MapStation={
       if(d<bd){bd=d;best=i;}
     });
     return bd<Math.max(30,36*this.k)?best:-1;
-  },
-
-  pickGunContact(state,clientX,clientY){
-    const p=this.toLocal(clientX,clientY),cam=this.gunCam;if(!cam)return null;
-    let best=null,bd=Infinity;
-    for(const c of state.world.contacts){
-      if(c.sunk)continue;const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
-      const d=Math.hypot(scr.x-p.x,(scr.y-p.y)*0.7);if(d<bd){bd=d;best=c.id;}
-    }
-    return bd<Math.max(50,65*this.k)?best:null;
-  },
-
-  pickScopeContact(state,clientX,clientY){
-    const p=this.toLocal(clientX,clientY);
-    const cam=this.cam;
-    if(!cam) return null;
-    const fov=SCOPE_OPTICS[state.tactical.periscopeZoom===1?0:1].fov;
-    let best=null,bd=Infinity;
-    // Prefer a real hull only when the same canonical visual test says the
-    // periscope can actually resolve it. A tap on that hull can then become a
-    // VISUAL map fix instead of selecting an unrelated hydrophone plot.
-    for(const c of state.world.contacts){
-      if(c.sunk&&(c.sinkingProgress??0)>=1) continue;
-      if(typeof scopeCanResolveHull==='function'&&!scopeCanResolveHull(state,c,{fovPad:.60}))continue;
-      const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,0);
-      if(!scr) continue;
-      const d=Math.abs(scr.x-p.x);
-      if(d<bd){bd=d;best=c.id;}
-    }
-    if(best===null){
-      for(const tr of Object.values(state.world.contactTracks)){
-        if(tr.confidence<0.12||tr.sunk) continue;
-        const bd2=shortDelta(state.tactical.periscopeBearing,tr.bearing);
-        if(Math.abs(bd2)>fov/2) continue;
-        const x=cam.cx+Math.tan(degToRad(bd2))*cam.f;
-        const d=Math.abs(x-p.x);
-        if(d<bd){bd=d;best=tr.id;}
-      }
-    }
-    return bd<Math.max(46,60*this.k)?best:null;
   }
 };
 
-Object.assign(CanvasViewDeckGun.prototype,MapStation);
 
-class CanvasView extends CanvasViewDeckGun {}
+function createStationContext(core, definition, includeWorld=true){
+  const runtime=Object.create(null); Object.assign(runtime,core); runtime.core=core; runtime.World3D=World3D; runtime.world3d=World3D;
+  if(includeWorld)Object.assign(runtime,World3D); if(typeof DeckGunStation!=='undefined')Object.assign(runtime,DeckGunStation); if(typeof BattleAtmosphere!=='undefined')Object.assign(runtime,BattleAtmosphere); Object.assign(runtime,definition);
+  for(const name of Object.getOwnPropertyNames(CanvasViewCore.prototype)){if(name==='constructor'||name==='render'||typeof core[name]!=='function')continue;runtime[name]=core[name].bind(runtime);} return runtime;
+}
+class CanvasView{
+  constructor(canvas){this.core=new CanvasViewCore(canvas);this.contexts={TACTICAL:createStationContext(this.core,TacticalStation),BRIDGE:createStationContext(this.core,BridgeStation),SOUND:createStationContext(this.core,SoundStation),PERISCOPE:createStationContext(this.core,PeriscopeStation),MAP:createStationContext(this.core,MapStation),DECK_GUN:createStationContext(this.core,DeckGunStation)};}
+  stationContext(id){return this.contexts[id]||this.contexts.TACTICAL;}
+  drawStation(id,ctx,w,h,state,layout){const r=this.stationContext(id);Object.assign(r,this.core);const n={MAP:'drawMap',PERISCOPE:'drawPeriscope',BRIDGE:'drawBridge',SOUND:'drawSound',DECK_GUN:'drawDeckGun',TACTICAL:'drawTactical'}[id]||'drawTactical';if(typeof r[n]!=='function')throw new Error('Missing station renderer: '+id);r[n].call(r,ctx,w,h,state,layout);for(const key of Object.keys(r)){if(key==='core'||key==='canvas'||key==='ctx'||typeof r[key]==='function')continue;this.core[key]=r[key];}return true;}
+  render(state,layout){return this.core.render(state,layout,this);} resize(force){return this.core.resize(force);}
+  _syncMap(){const m=this.contexts.MAP;this.core.zoom=m.zoom;this.core.mapCenter=m.mapCenter;this.core.follow=m.follow;return m;}
+  zoomAt(...a){const r=this.contexts.MAP.zoomAt(...a);this._syncMap();return r;} panBy(...a){const r=this.contexts.MAP.panBy(...a);this._syncMap();return r;} recenter(...a){const r=this.contexts.MAP.recenter(...a);this._syncMap();return r;} screenToWorldMap(...a){return this.contexts.MAP.screenToWorldMap(...a);} toLocal(...a){return this.contexts.MAP.toLocal(...a);}
+  pickTrack(...a){return this.contexts.MAP.pickTrack(...a);} pickWaypoint(...a){return this.contexts.MAP.pickWaypoint(...a);}
+  // pickBridgeContact lives on the BRIDGE station's own object (bridge-3d.js),
+  // not on MapStation — routing it through contexts.MAP used to call a method
+  // that plain doesn't exist there ("this.contexts.MAP.pickBridgeContact is
+  // not a function"), so tapping a ship while on the bridge always threw and
+  // silently did nothing.
+  pickBridgeContact(...a){return this.contexts.BRIDGE.pickBridgeContact(...a);} pickGunContact(...a){return this.contexts.DECK_GUN.pickGunContact(...a);} pickScopeContact(...a){return this.contexts.PERISCOPE.pickScopeContact(...a);}
+  revealScopeLabel(...a){return this.contexts.PERISCOPE.revealScopeLabel(...a);}
+  get canvas(){return this.core.canvas;} get ctx(){return this.core.ctx;} get w(){return this.core.w;} get h(){return this.core.h;} get dpr(){return this.core.dpr;} get k(){return this.core.k;} get minZoom(){return this.core.minZoom;} get maxZoom(){return this.core.maxZoom;}
+  get zoom(){return this.contexts.MAP.zoom;} set zoom(v){this.contexts.MAP.zoom=v;this.core.zoom=v;} get mapCenter(){return this.contexts.MAP.mapCenter;} set mapCenter(v){this.contexts.MAP.mapCenter=v;this.core.mapCenter=v;} get follow(){return this.contexts.MAP.follow;} set follow(v){this.contexts.MAP.follow=v;} get mapLabelStrategy(){return this.contexts.MAP.mapLabelStrategy;} set mapLabelStrategy(v){this.contexts.MAP.mapLabelStrategy=v;}
+  get tactGeom(){return this.contexts.TACTICAL.tactGeom;} get scopeGeom(){return this.contexts.PERISCOPE.scopeGeom;}
+  // The periscope's own magnification pill (drawn + hit-tested in periscope-3d.js,
+  // this.zoomPill=...) lives on the PERISCOPE station context. This getter used
+  // to read it off MAP instead, which never sets that property — so cv.zoomPill
+  // was always undefined and every tap/click on the visible 1.5×/6× pill fell
+  // through to handleTap's next branch (pickScopeContact), silently selecting
+  // whatever target was nearest the crosshair instead of changing the zoom.
+  get zoomPill(){return this.contexts.PERISCOPE.zoomPill;} get bridgeCam(){return this.contexts.BRIDGE.bridgeCam;} get gunCam(){return this.contexts.DECK_GUN.gunCam;} get cam(){return this.contexts.PERISCOPE.cam;} get touchSafeTactical(){return this.contexts.TACTICAL.touchSafeTactical;} set touchSafeTactical(v){this.contexts.TACTICAL.touchSafeTactical=v;} get lastImpactAge(){return this.contexts.PERISCOPE.lastImpactAge;}
+}

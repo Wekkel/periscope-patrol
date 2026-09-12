@@ -1,4 +1,4 @@
-class SimEngineIntel extends SimEngineAAGun {
+const IntelSystem={
   threadShippingSignal(m){
     const R=this.state.world.radio, intel=m?.intel;
     if(!intel){R.inbox.unshift(m);R.unread++;return;}
@@ -11,20 +11,56 @@ class SimEngineIntel extends SimEngineAAGun {
     if(oldIndex>=0)R.inbox.splice(oldIndex,1);
     if(old&&!materialChange)m.text+=` ROUTINE UPDATE ${m.updateCount} — same tracked target; latest estimate shown.`;
     R.inbox.unshift(m);if(materialChange)R.unread++;
-  }
+  },
+
+  ensureRadioOperations(){
+    const R=this.state.world.radio=this.state.world.radio||{pending:null,inbox:[],unread:0,nextBroadcast:240,copying:0};
+    R.txSilence=!!R.txSilence;R.copyRequired=Math.max(1,Number(R.copyRequired)||40);
+    const keyDate=String(this.state.time?.campaignDate||this.state.campaign?.startDate||'').slice(0,10);
+    R.enigma=R.enigma||{keyDate,keyState:'IN FORCE',workload:0,processedGroups:0,lastCategory:null};
+    if(R.enigma.keyDate!==keyDate){R.enigma.keyDate=keyDate;R.enigma.keyState='CHANGEOVER';R.enigma.workload=Math.max(1,R.enigma.workload||0);}
+    return R;
+  },
+
+  radioCopyRequirement(signal){
+    const s=this.state,R=this.ensureRadioOperations(),profile=getCampaignRadioIntelProfile(s.campaign.campaignProfileId)||{},env=s.world.environment||{},d=s.playerSub.damage||{};
+    const category=String(signal?.subject||signal?.type||'ROUTINE').toUpperCase(),priority=/ATTACK ORDER|WARNING|SPECIAL/.test(category)?1.15:/WEATHER/.test(category)?.76:1;
+    const weather=1+clamp(Number(env.precipitation)||0,0,1)*.22+clamp(Number(env.radioTerrainMask)||0,0,.5);
+    const damage=1+clamp((Number(d.electricalDamage)||0)/100,0,1)*.85+clamp((100-(Number(d.hullIntegrity)||100))/100,0,1)*.18;
+    const workload=1+clamp(Number(R.enigma?.workload)||0,0,6)*(Number(profile.enigmaWorkloadFactor)||.08);
+    return Math.round(clamp((Number(profile.baseCopySec)||40)*priority*weather*damage*workload,25,105));
+  },
+
+  acceptPartialRadio(){
+    const R=this.ensureRadioOperations(),need=Math.max(1,R.copyRequired||40);
+    if(!R.pending){this.notify('RADIO ROOM — no signal is currently being copied.','warn', 'NUTTIG');return false;}
+    if(R.copying<need*.45){this.notify('RADIO ROOM — too few groups copied for a useful partial message.','warn', 'NUTTIG');return false;}
+    const m={...R.pending,partial:true,text:`${R.pending.text} [PARTIAL COPY — positions and timing carry extra uncertainty.]`};
+    if(m.intel)m.intel={...m.intel,uncBaseNm:(m.intel.uncBaseNm||.8)*1.9,ageSec:(m.intel.ageSec||0)+1200};
+    R.pending=null;R.copying=0;R.copyRequired=40;m.time=this.state.time.elapsedSeconds;m.seq=(R.seq=(R.seq||0)+1);this.threadShippingSignal(m);if(R.inbox.length>12)R.inbox.pop();
+    R.enigma.workload=clamp((R.enigma.workload||0)+.7,0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';
+    this.applySignal(m);PresentationBridge.audio(this.state).event?.('RADIO_MESSAGE');this.captainLog('RADIO_PARTIAL_COPY','Radio operator accepted an incomplete encoded message.',{subject:m.subject},'radio-partial');return true;
+  },
 
   updateRadio(dt){
     const W=this.state.world, sub=this.state.playerSub;
     const now=this.state.time.elapsedSeconds;
-    W.radio=W.radio||{pending:null,inbox:[],unread:0,nextBroadcast:240,copying:0};
-    const R=W.radio;
+    const R=this.state.world.radio;if(!R)return;R.enigma=R.enigma||{};R.enigma.workload=Math.max(0,(R.enigma.workload||0)-dt/900);
 
     if(!R.pending){
-      // Truk's special report is a broadcast like any other: knowing that the
-      // transmitter is up is not the same as copying the message. Once its
-      // window opens, give it a near-term radio slot but never create mission
+      // Mission-authored priority traffic uses the same antenna-depth/copying
+      // contract as routine radio. The mission may queue a reply, but it does not
+      // become player knowledge until this receiver actually copies the signal.
+      const priority=Array.isArray(R.priority)?R.priority:null;
+      if(priority?.length){
+        const i=priority.findIndex(x=>x&&now>=(x.eligibleAt||0));
+        if(i>=0){const q=priority.splice(i,1)[0];R.pending={...(q.signal||{})};R.copyRequired=this.radioCopyRequirement(R.pending);this.log(q.announce||'Radio room: priority signal is up. Antenna depth to copy it.','warn');return;}
+      }
+      // A campaign-authored harbor report is a broadcast like any other: knowing
+      // that the transmitter is up is not the same as copying the message. Once
+      // its window opens, give it a near-term radio slot but never create mission
       // knowledge until applySignal() is reached after 40 seconds of copy.
-      const HI=this.ensureHarborIntel?.();
+      const HI=this.sys.harbor.ensureHarborIntel();
       if(HI&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
          &&now>=HI.specialSignal.eligibleAt&&R.nextBroadcast>30) R.nextBroadcast=30;
       /* If the boat has held nothing for a long while, the trail is cold and
@@ -37,7 +73,7 @@ class SimEngineIntel extends SimEngineAAGun {
       R.nextBroadcast-=dt;
       if(R.nextBroadcast<=0){
         R.nextBroadcast=900+Math.random()*700;
-        R.pending=this.composeSignal();
+        R.pending=this.composeSignal();R.copyRequired=this.radioCopyRequirement(R.pending);
         this.log('Radio room: shore broadcast is up. Antenna depth to copy it.','warn');
       }
       return;
@@ -46,29 +82,30 @@ class SimEngineIntel extends SimEngineAAGun {
     const canCopy=sub.depthFeet<42&&sub.damage.hullIntegrity>5;
     if(canCopy){
       R.copying+=dt;
-      if(R.copying>40){
+      if(R.copying>R.copyRequired){
         const m=R.pending;R.pending=null;R.copying=0;
         m.time=now;m.seq=(R.seq=(R.seq||0)+1);this.threadShippingSignal(m);
         if(R.inbox.length>12) R.inbox.pop();
-        this.applySignal(m);
-        audio.event?.('RADIO_MESSAGE');
+        R.enigma.workload=clamp((R.enigma.workload||0)+(/ATTACK ORDER|SPECIAL/.test(String(m.subject||m.type))?1.1:.55),0,6);R.enigma.processedGroups++;R.enigma.lastCategory=m.subject||m.type;R.enigma.keyState='IN FORCE';R.copyRequired=40;this.applySignal(m);
+        PresentationBridge.audio(this.state).event?.('RADIO_MESSAGE');
       }
     }else if(R.copying>0){
       R.copying=Math.max(0,R.copying-dt*2);
     }
-  }
+  },
 
   composeSignal(){
     const W=this.state.world, camp=this.state.campaign;
-    const HI=this.ensureHarborIntel?.();
-    if(HI&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
+    const radioProfile=getCampaignRadioIntelProfile(camp.campaignProfileId);
+    if(!radioProfile) throw new Error(`Campaign ${camp.campaignProfileId||'UNKNOWN'} has no radio-intelligence profile`);
+    const HI=this.sys.harbor.ensureHarborIntel(),harborOp=getCampaignHarborOperationProfile(camp.campaignProfileId),special=harborOp?.radioSignal;
+    if(HI&&special&&!HI.specialSignal.copied&&!HI.specialSignal.broadcast
        &&this.state.time.elapsedSeconds>=HI.specialSignal.eligibleAt){
       HI.specialSignal.broadcast=true;HI.specialSignal.broadcastAt=this.state.time.elapsedSeconds;
-      return{type:'SPECIAL INTELLIGENCE',subject:'TRUK ANCHORAGE',harborSpecial:true,
-        text:`HEAVY UNIT REPORTED AT TRUK ANCHORAGE. DEPARTURE UNKNOWN. ATTACK AT COMMANDING OFFICER'S DISCRETION.`};
+      return{type:special.type,subject:special.subject,harborSpecial:true,text:special.text};
     }
     const alive=W.contacts.filter(c=>!c.sunk&&c.type!=='ESCORT'&&!c.harborTarget&&(!c.side||c.side==='ENEMY'));
-    const shipping=(this.trafficIntelCandidates?.()||[]).filter(x=>x.side==='ENEMY');
+    const shipping=this.sys.traffic.trafficIntelCandidates().filter(x=>x.side==='ENEMY');
     const primary=shipping.find(x=>x.missionCritical)||null;
     const locateObj=(camp.objectives||[]).find(o=>o.id==='locate'||/^Locate enemy convoy$/i.test(o.text||''));
     const missionConvoyRequired=camp.primaryMission?.type==='CONVOY_INTERDICTION'&&!!primary&&!locateObj?.done;
@@ -76,13 +113,13 @@ class SimEngineIntel extends SimEngineAAGun {
     const forced=!!R.forceUltra; R.forceUltra=false;
     if(forced) R.coldFor=0;
     const roll=forced?0:Math.random();
-    if((shipping.length||alive.length)&&roll<0.5){
+    if((shipping.length||alive.length)&&roll<radioProfile.routine.shippingCeiling){
       /* Routine decrypts now report SHIPPING, not the single guaranteed convoy.
          A cold-trail amplifying report still favors the primary mission group so
          the anti-frustration mechanic does not send the skipper after a sampan. */
       let q=null;
       if(shipping.length){
-        // Until the assigned convoy has actually been found, an ULTRA shipping
+        // Until the assigned convoy has actually been found, a decoded shipping
         // plot is mission guidance. Do not overwrite it with an unrelated
         // ambient convoy at the far end of the chart. Once located, ordinary
         // traffic intelligence may again refer to any worthwhile shipping.
@@ -92,7 +129,7 @@ class SimEngineIntel extends SimEngineAAGun {
       const err=forced?(0.4+Math.random()*0.8):(0.8+Math.random()*2.2);
       const ageSec=forced?(600+Math.random()*1800):(1800+Math.random()*7200);
       const speed=q.speedKnots||8,back=knotsNmSec(speed)*ageSec;
-      const route=(W.convoyRoutes||[])[0],path=route&&this.ensureWaterRoute(route);
+      const route=(W.convoyRoutes||[])[0],path=route&&this.sys.navigation.resolveWaterRoute(route);
       let pos,courseDeg=q.heading||0,routeS=q.routeS??null,routeDir=q.routeDir??null;
       if(path&&path.length>1&&routeS!=null&&routeDir!=null){
         if(q.missionCritical){
@@ -110,35 +147,34 @@ class SimEngineIntel extends SimEngineAAGun {
       }else{
         const br=degToRad(courseDeg);pos={xNm:q.position.xNm-Math.sin(br)*back,yNm:q.position.yNm+Math.cos(br)*back};
       }
-      const label=q.missionCritical?'convoy':(q.label||'enemy shipping');
-      const qualification=q.missionCritical?' This is the assigned patrol convoy.':" This report is not guaranteed to be the patrol's primary target.";
-      return{type:'ULTRA',subject:forced?'ENEMY SHIPPING — AMPLIFYING REPORT':'ENEMY SHIPPING REPORTED',
-        text:`ULTRA. ${label.toUpperCase()} reported in ${camp.patrolArea}${q.count>1?` — approximately ${q.count} ships`:''}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(courseDeg)}, speed ${speed.toFixed(0)} knots.${qualification}`,
+      const label=q.missionCritical?'convoy':(q.label||'enemy shipping'),shippingCopy=radioProfile.shipping;
+      const qualification=q.missionCritical?shippingCopy.missionQualification:shippingCopy.ambientQualification;
+      return{type:shippingCopy.type,subject:forced?shippingCopy.amplifyingSubject:shippingCopy.subject,
+        text:`${shippingCopy.sourceLabel}. ${label.toUpperCase()} reported in ${camp.patrolArea}${q.count>1?` — approximately ${q.count} ships`:''}. Position at ${(ageSec/3600).toFixed(1)} hours ago: ${pos.xNm.toFixed(1)}E ${(-pos.yNm).toFixed(1)}N, course ${fmtDeg(courseDeg)}, speed ${speed.toFixed(0)} knots.${qualification}`,
         intel:{pos,courseDeg,speedKn:speed,ageSec,routeS,routeDir,uncBaseNm:err,targetLabel:label,targetId:q.id,missionCritical:!!q.missionCritical}};
     }
-    if(roll<0.68){
-      return{type:'WARNING',subject:'AIR ACTIVITY',
-        text:`Enemy air patrols reported over ${camp.patrolArea}. Remain submerged during daylight where practicable.`,
-        airThreat:0.5+Math.random()*0.7};
+    if(radioProfile.air&&roll<radioProfile.routine.airCeiling){
+      const copy=radioProfile.air;
+      return{type:copy.type,subject:copy.subject,text:`${copy.textPrefix}${camp.patrolArea}${copy.textSuffix}`,airThreat:0.5+Math.random()*0.7};
     }
-    if(roll<0.82){
-      return{type:'ORDERS',subject:'LIFEGUARD STATION',
-        text:`Carrier strike scheduled. Take lifeguard station and report. Any airman recovered counts toward the patrol.`,
-        score:250};
+    if(radioProfile.lifeguard&&roll<radioProfile.routine.lifeguardCeiling){
+      const copy=radioProfile.lifeguard;
+      return{type:copy.type,subject:copy.subject,text:copy.text,score:copy.score};
     }
-    return{type:'INFO',subject:'WEATHER',
-      text:`Front moving through the area within the next twelve hours. Expect reduced visibility and rising sea.`,
-      weather:true};
-  }
+    const copy=radioProfile.weather;if(!copy)throw new Error(`Campaign ${camp.campaignProfileId||'UNKNOWN'} has no fallback radio signal`);
+    return{type:copy.type,subject:copy.subject,text:copy.text,weather:true};
+  },
 
   /* ── WHAT DO I ACTUALLY KNOW? ──────────────────────────────────────
      A signal log answers the wrong question. What a skipper wants off the
      radio is: where is the nearest thing worth shooting, how stale is that
      information, and which way do I steer. This works that out from the
-     ULTRA plot and from every contact the boat has held itself, and hands
+     decoded shipping plot and from every contact the boat has held itself, and hands
      back one ranked list — nearest first, with the age of each fix. */
   intelSummary(){
     const s=this.state, sub=s.playerSub, W=s.world, now=s.time.elapsedSeconds;
+    const radioProfile=getCampaignRadioIntelProfile(s.campaign.campaignProfileId),shippingCopy=radioProfile?.shipping;
+    const flankSpeed=sub.propulsion?.characteristics?.interceptFlankSpeedKn??sub.propulsion?.characteristics?.maxSurfaceSpeedKn??sub.propulsion?.maxSurfaceSpeedKn??0;
     const out=[];
     const U=W.ultra;
     if(U){
@@ -150,9 +186,7 @@ class SimEngineIntel extends SimEngineAAGun {
         const nowFix=routed?(U.missionCritical?routePointAt(path,U.routeS+run):routeAdvance(path,U.routeS,U.routeDir,run)):null;
         const dr=routed?nowFix.pos:(()=>{const r=degToRad(U.courseDeg);return{xNm:U.reportPos.xNm+Math.sin(r)*run,yNm:U.reportPos.yNm-Math.cos(r)*run};})();
         const rng=distNm(sub.position,dr);
-        // Compare both moving vessels, then compute closest approach from the
-        // same relative-velocity geometry. This is advice from plotted data,
-        // never hidden truth and never an automatic helm order.
+        // Compare both moving vessels; no hidden target truth enters this plot.
         const fwd=routed?(U.missionCritical?routePointAt(path,nowFix.s+knotsNmSec(U.speedKn)*600).pos:routeAdvance(path,nowFix.s,nowFix.dir,knotsNmSec(U.speedKn)*600).pos)
                          :(()=>{const r=degToRad(U.courseDeg),r2=knotsNmSec(U.speedKn)*600;return{xNm:dr.xNm+Math.sin(r)*r2,yNm:dr.yNm-Math.cos(r)*r2};})();
         const ownR=degToRad(sub.heading||0),ownRun=knotsNmSec(sub.propulsion.speedKnots||0)*600;
@@ -168,11 +202,11 @@ class SimEngineIntel extends SimEngineAAGun {
            the roof. If only the second exists, the answer to "why can I never
            find them" is: you have to surface and run. */
         const now2=sub.propulsion.speedKnots;
-        out.push({kind:'ULTRA',name:`${U.targetLabel||'Enemy shipping'} (ULTRA estimate)`,pos:dr,rngNm:rng,
+        out.push({kind:'ULTRA',name:`${U.targetLabel||'Enemy shipping'} (${shippingCopy?.estimateLabel||'intelligence estimate'})`,pos:dr,rngNm:rng,
           brg:bearingBetween(sub.position,dr),ageSec:age,courseDeg:(nowFix?.heading??U.courseDeg),speedKn:U.speedKn,
           closing:rangeRateKn>0,trend:rangeRateKn>.25?'CLOSING':rangeRateKn<-.25?'OPENING':'STEADY',rangeRateKn,cpaNm,cpaTimeSec:tcpaH*3600,
           icptNow:this.interceptSolution(dr,U.courseDeg,U.speedKn,now2),
-          icptFlank:this.interceptSolution(dr,U.courseDeg,U.speedKn,17.5),
+          icptFlank:this.interceptSolution(dr,U.courseDeg,U.speedKn,flankSpeed),
           uncNm:clamp((U.uncBaseNm||0.8)+U.speedKn*age/3600*0.10,0.8,9)});
       }
     }
@@ -185,12 +219,12 @@ class SimEngineIntel extends SimEngineAAGun {
         pos,rngNm:rg,brg:tr.bearing,ageSec:tr.staleSeconds||0,
         courseDeg:tr.courseEstimate,speedKn:tr.speedEstimateKnots,
         icptNow:tr.courseEstimate!=null?this.interceptSolution(pos,tr.courseEstimate,tr.speedEstimateKnots||0,sub.propulsion.speedKnots):null,
-        icptFlank:tr.courseEstimate!=null?this.interceptSolution(pos,tr.courseEstimate,tr.speedEstimateKnots||0,17.5):null,
+        icptFlank:tr.courseEstimate!=null?this.interceptSolution(pos,tr.courseEstimate,tr.speedEstimateKnots||0,flankSpeed):null,
         confidence:tr.confidence,source:tr.source});
     }
     out.sort((a,b)=>a.rngNm-b.rngNm);
     return out;
-  }
+  },
 
   /* ══ CAN I CUT HER OFF, AND ON WHAT COURSE? ═══════════════════════════
      Steering at the bearing to a moving convoy is a PURSUIT curve: you end
@@ -225,38 +259,29 @@ class SimEngineIntel extends SimEngineAAGun {
     if(t===null||!isFinite(t)) return null;
     const point={xNm:tgtPos.xNm+vx*t,yNm:tgtPos.yNm+vy*t};
     return {courseDeg:bearingBetween(sub.position,point),timeSec:t*3600,point};
-  }
+  },
 
   applySignal(m){
-    const W=this.state.world;
+    const W=this.state.world,radioProfile=getCampaignRadioIntelProfile(this.state.campaign.campaignProfileId),shippingCopy=radioProfile?.shipping;
     if(m.harborSpecial) this.log(`SPECIAL INTELLIGENCE — ${m.text}`,'warn');
     else this.log(`RADIO — ${m.subject}: ${m.text}`,'warn');
-    if(m.harborSpecial) this.grantHarborSpecialIntel?.();
+    if(m.harborSpecial) this.sys.harbor.grantHarborSpecialIntel();
     if(m.intel){
-      // An ULTRA signal is a position report that is already some hours old.
+      // A decoded shipping signal is a position report that is already some hours old.
       // It is plotted where the convoy WAS, and dead-reckoned forward from the
       // reported course and speed — that estimate is what you steer to
       // intercept. It is a fixed plot in the sea, not a marker on your boat.
-      W.ultra={reportPos:this.clampToArea(m.intel.pos),courseDeg:m.intel.courseDeg,speedKn:m.intel.speedKn,targetLabel:m.intel.targetLabel||'Enemy shipping',targetId:m.intel.targetId||null,missionCritical:!!m.intel.missionCritical,
+      W.ultra={reportPos:this.sys.navigation.clampToArea(m.intel.pos),courseDeg:m.intel.courseDeg,speedKn:m.intel.speedKn,targetLabel:m.intel.targetLabel||'Enemy shipping',targetId:m.intel.targetId||null,missionCritical:!!m.intel.missionCritical,
         routeS:m.intel.routeS??null,routeDir:m.intel.routeDir??null,uncBaseNm:m.intel.uncBaseNm??0.8,
         reportedAt:this.state.time.elapsedSeconds-(m.intel.ageSec||0),
         receivedAt:this.state.time.elapsedSeconds,label:m.subject};
       delete W.contactTracks['ULTRA'];
       const advisory=this.intelSummary().find(x=>x.kind==='ULTRA');
-      if(advisory) this.state.map.intelFitRequest={seq:((this.state.map.intelFitRequest?.seq)||0)+1,own:{...this.state.playerSub.position},estimate:{...advisory.pos},receivedAt:this.state.time.elapsedSeconds,historyId:this.state.campaign.historyId};
+      if(advisory){
+        const focus=()=>{this.state.map.intelFitRequest={seq:((this.state.map.intelFitRequest?.seq)||0)+1,own:{...this.state.playerSub.position},estimate:{...advisory.pos},receivedAt:this.state.time.elapsedSeconds,historyId:this.state.campaign.historyId};};
+        PresentationBridge.toast(this.state).action('Shipping intelligence intercept plotted — steer to cut her off','VIEW MAP',focus,9500,'ok','intel-fit');
+      }
       const T=this.state.time||{},compressed=!!T.transitUntil||(T.timeScale||1)>1;
-      if(compressed){
-        // Do not let a long skip manufacture a vertical stack of identical
-        // green ULTRA toasts. Keep one queued item and update its count; the
-        // patrol log still retains every individual radio message above.
-        const u=this.state.ui=this.state.ui||{},q=u.toasts=u.toasts||[];
-        let item=null,itemIndex=-1;for(let i=q.length-1;i>=0;i--){if(q[i]?.tag==='ULTRA_INTERCEPT'){item=q[i];itemIndex=i;break;}}
-        if(item){
-          item.count=(item.count||1)+1;item.msg=`${item.count}× ULTRA intercepts plotted — latest plot shown on MAP`;
-          item.seq=(u.toastSeq=(u.toastSeq||0)+1);q.splice(itemIndex,1);q.push(item); // latest repeated signal stays at the tail
-        } else q.push({msg:'ULTRA intercept plotted — steer to cut her off',kind:'ok',tag:'ULTRA_INTERCEPT',count:1,seq:(u.toastSeq=(u.toastSeq||0)+1)});
-        if(q.length>40)q.splice(0,q.length-40);
-      }else Toast.ok('ULTRA intercept plotted — steer to cut her off');
     }
     if(m.airThreat){W.airThreat=W.airThreat||{};W.airThreat.level=m.airThreat;}
     if(m.score) this.state.campaign.score+=m.score;
@@ -274,4 +299,4 @@ class SimEngineIntel extends SimEngineAAGun {
      difference is why the boat almost always sights the escort first, and why
      the night surface attack worked at all. A periscope is smaller again —
      an inch of tube and a feather of wake if you are moving.              */
-}
+};

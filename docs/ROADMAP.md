@@ -1,0 +1,158 @@
+# Periscope Patrol — Master Roadmap & Wensenlijst
+
+Dit document legt de langetermijnvisie, kerninitiatieven, visuele verbeteringspijlers en operationele taken vast voor *Periscope Patrol*.
+
+---
+
+## Werkwijze per Punt
+Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
+1. **Intake & Probleemanalyse**: Deelvragen en technische randvoorwaarden in kaart brengen.
+2. **Implementatieplan**: Ontwerp opstellen inclusief kwaliteitsbewaking en impact op budgets.
+3. **Akkoord gebruiker**: Pas na expliciete goedkeuring gaan we over tot actie.
+4. **Uitvoering & Testen**: Codeerwerk, geautomatiseerde quality gates (`quality-gates.mjs`, `behaviour.mjs`, etc.) draaien.
+5. **Walkthrough & Evaluatie**: Oplevering documenteren en gereedmelden voor het volgende punt.
+
+---
+
+## Deel 1: 10 Kerninitiatieven (Architectuur & Gameplay)
+
+### 1. Vaste browser- en apparaatteststraat
+* **Doel**: Geen productrommel, maar een betrouwbaar ontwikkelgereedschap waarmee een volledige missiecyclus reproduceerbaar kan worden doorgelopen:
+  $$\text{Briefing} \longrightarrow \text{Aanval} \longrightarrow \text{Schade} \longrightarrow \text{Ontsnapping} \longrightarrow \text{Terugkeer} \longrightarrow \text{AAR}$$
+* **Focus**: Headless verificatie, deterministische tijdstappen, mock-sensoren en verificatie van alle UI-transities over desktop- en touch-profielen.
+* **Fases**:
+  * [x] **Fase 1.1: Multi-Device Teststraat Fundament** (Headless Edge/Chrome runner, HTTP 206 static server, deterministische game loop, shell- en DOM-verificatie over 4 profielen) — **GOEDGEKEURD (Harry: 8.9/10, Henry: 8.95/10)**
+  * [x] **Fase 1.2: Volledige Missiecyclus Automatisering** ($\text{Briefing} \to \text{Aanval} \to \text{Schade} \to \text{Ontsnapping} \to \text{Terugkeer} \to \text{AAR}$) — **GOEDGEKEURD (Harry: 9.4/10, Henry: 9.1/10)**
+  * [x] **Fase 1.3: Stress-, Lek- & CI-integratie** (Duurtests, geheugenmonitoring, regressiepoorten) — **GOEDGEKEURD (Harry: 9.5/10, Henry: 9.4/10)**
+
+### 2. Hybride audiohuis
+* **Doel**: WebAudio-synthese behouden voor dynamische, traploze lagen (motor-RPM, dieptedruk, sonar-doppler, filterresonanties), maar cruciale geluiden verrijken met zorgvuldig geproduceerde, historische samples:
+  * Explosies (torpedo-inslag, dieptebommen nabij/ver, kanontreffers)
+  * Geschut (dekkanon knal, 20mm Oerlikon snelvuur)
+  * Diesels en machines
+  * Hydrofooncontacten & cavitatie
+  * Zee-ambience (boven water vs onder water)
+  * Korte muzikale cues en briefing/after-action stings
+* **Fases**:
+  * [x] **Fase 2.1: Hybride Audio Pipeline & Asset Architectuur** (WebAudio mixing bus, LRU buffer-evictie, 8MB heap-plafond, bidirectionele Hann-tapering, voice stealing micro-ramps) — **GOEDGEKEURD (Harry: 9.6/10, Henry: 9.3/10)**
+  * [x] **Fase 2.2: Gevechts- & Explosiegeluiden** (Torpedo-inslag met cavitatie-rumble, dieptebommen nabij/ver, 4-inch dekkanon, 20mm AA burst) — **GOEDGEKEURD (Harry: 9.6/10, Henry: 9.4/10)**
+  * [x] **Fase 2.3: Voortstuwing, Hydrofoon & Omgevingsambience** (Diesels met RPM-pitching, elektromotoren met stille vaart demping, hydrodynamische cavitatiefysica voor eigen boot en aanvallende ASW escortes, submersed vs surfaced zee/weer ambiance, Sound Room hydrofoontracking) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.5/10)**
+  * [x] **Fase 2.4: Audio Director, Alarms & Dynamische Missie-Cues** (General Alarm met machineducking, crash dive akoestiek met ballastventiel-ontluchting, 10 historische missiestings, dynamische 7-bus mixprofielen over 4 perspectieven en tijdcompressiediscipline) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.5/10)**
+
+### 3. Marine-specifiek bedieningskarakter (6 Nationaliteiten)
+* **Doel**: Amerikaanse, Duitse, Britse, Japanse, Italiaanse en Sovjetboten krijgen herkenbare instrumentvormen, typografie, kleurgebruik, terminologie en korte commandobevestigingen.
+* **Randvoorwaarde**: Zonder zes afzonderlijke parallelle UI-codebases te onderhouden; modulaire datagedreven styling, SVG-instrumentwijzers en gelokaliseerde order-vocabulaires over één gedeelde kern.
+* **Fases**:
+  * [x] **Fase 3.1: Visuele Thema- & Typografie-Architectuur** (Design Tokens per natie in CSS, complete `palette` specificaties in game data, procedurele fysieke bezels met klinknagels/messing/bakeliet op het Canvas, automatische metrische vs imperiale diepteschaling en tactical depth ladder, harmonisatie met GyroIndicator en SoundStation) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.45/10)**
+  * [x] **Fase 3.2: Maritieme Terminologie & Meertalige Orders** (Historische scheepsposten, officiersrollen en order-vocabulaire in `STATION_PRESENTATION_PROFILES`, torpedokamer en buizenpresentatie, roer- en machinebevelen over alle 6 vloten, dynamische presets en metrische stappen) — **GOEDGEKEURD (Harry: 9.8/10, Henry: 9.78/10)**
+  * [x] **Fase 3.3: Nationale Akoestiek & Bedieningsfeedback** (Land-specifieke telegraafresonanties en belslagen over alle 6 marines, roerorder/helm kliks, hydrofoon bandbreedtefilters per vloot GHG/ASDIC/WIDE/Type93/Idrofono/Mars, debounce-bescherming, zero sample memory overhead) — **GOEDGEKEURD (Harry: 9.7/10, Henry: 9.15/10)**
+  * [x] **Fase 3.4: Teststraat Integratie, Cross-Device Verificatie & Evaluatie** (Deterministisch cross-fleet browser-scenario over 6 vloten, WCAG AA contrasttoetsing in behaviour tests, cross-device validatie over desktop/tablet/mobiel, formele eindconsolidatie Initiatief 3) — **GOEDGEKEURD (Harry: 9.8/10, Henry: 9.55/10)**
+
+### 4. Fysiek geloofwaardige havens, fjorden en corridors
+* **Doel**: Toegang tot havens en ankerplaatsen moet natuurlijk ontstaan uit kustlijnen, eilanden, ondieptes, mijnenvelden, anti-onderzeebootnetten, patrouillerende zoeklichten en kustbatterijen—niet uit zichtbare kunstmatige rechthoeken of willekeurige verboden zones.
+* **Fases**:
+  * [x] **Fase 4.1: Havendetectie, Alarm-Escalatie & Daglichtcontrole** (Optische kustwachtdetectie overdag voor surfaced/snelle periscoopvaart onafhankelijk van hydrofoons, directe alarm-escalatie bij torpedotreffers/schade aan ankerdoelen met algemeen alarm en escorte-dispatching, daglicht-gated zoeklichten en 2D/3D onderdrukking) — **GOEDGEKEURD (Harry: 9.75/10, Henry: 9.35/10)**
+  * [x] **Fase 4.2: Fysieke Havenarchitectuur & 2.5D Kustkades** (Kades, pieren, pakhuizen met zadeldaken en kadelantaarns, cilindrische brandstoftanks met koepelkappen en directionele gradiëntshading, portaalkranen en dynamische oorlogsverduisteringsdiscipline bij havenalarm) — **GOEDGEKEURD (Harry: 9.78/10, Henry: 9.35/10)**
+  * [x] **Fase 4.3: Verdedigingsnetten, Versperringen & Kustbatterijen** (Gedifferentieerde netring met gemarkeerde havenpoort en stalen kabels, magnetische indicatielussen over toegangskanaal met snelheidsdrempel, harmonische getijdewater-drift in de nadering, 3D parachute-starshells bij nachtalarm door kustbatterijen met omgevingsverlichting en waterreflectie) — **GOEDGEKEURD (Harry: 9.83/10, Henry: 9.55/10)**
+  * [x] **Fase 4.4: Special Ops Infiltratiemissies & Haven-AAR Debriefing** (Volwaardige HARBOR_STRIKE missiecyclus met poortpenetratie, optische doelwit-identificatie, aanval en ontsnapping, AAR havenreconstructie met 6 specifieke gebeurtenistypes en +500 Special Intel bonus bij geruisloze netpassage) — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.55/10)**
+
+### 5. Visuele en systemische scheepsherkenning
+* **Doel**: Rijkere differentiatie van schepen:
+  * Silhouet, dekopbouw, masten en opvallende kenmerken
+  * Bewapening en dekkannonnen
+  * Schadelocaties (boeg, midscheeps, schroef/roer)
+  * Slagzij (list) en trim (voorover/achterover hangen)
+  * Snelheidsverlies bij schade
+  * Rookkolommen, vlammen en realistisch zinkgedrag
+* **Fases**:
+  * [x] **Fase 5.1: Scheepsherkenningshandboek & Silhouet-Klassificatie** (23 historische scheepsklassen ONI-208 / Werft-Erkennungsdienst, standaard composietcodes M-F / FLUSH-4F / M-F-M / etc., masthoogte stadimeter fysica R = H / (6076 * tan theta), TDC kinematische koppeling met schaalvervalsing bij misidentificatie en +18% kwaliteitsbonus bij bevestiging, interactieve manual UI met SVG vector-silhouetten en torpedodiepte advies) — **GOEDGEKEURD (Harry: 9.88/10, Henry: 9.55/10)**
+  * [x] **Fase 5.2: Compartimentale Schadelocaties & Hydrodynamische Trim** (5 rompcompartimenten BOW/FORWARD_HOLD/MIDSHIPS/AFTER_HOLD/STERN, asymmetrische slagzij/list hitSide ±1, langsscheepse trim down-by-head/stern, schroefopduiking propeller emergence & cavitatie-vertraging, 3D hull rotatie roll/pitch/waterlijndaling vóór het zinken, attitude weergave in periscoop HUD) — **GOEDGEKEURD (Harry: 9.48/10, Henry: 9.60/10)**
+  * [x] **Fase 5.3: Visuele Schade-effecten & Realistisch Zinkgedrag** (5 deterministische zinktrajecten PLUNGE_BOW, PLUNGE_STERN, CAPSIZE, BREAK_MIDSHIPS, SETTLE_LIST; CAPSIZE style=4 met blootgelegde rode antifouling rompbuik; gedifferentieerde ketelstoom spawnBoilerSteam, olie-walm spawnOilSmoke en vuurexplosies spawnFireBurst; secundaire keteldetonaties en munitie-explosies; tankers versus vrachtvaarders partikeldifferentiatie; volledige sinkTrajectory propagatie door call-graph en snapshots) — **GOEDGEKEURD (Harry: 9.18/10, Henry: 8.93/10)**
+  * [x] **Fase 5.4: Teststraat Integratie, Grognard Identificatie & Evaluatie** (5-staps deterministisch browser-scenario `ship-recognition-scenario.mjs` in test harness met periscope view, manual inspectie, TDC-herkenning, torpedolancering en AAR verificatie; Section 15 in `behaviour.mjs` met 5 grognard tests voor masthoogte-stadimeter schaalfout, torpedodiepte over het catalogusbereik, torpedo-naar-zinktraject coherentie en fallback-herkenning; 100% groen in `run-all.mjs`) — **GOEDGEKEURD (Harry: 9.65/10, Henry: 9.40/10)**
+
+
+### 6. Gedifferentieerde vijandelijke doctrines
+* **Doel**: Escortes en vliegtuigen moeten per nationaliteit, oorlogsjaar, ervaringsniveau (training) en radars/sonarsystemen anders zoeken en jagen.
+* **Cruciaal**: Geen telepathische kennis ("omniscience"); jagers moeten werken op basis van peilingen, geschatte datums, akoestische dovenhoeken (baffles), thermoclines en waarnemingsfouten.
+* **Fases**:
+  * [x] **Fase 6.1: Nationale Doctrineprofielen & Escortetactieken** (Gedifferentieerde ASW-doctrines voor 6 vloten RN, USN, IJN, KM, RM, VMF met historische zoekpatronen BOX, SECTOR, EXPANDING_SQUARE, CREEPING_LINE, zonsverloop-aanpassingen, historische `aswTraining` attributen in de scheepscatalogus en persistentie) — **VOLTOOID**
+  * [x] **Fase 6.2: Niet-Alwetende Sensorfysica** (Realistische akoestische dovenhoek/baffles $\approx 152^\circ-180^\circ$ hekwaarts door eigen cavitatie/schroefgeluid, zoek-snelheid straf op escortesonars van 1.0 bij 8 knopen tot 0.2 bij 22 knopen, en thermocline-brekingsbias waarbij sonarcontacten onder de spronglaag ondieper worden geschat en dieptebommen systematisch te ondiep exploderen) — **VOLTOOID**
+  * [x] **Fase 6.3: Twee-Fasen Vliegtuigverkenningscyclus** (Transitie van `SEARCHING` naar `INVESTIGATING` bij initiële visuele- of kielzogdetectie met 16–24s verkenningspass, tijdcompressie-onderbreking, uitkijk-alarm en duikvenster; overgang naar `ATTACKING` indien boot ondiep blijft of `ORBIT` boven datum bij tijdige noodduik $\ge 42$ ft) — **VOLTOOID**
+  * [x] **Fase 6.4: Teststraat Integratie, Grognard Verificatie & Evaluatie** (Section 17 in `behaviour.mjs` met 5 specifieke behaviour tests voor nationale doctrineprofielen, dovenhoeken, snelheidssensorstraffen, thermocline-breking en de tweefasige vliegtuigcyclus; volledige call-target en call-graph verificatie, 100% groen in `run-all.mjs`) — **VOLTOOID**
+
+### 7. Dynamische bewaking van missiepacing
+* **Doel**: Geen geforceerde of automatische overwinningen, maar een pacing waarin routes, contactmomenten, tijdcompressie en terugkeercondities zo zijn uitgebalanceerd dat één primair tactisch hoofddoel doorgaans binnen circa 30 minuten haalbaar en intensief te spelen is.
+* **Fases**:
+  * [x] **Fase 7.1: Dynamische Pacing State Machine & HQ Intercept Vector Inlichtingen** (State machine over 5 operationele fasen `TRANSIT` $\to$ `CONTACT` $\to$ `ACTION` $\to$ `WITHDRAW` $\to$ `RETURN` met reële tijdregistratie per fase; doelwit convergentieberekening; historische HQ Radio Intel Intercept Advisories bij vertraagde transit $\ge 9$ min zonder contact met realistische observatie-onzekerheid $\pm 5^\circ$ peiling en $\pm 1.5$ NM afstand via de radio-inbox en Captain's Log; strikt zonder telepathie of rubber-banding over reële simulatie-entiteiten) — **GOEDGEKEURD (Harry: 9.75/10, Henry: 9.68/10)**
+  * [x] **Fase 7.2: Tijdcompressie-Pacing & Terugtocht-Stroomlijning** (Tactische interceptie-drempel in `snapshotWatch` en `transitInterrupt` die snelle tijdcompressie op precies 8.5 NM van het doelwit soepel afbreekt zodat de speler op rookpluim-/vizierhorizon klaarstaat voor het gevecht; directe transitie naar gestroomlijnde terugtocht en multi-leg autopilot `headToPort` na uitschakeling van het hoofddoel) — **GOEDGEKEURD (Harry: 9.70/10, Henry: 9.65/10)**
+  * [x] **Fase 7.3: Teststraat Integratie, Pacing Verificatie & Evaluatie** (Sectie 24 in `tests/behaviour.mjs` met 5 unit tests voor de 5 fasen, HQ radio advisories, contact zone interrupts op 8.5 NM, gestroomlijnde terugtocht en AAR pacing telemetrie export; 100% groen over alle 16 poorten in `tests/run-all.mjs`, p95 latency 7.46ms, benchmark score 1774) — **GOEDGEKEURD (Harry: 9.75/10, Henry: 9.70/10)**
+
+### 8. AAR (After Action Report) als tactische reconstructie
+* **Doel**: De AAR transformeren naar een volwaardige debriefing en reconstructie:
+  * Tijdlijn met gevaren route en werkelijke scheepsbewegingen
+  * Waargenomen vs werkelijke contacten
+  * Cruciale beslismomenten (duikorders, koerswijzigingen)
+  * Gelanceerde salvo's en treffers
+  * Vijandelijke reacties en tegenaanvallen
+  * Pas *achteraf* vrijgegeven inlichtingen (zonder voorkennis tijdens de missie)
+* **Fases**:
+  * [x] **Fase 8.1: Cruciale Beslismomenten & Vijandelijke Tegenmaatregelen Registratie** (Chronologische bevelsregistratie via `aarRecordDecision` voor duikorders, noodduik `CRASH_DIVE`, periscoopdiepte, stille vaart en gevechtsontwijkingskoersen met diepte, vaart en positie; verrijkte dieptebom-tegenmaatregelen in `aarEnemyResponse` met patroonafmeting, detonatiediepte, onderzeebootdiepte en spronglaag-afscherming `layerProtected`) — **GOEDGEKEURD (Harry: 9.80/10, Henry: 9.72/10)**
+  * [x] **Fase 8.2: Waargenomen vs Werkelijke Waarheid & Gedeclassificeerde Inlichtingen** (Zij-aan-zij `_careerTruthComparison` tussen waargenomen contactschatting en werkelijke scheepsidentiteit met historische evaluaties `ACCURATE`, `MISIDENTIFIED`, `OVERESTIMATED`, `UNDERESTIMATED`, `ACOUSTIC_ONLY`, `UNOBSERVED`; post-patrol gedecripteerd inlichtingendossier `_careerDeclassifiedIntel` met ULTRA decrypts, B-Dienst telexen, zinkingsbevestigingen, werf-reparatieberichten en verborgen vijandelijke patrouilles) — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.75/10)**
+  * [x] **Fase 8.3: UI Debriefing Reconstructie, Teststraat Integratie & Evaluatie** (Reconstructie-weergave in `#aarOverlay` met `renderPacing`, `renderDecisions`, `renderTruthComparison` en `renderDeclassifiedIntel`; 5 unit tests in Sectie 25 van `tests/behaviour.mjs`; 100% groen over alle 16 kwaliteitskwalificaties in `tests/run-all.mjs`, SLA PASS) — **GOEDGEKEURD (Harry: 9.82/10, Henry: 9.72/10)**
+
+### 9. Verdieping van campagnegevolgen
+* **Doel**: Rompschade, torpedovoorraad, bemanningsvermoeidheid, opgedane inlichtingen, havenbeschikbaarheid en eerdere successen beïnvloeden de volgende patrouille merkbaar.
+* **Balans**: Geen onherroepelijk doodlopende of verpeste campagne door één ongelukkige speelavond; altijd een herstel- of overlevingspad.
+* **Fases**:
+  * [x] **Fase 9.1: Campagnestaat Persistentie & Tussen-Patrouille Refit Model** (Authentiek werf- en droogdokmodel via `_careerCalculateRefitTurnaround` en `calculateRefitTurnaround`: rompherstel met structureel frame-stress plafond bij zware schade $<50\%$ resulterend in 85–92% startromp en verlaagde testdiepte; gegarandeerde veilige $\ge 78\%$ werf-ondergrens zodat soft-locks fysiek onmogelijk zijn; bemanningsvermoeidheid-carryover bij korte turnarounds; automatische adviezen voor proefvaart- en kustpatrouilles `RECOVERY_PATROL`; persistentie van `pendingRefit` en `refitTurnaround` door `finalizePatrol` en `startNewPatrol`) — **GOEDGEKEURD (Harry: 9.80/10, Henry: 9.75/10)**
+  * [x] **Fase 9.2: Tactische Effecten van Veteranenstatus & Munitieschaarste** (4 ervaringsniveaus `GREEN` $\to$ `SEASONED` $\to$ `VETERAN` $\to$ `ELITE` verdiend door gevechtssuccessen; dynamische herlaadtempo torpedo's tot +15% sneller; averijploegen tot +18% sneller herstel en pompen onder vuur; uitkijkers krijgen tot +12% vergrote waarnemingshorizon; prioriteitsrantsoenering van torpedo's voor veteranenboten versus standaardschaarste met veilige minimumreserve van 12 fish) — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.72/10)**
+  * [x] **Fase 9.3: UI Weergave, Briefing & Scenario Selector Integratie** (Dynamische briefing in `showBriefing` met reële munitiereserve, actuele rompintegriteit en veteranenbadge `★`; werfstatus-badge met frame-stress en proefvaartadvies op de patrouille-selectiekaart; 5 unit tests in Sectie 26 van `tests/behaviour.mjs`; 100% groen over alle 16 kwaliteitskwalificaties in `tests/run-all.mjs`, SLA PASS) — **GOEDGEKEURD (Harry: 9.80/10, Henry: 9.75/10)**
+
+### 10. Automatisch footprint- en performancebudget
+* **Doel**: Strikt geautomatiseerde bewaking in tests:
+  * Downloadomvang (assets, CSS, JS)
+  * DOM- en objectaantallen
+  * Logomvang en geheugenlekken
+  * Audiobuffers en WebAudio-stemmen (polyfoniebegrenzing)
+  * Renderkosten en frametimes
+  * Langdurig geheugengedrag op lagere hardware (mobiel/tablet)
+* **Fases**:
+  * [x] **Fase 10.1: Geautomatiseerd Download-, Asset- en DOM-Footprint Budget** (Strikte byte-budgetten voor repository $\le 4.5$ MB, javascript $\le 1.85$ MB, CSS $\le 220$ KB, audio $\le 2.0$ MB en single script $\le 145$ KB; PWA Offline Shell Cache validatie in `sw.js` met 100% dekking over alle 78 HTML scripts en 30 audio assets; DOM-elementen in `index.html` begrensd op 1058 tags $\le 1200$, mobiel `#touchShell` op 304 $\le 350$, en `#desktopShell` op 355 $\le 400$) — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.80/10)**
+  * [x] **Fase 10.2: Simulatie Transient Arrays, Object Pools & Geheugenlekpreventie** (Hard ceilings en filtering op alle actieve simulatie-arrays: `weapons.activeTorpedoes` $\le 16$, `weapons.explosions` $\le 24$, `world.depthCharges` $\le 32$, `world.knuckles` $\le 12$, `weapons.hits` $\le 50$, `weapons.duds` $\le 30$; FIFO capping op loglijsten: `campaign.importantEvents` $\le 150$, `world.radio.inbox` $\le 16$, `state.log` $\le 100$, en AAR geschiedenis; 1,500 physics ticks gevechts-duurtest met deterministische $\Delta\text{heap} = 0.42$ MB $< 8.0$ MB zonder zombies) — **GOEDGEKEURD (Harry: 9.88/10, Henry: 9.82/10)**
+  * [x] **Fase 10.3: WebAudio Polyfonie, Render SLA & Teststraat Consolidatie** (Decoded audio buffer plafond van 8 MB met LRU evictie; Hann windowing anti-click release tapering; stemmenbegrenzing op 1 actieve stem voor `HULL_CREAK` met $\ge 3500$ ms cooldown en `GENERAL_ALARM`/`RADIO_INTELLIGENCE`; `WAYPOINT` op command-bus met $\ge 450$ ms cooldown; 60 FPS render SLA met p95 7.37ms $< 16.67$ms, simulatie tick 2.49ms $< 5.0$ms, benchmark composite score 1939 $\ge 1000$ SLA; mobiele heap footprint 6.5 MB $\le 40$ MB en 106 DOM listeners $\le 650$; standalone `tests/footprint-budget.mjs` met 36 geautomatiseerde checks, Sectie 27 in `tests/behaviour.mjs`, en 100% groen over alle 17 kwaliteitskwalificaties in `tests/run-all.mjs`) — **GOEDGEKEURD (Harry: 9.90/10, Henry: 9.85/10)**
+
+---
+
+## Deel 2: Vijf Goedkope Manieren voor Meer "3D" & Mooiere UI
+
+1. [x] **Gelaagde 2.5D-wereld**:
+   * Afzonderlijke Canvaslagen in `drawScopeScene`: `drawSky3D` $\to$ `drawSea3D` $\to$ `drawTerrain3D` $\to$ `drawWeatherCells3D` $\to$ `drawBattleAtmosphereBack` $\to$ `drawOwnWake` $\to$ `drawWakes3D` $\to$ `drawFleet3D` $\to$ `drawExplosions3D` $\to$ `drawSplashes3D` $\to$ `drawBattleAtmosphereFront` $\to$ screen overlays (`drawGulls`, `drawRain`, `drawPeriscopeDroplets`, `drawPeriscopeBroachWash`, `drawScopeSpray`, `drawNightOverlay`).
+   * Parallax op verre kustlijnen/bergen (`_landOcc`), atmosferische mist (`haze = clamp(1 - it.d / (visNm * NM_M), 0.05, 1)`), diepteschaling via `projectWorldPoint` en kleurverzadiging via `dayPhaseRgb`. — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.75/10)**
+2. [x] **Silhouette-atlassen en impostors**:
+   * Drie perspectivische afstands-LOD's in `world-3d.js`: `pxLen < 26` (LOD 0 compact impostor silhouette), `pxLen < 90` (LOD 1 gesimplificeerde opbouw), `pxLen >= 90` (LOD 2 volledige 3D deksamenstelling, masten, tuigage en roterende geschutskoepels).
+   * 23 historische scheepsklassen in `world-geometry.js` met dynamische hydrodynamische trim, compartimentale slagzij en 5 deterministische zinktrajecten. — **GOEDGEKEURD (Harry: 9.88/10, Henry: 9.80/10)**
+3. [x] **Procedurele belichting over eenvoudige vormen**:
+   * Richtingafhankelijke highlights en slagschaduwen berekend via realtime zonsverloop-vector `light = {E, N, Y}` gekoppeld aan `DayNightCycle.CYCLE_SECONDS`.
+   * Atmosferisch perspectief via `hazeCol`, dag/nacht/schemering kleurverzadiging (`dayPhaseRgb`), parachute starshells verlichting en golvende waterreflecties in `drawSea3D`. — **GOEDGEKEURD (Harry: 9.80/10, Henry: 9.78/10)**
+4. [x] **Begrensde screen-space effecten**:
+   * Vaste objectpools in `ParticleSystem` (`PARTICLE_MAX = 420`, `SPARK_MAX = 120`) met deterministische `trimBudgets()` voor spray, olie-walm, ketelstoom, vuurexplosies, vonken en dieptebom-waterfonteinen.
+   * Nul run-time heap allocaties per frame; dynamische kwaliteitsafschaling via `QualityGovernor` (`quality` factor). — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.82/10)**
+5. [x] **Marine-specifieke UI-skins**:
+   * Complete visuele en akoestische nationale cockpit-identiteiten voor 6 vloten (USN, KM, RN, IJN, RM, VMF) gebouwd uit SVG en CSS Design Tokens.
+   * Messing en bakelieten bezels met fysieke klinknagels (`drawBezelRing`), land-specifieke telegraafresonanties, metrische vs imperiale instrumentwijzers en achtergrondverlichting passend bij de nationaliteit. — **GOEDGEKEURD (Harry: 9.88/10, Henry: 9.85/10)**
+
+---
+
+## Deel 3: Concrete Operationele Taken ("Andere TODO")
+
+- [x] **Havendetectie**: Detectie in havens alleen via hydrofoon; direct zicht telt nu mee via kustwacht en gezonken/beschadigde schepen op de ankerplaats escaleren de haven direct.
+- [x] **Vliegtuigdetectiefase**: Vliegtuigen vallen niet meer direct aan; tweefasige verkenningspass (`INVESTIGATING`) met uitkijk-alarm, duikvenster en tijdcompressie-onderbreking geïmplementeerd (voltooid in Initiatief 6, Fase 6.3).
+- [x] **Zoeklichten overdag**: Zoeklichten worden overdag automatisch gedoofd en niet langer weergegeven (`daylight >= 0.35`).
+- [x] **Havenmissies uitbouwen**: Kades, pakhuizen, havengebouwen, kustbatterijen, schijnwerpers, lichtkogels, corridors en torpedonetten toevoegen (voltooid in Initiatief 4, inclusief *USN Chokepoint Penetration* en *HARBOR_STRIKE* Special Ops).
+- [x] **Interne benchmark**: Gestandaardiseerde benchmark voor 3D-framerate, audioload en CPU-cycli, direct vergelijkbaar tussen apparaten en git-commits (geïmplementeerd via standalone `tests/benchmark.mjs` en in-browser scenario `tests/harness/scenarios/benchmark-scenario.mjs`; meet percentielen p50/p95/p99 voor renderlatency over alle 6 stations PERISCOPE/BRIDGE/MAP/SOUND/DECK_GUN/TACTICAL, draw calls, frame drops >16.6ms en >33.3ms, physics CPU ticks/sec en doorvoer onder zwaar konvooi/ASW/torpedo gevecht, hybride WebAudio stemmenbelasting en dispatch-overhead, en JS-heap allocatiedelta; deterministische score-index en automatische vergelijking tegen `tests/benchmark-baseline.json`; gedekt door Sectie 22 in `tests/behaviour.mjs` en als permanente poort in `tests/run-all.mjs`).
+- [x] **Automatische veilige routeplanning**: Routering over lange afstanden rond landmassa's automatiseren zonder hinder bij handmatige precisienavigatie (veilige multi-leg A* vaargeul- en zeestraatroutering over het Bathy-diepterooster in `planNavigableCourse`, `headToPort` circumnavigeert automatisch tussenliggende eilanden en landmassa's zoals Guadalcanal en New Britain via `TRANSIT_LEG` vaarbenen naar `FRIENDLY_APPROACH` in 100% bevaarbaar water >= 30 ft met 0 aanvaringen; `transitInterrupt` laat tijdcompressie ononderbroken doorlopen langs tussenliggende bochtpunten en geeft de conn pas terug bij de havennadering of gevaar; handmatige precisienavigatie behoudt directe lijnen zonder quantisatiefout bij vrij zicht en handmatige koersorders `SET_ORDERED_HEADING` ontkoppelen de autopilot onmiddellijk; 100% gedekt door Sectie 23 in `tests/behaviour.mjs` en alle 16 poorten in `tests/run-all.mjs`).
+- [x] **Kaartlegenda & PRIMARY markering**: Kaartlegenda voor patrouillezones en heldere `PRIMARY`-markering op de doelwitten (interactieve canvas legenda chip `[ℹ LEGEND]`, close `✕` glyph, 3 categorieën VESSELS, PATROL ZONES & HAZARDS, goudgele reticle brackets en `★ PRIMARY · ` prefix in map view, `★ PRIMARY OBJECTIVE ★` badge en goud vizier in 3D periscoop/brug, TDC/deck gun HUD viewmodel integratie, en patrouillezonenamen met 6 NM operationele marge).
+- [x] **Kielmarge**: Blokkeren van de roer-/diepteorder vervangen door tijdelijk *onderbreken* met een geschaalde veiligheidsdrempel (dynamische snelheids- en oppervlaktetoestand marge `keelSafetyMargin(sub)`, teruggave van stuurvaart $\le 85$ RPM i.p.v. dodelijke `ALL STOP` zodat het roer hydrodynamische druk behoudt, `updateSeabed` staat sluipvaart op 8–12 ft toe i.p.v. starre 25 ft afkapping, `vitals.underKeel` waarschuwingsdrempels en `depthNote` in HUD gesynchroniseerd, `KEEL MARGIN ALERT` met `KRITIEK` prioriteit en rode toast-integratie).
+- [x] **Audio polyfonie & kraakbegrenzing**: Stemmenbegrenzing voor druk- en rompkraken (met name op de Helios) en het waypointgeluid op schonere bus/cooldown zetten (strikte stemmenlimiet van max 1 actieve stem voor `HULL_CREAK`, `GENERAL_ALARM` en `RADIO_INTELLIGENCE` met zachte anti-click release om fase-interferentie en bufferclipping te elimineren; `playCreak()` throttling op 3500 ms minimuminterval; `playWaypoint()` begrensd op 450 ms cooldown en verplaatst naar de `command`-bus met een zachte messing klik `_metalClack(.18, 120, 540, 'command')` ter voorkoming van snelle transit-bursts; gedekt door Suite 9 in `tests/audio-pipeline.mjs` en Sectie 20 in `tests/behaviour.mjs`).
+- [x] **Cinematics duur**: Inkorten en vloeiender maken wanneer meerdere cinematics (zoals torpedo-inslagen of zinkende schepen) direct achter elkaar afspelen (enkele inslagduur teruggebracht van starre 9000 ms naar dynamische 5000 ms met 1100 ms anticipatie; salvo-vervolginslagen in de wachtrij automatisch gestroomlijnd naar 3400 ms met 450 ms pre-impact cut; responsieve tap-to-skip drempel verlaagd naar 350 ms; queue-doorspoeling en onmiddellijke stationsteruggave bij gevechtsdreiging; gedekt door Sectie 21 in `tests/behaviour.mjs` en de end-to-end browser harnesses).
+- [x] **Topografie & Realistische Eilandkustlijnen**: Verfijnen van eilanden en kustlijnen in de periscoopview (kustlijn zacht parabolisch naar 0m waterlijn laten aflopen waardoor rechthoekige kliffen geëlimineerd zijn, multi-zone gradiënt met zand-/koraalstrandbanden, scherpere vulkanische bergkammen bij pieken >500m, boomgrens/boskap silhouet-micro-reliëf). Voltooid conform Optie 1.

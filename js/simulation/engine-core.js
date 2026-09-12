@@ -9,20 +9,28 @@ function clearDevelopmentOverrides(state){
   const W=state?.world;if(!W)return;
   for(const key of Object.keys(W))if(key.startsWith('_dev'))delete W[key];
 }
-class SimEngineCore{
-  constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;this.ctx=typeof createLeafSystemContext==='function'?createLeafSystemContext(this):null;this.sys=this.ctx?.sys||{};}
-  ensureWorldExtensions(...args){return this.ctx?.ensureWorldExtensions?.(...args)||null;}
-  ensureWeatherSystem(...args){return this.ctx?.ensureWeatherSystem?.(...args)||null;}
-  ensureSoundRadarState(...args){return this.ctx?.ensureSoundRadarState?.(...args)||null;}
-  updateHarborKnowledge(...args){return this.ctx?.updateHarborKnowledge?.(...args)||null;}
-  pauseForModal(){const t=this.state.time||{};if((t.modalPauses||0)===0)t.preModalScale=Number(t.timeScale)||1;t.modalPauses=(t.modalPauses||0)+1;t.timeScale=0;return t.modalPauses;}
+// Central command ownership table. Dispatch remains in applyCmd; this table
+// is the single authoritative inventory used to reject unknown command IDs.
+const CORE_COMMAND_TABLE=Object.freeze(Object.fromEntries([
+  ...['PAUSE_FOR_MODAL','RESUME_FROM_MODAL','END_IMPACT_OBSERVATION','PLAY_AUDIO','APPEND_LOG','SET_ORDERED_HEADING','SET_ENGINE_RPM','SET_ORDERED_DEPTH','SURFACE','DIVE','PERISCOPE_DEPTH','CRASH_DIVE','TOGGLE_AIR_WARNING_RADAR','TOGGLE_SD_RADAR','BOTTOM_OUT','TOGGLE_SILENT_RUNNING','EMERGENCY_BLOW','START_TRANSIT','STOP_TRANSIT','SET_TIME_SCALE','CYCLE_TIME_SCALE','SET_ACTIVE_STATION','ROTATE_BRIDGE','TOGGLE_BRIDGE_BINOCULARS','SET_BRIDGE_ZOOM','BRIDGE_MARK_CONTACT','BRIDGE_TARGET_CENTER','BRIDGE_TARGET_CONTACT','ROTATE_PERISCOPE','SET_PERISCOPE_ZOOM','TOGGLE_PERISCOPE_ZOOM','PERISCOPE_SELECT_CENTER_CONTACT','DESELECT_TRACK','SELECT_TRACK','TDC_SEND_SCOPE_OBSERVATION','IDENTIFY_CONTACT_CLASS','SET_TORPEDO_TYPE','SET_DUD_MODE','SET_TORPEDO_DEPTH','SET_TDC_MANUAL','APPLY_TDC_MANUAL','MAP_ADD_WAYPOINT','MAP_REMOVE_WAYPOINT','TOGGLE_AUTOPILOT','MAP_CLEAR_PLOT','PLOT_INTERCEPT_ADVISORY','TOGGLE_MAP_WEATHER','MAP_STEER_TO_NEXT_WAYPOINT','HEAD_TO_PORT','NEW_PATROL'].map(type=>[type,{owner:'CoreSystem'}]),
+  ...['TOGGLE_AA_GUN'].map(type=>[type,{owner:'AAGunSystem'}]),
+  ...['TOGGLE_DECK_GUN','ADJUST_DECK_GUN','SET_DECK_GUN_ELEVATION','LAY_DECK_GUN','FIRE_DECK_GUN'].map(type=>[type,{owner:'DeckGunSystem'}]),
+  ...['RADIO_TOGGLE_SILENCE','RADIO_AUTHORIZE_REPORT','RADIO_ACCEPT_PARTIAL'].map(type=>[type,{owner:'IntelSystem'}]),
+  ...['TOGGLE_DAMAGE_CONTROL','SET_REPAIR_PRIORITY','TOGGLE_PUMPS'].map(type=>[type,{owner:'DamageSystem'}]),
+  ...['ROTATE_SOUND','SOUND_MARK_BEARING','SOUND_ECHO_RANGE','TOGGLE_SOUND_DISPLAY'].map(type=>[type,{owner:'SoundRadarSystem'}]),
+  ...['FLOOD_TUBE','FIRE_TORPEDO','FLOOD_ALL_TUBES','FIRE_READY_SPREAD','FLOOD_AFT_TUBES','FIRE_AFT_SPREAD'].map(type=>[type,{owner:'TorpedoSystem'}])
+]));
+const CoreSystem={
+  constructor(state,bus){this.state=state;this.bus=bus;this._impactTimer=null;this._impactAudioTimer=null;this._impactSeq=0;this.ctx=typeof createLeafSystemContext==='function'?createLeafSystemContext(this):null;this.sys=this.ctx?.sys||{};},
+  ensureWorldExtensions(){this.sys.harbor.ensureHarborWorldState();this.sys.damage.ensureDamageState();},
+  pauseForModal(){const t=this.state.time||{};if((t.modalPauses||0)===0)t.preModalScale=Number(t.timeScale)||1;t.modalPauses=(t.modalPauses||0)+1;t.timeScale=0;return t.modalPauses;},
   resumeFromModal(){const t=this.state.time||{};t.modalPauses=Math.max(0,(t.modalPauses||0)-1);if(t.modalPauses===0)t.timeScale=Number(t.preModalScale)>0?Number(t.preModalScale):1;return t.modalPauses;}
-
+,
   captureImpactShipState(c){
     if(!c)return null;const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
     return{heading:c.heading||0,speedKnots:c.speedKnots||0,shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,
-      sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1};
-  }
+      sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,sinkTrajectory:c.sinkTrajectory||null,hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1};
+  },
   impactObservationSnapshot(c,meta={}){
     if(!c?.position)return null;const sub=this.state.playerSub;
     const clone=v=>v==null?v:JSON.parse(JSON.stringify(v));
@@ -33,40 +41,45 @@ class SimEngineCore{
     const originFov=originStation==='PERISCOPE'
       ?((typeof SCOPE_OPTICS!=='undefined'?SCOPE_OPTICS[T.periscopeZoom===1?0:1]?.fov:null)||(T.periscopeZoom===1?32:8))
       :(originStation==='BRIDGE'&&typeof bridgeFovDeg==='function'?bridgeFovDeg(this.state):82);
+    const isSubsequent=Number(meta.hitIndex||0)>0||!!this.state.tactical?.impactObservation||((this.state.runtime?.presentation?.impactQueue?.length||0)>0);
+    const preImpactMs=Number.isFinite(meta.preImpactMs)?meta.preImpactMs:(isSubsequent?450:1100);
+    const durationMs=Number.isFinite(meta.durationMs)?meta.durationMs:(isSubsequent?3400:5000);
     return{
       token:++this._impactSeq,contactId:c.id,name:c.name||c.id,type:c.type,displayType:c.displayType||c.type,
       lengthYards:c.lengthYards,tonsFactor:c.tonsFactor||0,heading:targetHeading,speedKnots:c.speedKnots||0,
-      position:{...targetPosition},shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,
+      position:{...targetPosition},shipDamage:clone(c.shipDamage||null),sunk:!!c.sunk,sinkingProgress:c.sinkingProgress||0,sinkStyle:c.sinkStyle||0,sinkTrajectory:c.sinkTrajectory||null,
       hitFrac:Number.isFinite(c.hitFrac)?c.hitFrac:0,hitSide:c.hitSide||1,stationary:!!c.stationary,beforeShip:clone(meta.beforeShip||null),
       impactPosition:clone(meta.impactPosition||null),viewerPos:{...sub.position},viewerDepth:sub.depthFeet||0,viewerHeading:sub.heading||0,
       originStation,viewBearing,originFov,targetBearing,weapon:meta.weapon||'TORPEDO',location:meta.location||null,
-      condition:meta.condition||null,rangeNm:distNm(sub.position,targetPosition),preImpactMs:1500,durationMs:9000,
+      condition:meta.condition||null,rangeNm:distNm(sub.position,targetPosition),preImpactMs,durationMs,
       torpedoHeading:Number.isFinite(meta.torpedoHeading)?normDeg(meta.torpedoHeading):null,
       impactSide:meta.impactSide===-1?-1:1,incidenceDeg:Number.isFinite(meta.incidenceDeg)?meta.incidenceDeg:null,warheadKg:Number(meta.warheadKg)||null,
       torpedoWakePath:clone(meta.torpedoWakePath||[]),torpedoWakeNm:Number.isFinite(meta.torpedoWakeNm)?Math.max(0,meta.torpedoWakeNm):0,torpedoWakeVisible:!!meta.torpedoWakeVisible
     };
-  }
+  },
   startImpactObservation(snapshot){
     if(!snapshot)return false;
     const s=this.state,token=snapshot.token||++this._impactSeq,active=!!s.tactical.impactObservation;
+    const queue=s.runtime?.presentation?.impactQueue||[];
+    if(s.tactical?.impactObservation?.token===token||queue.some(item=>item?.token===token))return true;
     // Keep at most three impact views total: one active plus two waiting.
     const queued=active&&((s.runtime?.presentation?.impactQueue||[]).length>=2);
     if(queued)return false;
     if(!active)s.tactical.impactObservation={...snapshot,token};
     PresentationBridge.emit(s,'impact-observed',{snapshot:{...snapshot,token},queued:active});
     return true;
-  }
+  },
   offerImpactObservation(c,meta={}){
     const snap=this.impactObservationSnapshot(c,meta);if(!snap)return false;
     const station=this.state.tactical.activeStation;
-    if(station==='PERISCOPE'||station==='BRIDGE')return this.startImpactObservation(snap);
     const msg=`${String(meta.weapon||'TORPEDO').replace(/_/g,' ')} HIT — ${c.name||c.id}${meta.location?` ${String(meta.location).toLowerCase()}`:''}.`;
-    PresentationBridge.toast(this.state).action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),18000,'ok');return true;
-    return false;
+    if(station==='PERISCOPE'||station==='BRIDGE')this.startImpactObservation(snap);
+    PresentationBridge.toast(this.state).action(msg,'VIEW IMPACT',()=>this.startImpactObservation(snap),18000,'ok',`impact-action-${snap.token}`,{importance:'KRITIEK'});
+    return true;
   }
-
+,
   offerLossAar(record){
-    const c=this.state.campaign;if(!record||c._lossAarOffered)return false;c._lossAarOffered=true;const historyId=c.historyId;
+    const c=this.state.campaign,R=this.state.runtime.campaign;if(!record||R._lossAarOffered)return false;R._lossAarOffered=true;const historyId=c.historyId;
     PresentationBridge.save(this.state,'autoClear');
     PresentationBridge.toast(this.state).action('BOAT LOST — After Action Report ready.','VIEW AAR',()=>PresentationBridge.aar(this.state,'open',record,{completed:false}),10000,'warn','patrol-aar');return true;
   }
@@ -75,7 +88,7 @@ class SimEngineCore{
      not freeze its UI. In genuinely empty deep water we can safely integrate
      in three-second slices instead of one-second slices: no torpedo or depth-
      charge geometry can be skipped, and the moment traffic/air/shore becomes
-     relevant the engine falls back to normal precision before the event. */
+     relevant the engine falls back to normal precision before the event. */,
   canUseOpenSeaTransitStep(){
     const s=this.state,t=s.time,sub=s.playerSub,W=s.world||{},wep=s.weapons||{};
     if(!t.transitUntil||sub.mode==='SUNK'||sub.inShallowWater||(sub.keelClearanceFeet??3000)<120)return false;
@@ -87,20 +100,14 @@ class SimEngineCore{
     for(const a of W.aircraft||[]){if(a?.side==='FRIENDLY'||a?.shotDown||!a?.position)continue;if(a.seenBySub||a.state==='ATTACKING'||a.state==='STRAFING'||distNm(sub.position,a.position)<12)return false;}
     return true;
   }
-
+,
   update(dt){
-    this.ensureTacticalExtensions();
-    this.ensureWorldExtensions();
-    this.ensurePatrolRuntimeContext();
-    this.ensureCareerPatrolState?.();
-    this.ensureHistoricalCampaignProfile?.();
-    this.ensureMissionFramework?.();
     const total=dt*this.state.time.timeScale;
     this.processCommands();
-    if(this.state.campaign.missionStatus==='LOST'){const rec=this.finalizePatrol?.('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
+    if(this.state.campaign.missionStatus==='LOST'){const rec=this.sys.career.finalizePatrol('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
     // Manual 8x/16x/32x hands the conn back before a predicted vessel collision.
     // Transit/skip uses transitInterrupt(), which reports the same hull-aware CPA.
-    if(!this.state.time.transitUntil&&(this.state.time.timeScale||1)>1&&this.compressedCollisionWatch?.()) return;
+    if(!this.state.time.transitUntil&&(this.state.time.timeScale||1)>1&&this.sys.collision.compressedCollisionWatch()) return;
     if(total<=0) return;
     // Tactical simulation stays at one-second maximum integration: a torpedo
     // at 46 knots can otherwise step over a target. Only verified quiet open-
@@ -119,11 +126,11 @@ class SimEngineCore{
       // after startImpactObservation() had set timeScale to zero.
       if(this.state.tactical?.impactObservation&&this.state.time.timeScale===0)break;
     }
-    if(this.state.campaign.missionStatus==='LOST'){const rec=this.finalizePatrol?.('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
+    if(this.state.campaign.missionStatus==='LOST'){const rec=this.sys.career.finalizePatrol('LOST',{reason:'boat lost'});this.offerLossAar?.(rec);}
   }
-
+,
   processCommands(){for(const c of this.bus.drain())this.applyCmd(c);}
-
+,
   ensurePatrolRuntimeContext(){
     const W=this.state.world;
     if(typeof patrolRuntimeContextMatches!=='function'||typeof materializePatrolRuntimeContext!=='function')return W?.patrolContext||null;
@@ -131,7 +138,7 @@ class SimEngineCore{
     if(!W?.patrolContext)return materializePatrolRuntimeContext(this.state);
     throw new Error(`Patrol runtime context mismatch; refusing to simulate mixed campaign, boat and chart state.`);
   }
-
+,
   ensureTacticalExtensions(){
     const T=this.state.tactical||(this.state.tactical={});
     if(!Number.isFinite(T.bridgeBearing))T.bridgeBearing=this.state.playerSub?.heading||0;
@@ -143,18 +150,33 @@ class SimEngineCore{
   }
 
 
-  /* A refusal that only reaches the log on another tab reads, to the player,
-     as a button that does nothing. Anything the boat says NO to — or any
-     order it accepts that has no visible consequence for a few seconds —
-     goes through here, and the UI raises it as a toast wherever he is. */
-  notify(msg,kind='warn'){
+  /* Central player-message route. See docs/notify-inventory.md for the
+     reviewed responsibility/importance classification. */,
+  notify(msg,kind='warn',importance='NUTTIG'){
     this.log(msg,kind);
-    const u=this.state.ui=this.state.ui||{};
-    u.toasts=u.toasts||[];
-    u.toasts.push({msg,kind,seq:(u.toastSeq=(u.toastSeq||0)+1)});
-    if(u.toasts.length>40) u.toasts.shift();
+    if(importance==='RUIS')return;
+    const toast=PresentationBridge.toast(this.state);
+    const fn=kind==='bad'?'bad':kind==='ok'?'ok':'warn';
+    toast[fn](msg,{importance});
   }
 
+  /* Single route for simulation-driven returns to real time.  User-selected
+     scales (SET/CYCLE_TIME_SCALE) remain command paths; automatic paths must
+     name the reason so the player is never left guessing. */,
+  stopAutomaticTimeCompression(reason){
+    const t=this.state.time,why=String(reason||'unspecified event');
+    const wasCompressed=!!t.transitUntil||(t.timeScale||1)>1;
+    /* PP_AUTOMATIC_TIMESCALE_WRITER: all automatic resets go through here. */
+    t.timeScale=1;t.transitUntil=0;t.transitOpen=false;
+    t.transitReason=why;t.stopReason=why;t.stopReasonAt=t.elapsedSeconds;
+    // Colour by what actually happened, not a blanket red: reaching a
+    // waypoint or getting a shipping intercept is not an alarm, an aircraft
+    // attack is. transitStopToastKind() already encodes that; it just was
+    // never called from here before.
+    if(wasCompressed)this.notify(`TIME COMPRESSION STOPPED — ${why}.`,typeof transitStopToastKind==='function'?transitStopToastKind(why):'bad','KRITIEK');
+    return wasCompressed;
+  }
+,
   clearDeckForDive(label='Dive'){
     const sub=this.state.playerSub,W=this.state.world,G=this.state.weapons.deckGun,T=this.state.tactical;
     let delay=0;const crews=[];
@@ -177,11 +199,11 @@ class SimEngineCore{
     if(delay>0){
       sub.diveDelay=Math.max(sub.diveDelay||0,delay);
       const msg=`${label}: ${crews.join(' and ')} clearing the deck automatically — dive held about ${Math.ceil(delay)} seconds until the hatch is shut.`;
-      this.notify(msg,'bad');PresentationBridge.toast(this.state).warn(msg);
+      this.notify(msg,'bad','NUTTIG');
     }
     return delay;
   }
-
+,
   updateBridgeDiveSequence(dt){
     const T=this.state.tactical,seq=T?.bridgeDiveSequence;if(!seq?.active)return;
     seq.elapsed=clamp((seq.elapsed||0)+dt,0,seq.duration);seq.progress=clamp(seq.elapsed/Math.max(.1,seq.duration),0,1);
@@ -193,27 +215,27 @@ class SimEngineCore{
       this.log('Bridge clear — last man below, hatch shut. Diving can commence.');
     }
   }
-
+,
   tryAutoManDeckGun(){
     const sub=this.state.playerSub, W=this.state.world, G=this.state.weapons.deckGun, env=W.environment;
     if(!G) return false;
     if(G.manned) return true;
-    if(W.aaManned){this.notify('Deck gun unavailable while the automatic AA crew is engaged. Clear the air threat or dive.','warn');return false;}
-    if(sub.depthFeet>8){this.notify(`Deck gun unavailable at ${sub.depthFeet.toFixed(0)} ft — surface first.`,'warn');return false;}
-    if(env.seaState>0.82){this.notify('Green water is sweeping the foredeck — the deck gun cannot be worked in this sea.','warn');return false;}
-    if(G.ammo<=0){this.notify('Deck gun magazine is empty.','warn');return false;}
+    if(W.aaManned){this.notify('Deck gun unavailable while the automatic AA crew is engaged. Clear the air threat or dive.','warn', 'NUTTIG');return false;}
+    if(sub.depthFeet>8){this.notify(`Deck gun unavailable at ${sub.depthFeet.toFixed(0)} ft — surface first.`,'warn', 'NUTTIG');return false;}
+    if(env.seaState>0.82){this.notify('Green water is sweeping the foredeck — the deck gun cannot be worked in this sea.','warn', 'NUTTIG');return false;}
+    if(G.ammo<=0){this.notify('Deck gun magazine is empty.','warn', 'RUIS');return false;}
     G.manned=true;G.trainDeg=clamp(G.trainDeg||0,-140,140);G.elevationDeg=clamp(G.elevationDeg||1,0,22);
-    this.notify(`Deck gun crew topside automatically — ${G.ammo} rounds ready. Any dive order will clear the deck first.`,'warn');
+    this.notify(`Deck gun crew topside automatically — ${G.ammo} rounds ready. Any dive order will clear the deck first.`,'warn', 'NUTTIG');
     return true;
   }
-
+,
   secureDeckGunAuto(){
     const G=this.state.weapons.deckGun;
     if(!G?.manned) return;
     G.manned=false;
     this.log('Deck gun secured — crew below automatically.');
   }
-
+,
   bridgeCenterContact(trackId=null){
     if(!bridgeCanUse(this.state))return null;
     const s=this.state,T=s.tactical,z=bridgeZoomAmount(s),bin=z>.55;
@@ -228,11 +250,11 @@ class SimEngineCore{
     }
     return best;
   }
-
+,
   markBridgeContact(trackId=null,select=false){
-    if(!bridgeCanUse(this.state)){this.notify('Bridge watch unavailable — the boat is below the surface.','warn');return null;}
+    if(!bridgeCanUse(this.state)){this.notify('Bridge watch unavailable — the boat is below the surface.','warn', 'RUIS');return null;}
     const c=this.bridgeCenterContact(trackId);
-    if(!c){this.notify('Bridge watch: no visual contact on the centre bearing.','warn');return null;}
+    if(!c){this.notify('Bridge watch: no visual contact on the centre bearing.','warn', 'RUIS');return null;}
     const s=this.state,W=s.world,T=s.tactical,z=bridgeZoomAmount(s),bin=z>.55,now=s.time.elapsedSeconds;
     const obs=bridgeObservation(s,c,z),old=W.contactTracks[c.id];
     const baseConf=lerp(.52,.68,z),repeatGain=lerp(.08,.12,z);
@@ -256,9 +278,10 @@ class SimEngineCore{
     if(select){T.selectedTrackId=c.id;s.tdc.targetId=c.id;s.tdc.autoTrack=true;s.tdc.trackSource='BRIDGE';this.updateTdc(true);this.log(`Target designated from bridge: ${c.id}.`);}
     return tr;
   }
-
+,
   applyCmd(cmd){
     const sub=this.state.playerSub;
+    if(!CORE_COMMAND_TABLE[cmd?.type])return;
     // a lost boat takes no more orders — only the menus stay live
     if(sub.mode==='SUNK'&&!['NEW_PATROL','SET_ACTIVE_STATION','CYCLE_TIME_SCALE','SET_TIME_SCALE',
         'MAP_CLEAR_PLOT','SET_TORPEDO_TYPE','SET_DUD_MODE'].includes(cmd.type)){
@@ -268,7 +291,7 @@ class SimEngineCore{
       const now=this.state.time.elapsedSeconds;
       if(now-(this._sunkNagAt||-99)>3){
         this._sunkNagAt=now;
-        this.notify('THE BOAT IS LOST. There is nobody left to pass the order to — start a new patrol from the menu.','bad');
+        this.notify('THE BOAT IS LOST. There is nobody left to pass the order to — start a new patrol from the menu.','bad', 'KRITIEK');
       }
       return;
     }
@@ -278,15 +301,28 @@ class SimEngineCore{
       case'END_IMPACT_OBSERVATION': {const obs=this.state.tactical?.impactObservation;if(!obs||obs.token!==cmd.token)break;this.state.tactical.impactObservation=null;this.resumeFromModal();break;}
       case'PLAY_AUDIO': PresentationBridge.audio(this.state)[cmd.method]?.(...(cmd.args||[])); break;
       case'APPEND_LOG': this.log(cmd.message,cmd.level||'info'); break;
-      case'SET_ORDERED_HEADING':
-        sub.orderedHeading=normDeg(cmd.heading);
-        if(cmd.auto!==true&&this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length){
+      case'SET_ORDERED_HEADING':{
+        const prevHdg=sub.orderedHeading,newHdg=normDeg(cmd.heading);
+        const dHdg=Math.abs(shortDelta(prevHdg,newHdg));
+        if(dHdg>=1&&cmd.auto!==true){
+          PresentationBridge.audio(this.state).playHelmOrder(newHdg);
+          const inCombat=this.state.world?.enemy?.alertState==='ATTACKING'||this.state.world?.enemy?.alertState==='SEARCHING';
+          if(dHdg>=40&&inCombat){
+            this.aarRecordDecision?.('EVASIVE_TURN',`Evasive helm order: steer course ${Math.round(newHdg)}° (turn ${Math.round(dHdg)}°).`,{orderedHeading:newHdg,turnDeltaDeg:dHdg});
+          }
+        }
+        sub.orderedHeading=newHdg;
+        if(cmd.auto!==true&&this.state.map?.autoFollowPlot&&this.state.map?.plottedCourse?.length){
           this.state.map.autoFollowPlot=false;
           this.log('Helm taken manually — autopilot disengaged.','warn');
         }
-        break;
+        break;}
       case'SET_ENGINE_RPM':{
-        const maxRpm=sub.propulsion?.characteristics?.normalizedMaxRpm??450,rpm=clamp(cmd.rpm,0,maxRpm);sub.propulsion.orderedRpm=rpm;
+        const maxRpm=sub.propulsion?.characteristics?.normalizedMaxRpm??450,rpm=clamp(cmd.rpm,0,maxRpm);
+        if(sub.propulsion.orderedRpm!==rpm){
+          PresentationBridge.audio(this.state).playTelegraph(rpm);
+        }
+        sub.propulsion.orderedRpm=rpm;
         /* Commands are still processed while the simulation is paused. Until
            now an ALL STOP issued in that state left the last integrated 13 kn
            speed and screw-noise value frozen on screen indefinitely. A paused
@@ -294,40 +330,48 @@ class SimEngineCore{
            state internally consistent without moving the boat or advancing time. */
         if(rpm===0&&this.state.time.timeScale===0){sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;}
         break;}
-      case'SET_ORDERED_DEPTH':
+      case'SET_ORDERED_DEPTH':{
         if(+cmd.depthFeet>10) this.clearDeckForDive('Dive order');
-        sub.orderedDepthFeet=clamp(cmd.depthFeet,0,300); this.derivMode(); break;
-      case'SURFACE':{const q=this.state.tactical.bridgeDiveSequence;if(q?.active){q.active=false;q.cancelled=true;sub.diveDelay=0;this.log('Dive cancelled — bridge watch remains topside.','warn');}sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); PresentationBridge.audio(this.state).playSurface(); break;}
+        const oldD=sub.orderedDepthFeet??sub.depthFeet??0,newD=clamp(cmd.depthFeet,0,300);
+        sub.orderedDepthFeet=newD; this.derivMode();
+        if(Math.abs(newD-oldD)>=45){
+          const layer=this.state.world?.environment?.layerDepthFt||200;
+          const underLayer=newD>layer&&oldD<=layer;
+          this.aarRecordDecision?.(underLayer?'DEEP_EVASION_LAYER':'ORDER_DEPTH',underLayer?`Deep evasion ordered to ${Math.round(newD)} ft (penetrating thermocline at ${Math.round(layer)} ft).`:`Ordered depth changed to ${Math.round(newD)} ft.`,{depthFeet:newD,layerDepthFt:layer});
+        }
+        break;}
+      case'SURFACE':{const q=this.state.tactical.bridgeDiveSequence;if(q?.active){q.active=false;q.cancelled=true;sub.diveDelay=0;this.log('Dive cancelled — bridge watch remains topside.','warn');}sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); PresentationBridge.audio(this.state).playSurface(); this.aarRecordDecision?.('SURFACE','Surface ordered.',{orderedDepthFeet:0}); break;}
       case'DIVE':
         this.clearDeckForDive('Dive order');
-        sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); PresentationBridge.audio(this.state).playDive(); break;
+        sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); PresentationBridge.audio(this.state).playDive(); this.aarRecordDecision?.('DIVE','Dive ordered to 100 ft.',{orderedDepthFeet:100}); break;
       case'PERISCOPE_DEPTH':
         this.clearDeckForDive('Periscope-depth order');
-        sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); PresentationBridge.audio(this.state).playDive(); break;
+        sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); PresentationBridge.audio(this.state).playDive(); this.aarRecordDecision?.('PERISCOPE_DEPTH','Periscope depth ordered (55 ft).',{orderedDepthFeet:55}); break;
       case'CRASH_DIVE':
         this.clearDeckForDive('Crash dive');
         sub.orderedDepthFeet=150; sub.mode='CRASH_DIVING'; sub.ballastState='FLOODING';
         // Fix H: auto-set RPM for faster dive if nearly stopped
         if(sub.propulsion.speedKnots<5) sub.propulsion.orderedRpm=350;
-        this.log('CRASH DIVE! Flooding ballast tanks.','warn'); PresentationBridge.audio(this.state).playCrashDive(); break;
+        this.log('CRASH DIVE! Flooding ballast tanks.','warn'); PresentationBridge.audio(this.state).playCrashDive(); this.aarRecordDecision?.('CRASH_DIVE','CRASH DIVE ordered to 150 ft!',{orderedDepthFeet:150}); break;
       case'TOGGLE_AIR_WARNING_RADAR':
       case'TOGGLE_SD_RADAR':{ // legacy command ID retained for old UI/save integrations
-        this.ensureSoundRadarState?.();const a=this.state.world.airThreat,R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),airUi=sensorUi.airWarningRadar||{};
-        a.airWarningOn=!!R?.airWarningAvailable;a.sdOn=a.airWarningOn;
+        this.sys.soundRadar.ensureSoundRadarState();const a=this.state.world.airThreat,R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),airUi=sensorUi.airWarningRadar||{};
+        a.airWarningOn=!!R?.airWarningAvailable;
         const managed=airUi.crewManagedLabel||airUi.label||'air-warning radar',status=airUi.statusLabel||airUi.label||'air-warning radar';
-        this.notify(R?.airWarningAvailable?`${managed} is crew-managed automatically whenever it can be used.`:`No ${status} is fitted on this patrol date.`,R?.airWarningAvailable?'ok':'warn');break;}
+        this.notify(R?.airWarningAvailable?`${managed} is crew-managed automatically whenever it can be used.`:`No ${status} is fitted on this patrol date.`,R?.airWarningAvailable?'ok':'warn', 'NUTTIG');break;}
       case'BOTTOM_OUT':{
         if(sub.bottomed){this.unbottom(sub);break;}
         const sea=this.seabedFeet(sub.position);Bathy.ensure(this.state.world.terrain);const kind=Bathy.bottomType(sub.position.xNm,sub.position.yNm);
-        if(sea>=3000){this.notify('Blue water — there is no bottom here to lie on.','warn');break;}
-        if(sea>210){this.notify(`${sea.toFixed(0)} ft of water — too deep to bottom her with any margin.`,'warn');break;}
-        if(!Bathy.restable(kind)){this.notify(`Bottom here is ${kind.toLowerCase()} — she cannot be laid on that without opening her tanks.`,'warn');break;}
-        if(sub.propulsion.speedKnots>1.5){this.notify('Take the way off her first — you do not put a boat on the bottom at speed.','warn');break;}
+        if(sea>=3000){this.notify('Blue water — there is no bottom here to lie on.','warn', 'NUTTIG');break;}
+        if(sea>210){this.notify(`${sea.toFixed(0)} ft of water — too deep to bottom her with any margin.`,'warn', 'NUTTIG');break;}
+        if(!Bathy.restable(kind)){this.notify(`Bottom here is ${kind.toLowerCase()} — she cannot be laid on that without opening her tanks.`,'warn', 'NUTTIG');break;}
+        if(sub.propulsion.speedKnots>1.5){this.notify('Take the way off her first — you do not put a boat on the bottom at speed.','warn', 'NUTTIG');break;}
         this.clearDeckForDive('Bottoming order');sub.bottomingOrdered=true;sub.bottomingSeaFt=sea;sub.propulsion.orderedRpm=0;sub.orderedDepthFeet=Math.round(sea-2);this.derivMode?.();
-        this.notify(`BOTTOMING ORDERED — ${sea.toFixed(0)} ft, ${kind.toLowerCase()}. All stop; easing her down to settle.`,'ok');
+        this.notify(`BOTTOMING ORDERED — ${sea.toFixed(0)} ft, ${kind.toLowerCase()}. All stop; easing her down to settle.`,'ok', 'NUTTIG');
+        this.aarRecordDecision?.('BOTTOM_OUT',`Bottoming ordered at ${sea.toFixed(0)} ft (${kind.toLowerCase()}).`,{seaDepthFeet:sea,bottomType:kind});
         break;}
       case'TOGGLE_AA_GUN':
-        this.notify('AA is automatic now — the 20 mm crew man the gun only when an air attack gets close, and clear the deck automatically for any dive order.','ok');
+        this.notify('AA is automatic now — the 20 mm crew man the gun only when an air attack gets close, and clear the deck automatically for any dive order.','ok', 'NUTTIG');
         break;
       case'TOGGLE_DECK_GUN':{
         const G=this.state.weapons.deckGun;
@@ -345,35 +389,35 @@ class SimEngineCore{
         break;}
       case'LAY_DECK_GUN': this.sys.deckGun.layDeckGun(); break;
       case'FIRE_DECK_GUN': this.sys.deckGun.fireDeckGun(); break;
-      case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); break;
+      case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); this.aarRecordDecision?.(sub.stealth.silentRunning?'SILENT_RUNNING_ENGAGED':'SILENT_RUNNING_DISENGAGED',sub.stealth.silentRunning?'Rigged for silent running (motors throttled, pumps secured).':'Secured from silent running.',{silentRunning:sub.stealth.silentRunning}); break;
       case'RADIO_TOGGLE_SILENCE':{
-        const R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});R.txSilence=!R.txSilence;
+        const R=this.sys.intel.ensureRadioOperations()||(this.state.world.radio=this.state.world.radio||{});R.txSilence=!R.txSilence;
         this.log(R.txSilence?'Radio transmission silence ordered. Incoming traffic may still be copied.':'Radio transmission silence lifted.','warn');PresentationBridge.audio(this.state).playUiConfirm?.(.2);break;}
       case'RADIO_AUTHORIZE_REPORT':{
-        const m=this.state.campaign?.primaryMission,R=this.ensureRadioOperations?.()||(this.state.world.radio=this.state.world.radio||{});
-        if(m?.type!=='SHADOW_REPORT'||!m.reportReady){this.notify('RADIO ROOM — no contact report is ready for transmission.','warn');break;}
-        m.reportTransmitAuthorized=true;R.txSilence=false;this.captainLog?.('REPORT_TRANSMISSION_AUTHORIZED','Skipper authorized transmission of the contact report.',{},'report-authorized');this.notify('CONTACT REPORT AUTHORIZED — remain at antenna depth until transmission is complete.','ok');PresentationBridge.audio(this.state).playRadioMessage?.();break;}
-      case'RADIO_ACCEPT_PARTIAL': this.acceptPartialRadio?.(); break;
+        const m=this.state.campaign?.primaryMission,R=this.sys.intel.ensureRadioOperations()||(this.state.world.radio=this.state.world.radio||{});
+        if(m?.type!=='SHADOW_REPORT'||!m.reportReady){this.notify('RADIO ROOM — no contact report is ready for transmission.','warn', 'NUTTIG');break;}
+        m.reportTransmitAuthorized=true;R.txSilence=false;this.ctx.captainLog?.('REPORT_TRANSMISSION_AUTHORIZED','Skipper authorized transmission of the contact report.',{},'report-authorized');this.notify('CONTACT REPORT AUTHORIZED — remain at antenna depth until transmission is complete.','ok', 'NUTTIG');PresentationBridge.audio(this.state).playRadioMessage?.();break;}
+      case'RADIO_ACCEPT_PARTIAL': this.sys.intel.acceptPartialRadio(); break;
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
-        this.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); break;
+        this.sys.enemyAI.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); this.aarRecordDecision?.('EMERGENCY_BLOW','Emergency ballast blow ordered!',{orderedDepthFeet:0}); break;
       case'TOGGLE_DAMAGE_CONTROL':
-        this.notify(`Damage control parties are automatic. Choose one repair priority instead — currently ${repairPriorityLabel(sub.damage.repairPriority)}.`,'ok'); break;
-      case'SET_REPAIR_PRIORITY': this.setRepairPriority(cmd.priority); break;
+        this.notify(`Damage control parties are automatic. Choose one repair priority instead — currently ${repairPriorityLabel(sub.damage.repairPriority)}.`,'ok', 'NUTTIG'); break;
+      case'SET_REPAIR_PRIORITY': this.sys.damage.setRepairPriority(cmd.priority); break;
       case'TOGGLE_PUMPS':
-        this.ensureDamageState();
-        if(sub.damage.pumpTripped){this.notify('Dewatering pump is tripped and cannot be restarted until damage control repairs it.','bad');break;}
+        this.sys.damage.ensureDamageState();
+        if(sub.damage.pumpTripped){this.notify('Dewatering pump is tripped and cannot be restarted until damage control repairs it.','bad', 'NUTTIG');break;}
         sub.damage.pumpActive=!sub.damage.pumpActive;
         this.log(sub.damage.pumpActive?`Pumps running at ${Math.round(clamp(1-sub.damage.pumpDamage*.78,.16,1)*100)}% capacity — noise increases.`:'Pumps stopped.'); break;
       case'START_TRANSIT':{
         const t=this.state.time;
         if(sub.mode==='SUNK') break;
         if(t.transitUntil>t.elapsedSeconds){
-          this.notify('TRANSIT ALREADY RUNNING — stop the current run before choosing another.','warn');
+          this.notify('TRANSIT ALREADY RUNNING — stop the current run before choosing another.','warn', 'NUTTIG');
           break;
         }
         const activeAir=(this.state.world.aircraft||[]).some(a=>a.side!=='FRIENDLY'&&!a.shotDown&&(a.state==='ATTACKING'||a.state==='STRAFING'));
-        if(activeAir){t.timeScale=1;t.transitUntil=0;t.transitOpen=false;this.notify('Transit unavailable — aircraft attack in progress.','bad');break;}
+        if(activeAir){this.stopAutomaticTimeCompression('aircraft attack in progress');this.notify('Transit unavailable — aircraft attack in progress.','bad','NUTTIG');break;}
         /* seconds:0 means "no clock" — she runs on until something actually
            happens. The old eight-hour ceiling was arbitrary; a patrol can
            spend a day and a half getting to its billet and there is nothing
@@ -406,7 +450,7 @@ class SimEngineCore{
           break;
         }
         if(cmd.station==='BRIDGE'){
-          if(!bridgeCanUse(this.state)){this.notify(`Bridge unavailable at ${sub.depthFeet.toFixed(0)} ft — surface or come awash first.`,'warn');break;}
+          if(!bridgeCanUse(this.state)){this.notify(`Bridge unavailable at ${sub.depthFeet.toFixed(0)} ft — surface or come awash first.`,'warn', 'RUIS');break;}
           if(this.state.tactical.activeStation==='DECK_GUN')this.secureDeckGunAuto();
         this.state.tactical.activeStation='BRIDGE';this.state.tactical.bridgeBearing=sub.heading;this.state.tactical.bridgeBinoculars=false;this.state.tactical.bridgeZoom=0;if(prevStation!=='BRIDGE')PresentationBridge.audio(this.state).playStationSwitch?.();
           break;
@@ -422,16 +466,16 @@ class SimEngineCore{
           this.state.tactical.periscopeBearing=tr&&Number.isFinite(tr.bearing)?tr.bearing:sub.heading;
           this.refreshScopeVisualContacts?.();
         }
-        if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.ensureSoundRadarState?.();}
+        if(cmd.station==='SOUND'){this.state.tactical.soundBearing=sub.heading;this.state.tactical.soundDisplay='PASSIVE';this.sys.soundRadar.ensureSoundRadarState();}
         if(prevStation!==this.state.tactical.activeStation)PresentationBridge.audio(this.state).playStationSwitch?.();
         break;}
       case'ROTATE_SOUND': this.state.tactical.soundBearing=normDeg((this.state.tactical.soundBearing||sub.heading)+(cmd.deltaDeg||0)); break;
       case'SOUND_MARK_BEARING': this.sys.soundRadar.markSoundBearing(); break;
       case'SOUND_ECHO_RANGE': this.sys.soundRadar.echoRange(); break;
       case'TOGGLE_SOUND_DISPLAY':{
-        this.ensureSoundRadarState?.();const R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),radarUi=sensorUi.surfaceSearchRadar||{};
+        this.sys.soundRadar.ensureSoundRadarState();const R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),radarUi=sensorUi.surfaceSearchRadar||{};
         if(this.state.tactical.soundDisplay==='PASSIVE'){
-          if(!R?.surfaceSearchAvailable){this.notify(`${radarUi.statusLabel||radarUi.label||'Surface-search radar'} is not fitted on this patrol date.`,'warn');break;}
+          if(!R?.surfaceSearchAvailable){this.notify(`${radarUi.statusLabel||radarUi.label||'Surface-search radar'} is not fitted on this patrol date.`,'warn', 'NUTTIG');break;}
           this.state.tactical.soundDisplay='RADAR';
         }else this.state.tactical.soundDisplay='PASSIVE';
         break;}
@@ -460,15 +504,23 @@ class SimEngineCore{
         else this.log('Track lost.','warn');
         break;}
       case'TDC_SEND_SCOPE_OBSERVATION': this.sendScopeToTdc(); break;
+      case'IDENTIFY_CONTACT_CLASS': this.identifyContactClass(cmd.trackId, cmd.classId); break;
       case'FLOOD_TUBE': this.sys.torpedoes.floodTube(cmd.tubeId); break;
       case'FIRE_TORPEDO': this.sys.torpedoes.fireTorpedo(cmd.tubeId); break;
-      case'FLOOD_ALL_TUBES': for(const t of this.state.weapons.tubes.filter(t=>t.pos==='FWD')) this.sys.torpedoes.floodTube(t.id,false); this.log('Forward tubes flooded and ready.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
+      case'FLOOD_ALL_TUBES': {
+        const fwdDry=this.state.weapons.tubes.filter(t=>t.pos==='FWD'&&t.status==='LOADED_DRY');
+        if(!fwdDry.length){this.log('No loaded dry forward tubes available to flood.','warn');break;}
+        for(const t of fwdDry) this.sys.torpedoes.floodTube(t.id,false);
+        this.log(`${fwdDry.length} forward tube(s) flooded and ready.`);
+        PresentationBridge.audio(this.state).playTubeFlood?.();
+        PresentationBridge.delayedAudio(this.state,680,'playTubeReady');
+        break;}
       case'FIRE_READY_SPREAD': this.sys.torpedoes.fireSpread(); break;
       case'SET_TORPEDO_TYPE':{
         const spec=TORPEDO_SPECS[cmd.specKey];
         if(!spec) break;
         if(typeof isTorpedoAvailableForState==='function'&&!isTorpedoAvailableForState(this.state,cmd.specKey)){
-          this.notify(`${spec.name} is not available on this patrol date. Refit availability follows the war calendar.`,'warn');break;
+          this.notify(`${spec.name} is not available on this patrol date. Refit availability follows the war calendar.`,'warn', 'NUTTIG');break;
         }
         this.state.tdc.torpedoSpecKey=cmd.specKey;
         this.state.tdc.torpedoType=spec.name;
@@ -495,16 +547,33 @@ class SimEngineCore{
         this.updateTdc(true);PresentationBridge.audio(this.state).playTdcSolution?.();
         this.log(`TDC manual: B${fmtDeg(tdc.bearing)} R${tdc.rangeNm.toFixed(1)}nm C${fmtDeg(tdc.targetCourse)} S${tdc.targetSpeedKnots}kn → ${tdc.status} sol${Math.round(tdc.solutionQuality*100)}%`);
         break;}
-      case'FLOOD_AFT_TUBES':
-        for(const t of this.state.weapons.tubes.filter(t=>t.pos==='AFT')) this.sys.torpedoes.floodTube(t.id,false);
-        this.log('Aft tubes flooded.');PresentationBridge.audio(this.state).playTubeFlood?.();PresentationBridge.delayedAudio(this.state,680,'playTubeReady'); break;
+      case'FLOOD_AFT_TUBES': {
+        const aftDry=this.state.weapons.tubes.filter(t=>t.pos==='AFT'&&t.status==='LOADED_DRY');
+        if(!aftDry.length){this.log('No loaded dry aft tubes available to flood.','warn');break;}
+        for(const t of aftDry) this.sys.torpedoes.floodTube(t.id,false);
+        this.log(`${aftDry.length} aft tube(s) flooded and ready.`);
+        PresentationBridge.audio(this.state).playTubeFlood?.();
+        PresentationBridge.delayedAudio(this.state,680,'playTubeReady');
+        break;}
       case'FIRE_AFT_SPREAD': this.sys.torpedoes.fireSpreadByPos('AFT'); break;
       case'MAP_ADD_WAYPOINT':{
         const target=this.clampToArea({xNm:cmd.xNm,yNm:cmd.yNm}),plot=this.state.map.plottedCourse;
-        if(!this.isNavigableMapPoint(target)){this.notify('WAYPOINT REFUSED — land or unsafe shoal. Tap navigable water.','warn');break;}
+        if(!this.isNavigableMapPoint(target)){this.notify('WAYPOINT REFUSED — land or unsafe shoal. Tap navigable water.','warn', 'NUTTIG');break;}
         const from=plot.at(-1)||this.state.playerSub.position,path=this.planNavigableCourse(from,target);
-        if(!path){this.notify('WAYPOINT REFUSED — no safe water route can be plotted.','warn');break;}
-        for(const p of path.slice(1))if(distNm(plot.at(-1)||from,p)>.03)plot.push({...p});
+        if(!path){
+          const reason=this._lastWaypointRouteReason;
+          this.notify(reason==='endpoint-search-radius'
+            ?'WAYPOINT REFUSED — no route found from here; move closer and try again.'
+            :'WAYPOINT REFUSED — no safe water route can be plotted from here.','warn', 'NUTTIG');
+          break;
+        }
+        const legs=path.slice(1);
+        for(let idx=0;idx<legs.length;idx++){
+          const p=legs[idx];
+          if(distNm(plot.at(-1)||from,p)>.03){
+            plot.push({...p,navKind:idx===legs.length-1?'WAYPOINT':'TRANSIT_LEG'});
+          }
+        }
         this.state.map.autoFollowPlot=true;
         this.log(`Water route plotted — ${plot.length} waypoint${plot.length===1?'':'s'}.`);
         break;}
@@ -526,21 +595,21 @@ class SimEngineCore{
         this.state.map.plottedCourse=[];this.state.map.autoFollowPlot=false;
         this.log('Map plot cleared — manual helm.');break;
       case'PLOT_INTERCEPT_ADVISORY':{
-        const a=this.intelSummary?.().find(x=>x.kind==='ULTRA'),plan=a?.icptNow||a?.icptFlank;
-        if(!a||!plan){this.notify('No usable shipping intercept is held. Copy radio traffic or develop a contact.','warn');break;}
+        const a=this.sys.intel.intelSummary().find(x=>x.kind==='ULTRA'),plan=a?.icptNow||a?.icptFlank;
+        if(!a||!plan){this.notify('No usable shipping intercept is held. Copy radio traffic or develop a contact.','warn', 'NUTTIG');break;}
         const waterPath=this.planNavigableCourse(this.state.playerSub.position,this.clampToArea(plan.point));
-        if(!waterPath){this.notify('Intercept estimate falls outside safely navigable water. Helm unchanged.','warn');break;}
+        if(!waterPath){this.notify('Intercept estimate falls outside safely navigable water. Helm unchanged.','warn', 'NUTTIG');break;}
         this.state.map.interceptPlot={point:{...waterPath.at(-1)},waterPath,courseDeg:plan.courseDeg,timeSec:plan.timeSec,uncertaintyNm:a.uncNm,sourceReceivedAt:this.state.world.ultra?.receivedAt,createdAt:this.state.time.elapsedSeconds,historyId:this.state.campaign.historyId};
-        this.notify(`Intercept advice plotted ${fmtDeg(plan.courseDeg)} — helm unchanged.`,'ok');
+        this.notify(`Intercept advice plotted ${fmtDeg(plan.courseDeg)} — helm unchanged.`,'ok', 'NUTTIG');
         this.log(`Navigator plotted an advisory intercept ${fmtDeg(plan.courseDeg)}; commanding officer retains the helm.`);break;}
       case'TOGGLE_MAP_WEATHER':
         this.state.map.weatherOverlay=!this.state.map.weatherOverlay;
-        this.notify(this.state.map.weatherOverlay?'Weather overlay shown — shaded cells are moving squalls; local visibility is shown on the chart.':'Weather overlay hidden.','ok');break;
+        this.notify(this.state.map.weatherOverlay?'Weather overlay shown — shaded cells are moving squalls; local visibility is shown on the chart.':'Weather overlay hidden.','ok', 'NUTTIG');break;
       case'MAP_STEER_TO_NEXT_WAYPOINT': this.state.map.autoFollowPlot=true; this.steerWaypoint(true); break;
       case'HEAD_TO_PORT': this.headToPort(); break;
       case'NEW_PATROL': this.startNewPatrol(cmd.areaKey,cmd); break;
     }
-  }
+  },
 
   // ── TERRAIN / SHALLOW WATER ──
   pointInPolygon(pt,poly){
@@ -551,7 +620,7 @@ class SimEngineCore{
     }
     return inside;
   }
-
+,
   checkTerrainCollision(sub){
     const pos=sub.position;
     let inShallow=false,collision=false;
@@ -582,7 +651,7 @@ class SimEngineCore{
 
      Keel clearance of 25 ft is what a careful officer of the deck kept.
      Below that the fathometer is the only thing between you and a very
-     expensive noise. */
+     expensive noise. */,
   seabedFeet(pos){
     Bathy.ensure(this.state.world.terrain);
     let feet=Bathy.feet(pos.xNm,pos.yNm);
@@ -610,6 +679,19 @@ class SimEngineCore{
     }
     return feet;
   }
+,
+  setDepthAndClearance(sub,depthFeet,seabedFeet=sub.seabedFeet){
+    sub.depthFeet=Math.max(0,Number(depthFeet)||0);
+    if(Number.isFinite(Number(seabedFeet)))sub.keelClearanceFeet=Number(seabedFeet)-sub.depthFeet;
+    return sub.keelClearanceFeet;
+  },
+
+  keelSafetyMargin(sub){
+    const spd=Math.max(0,Number(sub?.propulsion?.speedKnots)||0);
+    const surfaced=(Number(sub?.depthFeet)||0)<12;
+    if(surfaced) return clamp(4+spd*0.8,4,16);
+    return clamp(8+spd*1.4,8,32);
+  },
 
   /* ══ SHOAL WATCH ══════════════════════════════════════════════════════
      Running the clock forward is the player saying "nothing is happening";
@@ -622,56 +704,68 @@ class SimEngineCore{
   shoalWatch(sub){
     const t=this.state.time;
     const compressed=!!t.transitUntil||(t.timeScale||1)>1;
-    if(!compressed||sub.mode==='SUNK'||sub.bottomed){if(!compressed)this._shoalTelemetryLogged=false;return;}
+    if(sub.mode==='SUNK'||sub.bottomed)return;
     const clr=sub.keelClearanceFeet??3000;
     const surfaced=sub.depthFeet<12;                    // effectively on the roof / awash
-    const closing=Math.max(0,sub._keelClosingFps||0);  // ft of clearance lost per ship-second
+    const closing=Math.max(0,this.state.runtime.playerSub._keelClosingFps||0);  // ft of clearance lost per ship-second
+    const margin=this.keelSafetyMargin(sub);
 
     /* Shallow water is not itself an emergency. A surfaced fleet boat can
-       legitimately con through twenty-something feet of water. Compression is
-       surrendered only when the margin gets genuinely tight, or the bottom is
-       rising quickly under a submerged boat. */
-    const handConnAt=surfaced?18:45;
-    const trendDanger=!surfaced&&clr<70&&closing>1.2;
-    if(clr>=handConnAt&&!trendDanger) return;
+       legitimately con through twenty-something feet of water, and a submerged
+       boat on slow creep can safely stalk over shoals with dynamic under-keel
+       margins. Compression is surrendered when clearance nears the scaled
+       speed margin or the bottom is rising quickly under the boat. */
+    const handConnAt=surfaced?Math.max(16,margin*1.5):Math.max(38,margin*1.6);
+    const hard=margin;
+    const trendDanger=!surfaced&&clr<Math.max(50,margin*2.2)&&closing>1.2;
+    if(clr>=handConnAt&&!trendDanger){
+      sub.keelMarginAlert=false;
+      return;
+    }
     const now=t.elapsedSeconds;
-    if(now-(this._shoalAt||-99)<20) return;
+    if(now-(this._shoalAt||-99)<18 && clr>=(this._shoalLastClear??Infinity)-2)return;
     this._shoalAt=now;
+    this._shoalLastClear=clr;
+    sub.keelMarginAlert=true;
     if(!this._shoalTelemetryLogged){this._shoalTelemetryLogged=true;console.warn('[SHOAL TELEMETRY]',{position:{...sub.position},keelClearanceFeet:sub.keelClearanceFeet,seabedFeet:sub.seabedFeet,depthFeet:sub.depthFeet,inShallowWater:sub.inShallowWater});}
-    t.transitUntil=0;t.transitOpen=false;t.timeScale=1;
-
-    const hard=surfaced?10:18;
+    if(compressed)this.stopAutomaticTimeCompression(clr<hard?'dangerously little water under the keel':'shoaling water — take the conn');
     if(clr<hard){
       t.stopReason='dangerously little water under the keel';t.stopReasonAt=now;
-      sub.propulsion.orderedRpm=0;
-      this.notify(`ALL STOP — only ${Math.max(0,clr).toFixed(0)} ft under the keel. Clock back to real time; con her clear by hand.`,'bad');
+      // Stuurvaart-preservatie: in plaats van een starre ALL STOP die alle hydrodynamische
+      // roerdruk wegneemt waardoor de boot stuurloos op de bank drijft, schakelen we
+      // terug naar stuurvaart (<= 85 RPM / ~2.5 knopen) zodat de kapitein kan wegsturen.
+      const curRpm=Number(sub.propulsion?.orderedRpm)||0;
+      if(curRpm>85){
+        sub.propulsion.orderedRpm=85;
+      }
+      this.notify(`KEEL MARGIN ALERT — only ${Math.max(0,clr).toFixed(0)} ft under the keel (safe margin ${margin.toFixed(0)} ft). Throttled to steerageway; con her clear by hand.`,'bad', 'KRITIEK');
     }else{
       t.stopReason='shoaling water — take the conn';t.stopReasonAt=now;
-      if(!surfaced&&sub.orderedDepthFeet>Math.max(0,(sub.seabedFeet??3000)-60))
-        sub.orderedDepthFeet=Math.max(0,Math.round((sub.seabedFeet??3000)-60));
-      this.notify(`SHOALING WATER — ${Math.max(0,clr).toFixed(0)} ft under the keel. Clock back to real time; you still have way on the boat.`,'warn');
+      if(compressed&&!surfaced&&sub.orderedDepthFeet>Math.max(0,(sub.seabedFeet??3000)-margin))
+        sub.orderedDepthFeet=Math.max(0,Math.round((sub.seabedFeet??3000)-margin));
+      this.notify(`SHOALING WATER — ${Math.max(0,clr).toFixed(0)} ft under the keel. Clock back to real time; maintain way to keep rudder authority.`,'warn', 'KRITIEK');
     }
   }
-
+,
   updateSeabed(sub,dt){
     const forcedSea=Number(this.state.world?._devForcedSeabedFeet),forcedClear=Number(this.state.world?._devForcedKeelClearanceFeet);
     const sea=Number.isFinite(forcedSea)?forcedSea:Number.isFinite(forcedClear)?sub.depthFeet+forcedClear:this.seabedFeet(sub.position);
     sub.seabedFeet=sea;
     sub.bottomType=Bathy.bottomType(sub.position.xNm,sub.position.yNm);
     const prevClr=sub.keelClearanceFeet??(sea-sub.depthFeet);
-    sub.keelClearanceFeet=sea-sub.depthFeet;
-    sub._keelClosingFps=dt>0?(prevClr-sub.keelClearanceFeet)/dt:0;
-    const safe=Math.max(0,sea-25);
+    this.setDepthAndClearance(sub,sub.depthFeet,sea);
+    this.state.runtime.playerSub._keelClosingFps=dt>0?(prevClr-sub.keelClearanceFeet)/dt:0;
+    const margin=this.keelSafetyMargin(sub);
+    const safe=Math.max(0,sea-margin);
 
-    // Ordinary depth orders keep 25 ft under the keel. A validated bottoming
-    // evolution is the one deliberate exception: it is allowed to descend the
-    // final 25 ft under continuous fathometer supervision.
+    // Dynamische kielmarge: bij lage vaart (1-3 kn) kan de boot tot op 8-12 ft boven de bodem
+    // manoeuvreren, terwijl bij hoge vaart (8+ kn) 20-32 ft gereserveerd wordt tegen squat en trim.
     if(!sub.bottomed&&!sub.bottomingOrdered&&sub.orderedDepthFeet>safe&&sea<3000){
       sub.orderedDepthFeet=Math.round(safe);
       const now=this.state.time.elapsedSeconds;
       if(now-(this._depthLimAt||-99)>8){
         this._depthLimAt=now;
-        this.notify(`Fathometer: bottom at ${sea.toFixed(0)} ft — depth restricted to ${Math.round(safe)} ft.`,'warn');
+        this.notify(`Fathometer: bottom at ${sea.toFixed(0)} ft — depth restricted to ${Math.round(safe)} ft (${margin.toFixed(0)} ft keel margin at ${sub.propulsion.speedKnots.toFixed(1)} kn).`,'warn', 'NUTTIG');
       }
     }
 
@@ -679,7 +773,7 @@ class SimEngineCore{
       const kind=sub.bottomType,changed=Math.abs(sea-(sub.bottomingSeaFt??sea))>18;
       if(changed||sea>210||!Bathy.restable(kind)||sub.propulsion.orderedRpm>0||sub.propulsion.speedKnots>1.8||sub.orderedDepthFeet<sea-8){
         sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.orderedDepthFeet=Math.min(sub.orderedDepthFeet,Math.round(safe));
-        this.notify('BOTTOMING CANCELLED — conditions or orders changed; holding safe depth.','warn');
+        this.notify('BOTTOMING CANCELLED — conditions or orders changed; holding safe depth.','warn', 'NUTTIG');
       }
     }
 
@@ -696,13 +790,13 @@ class SimEngineCore{
       const hard=(sub.bottomType==='CORAL'||sub.bottomType==='ROCK')?2.0:1.0;
       if(spd>1.2||hard>1.5){
         const dmg=clamp((0.8+spd*1.5)*hard,1,45);
-        sub.depthFeet=Math.max(0,sea-3);
+        this.setDepthAndClearance(sub,sea-3,sea);
         sub.verticalSpeedFps=0;
         sub.propulsion.speedKnots*=0.25;
-        this.applyShock(dmg);
+        this.sys.damage.applyShock(dmg);
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.7,0,1.5);
-        this.alertEscorts('NOISE',{...sub.position},0.8);
-        this.notify(`SHE IS ON THE BOTTOM — ${sub.bottomType.toLowerCase()} at ${sea.toFixed(0)} ft, ${spd.toFixed(1)} kn. Hull damage ${dmg.toFixed(0)}%. Every escort in the sea heard that.`,'bad');
+        this.sys.enemyAI.alertEscorts('NOISE',{...sub.position},0.8);
+        this.notify(`SHE IS ON THE BOTTOM — ${sub.bottomType.toLowerCase()} at ${sea.toFixed(0)} ft, ${spd.toFixed(1)} kn. Hull damage ${dmg.toFixed(0)}%. Every escort in the sea heard that.`,'bad', 'KRITIEK');
       }else{
         this.bottomOut(sub,sea,false);
       }
@@ -721,7 +815,7 @@ class SimEngineCore{
 
      Sand and mud only. Coral and rock tear the tanks. And soft mud takes
      hold: the longer she sits the more of her buoyancy the suction eats,
-     and blowing free is loud. */
+     and blowing free is loud. */,
   bottomOut(sub,sea,ordered){
     if(sub.bottomed)return;Bathy.ensure(this.state.world.terrain);const kind=Bathy.bottomType(sub.position.xNm,sub.position.yNm);sub.bottomType=kind;
     // This function is now a CONTACT transition only. Command validation happens
@@ -729,44 +823,44 @@ class SimEngineCore{
     // leave a dangerous depth order behind or teleport the boat through water.
     if(sea>210||!Bathy.restable(kind)){sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.orderedDepthFeet=Math.min(sub.orderedDepthFeet,Math.max(0,Math.round(sea-25)));return;}
     sub.bottomed=true;sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.bottomedAt=this.state.time.elapsedSeconds;sub.suction=0;
-    sub.depthFeet=Math.min(sea-2,Math.max(sub.depthFeet,sea-3));sub.verticalSpeedFps=0;sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.orderedDepthFeet=Math.round(sea-2);
-    this.notify(`ON THE BOTTOM — ${sea.toFixed(0)} ft, ${kind.toLowerCase()}. All stop, everything shut down. She is part of the sea floor now.`,'ok');
+    this.setDepthAndClearance(sub,Math.min(sea-2,Math.max(sub.depthFeet,sea-3)),sea);sub.verticalSpeedFps=0;sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.orderedDepthFeet=Math.round(sea-2);
+    this.notify(`ON THE BOTTOM — ${sea.toFixed(0)} ft, ${kind.toLowerCase()}. All stop, everything shut down. She is part of the sea floor now.`,'ok', 'NUTTIG');
   }
-
+,
   updateBottomed(sub,dt,sea){
     // she stays put
     sub.propulsion.speedKnots=0; sub.propulsion.actualRpm=0;
-    sub.verticalSpeedFps=0; sub.depthFeet=sea-2;
+    sub.verticalSpeedFps=0; this.setDepthAndClearance(sub,sea-2,sea);
     /* Suction. Mud takes hold of a hull that sits in it; sand barely does.
        Past about a third she needs a hard blow to break free, and that is
        a noise every set within miles will hear. */
     const grip=sub.bottomType==='MUD'?1:0.28;
     sub.suction=clamp((sub.suction||0)+dt/900*grip,0,1);
-    if(sub.suction>0.34&&!sub._suctWarn){
-      sub._suctWarn=true;
-      this.notify('She is settling into the mud. Breaking free now will take a blow — and a blow can be heard.','warn');
+    if(sub.suction>0.34&&!this.state.runtime.playerSub._suctWarn){
+      this.state.runtime.playerSub._suctWarn=true;
+      this.notify('She is settling into the mud. Breaking free now will take a blow — and a blow can be heard.','warn', 'NUTTIG');
     }
     // the order to get up again
     if(sub.propulsion.orderedRpm>0||sub.orderedDepthFeet<sea-30||sub.mode==='EMERGENCY_SURFACING'){
       this.unbottom(sub);
     }
   }
-
+,
   unbottom(sub){
     if(!sub.bottomed) return;
     const s=sub.suction||0;
-    sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null; sub._suctWarn=false;
+    sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null; this.state.runtime.playerSub._suctWarn=false;
     if(s>0.34){
-      this.notify('Blowing her off the bottom — she comes free with a rush of air. That was heard.','bad');
+      this.notify('Blowing her off the bottom — she comes free with a rush of air. That was heard.','bad', 'NUTTIG');
       sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55+s*0.5,0,1.5);
-      this.alertEscorts('NOISE',{...sub.position},0.55+s*0.4);
+      this.sys.enemyAI.alertEscorts('NOISE',{...sub.position},0.55+s*0.4);
     }else{
-      this.notify('Off the bottom, quietly. Planes and screws answering again.','ok');
+      this.notify('Off the bottom, quietly. Planes and screws answering again.','ok', 'NUTTIG');
     }
     sub.suction=0;
     sub.orderedDepthFeet=Math.min(sub.orderedDepthFeet,Math.max(0,sub.seabedFeet-40));
   }
-
+,
   applyTerrainEffects(sub,dt){
     let {collision,inShallow}=this.checkTerrainCollision(sub);
     /* The marked green FRIENDLY RV is guaranteed safe manoeuvring water. This
@@ -786,11 +880,11 @@ class SimEngineCore{
       sub.propulsion.speedKnots*=0.1;
       if(sub.depthFeet>10){
         const dmg=8+Math.random()*12;
-        this.applyShock(dmg);
+        this.sys.damage.applyShock(dmg);
         this.log(`GROUNDING — hull impact! Damage ${dmg.toFixed(0)}%.`,'bad');
       } else {
         const dmg=2+Math.random()*4;
-        this.applyShock(dmg);
+        this.sys.damage.applyShock(dmg);
         this.log('Keel contact with terrain.','warn');
       }
     }
@@ -808,7 +902,7 @@ class SimEngineCore{
     } else {
       sub.inShallowWarned=false;
     }
-  }
+  },
 
   // ── CAMPAIGN ──
   _friendlyRvInsideArea(pos,radiusNm=0.30,marginNm=6){
@@ -821,14 +915,14 @@ class SimEngineCore{
     const m=Math.max(0,marginNm)+Math.max(0,radiusNm);
     return pos.xNm>=A.x0+m&&pos.xNm<=A.x1-m&&pos.yNm>=A.y0+m&&pos.yNm<=A.y1-m;
   }
-
+,
   _friendlyRvAreaAnchor(pos,marginNm=8){
     const A=this.areaBounds?.();if(!A||!pos)return pos;
     const m=Math.max(0,marginNm),midX=(A.x0+A.x1)/2,midY=(A.y0+A.y1)/2;
     const loX=A.x0+m,hiX=A.x1-m,loY=A.y0+m,hiY=A.y1-m;
     return{xNm:loX<=hiX?clamp(pos.xNm,loX,hiX):midX,yNm:loY<=hiY?clamp(pos.yNm,loY,hiY):midY};
   }
-
+,
   _friendlyRvDiskSafe(pos,minFeet=70,radiusNm=0.30){
     /* Validate the whole service circle, not merely its centre. A centre point
        in deep water is not enough if a synthetic coastline/reef clips one edge
@@ -850,12 +944,12 @@ class SimEngineCore{
     }
     return {safe:true,minFeet:minSeen};
   }
-
+,
   _insideFriendlyRv(pos){
     const ap=this.state?.campaign?.portApproach;
     return !!(ap?.safeWater&&ap.pos&&distNm(pos,ap.pos)<=0.305);
   }
-
+,
   friendlyPortApproach(port){
     if(!port) return null;
     const camp=this.state.campaign;
@@ -917,7 +1011,7 @@ class SimEngineCore{
     if(!best){
       /* Should only be possible with corrupt terrain. Leave no automatic plot
          rather than silently steering the boat onto a land-valued port cell. */
-      this.notify(`${port.name}: no safe-water rendezvous could be charted. Take the conn and approach manually.`,'bad');
+      this.notify(`${port.name}: no safe-water rendezvous could be charted. Take the conn and approach manually.`,'bad', 'NUTTIG');
       camp.portApproach={portName:port.name,pos:{...this.state.playerSub.position},seabedFeet:this.seabedFeet(this.state.playerSub.position),unavailable:true};
       return camp.portApproach;
     }
@@ -925,7 +1019,7 @@ class SimEngineCore{
       safeWater:true,safeDepthFeet:best.safeDepthFeet||Math.max(90,best.seabedFeet)};
     return camp.portApproach;
   }
-
+,
   friendlyPortNav(){
     const fp=this.state.campaign.friendlyPort;
     if(!fp) return null;
@@ -936,17 +1030,31 @@ class SimEngineCore{
       rngNm:distNm(sub.position,ap.pos),
       brg:bearingBetween(sub.position,ap.pos)};
   }
-
+,
   headToPort(){
     const r=this.friendlyPortNav();
     if(!r){this.log('No friendly port in this area.','warn');return;}
-    this.state.map.plottedCourse=[{...r.approach.pos,navKind:'FRIENDLY_APPROACH',portName:r.port.name}];
+    const sub=this.state.playerSub;
+    const path=this.planNavigableCourse(sub.position,r.approach.pos);
+    if(path&&path.length>=2){
+      const legs=path.slice(1);
+      this.state.map.plottedCourse=legs.map((pt,idx)=>({
+        xNm:pt.xNm,
+        yNm:pt.yNm,
+        navKind:idx===legs.length-1?'FRIENDLY_APPROACH':'TRANSIT_LEG',
+        portName:r.port.name
+      }));
+      const n=this.state.map.plottedCourse.length;
+      this.notify(`Safe water route plotted for ${r.port.name} (${n} leg${n===1?'':'s'}) — ${r.rngNm.toFixed(1)} nm. Autopilot steering around hazards.`,'ok','NUTTIG');
+    }else{
+      this.state.map.plottedCourse=[{...r.approach.pos,navKind:'FRIENDLY_APPROACH',portName:r.port.name}];
+      this.notify(`Course set for ${r.port.name} rendezvous — ${r.rngNm.toFixed(1)} nm on ${fmtDeg(r.brg)}. The marker is in safe water; compressed time will hand the conn back near the approach.`,'warn', 'NUTTIG');
+    }
     this.state.map.autoFollowPlot=true;
-    this.state.campaign._headingHome=true;
+    this.state.runtime.campaign._headingHome=true;
     this.steerWaypoint(true);
-    this.notify(`Course set for ${r.port.name} rendezvous — ${r.rngNm.toFixed(1)} nm on ${fmtDeg(r.brg)}. The marker is in safe water; compressed time will hand the conn back near the approach.`,'warn');
   }
-
+,
   nearestFriendlyPort(){
     const sub=this.state.playerSub;
     let best=null;
@@ -961,7 +1069,7 @@ class SimEngineCore{
   /* The green port symbol is geography; the rendezvous marker is seamanship.
      We steer to the latter, in surveyed water. 1.5 nm is the approach station,
      not "alongside". The transfer only starts when the boat is genuinely
-     close, surfaced and slow. */
+     close, surfaced and slow. */,
   performFriendlyPortService(portName){
     const s=this.state,sub=s.playerSub,W=s.weapons,d=sub.damage;
     const fresh=materializeFreshSubmarine(sub.profileId,s.tdc.torpedoSpecKey),weaponProfile=fresh.weapons;
@@ -974,13 +1082,13 @@ class SimEngineCore{
       periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
       pumpActive:false,pumpTripped:false,pumpLoadSec:0,damageControlActive:false,
       driveBankOffline:false,crewFatigue:0,oxygen:100,repairFloor:{},instrumentBias:{}});
-    sub.cannotHoldDepth=false;sub._nhdWarned=false;
-    this.notify(`${String(portName||'FRIENDLY PORT').toUpperCase()} — SERVICE COMPLETE. Fuel and battery 100%; torpedoes, gun ammunition and AA replenished; battle damage repaired.`,'ok');
+    sub.cannotHoldDepth=false;this.state.runtime.playerSub._nhdWarned=false;
+    this.notify(`${String(portName||'FRIENDLY PORT').toUpperCase()} — SERVICE COMPLETE. Fuel and battery 100%; torpedoes, gun ammunition and AA replenished; battle damage repaired.`,'ok', 'NUTTIG');
     this.log(`${portName||'Friendly port'} service complete — rearmed, refuelled, batteries charged and battle damage repaired.`,'warn');
   }
-
+,
   checkPortArrival(dt){
-    const sub=this.state.playerSub,camp=this.state.campaign;
+    const sub=this.state.playerSub,camp=this.state.campaign,R=this.state.runtime.campaign;
     if(camp.missionStatus==='COMPLETED'||sub.mode==='SUNK'){
       camp.alongside=0;camp.portService=0;return;
     }
@@ -998,44 +1106,43 @@ class SimEngineCore{
     // Friendly rendezvous points remain usable service stops throughout the
     // patrol, but the interaction is now simpler: enter the close ring,
     // surface, and stop the boat. No countdown and no special harbor bell.
-    if(r.rngNm<4&&r.rngNm>APPROACH_NM&&!camp._rvSeen){
-      camp._rvSeen=true;
-      this.notify(`${r.port.name.toUpperCase()} FRIENDLY RV — ${r.rngNm.toFixed(1)} nm. Rearm, refuel, charge batteries and repair are available inside the green ring.`,'ok');
+    if(r.rngNm<4&&r.rngNm>APPROACH_NM&&!R._rvSeen){
+      R._rvSeen=true;
+      this.notify(`${r.port.name.toUpperCase()} FRIENDLY RV — ${r.rngNm.toFixed(1)} nm. Rearm, refuel, charge batteries and repair are available inside the green ring.`,'ok', 'NUTTIG');
     }
-    if(r.rngNm<=APPROACH_NM&&!camp._approachReached){
-      camp._approachReached=true;
+    if(r.rngNm<=APPROACH_NM&&!R._approachReached){
+      R._approachReached=true;
       if((this.state.time.timeScale||1)>1||this.state.time.transitUntil){
-        this.state.time.timeScale=1;this.state.time.transitUntil=0;this.state.time.transitOpen=false;
-        this.state.time.stopReason='friendly port approach';this.state.time.stopReasonAt=this.state.time.elapsedSeconds;
+        this.stopAutomaticTimeCompression('friendly port approach');
       }
       this.notify(returning
         ? `${r.port.name.toUpperCase()} — FINAL RETURN. Enter the 0.3 nm green ring surfaced and stop the boat to complete the patrol.`
-        : `${r.port.name.toUpperCase()} — FRIENDLY RENDEZVOUS. Enter the 0.3 nm green ring surfaced and stop the boat for service.`,'ok');
+        : `${r.port.name.toUpperCase()} — FRIENDLY RENDEZVOUS. Enter the 0.3 nm green ring surfaced and stop the boat for service.`,'ok', 'NUTTIG');
     }
-    if(r.rngNm>APPROACH_NM*1.25) camp._approachReached=false;
-    if(r.rngNm>4.5) camp._rvSeen=false;
-    if(r.rngNm>CLOSE_NM*1.55){camp._portServiceLock=false;camp.portService=0;camp.alongside=0;camp._portTouchActive=false;}
+    if(r.rngNm>APPROACH_NM*1.25) R._approachReached=false;
+    if(r.rngNm>4.5) R._rvSeen=false;
+    if(r.rngNm>CLOSE_NM*1.55){R._portServiceLock=false;camp.portService=0;camp.alongside=0;R._portTouchActive=false;}
 
     const surfaced=sub.depthFeet<8,close=r.rngNm<=CLOSE_NM;
     const stopped=(sub.propulsion.speedKnots||0)<=0.45||(sub.propulsion.orderedRpm||0)<=0;
     if(!close||!surfaced||!stopped){
-      camp.alongside=0;camp.portService=0;camp._portTouchActive=false;
+      camp.alongside=0;camp.portService=0;R._portTouchActive=false;
       return;
     }
 
-    if(!camp._portTouchActive){
-      camp._portTouchActive=true;PresentationBridge.audio(this.state).event?.('HARBOR_REACHED');
+    if(!R._portTouchActive){
+      R._portTouchActive=true;PresentationBridge.audio(this.state).event?.('HARBOR_REACHED');
       this.notify(returning
         ? `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Patrol complete.`
-        : `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Taking on fuel, stores and repair parties.`,'ok');
+        : `${r.port.name.toUpperCase()} — BOAT STOPPED IN HARBOR. Taking on fuel, stores and repair parties.`,'ok', 'NUTTIG');
     }
     sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;
     if(returning){camp.alongside=0;this.completeMission(r.port.name);return;}
-    if(camp._portServiceLock)return;
-    camp.portService=0;camp._portServiceLock=true;camp.lastPortServiceAt=this.state.time.elapsedSeconds;
+    if(R._portServiceLock)return;
+    camp.portService=0;R._portServiceLock=true;camp.lastPortServiceAt=this.state.time.elapsedSeconds;
     this.performFriendlyPortService(r.port.name);
   }
-
+,
   completeMission(portName){
     const camp=this.state.campaign;
     const W=this.state.weapons;
@@ -1052,23 +1159,24 @@ class SimEngineCore{
     const patrolScore=camp.score;
     camp.totalScore+=patrolScore;
     const hullAtReturn=sub.damage.hullIntegrity;
-    this.captainLog?.('RETURNED_TO_PORT',`Returned to ${portName}.`,{portName,hull:hullAtReturn},'returned-to-port');
+    this.ctx.captainLog?.('RETURNED_TO_PORT',`Returned to ${portName}.`,{portName,hull:hullAtReturn},'returned-to-port');
     this.updateAfterActionRecorder?.(999);
-    const patrolRecord=this.finalizePatrol?.('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
+    const patrolRecord=this.sys.career.finalizePatrol('COMPLETED',{portName,patrolScore,hullAtEnd:hullAtReturn});
+    if(patrolRecord?.refitTurnaround) camp.pendingRefit=patrolRecord.refitTurnaround;
     if(typeof historicalNextPatrolDate==='function'){
-      const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(camp._careerStartDate,camp.patrolDuration):camp.startDate);
+      const endDate=patrolRecord?.endDate||(typeof _careerStampFrom==='function'?_careerStampFrom(this.state.runtime.campaign._careerStartDate,camp.patrolDuration):camp.startDate);
       camp.nextPatrolDate=historicalNextPatrolDate(endDate,camp.patrolNumber,camp.scenarioSeed);
     }
     if(patrolRecord)PresentationBridge.aar(this.state,'open',patrolRecord,{completed:true});
     camp.score=0;                       // banked — startNewPatrol would count it twice
-    this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok');
+    this.notify(`PATROL COMPLETE at ${portName} — bonus +${bonus} points for fuel, hull and torpedoes remaining. Patrol score ${patrolScore}, career ${camp.totalScore}.`,'ok', 'NUTTIG');
     PresentationBridge.toast(this.state).show(`PATROL COMPLETE — ${portName.toUpperCase()} · rearmed and refuelled`,'ok',5200,true);
     this.log(`Patrol score: ${patrolScore} | Career total: ${camp.totalScore}`,'warn');
     PresentationBridge.audio(this.state).event?.('PATROL_COMPLETE');
     // Rearm and refuel. Static store capacity comes from the submarine profile;
     // mutable tube state remains in the patrol state.
     const fresh=materializeFreshSubmarine(sub.profileId,this.state.tdc.torpedoSpecKey);
-    sub.propulsion.fuel=100; sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
+    sub.propulsion.fuel=100; sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;this.state.runtime.playerSub._nhdWarned=false;
     W.torpedoInventory=fresh.weapons.torpedoInventory;
     for(const t of W.tubes){t.status='LOADED_DRY';t.reloadProgress=1;}
     sub.damage.hullIntegrity=clamp(sub.damage.hullIntegrity+25,0,100);
@@ -1077,7 +1185,7 @@ class SimEngineCore{
     // actually commissioned. startNewPatrol() advances it exactly once.
     PresentationBridge.schedule(this.state,3000,{type:'APPEND_LOG',message:`Rearmed and refueled. Ready for patrol #${(camp.patrolNumber||1)+1}.`});
   }
-
+,
   startNewPatrol(areaKey,options={}){
     const s=this.state,training=options.training===true,currentIdentity=materializeGameIdentity(s);
     const requestedIdentity=options.gameIdentity||currentIdentity,validation=validateGameIdentity(requestedIdentity);
@@ -1097,15 +1205,25 @@ class SimEngineCore{
     const prevHistoricalProfile=identityChanged?null:(s.campaign.historicalProfile||null);
     const pristineBootstrap=prevPatrol===1&&s.campaign.missionStatus==='PATROL'&&(s.time.elapsedSeconds||0)===0&&!s.campaign.primaryMission;
     const nextPatrol=training?prevPatrol:(pristineBootstrap?1:prevPatrol+1);
+    const lastCareerRecord=(Array.isArray(s.runtime?.careerRecords)&&s.runtime.careerRecords.length)
+      ?s.runtime.careerRecords[s.runtime.careerRecords.length-1]:null;
+    const pendingRefit=options.refitState||s.campaign?.pendingRefit||s.runtime?.campaign?.pendingRefit||null;
+    const refitState=(!training&&!identityChanged)
+      ?(pendingRefit||(lastCareerRecord&&typeof _careerCalculateRefitTurnaround==='function'?_careerCalculateRefitTurnaround(lastCareerRecord,{totalScore:prevTotal,campaignProfileId:identity.campaignProfileId,submarineProfileId:subProfile.id}):null))
+      :null;
     const patrolStartDate=options.startDate||s.campaign.nextPatrolDate||s.campaign.startDate||s.time.campaignDate||campaignProfile.defaultStartDate;
     const careerStart=`${patrolStartDate} 06:00`;
 
     // Patch 10.5: a patrol is a lifecycle boundary. No tactical clock, transit,
     // stale alarm or AAR-pause state may leak across it.
     Object.assign(s.time,{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:patrolStartDate,campaignDateTime:`${patrolStartDate} 00:00:00`,
-      transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999,_watch:null});
+      transitUntil:0,transitOpen:false,transitReason:null,stopReason:null,stopReasonAt:-999});
+    // Presentation state is a patrol-lifecycle resource. Keep the render path
+    // total even before the first impact event has reached the bridge.
+    s.runtime=s.runtime||{};
+    s.runtime.presentation={impactToken:null,impactStartedWall:null,impactTimer:null,impactQueue:[]};
     s.log=[{t:0,level:'info',message:training?`Training waters prepared. Area: ${key}.`:`Patrol commenced. Area: ${key}. Good hunting.`}];
-    if(s.ui){s.ui.toasts=[];s.ui.toastSeq=0;}
+    if(s.ui){delete s.ui.toasts;delete s.ui.toastSeq;}
     PresentationBridge.toast(this.state).clear();
     PresentationBridge.aar(this.state,'close',false);
     PresentationBridge.ui(s,'resumeHide');
@@ -1114,7 +1232,7 @@ class SimEngineCore{
     // Development forcing is patrol-local. Never carry a forced seabed or keel
     // margin from the test console into a newly commissioned patrol.
     clearDevelopmentOverrides(s);
-    s.world.collisionEvents=[];s.world.lastCollision=null;s.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
+    s.world.collisionEvents=[];s.world.lastCollision=null;s.runtime.world._collisionCooldowns={};s.world.shakeMag=0;s.world.ownHitVisual=null;
     s.world.aircraft=[];s.world.knuckles=[];s.world.atmosphere=null;s.world.missionObjects=[];
     s.world.aaManned=false;s.world.aaAmmo=weaponProfile.aaGun.ammo;s.world.aaKills=0;s.world.aaHurt=0;
     delete s.world.ultra;delete s.world.ultraAt;
@@ -1174,20 +1292,27 @@ class SimEngineCore{
     if(training){const safe=this.findNavigablePointNear(sub.position,80);if(!safe)throw new Error(`No navigable training start in ${key}`);sub.position=safe;}
     else if(!this.isNavigableMapPoint(sub.position,30))throw new Error(`Patrol start is not navigable water: ${key}`);
     sub.mode='SURFACED';sub.heading=90;sub.orderedHeading=90;sub.rudder=0;
-    sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
+    this.setDepthAndClearance(sub,0,3000);sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;sub.ballastState='NEUTRAL';sub.trim=0;sub.diveDelay=0;
     sub.propulsion.characteristics=fresh.propulsionProfile;
     sub.propulsion.orderedRpm=250;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
-    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
+    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.engineMode='DIESEL';sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;this.state.runtime.playerSub._nhdWarned=false;
     sub.stealth.silentRunning=false;sub.stealth.acousticSignature=0;
-    Object.assign(sub.damage,{hullIntegrity:100,crushDepthFeet:subProfile.damage.crushDepthFeet,flooding:0,ballastDamage:0,motorDamage:0,
+    const startingHull=(!training&&refitState)?refitState.hullRestored:100;
+    const startingCrush=(!training&&refitState)?refitState.crushDepthRatedFeet:subProfile.damage.crushDepthFeet;
+    const startingFatigue=(!training&&refitState)?refitState.crewFatigueResidual:0;
+    const startingVetLevel=(!training&&refitState)?refitState.crewVeteranLevel:0;
+    const startingVetRank=(!training&&refitState)?refitState.crewRankTitle:'GREEN';
+    const startingTorps=(!training&&refitState)?refitState.torpedoAllocation.reserveCount:weaponProfile.torpedoInventory;
+
+    Object.assign(sub.damage,{hullIntegrity:startingHull,crushDepthFeet:startingCrush,flooding:0,ballastDamage:0,motorDamage:0,
       rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
-      crewFatigue:0,oxygen:100,airCriticalSec:0,pumpActive:false,pumpTripped:false,pumpLoadSec:0,
+      crewFatigue:startingFatigue,veteranLevel:startingVetLevel,veteranRank:startingVetRank,oxygen:100,airCriticalSec:0,pumpActive:false,pumpTripped:false,pumpLoadSec:0,
       damageControlActive:false,repairPriority:'FLOODING',driveBankOffline:false,damageEventSeq:0,
       repairFloor:{},instrumentBias:{},warnings:[]});
     sub.inShallowWater=false;sub.groundingRisk=false;sub.inShallowWarned=false;
     s.map.estimatedPosition={...sub.position};
-    sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.suction=0;sub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
-    s.weapons.torpedoInventory=weaponProfile.torpedoInventory;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
+    sub.bottomed=false;sub.bottomingOrdered=false;sub.bottomingSeaFt=null;sub.suction=0;this.state.runtime.playerSub._suctWarn=false;sub.seabedFeet=3000;sub.bottomType='DEEP';
+    s.weapons.torpedoInventory=startingTorps;s.weapons.duds=[];s.weapons.nextTorpedoId=1;
     s.weapons.deckGun={manned:false,ammo:weaponProfile.deckGun.ammo,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1};
     // Rebuild the tube bank from the profile at the patrol lifecycle boundary.
     // This is behavior-neutral for Silversides but prevents future boats from
@@ -1198,12 +1323,12 @@ class SimEngineCore{
     s.world.sound=null;s.world.radar=null;
     const hasAirWarning=!!subProfile.sensors?.airWarningRadar;
     s.world.airThreat={level:training?0:(area.environment.airThreat===undefined?0.55:area.environment.airThreat),
-      alarmedAt:-999,airWarningOn:hasAirWarning,sdOn:hasAirWarning,nextCheck:training?1e9:120};
+      alarmedAt:-999,airWarningOn:hasAirWarning,nextCheck:training?1e9:120};
     s.world.radio={pending:null,inbox:[],unread:0,nextBroadcast:training?1e9:(getCampaignRadioIntelProfile(identity.campaignProfileId)?.initialBroadcastSec??300),copying:0};
     const historicalProfile=this.ensureHistoricalCampaignProfile?.(true,prevHistoricalProfile)||null;
     s.world.contacts=training?[]:this.makeConvoy(area,{areaKey:key,startDate:patrolStartDate,difficulty:options.difficulty,historicalProfile});
     s.world.harbor=null;s.world.harborInitialized=false;s.world.harborIntel=null;
-    this.ensureSoundRadarState?.();this.ensureWeatherSystem?.(true);
+    initializeStateSchema(this,true);
     if(training){
       s.world.traffic={enabled:false,generated:true,groups:[],primaryGroup:null};
       s.campaign.objectives=[{text:'Find the merchant',done:false},{text:'Sink it',done:false},{text:'Evade the escort',done:false},{text:'Finish the training',done:false}];
@@ -1217,6 +1342,14 @@ class SimEngineCore{
     this.ensureAfterActionReport?.(true);
     this.configureMission?.(options.missionType||'AUTO',options);
     this.ensureTrafficDirector?.(true);
+    if(refitState){
+      s.campaign.refitTurnaround=refitState;
+      s.campaign.recommendedPatrolType=refitState.recommendedPatrolType;
+      s.campaign.refitMessages=[...(s.campaign.refitMessages||[]),...(refitState.refitNotes||[])];
+      if(refitState.recommendedPatrolType==='RECOVERY_PATROL'){
+        this.notify?.('RECOVERY PATROL: Frame stress limits certified depth. Low-threat patrol recommended.','warn','NUTTIG');
+      }
+    }
     this.log(`=== PATROL #${nextPatrol} — ${key} ===`,'warn');
     this.log(`${area.description}`);
     for(const msg of s.campaign.refitMessages||[])this.log(msg,'warn');
@@ -1225,12 +1358,12 @@ class SimEngineCore{
 
   /* Nothing may be plotted outside the charted box — an intelligence fix or a
      contact drawn out in the blank was the clearest way of telling a player
-     to go somewhere that does not exist. */
+     to go somewhere that does not exist. */,
   clampToArea(pos){
     const A=this.areaBounds(); if(!A) return pos;
     return {xNm:clamp(pos.xNm,A.x0+1,A.x1-1),yNm:clamp(pos.yNm,A.y0+1,A.y1-1)};
   }
-
+,
   isNavigableMapPoint(pos,minDepthFeet=30){
     if(!pos||!Number.isFinite(pos.xNm)||!Number.isFinite(pos.yNm))return false;
     const A=this.areaBounds();
@@ -1238,13 +1371,13 @@ class SimEngineCore{
     const depth=Bathy.ensure(this.state.world.terrain)?Bathy.feet(pos.xNm,pos.yNm):3000;
     return depth>=minDepthFeet&&!this.checkTerrainCollision({position:pos}).collision;
   }
-
+,
   findNavigablePointNear(origin,minDepthFeet=80){
     const start=this.clampToArea(origin),rings=[0,1.5,3,5,8,12,18,26];
     for(const r of rings)for(let a=0;a<360;a+=r?30:360){const h=degToRad(a),p=this.clampToArea({xNm:start.xNm+Math.sin(h)*r,yNm:start.yNm-Math.cos(h)*r});if(this.isNavigableMapPoint(p,minDepthFeet))return p;}
     return null;
   }
-
+,
   endTrainingScenario(){
     const s=this.state;if(s.campaign?.missionStatus!=='TRAINING')return false;
     Object.assign(s.time,{timeScale:0,transitUntil:0,transitOpen:false,transitReason:null,stopReason:'training ended'});
@@ -1252,22 +1385,53 @@ class SimEngineCore{
     s.weapons.activeTorpedoes=[];s.weapons.explosions=[];s.map.plottedCourse=[];s.map.autoFollowPlot=false;
     s.tdc.targetId=null;s.tactical.selectedTrackId=null;s.campaign.missionStatus='MENU';s.campaign.trainingEnded=true;s.campaign.objectives=[];return true;
   }
+,
+  planNavigableCourse(from,to,minDepthFeet=30){
+    this._lastWaypointRouteReason=null;
+    let startPt=from,endPt=to;
+    if(!this.isNavigableMapPoint(startPt,minDepthFeet)){
+      startPt=this.findNavigablePointNear(from,minDepthFeet);
+      if(!startPt){this._lastWaypointRouteReason='endpoint-invalid';return null;}
+    }
+    if(!this.isNavigableMapPoint(endPt,minDepthFeet)){
+      endPt=this.findNavigablePointNear(to,minDepthFeet);
+      if(!endPt){this._lastWaypointRouteReason='endpoint-invalid';return null;}
+    }
+    // Direct water line check: if the straight line between from and to is
+    // completely clear navigable water, use it directly without A* grid quantization.
+    const directSteps=Math.max(2,Math.ceil(distNm(from,to)/.20));
+    let directSafe=true;
+    for(let n=0;n<=directSteps;n++){
+      const t=n/directSteps,p={xNm:lerp(from.xNm,to.xNm,t),yNm:lerp(from.yNm,to.yNm,t)};
+      if(!this.isNavigableMapPoint(p,minDepthFeet)){directSafe=false;break;}
+    }
+    if(directSafe)return [{...from},{...to}];
 
-  planNavigableCourse(from,to){
-    if(!this.isNavigableMapPoint(from)||!this.isNavigableMapPoint(to))return null;
-    const route={from:{...from},to:{...to}},path=this.ensureWaterRoute(route);
-    if(!path||path.length<2)return null;
+    const route={from:{...startPt},to:{...endPt}},path=this.resolveWaterRoute(route);
+    if(!path||path.length<2){this._lastWaypointRouteReason=route.waterRouteReason||'no-path';return null;}
+    if(distNm(from,path[0])>.05&&this.isNavigableMapPoint(from,minDepthFeet)){
+      const connectSteps=Math.max(1,Math.ceil(distNm(from,path[0])/.20));
+      let connectSafe=true;
+      for(let n=0;n<=connectSteps;n++){const t=n/connectSteps,p={xNm:lerp(from.xNm,path[0].xNm,t),yNm:lerp(from.yNm,path[0].yNm,t)};if(!this.isNavigableMapPoint(p,minDepthFeet)){connectSafe=false;break;}}
+      if(connectSafe) path.unshift({...from});
+    }
+    if(distNm(to,path.at(-1))>.05&&this.isNavigableMapPoint(to,minDepthFeet)){
+      const connectSteps=Math.max(1,Math.ceil(distNm(path.at(-1),to)/.20));
+      let connectSafe=true;
+      for(let n=0;n<=connectSteps;n++){const t=n/connectSteps,p={xNm:lerp(path.at(-1).xNm,to.xNm,t),yNm:lerp(path.at(-1).yNm,to.yNm,t)};if(!this.isNavigableMapPoint(p,minDepthFeet)){connectSafe=false;break;}}
+      if(connectSafe) path.push({...to});
+    }
     for(let i=0;i<path.length-1;i++){
       const a=path[i],b=path[i+1],steps=Math.max(1,Math.ceil(distNm(a,b)/.20));
-      for(let n=0;n<=steps;n++){const t=n/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(!this.isNavigableMapPoint(p))return null;}
+      for(let n=0;n<=steps;n++){const t=n/steps,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(!this.isNavigableMapPoint(p,minDepthFeet)){this._lastWaypointRouteReason='segment-invalid';return null;}}
     }
     return path;
   }
 
   /* Build a shipping lane through water, once per patrol area. The bathymetry
      grid is already available for depth/grounding, so use that same truth for
-     traffic. A* is paid once; ships then follow the resulting light polyline. */
-  ensureWaterRoute(route){
+     traffic. A* is paid once; ships then follow the resulting light polyline. */,
+  resolveWaterRoute(route){
     if(!route) return[];
     if(route.waterPath&&route.waterPath.length>1) return route.waterPath;
     const B=Bathy.ensure(this.state.world.terrain);
@@ -1278,17 +1442,24 @@ class SimEngineCore{
     const nearest=(p)=>{
       const ci=Math.round((p.xNm-x0)/cell),cj=Math.round((p.yNm-y0)/cell);
       if(valid(ci,cj))return[ci,cj];
-      for(let r=1;r<12;r++) for(let dj=-r;dj<=r;dj++) for(let di=-r;di<=r;di++){
+      for(let r=1;r<41;r++) for(let dj=-r;dj<=r;dj++) for(let di=-r;di<=r;di++){
         if(Math.max(Math.abs(di),Math.abs(dj))!==r)continue;
         if(valid(ci+di,cj+dj))return[ci+di,cj+dj];
       }
       return null;
     };
     const S=nearest(route.from),G=nearest(route.to);
-    if(!S||!G){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    if(!S||!G){route.waterRouteReason='endpoint-search-radius';route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    const waterLine=(a,b)=>{const L=distNm(a,b),n=Math.max(1,Math.ceil(L/Math.max(.25,cell*.20)));for(let q=0;q<=n;q++){const t=q/n,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(Bathy.feet(p.xNm,p.yNm)<30||this.checkTerrainCollision({position:p}).collision)return false;}return true;};
+    const idx=(i,j)=>j*nx+i, gi=idx(G[0],G[1]), si=idx(S[0],S[1]);
+    if(gi===si){
+      route.waterPath=waterLine(route.from,route.to)?[{...route.from},{...route.to}]:[];
+      if(!route.waterPath.length)route.waterRouteReason='no-path';
+      return route.waterPath;
+    }
     const N=nx*ny,INF=1e30,g=new Float64Array(N),parent=new Int32Array(N),closed=new Uint8Array(N);
     g.fill(INF);parent.fill(-1);
-    const idx=(i,j)=>j*nx+i, gi=idx(G[0],G[1]), si=idx(S[0],S[1]);g[si]=0;
+    g[si]=0;
     const heap=[];
     const push=(node,f)=>{heap.push([f,node]);let k=heap.length-1;while(k){const p=(k-1)>>1;if(heap[p][0]<=f)break;heap[k]=heap[p];k=p;}heap[k]=[f,node];};
     const pop=()=>{const root=heap[0],last=heap.pop();if(heap.length&&last){let k=0;while(true){let l=k*2+1,r=l+1;if(l>=heap.length)break;let c=r<heap.length&&heap[r][0]<heap[l][0]?r:l;if(heap[c][0]>=last[0])break;heap[k]=heap[c];k=c;}heap[k]=last;}return root;};
@@ -1306,25 +1477,26 @@ class SimEngineCore{
         if(ng<g[v]){g[v]=ng;parent[v]=u;push(v,ng+h(vi,vj));}
       }
     }
-    if(parent[gi]<0&&gi!==si){route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
+    if(parent[gi]<0&&gi!==si){route.waterRouteReason='no-path';route.waterPath=[{...route.from},{...route.to}];return route.waterPath;}
     const raw=[];let u=gi;raw.push(u);while(u!==si&&u>=0){u=parent[u];if(u>=0)raw.push(u);}raw.reverse();
     let pts=raw.map(k=>({xNm:x0+(k%nx)*cell,yNm:y0+((k/nx)|0)*cell}));
-    const waterLine=(a,b)=>{const L=distNm(a,b),n=Math.max(1,Math.ceil(L/Math.max(.25,cell*.20)));for(let q=0;q<=n;q++){const t=q/n,p={xNm:lerp(a.xNm,b.xNm,t),yNm:lerp(a.yNm,b.yNm,t)};if(Bathy.feet(p.xNm,p.yNm)<30||this.checkTerrainCollision({position:p}).collision)return false;}return true;};
     if(Bathy.feet(route.from.xNm,route.from.yNm)>=30&&waterLine(route.from,pts[0]))pts[0]={...route.from};
     if(Bathy.feet(route.to.xNm,route.to.yNm)>=30&&waterLine(pts[pts.length-1],route.to))pts[pts.length-1]={...route.to};
     // Line-of-sight simplification removes A* stair-steps but never replaces a
     // water bend by a chord that cuts across an island.
     const simple=[];let i=0;simple.push(pts[0]);
     while(i<pts.length-1){let j=pts.length-1;while(j>i+1&&!waterLine(pts[i],pts[j]))j--;simple.push(pts[j]);i=j;}
+    if(simple.length===1&&waterLine(simple[0],route.to))simple.push({...route.to});
+    else if(distNm(simple.at(-1),route.to)>.05&&waterLine(simple.at(-1),route.to))simple.push({...route.to});
     route.waterPath=simple;return route.waterPath;
   }
-
+,
   validateActiveWaterNetwork(minDepthFeet=30){
     const W=this.state.world,area=PATROL_AREAS[this.state.campaign.patrolArea],errors=[],B=Bathy.ensure(W.terrain),routes=[];let minimum=3000;
     const safePoint=(p,label)=>{if(!p)return;const d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;minimum=Math.min(minimum,d);if(land||d<minDepthFeet)errors.push(`${label} is ${land?'on land':`only ${d.toFixed(0)} ft deep`}`);};
     safePoint(area?.start,'start');
     for(const [i,route] of (W.convoyRoutes||[]).entries()){
-      const path=this.ensureWaterRoute(route);if(path.length<2){errors.push(`route ${i} has no water path`);continue;}let length=0;
+      const path=this.resolveWaterRoute(route);if(path.length<2){errors.push(`route ${i} has no water path`);continue;}let length=0;
       let routeSafe=true;for(let n=0;n<path.length-1&&routeSafe;n++){length+=distNm(path[n],path[n+1]);const steps=Math.max(1,Math.ceil(distNm(path[n],path[n+1])/.25));for(let q=0;q<=steps;q++){const t=q/steps,p={xNm:lerp(path[n].xNm,path[n+1].xNm,t),yNm:lerp(path[n].yNm,path[n+1].yNm,t)},d=B?Bathy.feet(p.xNm,p.yNm):3000,land=this.checkTerrainCollision({position:p}).collision;minimum=Math.min(minimum,d);if(land||d<minDepthFeet){errors.push(`route ${i} leaves navigable water`);routeSafe=false;break;}}}
       routes.push({label:route.label,vertices:path.length,lengthNm:length});
     }
@@ -1350,10 +1522,10 @@ class SimEngineCore{
     const rv=this.friendlyPortApproach?.(this.state.campaign.friendlyPort);if(rv?.pos)safePoint(rv.pos,'friendly return');
     return{ok:errors.length===0,errors,routes,terrainVertices:(W.terrain||[]).reduce((n,f)=>n+(f.points?.length||0),0),portScenes:(W.portScenes||[]).length,minDepthFeet:minimum};
   }
-
+,
   makeConvoy(area,options={}){
     const cr=area.convoyRoutes[0];
-    const path=this.ensureWaterRoute(cr);
+    const path=this.resolveWaterRoute(cr);
     let spawn=path[0]||cr.from,next=path[1]||cr.to;
     // One patrol-start pacing decision keeps the persistent convoy inside a
     // bounded intercept envelope. It is never moved again after commissioning.
@@ -1439,4 +1611,4 @@ class SimEngineCore{
     return contacts;
   }
 
-}
+};

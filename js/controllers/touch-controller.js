@@ -8,8 +8,7 @@ class TouchCtrl{
     this.touch=false; this.pane='view'; this.canvasMoved=false; this.wired=false;
     this.cache={}; this.dragging=null; this.lastSync=0;
     this.applyLayout(true);
-    window.addEventListener('resize',()=>this.applyLayout(),{passive:true});
-    window.addEventListener('orientationchange',()=>setTimeout(()=>this.applyLayout(),160),{passive:true});
+    LayoutService.subscribe(layout=>this.applyLayout(false,layout));
     if(window.visualViewport){
       window.visualViewport.addEventListener('resize',()=>this.syncViewport(),{passive:true});
       window.visualViewport.addEventListener('scroll',()=>this.syncViewport(),{passive:true});
@@ -17,29 +16,12 @@ class TouchCtrl{
     setInterval(()=>this.syncViewport(),1500);   // Android toolbars slide in and out silently
   }
 
-  /* ── layout selection ── */
-  isTouchLayout(){
-    const forced=(new URLSearchParams(location.search).get('ui'))||localStorage.getItem(PP_BUILD.storageKey('ss_ui'));
-    if(forced==='touch') return true;
-    if(forced==='desk')  return false;
-    const mm=q=>window.matchMedia?window.matchMedia(q).matches:false;
-    const coarse=mm('(pointer:coarse)')||('ontouchstart' in window)||(navigator.maxTouchPoints||0)>0;
-    const fine=mm('(pointer:fine)');
-    /* A laptop can expose touch points as well as a mouse/trackpad. Treating
-       every such hybrid as a phone was why wide browser windows sometimes got
-       the mobile shell. A fine pointer plus usable width is a desktop cockpit;
-       genuinely coarse devices keep the touch shell regardless of orientation. */
-    if(fine&&window.innerWidth>=900) return false;
-    if(coarse&&!fine) return true;
-    return window.innerWidth<1024;
-  }
-
   syncViewport(){
     const vv=window.visualViewport;
     const h=Math.round((vv&&vv.height)||window.innerHeight||0);
     if(h>200&&h!==this._vh){
       this._vh=h;
-      document.documentElement.style.setProperty('--appH',h+'px');
+      LayoutService.setViewportHeight(h);
       requestAnimationFrame(()=>{this.cv.resize(true);this.checkLayout();});
     }
   }
@@ -87,10 +69,9 @@ class TouchCtrl{
     return safe;
   }
 
-  applyLayout(first){
+  applyLayout(first,layout=LayoutService.get()){
     this.syncViewport();
-    const want=this.isTouchLayout();
-    document.documentElement.dataset.lay=want?'touch':'desk';
+    const want=layout.shell==='touch';
     if(want&&(!this.touch||first)){this.touch=true;this.enterTouch();}
     else if(!want&&(this.touch||first)){this.touch=false;this.enterDesk();}
     requestAnimationFrame(()=>{this.cv.resize(true);this.cache={};this.checkLayout();});
@@ -187,8 +168,9 @@ class TouchCtrl{
            This also keeps the bridge usable if a migrated save trips a
            simulation subsystem later in the frame. */
         const snap=this.game.getSnapshot();
-        this.cv.render(snap);
-        this.updateTouch(snap,true);
+        this.updateTouch(snap,true,LayoutService.get());
+        try{this.cv.render(snap,LayoutService.get());}
+        catch(err){const key=String(err?.message||err||'unknown render error');if(this._directRenderErrorKey!==key){this._directRenderErrorKey=key;console.error('[TouchController] immediate station render failed',err);}}
         buzz(8);
       },{passive:true});
     });
@@ -315,7 +297,7 @@ class TouchCtrl{
       D({type:'SET_ENGINE_RPM',rpm:v});const el=g('mRpm');if(el)el.value=v;buzz(10);
     },{passive:true}));
     document.querySelectorAll('#opSpeed [data-rstep]').forEach(b=>b.addEventListener('click',()=>{
-      const v=clamp(ordRpm()+ +b.dataset.rstep,0,450);this._press(b);
+      const maxRpm=this.game.getSnapshot().playerSub.propulsion?.characteristics?.normalizedMaxRpm??450,v=clamp(ordRpm()+ +b.dataset.rstep,0,maxRpm);this._press(b);
       D({type:'SET_ENGINE_RPM',rpm:v});const el=g('mRpm');if(el)el.value=v;buzz(8);
     },{passive:true}));
     btn('opCrash',()=>{D({type:'CRASH_DIVE'});this.setDepthSlider(150);buzz([20,40,20]);closePad();});
@@ -470,7 +452,7 @@ class TouchCtrl{
           const m=mid(),raw=Math.log(Math.max(.5,Math.min(2,d/lastDist)));
           // A trackpad or touchscreen reports many tiny distance changes. Apply
           // a dead zone and a bounded response so one tremor cannot jump levels.
-          if(Math.abs(raw)>.004)cv.zoomAt(Math.exp(clamp(raw,-.08,.08)*.48),m.x,m.y);
+          if(Math.abs(raw)>.004)cv.zoomAt(Math.exp(clamp(raw,-.08,.08)*.70),m.x,m.y);
         }else if(lastDist>0&&s.tactical.activeStation==='PERISCOPE'){
           // spread the fingers for high power, pinch in for the search field
           const want=d/lastDist>1.25?2.5:d/lastDist<0.8?1:null;
@@ -669,7 +651,14 @@ class TouchCtrl{
   }
 
   /* ── DOM refresh (throttled by the game loop) ── */
-  updateTouch(state,force){
+  updateTouch(state,layout,force=false){
+    let vmLayout=layout;
+    if(layout&&typeof layout==='object'&&layout.device) force=!!force;
+    else if(force&&typeof force==='object'&&force.device) { vmLayout=force; force=!!layout; }
+    else { force=!!layout; vmLayout=LayoutService.get(); }
+    return this._updateTouchLegacy(state,force,buildHudViewModel(state,vmLayout));
+  }
+  _updateTouchLegacy(state,force,viewModel){
     if(!this.touch) return;
     this.setDesktopScopeControlsHidden(true);
     const g=id=>document.getElementById(id);
@@ -677,20 +666,19 @@ class TouchCtrl{
     const set=(id,v)=>{if(C[id]===v)return;C[id]=v;const el=g(id);if(el)el.textContent=v;};
     const html=(id,v)=>{if(C['h'+id]===v)return;C['h'+id]=v;const el=g(id);if(el)el.innerHTML=v;};
     const cls=(id,c,on)=>{const el=g(id);if(el)el.classList.toggle(c,!!on);};
-    const sub=state.playerSub, p=sub.propulsion, tdc=state.tdc, W=state.weapons;
+    const sub=state.playerSub, p=sub.propulsion, tdc=state.tdc, W=state.weapons,ui=getPlayerStationPresentation(state),dui=ui.depth||{},ord=ui.orders||{},tui=ui.tubes||{};
     const warn=sub.damage.warnings||[], enemy=state.world.enemy.alertState;
     const sta=state.tactical.activeStation;
     document.documentElement.dataset.station=sta;
     /* Touch layout does not run DomView.render(), so it must synchronize the
        selected boat presentation itself. Otherwise a newly launched boat keeps
        the title and instrument skin that were present in index.html. */
-    {const ui=getPlayerStationPresentation(state),profile=getSubmarineProfile(sub.profileId),key=`${ui.id}|${sub.profileId}`;
+    {const profile=getSubmarineProfile(sub.profileId),key=`${ui.id}|${sub.profileId}`;
       if(C.presentationKey!==key){C.presentationKey=key;document.documentElement.dataset.stationTheme=ui.theme||ui.id;
         set('touchBoatTitle',profile?.displayName||'Submarine');
-        const tubes=ui.tubes||{},gauges=ui.gauges||{};
-        set('touchTubeTitle',`${tubes.roomTitle||'Tubes'} — ${tubes.flood||'flood'} / ${tubes.fire||'fire'}`);
-        const engine=g('touchEngineTitle')?.firstChild;if(engine)engine.nodeValue=(gauges.power||'Engine')+' ';
-        const depth=g('touchDepthTitle')?.firstChild;if(depth)depth.nodeValue=(gauges.depth||'Depth')+' ';
+        set('touchTubeTitle',`${tui.roomTitle||'Tubes'} — ${tui.flood||'flood'} / ${tui.fire||'fire'}`);
+        const engine=g('touchEngineTitle')?.firstChild;if(engine)engine.nodeValue=(ui.gauges?.power||'Engine')+' ';
+        const depth=g('touchDepthTitle')?.firstChild;if(depth)depth.nodeValue=(ui.gauges?.depth||'Depth')+' ';
       }
     }
 
@@ -700,16 +688,10 @@ class TouchCtrl{
     if(running)this.transitRequestPending=false;
     cls('transitBar','on',running);
     for(const id of ['mTransit30','mTransit2h','mTransit8h','mTransitOpen']){const el=g(id);if(el)el.disabled=running||!!this.transitRequestPending;}
-    if(running){
-      const done=T.elapsedSeconds-(T.transitFrom||0);
-      const left=T.transitUntil-T.elapsedSeconds;
-      set('transitTxt',isFinite(left)
-        ? `⏩ TRANSIT — start ${DayNightCycle.getTimeString(T.transitFrom||0)} · ${fmtTime(T.transitUntil-(T.transitFrom||0))} planned · ${fmtTime(done)} run · ${fmtTime(left)} left · ends ${DayNightCycle.getTimeString(T.transitUntil)}`
-        : `⏩ TRANSIT — ${fmtTime(done)} run · until something happens`);
-    }
+    if(running)set('transitTxt',viewModel.time.transitText);
 
     // top bar
-    {const env=state.world.environment||{},dl=Number(env.daylight)||0,icon=dl>.6?'☀':dl>.25?'🌅':'🌙',vis=Number(env.visibilityNm)||0;set('mClock',`${icon} ${DayNightCycle.getTimeString(state.time.elapsedSeconds)}`);set('mConditions',`${String(env.weather||'CLEAR').replace(/_/g,' ')} · ${vis>=8?'GOOD':vis>=4?'FAIR':'POOR'} VIS`);}
+    set('mClock',viewModel.time.touchClockText);set('mConditions',viewModel.time.touchConditionsText);
     set('mMode',sub.mode.replace(/_/g,' '));
     const tsel=g('tBtnTime');
     if(tsel&&tsel!==document.activeElement&&+tsel.value!==state.time.timeScale){
@@ -719,8 +701,8 @@ class TouchCtrl{
     if(hsel&&hsel!==document.activeElement&&+hsel.value!==state.time.timeScale){
       hsel.value=String(state.time.timeScale);hsel._pkLabel?.();
     }
-    const torpSel=g('mTorpSel');if(torpSel){for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
-    set('mScore',state.campaign.score.toLocaleString());
+    const torpSel=g('mTorpSel');if(torpSel){const keys=torpedoSpecKeysForState(state),oldKeys=[...(torpSel.options||[])].map(o=>o.value);if(keys.join('|')!==oldKeys.join('|'))torpSel.innerHTML=keys.map(k=>`<option value="${k}">${torpedoOptionLabel(k)}</option>`).join('');for(const o of torpSel.options||[])o.disabled=typeof isTorpedoAvailableForState==='function'?!isTorpedoAvailableForState(state,o.value):false;if(torpSel!==document.activeElement&&torpSel.value!==tdc.torpedoSpecKey)torpSel.value=tdc.torpedoSpecKey;}
+    set('mScore',viewModel.mission.scoreText);
 
     // alert strip
     html('tAlert',warn.map(w=>`<span class="${w.level}">${w.text}</span>`).join('<span style="color:#2f5f56"> ▪ </span>'));
@@ -728,50 +710,36 @@ class TouchCtrl{
     // quick status
     const qv=(id,val,c)=>{const el=g(id);if(!el)return;if(C[id]!==val){C[id]=val;el.textContent=val;}
       const k='c'+id;const cc='qs-v'+(c?' '+c:'');if(C[k]!==cc){C[k]=cc;el.className=cc;}};
-    qv('qDepth',`${sub.depthFeet.toFixed(0)}ft`,sub.depthFeet>sub.damage.crushDepthFeet*0.8?'d':sub.inShallowWater?'w':'');
+    qv('qDepth',viewModel.navigation.quick.depth,viewModel.vitals.depth.state==='critical'?'d':viewModel.vitals.depth.state==='caution'?'w':'');
     // the ordered value under the actual one: the gap between them IS the boat
-    set('qDepthOrd',Math.abs(sub.orderedDepthFeet-sub.depthFeet)<2?'':`→${sub.orderedDepthFeet.toFixed(0)}`);
+    set('qDepthOrd',viewModel.navigation.quick.orderedDepthVisible?`→${viewModel.navigation.quick.orderedDepthVisible}`:'');
     // the fathometer: the number that decides what you are allowed to do
-    {const sea=sub.seabedFeet??3000, cl=sea-sub.depthFeet;
-     qv('qKeel',sea>=3000?'deep':`${Math.max(0,cl).toFixed(0)}ft`,
-        sub.bottomed?'':cl<25?'d':cl<60?'w':'');
-     set('qBottom',sub.bottomed?'ON BOTTOM':sea>=3000?'':`${sea.toFixed(0)}ft ${(sub.bottomType||'').toLowerCase()}`);}
-    set('qSpdOrd',sub.stealth.silentRunning
-      ? `SILENT · ${p.actualRpm.toFixed(0)}rpm`
-      : (Math.abs(p.orderedRpm-p.actualRpm)<8?'':`→${p.orderedRpm.toFixed(0)}rpm`));
+    qv('qKeel',viewModel.navigation.quick.keel,viewModel.vitals.underKeel.state==='critical'?'d':viewModel.vitals.underKeel.state==='caution'?'w':'');
+    set('qBottom',viewModel.navigation.quick.bottom);
+    set('qSpdOrd',viewModel.navigation.quick.silent
+      ? `SILENT · ${viewModel.navigation.quick.actualRpm}rpm`
+      : (viewModel.navigation.quick.orderedRpm===viewModel.navigation.quick.actualRpm?'':`→${viewModel.navigation.quick.orderedRpm}`));
     if(this.pad){
-      const kn=(p.engineMode==='DIESEL'?18:8.5)*(1-Math.exp(-clamp(p.orderedRpm,0,450)/170));
-      set('opDepthVal',`${sub.orderedDepthFeet.toFixed(0)} ft`);
-      set('opSpeedVal',`${p.orderedRpm.toFixed(0)} rpm`);
+      set('opDepthVal',viewModel.navigation.operation.depthValue);
+      set('opSpeedVal',viewModel.navigation.operation.speedRpm);
       set('opNow',this.pad==='depth'
-        ? `now ${sub.depthFeet.toFixed(0)} ft · ${sub.verticalSpeedFps>0.05?'going down':sub.verticalSpeedFps<-0.05?'coming up':'steady'}`
-        : `now ${p.speedKnots.toFixed(1)} kn · ${p.engineMode.toLowerCase()}`);
-      const sea=sub.seabedFeet??3000;
-      set('opDepthNote',sub.bottomed
-        ? `Lying on the bottom in ${sea.toFixed(0)} ft of ${(sub.bottomType||'').toLowerCase()}. Order revs or a shallower depth to come off her.`
-        : sub.cannotHoldDepth
-        ? 'SHE WILL NOT ANSWER THE PLANES — blow main ballast, pumps on, get way on her.'
-        : (state.world.aaManned||state.weapons.deckGun?.manned)
-        ? `${state.weapons.deckGun?.manned?'Deck-gun':'AA'} crew topside — a dive order will clear the deck automatically and wait briefly for the hatch.`
-        : sea<3000
-        ? `Fathometer ${sea.toFixed(0)} ft, ${(sub.bottomType||'').toLowerCase()} — safe to ${Math.max(0,sea-25).toFixed(0)} ft. Crush depth ${sub.damage.crushDepthFeet.toFixed(0)} ft.`
-        : `Deep water. Periscope depth 55 ft. Crush depth ${sub.damage.crushDepthFeet.toFixed(0)} ft.`);
+        ? viewModel.navigation.operation.nowDepth
+        : viewModel.navigation.operation.nowSpeed);
+      set('opDepthNote',viewModel.navigation.operation.depthNote);
       const bb=document.getElementById('opBottom');
       if(bb) bb.textContent=sub.bottomed?'⚓ Come Off the Bottom':'⚓ Lie on the Bottom';
-      set('opSpeedNote',`about ${kn.toFixed(1)} kn ordered · ${p.engineMode==='DIESEL'?'diesels — charging fastest at low revs':'battery '+p.battery.toFixed(0)+'% — flank drains it fast'}`);
+      set('opSpeedNote',viewModel.navigation.operation.orderedSpeedNote);
     }
-    qv('qHdg',fmtDeg(sub.heading));
-    qv('qSpd',sub.stealth.silentRunning?`${p.speedKnots.toFixed(1)}kn · SILENT`:`${p.speedKnots.toFixed(1)}kn`,sub.stealth.silentRunning?'w':'');
-    {const ts=torpedoStoresStatus(state);qv('qTorp',`${ts.total}·${ts.loadShort}`,ts.total<4?'w':'');}
+    {const maxRpm=p.characteristics?.normalizedMaxRpm??450;document.querySelectorAll('#mRpm,#rpmInput').forEach(el=>el.max=String(maxRpm));for(const root of ['#paneHelm','#opSpeed']){const bs=[...document.querySelectorAll(`${root} [data-rpm]`)];if(bs.length){const flank=bs.reduce((a,b)=>(+b.dataset.rpm>+a.dataset.rpm?b:a));if(/flank/i.test(flank.textContent||''))flank.dataset.rpm=String(maxRpm);}}}
+    qv('qHdg',viewModel.navigation.quick.heading);
+    qv('qSpd',sub.stealth.silentRunning?`${viewModel.navigation.quick.speed} · SILENT`:viewModel.navigation.quick.speed,sub.stealth.silentRunning?'w':'');
+    qv('qTorp',viewModel.vitals.torpedoes.value,viewModel.vitals.torpedoes.state==='caution'?'w':'');
     const en=state.world.enemy;
     const thr=enemy==='UNAWARE'?'CLEAR':(en.contactHeld?'HELD':enemy==='ATTACKING'?'LOST':'SEARCH');
     qv('qThr',thr,en.contactHeld?'d':enemy!=='UNAWARE'?'w':'');
-    qv('qHull',`${sub.damage.hullIntegrity.toFixed(0)}%`,sub.damage.hullIntegrity<35?'d':sub.damage.hullIntegrity<70?'w':'');
-    qv('qFuel',`${sub.propulsion.fuel.toFixed(0)}%`,sub.propulsion.fuel<12?'d':sub.propulsion.fuel<25?'w':'');
-    {const b=p.battery??0,charging=p.engineMode==='DIESEL'&&(p.chargeRate||0)>.002&&b<99.5;
-      const bs=b>=99.5?'FULL':charging?'CHG':p.engineMode==='ELECTRIC'?'DRAIN':'HOLD';
-      qv('qBatt',`${b.toFixed(0)}%`,b<12?'d':b<25?'w':'');set('qBattState',bs);
-    }
+    qv('qHull',viewModel.navigation.quick.hull,viewModel.vitals.hull.state==='critical'?'d':viewModel.vitals.hull.state==='caution'?'w':'');
+    qv('qFuel',viewModel.navigation.quick.fuel,viewModel.vitals.fuel.state==='critical'?'d':viewModel.vitals.fuel.state==='caution'?'w':'');
+    qv('qBatt',viewModel.vitals.battery.value,viewModel.vitals.battery.state==='critical'?'d':viewModel.vitals.battery.state==='caution'?'w':'');set('qBattState',viewModel.navigation.quick.batteryState);
 
     // station buttons + contextual overlay
     document.querySelectorAll('#ovlStations button').forEach(b=>b.classList.toggle('active',b.dataset.sta===sta));
@@ -784,30 +752,23 @@ class TouchCtrl{
       g('bridgeControls')?.classList.toggle('on',bridge);g('soundControls')?.classList.toggle('on',sound);
     }
     const tactSafe=this.syncTacticalSafeAreas();
-    const bz=bridgeZoomAmount(state);cls('bridgeBino','on',bz>.05);
-    const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=bz>.05?`Binos ${bridgeMagnification(state).toFixed(1)}×`:'Binoculars';}
+    cls('bridgeBino','on',viewModel.display.bridgeBinoText!=='Binoculars');
+    const bb=g('bridgeBino');if(bb){const span=bb.querySelector?.('span');if(span)span.textContent=viewModel.display.bridgeBinoText;}
     cls('soundRadar','on',state.tactical.soundDisplay==='RADAR');
-    const sr=g('soundRadar');if(sr){const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?'Passive Sound':'SJ Radar';}
+    const sensorUi=getPlayerSensorPresentation(state),sr=g('soundRadar');if(sr){sr.style.display=sensorUi.surfaceSearchRadar?'':'none';const span=sr.querySelector?.('span');if(span)span.textContent=state.tactical.soundDisplay==='RADAR'?(sensorUi.passiveSound?.label||'Passive Sound'):(sensorUi.surfaceSearchRadar?.label||'Surface Radar');}const se=g('soundEcho');if(se){se.style.display=sensorUi.activeEcho?'':'none';if(!se.classList.contains('confirm')){const span=se.querySelector?.('span');if(span)span.textContent=sensorUi.activeEcho?.label||'Active Echo';}}
     cls('oSilent','on',sub.stealth.silentRunning);
     cls('oWeather','on',!!state.map.weatherOverlay);
     cls('mapWxChip','on',!!state.map.weatherOverlay);
     const wxLabel=g('mapWxLabel');
     if(wxLabel){
-      // weatherAtPosition includes local squalls rather than merely repeating the
-      // patrol's base forecast. Fall back safely for old/imported save states.
-      const wx=(typeof weatherAtPosition==='function'&&state.world?.weatherSystem)
-        ? weatherAtPosition(state,sub.position)
-        : {stage:state.world?.environment?.weather||'CLEAR',visibilityNm:state.world?.environment?.visibilityNm};
-      const stage=String(wx.stage||'CLEAR').replace(/_/g,' '),vis=Number(wx.visibilityNm);
-      wxLabel.textContent=`WX ${stage}${Number.isFinite(vis)?` · ${vis.toFixed(1)} NM`:''}`;
+      wxLabel.textContent=viewModel.display.weatherLabel;
     }
-    cls('oGunFire','ready',!!state.weapons.deckGun?.manned&&state.weapons.deckGun.ammo>0);
+    cls('oGunFire','ready',viewModel.weapons.deckGun.manned&&viewModel.weapons.deckGun.hasAmmo);
 
     // fire button + TDC chip
-    const sq=Math.round(tdc.solutionQuality*100);
-    const canFire=!!tdc.targetId&&tdc.solutionQuality>=0.25&&W.tubes.some(t=>t.status==='READY');
-    cls('btnFire','ready',canFire);
-    set('fireSol',tdc.targetId?`${sq}%`:'--');
+    const sq=viewModel.fire.solutionNumber;
+    cls('btnFire','ready',viewModel.fire.available);
+    set('fireSol',tdc.targetId?viewModel.fire.solutionText:'--');
     // the periscope draws its own solution bar, so the chip is for the other stations
     const chipOn=!!tdc.targetId&&sta==='TACTICAL',chip=g('tdcChip');
     cls('tdcChip','on',chipOn);
@@ -817,17 +778,17 @@ class TouchCtrl{
       chip.classList.toggle('micro',!!(chipOn&&tactSafe&&tactSafe.chipWidth<108));
     }
     if(chipOn){
-      const tti=tdc.timeToImpactSec?`${tdc.timeToImpactSec.toFixed(0)}s`:'--',
-            rng=tdc.rangeNm?tdc.rangeNm.toFixed(1)+'nm':'--',
-            sol=`<b style="color:${sq>70?'#6fe08f':sq>40?'#f5c65c':'#ef6a58'}">${sq}%</b>`,
+      const tti=viewModel.fire.ttiText,
+            rng=Number.isFinite(tdc.rangeNm)?viewModel.tdc.rangeText:'--',
+            sol=`<b style="color:${sq>70?'#6fe08f':sq>40?'#f5c65c':'#ef6a58'}">${viewModel.fire.solutionText}</b>`,
             micro=!!(tactSafe&&tactSafe.chipWidth<108),compact=!!(tactSafe&&tactSafe.chipWidth<175);
       html('tdcChip',micro
         ? `<b>${tdc.targetId}</b> · ${sol}<br>${rng}`
         : compact
         ? `<b>${tdc.targetId}</b> · ${sol}<br>${rng} · ${tti}`
         : `<b>${tdc.targetId}</b> · sol ${sol}<br>`+
-          `${tdc.launchBank||'FWD'} · tube <b>${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(0)+'°':'--'}</b> · <b>${tdc.launchGeometry||'--'}</b><br>`+
-          `gyro <b>${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(0)+'°':'--'}</b> · run <b>${tti}</b><br>`+
+          `${tdc.launchBank||'FWD'} · tube <b>${viewModel.fire.tubeTurnText}</b> · <b>${tdc.launchGeometry||'--'}</b><br>`+
+          `gyro <b>${viewModel.fire.gyroText}</b> · run <b>${tti}</b><br>`+
           `${rng} · ${tdc.torpedoType}`);
     }
 
@@ -839,7 +800,7 @@ class TouchCtrl{
     const stsCount=crit+unread;
     const sb=g('stsBadge');if(sb&&C.sb!==stsCount){C.sb=stsCount;sb.textContent=stsCount||'';
       sb.classList.toggle('on',stsCount>0);}
-    {const d=sub.damage,burden=(100-d.hullIntegrity)+100*(['flooding','ballastDamage','motorDamage','electricalDamage','rudderDamage','periscopeDamage','tdcDamage','gyroDamage','pumpDamage'].reduce((n,k)=>n+(Number(d[k])||0),0));if(this._touchDamageBurden!=null&&burden>this._touchDamageBurden+.35){const tab=document.querySelector?.('#tTabs [data-pane="paneStats"]');tab?.classList.remove('damage-pulse');void tab?.offsetWidth;tab?.classList.add('damage-pulse');}this._touchDamageBurden=burden;}
+    {const burden=viewModel.damage.burden;if(this._touchDamageBurden!=null&&burden>this._touchDamageBurden+.35){const tab=document.querySelector?.('#tTabs [data-pane="paneStats"]');tab?.classList.remove('damage-pulse');void tab?.offsetWidth;tab?.classList.add('damage-pulse');}this._touchDamageBurden=burden;}
 
     // sync sliders with the sim (unless the finger is on them)
     if(this.dragging!=='mHdg'){const el=g('mHdg');const v=Math.round(sub.orderedHeading);
@@ -851,117 +812,82 @@ class TouchCtrl{
       const el=g('oGunElev'),v=clamp(state.weapons.deckGun?.elevationDeg??0,0,22);
       if(el&&Math.abs(+el.value-v)>.049)el.value=v.toFixed(1);
     }
-    set('gunElevReadout',`${clamp(state.weapons.deckGun?.elevationDeg??0,0,22).toFixed(1)}°`);
-    set('hdgOrdered',fmtDeg(sub.orderedHeading));
-    set('rpmOrdered',`${p.orderedRpm.toFixed(0)} rpm`);
-    set('dptOrdered',`${sub.orderedDepthFeet.toFixed(0)} ft`);
+    set('gunElevReadout',viewModel.weapons.deckGun.elevationText);
+    set('hdgOrdered',viewModel.navigation.orders.orderedHeading);
+    set('rpmOrdered',`${viewModel.navigation.orders.orderedRpm} rpm`);
+    set('dptOrdered',viewModel.navigation.orders.orderedDepth);
     const auto=state.map.autoFollowPlot&&state.map.plottedCourse.length>0;
     cls('mAutoPilot','on',auto);
-    const wp=state.map.plottedCourse[0];
-    set('navNote',wp
-      ? `${state.map.plottedCourse.length} waypoint(s) · WP1 ${distNm(sub.position,wp).toFixed(1)}nm on ${fmtDeg(bearingBetween(sub.position,wp))} · ${auto?'autopilot steering':'autopilot off — manual helm'}`
-      : 'No waypoints. Tap open water on the map to plot one, tap a waypoint to delete it.');
+    set('navNote',viewModel.navigation.autopilotText);
     cls('mSilent','on',sub.stealth.silentRunning);
     cls('mPumps','on',sub.damage.pumpActive);
     const rp=sub.damage.repairPriority||'FLOODING';
     cls('mDcFlood','on',rp==='FLOODING');cls('mDcProp','on',rp==='PROPULSION');
     cls('mDcSteer','on',rp==='STEERING');cls('mDcOptics','on',rp==='OPTICS_FIRE_CONTROL');
     {const G=state.weapons.deckGun, aa=state.world.aaManned, dc=sub.damage.damageControlActive;
-      set('mAutoCrewStatus',`AUTO CREW · SD RADAR ${sub.depthFeet<12?'ON':'STANDBY'} · AA ${aa?'MANNED':'STANDBY'} · DECK GUN ${G?.manned?'MANNED':'SECURED'} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
-      const cap=Math.round(clamp(1-(sub.damage.pumpDamage||0)*.78,.16,1)*100);
-      set('mDcStatus',`PRIORITY ${repairPriorityLabel(rp)} · ${dc?'parties working':'standby'} · pumps ${sub.damage.pumpTripped?'TRIPPED':sub.damage.pumpActive?`ON ${cap}%`:`ready ${cap}%`}${sub.damage.driveBankOffline?' · DRIVE BANK OFFLINE':''}`);}
-    set('rpmNote',`${p.engineMode} · ${p.speedKnots.toFixed(1)} kn · noise ${(sub.stealth.acousticSignature*100).toFixed(0)}%`);
+      const airCrew=sensorUi.airWarningRadar?` · ${sensorUi.airWarningRadar.label.toUpperCase()} ${sub.depthFeet<12?'ON':'STANDBY'}`:'';
+      set('mAutoCrewStatus',`AUTO CREW${airCrew} · AA ${viewModel.weapons.aa.manned?'MANNED':'STANDBY'} · DECK GUN ${viewModel.weapons.deckGun.statusText} · DAMAGE CONTROL ${dc?'WORKING':'STANDBY'}`);
+      set('mDcStatus',viewModel.damage.dcNote);}
+    set('rpmNote',`${viewModel.navigation.orders.engine} · ${viewModel.navigation.quick.speed} · noise ${viewModel.systems.noisePercentText}`);
 
     // ── panes (only refresh the visible one) ──
     if(this.pane==='paneAttack'||force){
-      const spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||{};
-      const dudPct=Math.round(100*(typeof historicalTorpedoDudChance==='function'?historicalTorpedoDudChance(state,tdc.torpedoSpecKey,tdc.dudMode):(spec.dudChanceBase||0.25)*(DUD_MODES[tdc.dudMode]??1)));
       const dudSel=g('mDudSel');if(dudSel&&dudSel!==document.activeElement&&dudSel.value!==tdc.dudMode)dudSel.value=tdc.dudMode;
       set('mTdcTgt',tdc.targetId||'no target');
       const note=g('mTdcNote');
       if(note){
-        const ri=torpedoRangeInfo(state,tdc.targetId);
         const txt=tdc.targetId
-          ?`${tdc.status} · solution ${sq}% · ${tdc.launchBank||'FWD'} tubes · ${tdc.launchGeometry||'--'} · tube turn ${Number.isFinite(tdc.tubeTurnDeg)?tdc.tubeTurnDeg.toFixed(1)+'°':'--'} · ${ri?`${ri.label} · range ${ri.rangeNm.toFixed(1)} nm · intercept ${ri.runNm.toFixed(1)}/${ri.maxNm.toFixed(1)} nm · `:''}gyro ${tdc.gyroAngle!==null?tdc.gyroAngle.toFixed(1)+'°':'--'} · AoB ${tdc.angleOnBow!==null?tdc.angleOnBow.toFixed(0)+'°':'--'} · TtI ${tdc.timeToImpactSec?tdc.timeToImpactSec.toFixed(0)+'s':'--'} · dud risk ${dudPct}%`
+          ?`${tdc.status} · solution ${viewModel.fire.solutionText} · ${tdc.launchBank||'FWD'} tubes · ${tdc.launchGeometry||'--'} · tube turn ${viewModel.fire.tubeTurnText} · ${viewModel.fire.rangeText}gyro ${viewModel.fire.gyroText} · AoB ${viewModel.fire.aobText} · TtI ${viewModel.fire.ttiText} · dud risk ${viewModel.fire.dudText}`
           :'No target. Lock a contact from the scope or the map, or enter a manual solution below.';
-        if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=ri?(ri.band==='IN'?'var(--ok)':ri.band==='BORDERLINE'?'var(--alert)':'var(--danger)'):(sq>70?'var(--ok)':sq>40?'var(--alert)':'var(--danger)');}
+        if(C.tdcnote!==txt){C.tdcnote=txt;note.textContent=txt;note.style.color=viewModel.fire.rangeBand?(viewModel.fire.rangeBand==='IN'?'var(--ok)':viewModel.fire.rangeBand==='BORDERLINE'?'var(--alert)':'var(--danger)'):(viewModel.fire.solutionNumber>70?'var(--ok)':viewModel.fire.solutionNumber>40?'var(--alert)':'var(--danger)');}
       }
-      {const ts=torpedoStoresStatus(state);set('mTorpStores',`${ts.total} aboard · ${ts.loaded} loaded (${ts.loadedText}) · ${ts.reserve} reserve · reload ${ts.loadShort} · ${ts.ready} READY`);}
-      html('mTubes',W.tubes.map(t=>{
-        const st=t.status==='READY'?'ready':t.status==='EMPTY'?'empty':'flooded';
-        const sub2=t.status==='READY'?'FIRE':t.status==='EMPTY'?`${Math.round(t.reloadProgress*100)}%`:'FLOOD';
-        const typ=t.status==='EMPTY'?'—':torpedoShortName(t.specKey||tdc.torpedoSpecKey);
-        return `<div class="tube ${st}" data-tube="${t.id}"><b>T${t.id}</b><span>${t.pos} · ${typ}</span><span>${sub2}</span></div>`;
-      }).join(''));
+      {set('mTorpStores',viewModel.weapons.storesText);set('mFloodFwd',`${tui.flood||'Flood'} ${tui.forward||'Fwd'} ${viewModel.weapons.fwdIds}`);set('mFloodAft',`${tui.flood||'Flood'} ${tui.aft||'Aft'} ${viewModel.weapons.aftIds}`);}
+      html('mTubes',viewModel.weapons.tubes.map(t=>{const st=t.status==='READY'?'ready':t.status==='EMPTY'?'empty':'flooded';const label=t.status==='READY'?(tui.fire||'FIRE'):t.status==='EMPTY'?t.reloadText:(tui.flood||'FLOOD');return `<div class="tube ${st}" data-tube="${t.id}"><b>${tui.prefix||'T'}${t.id}</b><span>${t.position} · ${t.type}</span><span>${label}</span></div>`;}).join(''));
     }
 
     if(this.pane==='paneStats'){const R2=state.world.radio;if(R2)R2.unread=0;}
     if(this.pane==='paneStats'||force){
-      const ch=(a,b)=>Math.abs(a-b)>0.5;
+      const ch=(a,b)=>String(a)!==String(b);
       const row=(l,c,o,f)=>`<span class="lbl">${l}</span><span class="val ${ch(c,o)?'changed':''}">${f(c)} → ${f(o)}</span>`;
       html('mOrdersGrid',
-        row('Heading',sub.heading,sub.orderedHeading,fmtDeg)+
-        row('Depth',sub.depthFeet,sub.orderedDepthFeet,v=>`${v.toFixed(0)}ft`)+
-        row('RPM',p.actualRpm,p.orderedRpm,v=>v.toFixed(0))+
-        `<span class="lbl">Speed</span><span class="val">${p.speedKnots.toFixed(1)} kn</span>`+
-        `<span class="lbl">Engine</span><span class="val">${p.engineMode}</span>`+
-        `<span class="lbl">Ballast</span><span class="val">${sub.ballastState}</span>`+
-        `<span class="lbl">Silent</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
+        row(ord.heading||'Heading',viewModel.navigation.orders.heading,viewModel.navigation.orders.orderedHeading,v=>v)+
+        row(ord.depth||'Depth',viewModel.navigation.orders.depth,viewModel.navigation.orders.orderedDepth,v=>v)+
+        row(ord.power||'RPM',viewModel.navigation.orders.actualRpm,viewModel.navigation.orders.orderedRpm,v=>v)+
+        `<span class="lbl">${ord.speed||'Speed'}</span><span class="val">${viewModel.vitals.speed.value}</span>`+
+        `<span class="lbl">${ord.engine||'Engine'}</span><span class="val">${p.engineMode}</span>`+
+        `<span class="lbl">${ord.ballast||'Ballast'}</span><span class="val">${sub.ballastState}</span>`+
+        `<span class="lbl">${ord.silent||'Silent'}</span><span class="val ${sub.stealth.silentRunning?'changed':''}">${sub.stealth.silentRunning?'ON':'OFF'}</span>`+
         `<span class="lbl">TDC</span><span class="val">${tdc.status}</span>`+
         `<span class="lbl">Solution</span><span class="val">${sq}%</span>`+
-        `<span class="lbl">Torps</span><span class="val">${(()=>{const ts=torpedoStoresStatus(state);return `${ts.total} aboard · ${ts.reserve} reserve · ${ts.loadShort}`;})()}</span>`+
+        `<span class="lbl">Torps</span><span class="val">${viewModel.vitals.torpedoes.value}</span>`+
         `<span class="lbl">Hits / duds</span><span class="val">${W.hits.length} / ${(W.duds||[]).length}</span>`);
-      const c2=state.campaign;
-      const opt2=(c2.optionalObjectives||[]).map(o=>{
-        const result=o.result&&o.result!=='not_attempted'?` · ${o.result.toUpperCase()}`:'';
-        return `<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${result}</span>`;
-      }).join('<br>');
-      const missionProgress=typeof missionProgressText==='function'?missionProgressText(state):'';
-      html('mMission',`<strong style="color:var(--alert)">${c2.primaryMission?.title||c2.missionName||'Assigned patrol'}</strong> · ${c2.missionStatus}<br>${missionProgress?`<span style="color:var(--alert);font-size:10px;">${missionProgress}</span><br>`:''}`+
-        c2.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
-        (opt2?`<br>${opt2}`:'')+
-        `<br><span style="color:var(--dim);font-size:10px;">Tonnage ${c2.tonnageSunk.toLocaleString()}t · patrol #${c2.patrolNumber} · career ${c2.totalScore}</span>`);
-      const d=sub.damage;
-      const bar=(l,v)=>{const col=v>0.65?'#ef6a58':v>0.3?'#f5c65c':'#6fe08f';
-        return `<div class="dmg-row"><span class="dmg-lbl">${l}</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${(v*100).toFixed(0)}%;background:${col}"></div></div><span class="dmg-val">${(v*100).toFixed(0)}%</span></div>`;};
-      const hc=d.hullIntegrity<30?'#ef6a58':d.hullIntegrity<60?'#f5c65c':'#6fe08f';
-      html('mDamage',
-        `<div class="note" style="margin:0 0 7px;">Hull shows integrity remaining; subsystem rows show damage accumulated.</div>`+
-        `<div class="dmg-row"><span class="dmg-lbl">Hull</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.hullIntegrity.toFixed(0)}%;background:${hc}"></div></div><span class="dmg-val">${d.hullIntegrity.toFixed(0)}%</span></div>`+
-        bar('Flooding',d.flooding)+bar('Ballast',d.ballastDamage)+bar('Motor',d.motorDamage)+
-        bar('Electrical',d.electricalDamage||0)+bar('Rudder',d.rudderDamage)+bar('Periscope',d.periscopeDamage)+
-        bar('TDC',d.tdcDamage||0)+bar('Gyro',d.gyroDamage||0)+bar('Pumps',d.pumpDamage||0)+
-        `<div class="note" style="margin:5px 0 8px;">DC priority: ${repairPriorityLabel(d.repairPriority)}${d.driveBankOffline?' · DRIVE BANK OFFLINE':''}${d.pumpTripped?' · PUMP TRIPPED':''}</div>`+
-        `<div class="dmg-row"><span class="dmg-lbl">Air quality</span><div class="dmg-bar-wrap"><div class="dmg-bar-fill" style="width:${d.oxygen.toFixed(0)}%;background:${d.oxygen<25?'#ef6a58':d.oxygen<50?'#f5c65c':'#6fe08f'}"></div></div><span class="dmg-val">${d.oxygen.toFixed(0)}%</span></div>`);
-      html('mGauges',
-        `<span>Contacts</span><strong>${Object.keys(state.world.contactTracks).length}</strong>`+
-        `<span>Visibility</span><strong>${state.world.environment.visibilityNm.toFixed(1)} nm</strong>`+
-        `<span>Weather</span><strong>${state.world.environment.weather||'CLEAR'}</strong>`+
-        `<span>Sea state</span><strong>${state.world.environment.seaState.toFixed(2)}</strong>`+
-        `<span>Enemy alert</span><strong>${enemy}</strong>`+
-        `<span>Depth charges</span><strong>${state.world.depthCharges.length}</strong>`+
-        `<span>Noise</span><strong>${sub.stealth.acousticSignature.toFixed(2)}</strong>`+
-        `<span>Shallow</span><strong style="color:${sub.inShallowWater?'var(--alert)':'var(--muted)'}">${sub.inShallowWater?'YES':'NO'}</strong>`);
+      const m=viewModel.mission;
+      html('mMission',`<strong style="color:var(--alert)">${m.title}</strong> · ${m.status}<br>${m.progressText?`<span style="color:var(--alert);font-size:10px;">${m.progressText}</span><br>`:''}`+
+        m.objectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--muted)'}">${o.done?'✓':'○'} ${o.text}</span>`).join('<br>')+
+        (m.optionalObjectives.length?`<br>${m.optionalObjectives.map(o=>`<span style="color:${o.done?'var(--ok)':'var(--alert)'}">${o.done?'✓':'◇'} OPTIONAL — ${o.text}${o.result?` · ${o.result}`:''}</span>`).join('<br>')}`:'')+
+        `<br><span style="color:var(--dim);font-size:10px;">Tonnage ${m.tonnageText}t · patrol #${m.patrolNumber} · career ${m.scoreText}</span>`);
+      html('mDamage',viewModel.damage.touchHtml);
+      html('mGauges',viewModel.systems.touchHtml);
       const sbw=(id,v)=>{const el=g(id);if(el&&C[id+'w']!==v){C[id+'w']=v;el.style.width=v+'%';}};
-      sbw('mBattery',Math.round(p.battery));sbw('mFuel',Math.round(p.fuel));sbw('mHull',Math.round(sub.damage.hullIntegrity));
+      sbw('mBattery',viewModel.vitals.battery.raw);sbw('mFuel',viewModel.vitals.fuel.raw);sbw('mHull',viewModel.vitals.hull.raw);
       const R=state.world.radio||{inbox:[],pending:null,copying:0};
-      set('radioState',R.pending?(sub.depthFeet<42?`copying ${Math.round(R.copying/40*100)}%`:'traffic waiting — come to antenna depth')
-                                :`${R.inbox.length} signal(s) on file`);
-      /* the intel board: nearest first, with a steer and an age on each */
+      set('radioState',viewModel.radio.stateText);
+      const pm=state.campaign?.primaryMission,reportBtn=g('radioReportButton'),silenceBtn=g('radioSilenceButton'),partialBtn=g('radioPartialButton');
+      if(reportBtn){reportBtn.disabled=!(pm?.type==='SHADOW_REPORT'&&pm.reportReady&&!pm.reportedAt);reportBtn.classList.toggle('active',!!pm?.reportTransmitAuthorized);}
+      if(silenceBtn)silenceBtn.classList.toggle('active',!!R.txSilence);
+      if(partialBtn)partialBtn.disabled=!(R.pending&&R.copying>=viewModel.radio.copyRequired*.45);
       const now2=state.time.elapsedSeconds;
-      const eng=this.game.engine||this.game;
-      const intel=(eng.intelSummary?eng.intelSummary():[]).slice(0,6);
-      const agef=a=>a<60?`${Math.round(a)}s`:a<3600?`${Math.round(a/60)}m`:`${(a/3600).toFixed(1)}h`;
+      html('mIntel',viewModel.systems.intelHtml);
+      /* the radio list is already formatted by the viewmodel */
+      html('mRadio',viewModel.radio.inboxHtml);
+      /* legacy intel renderer removed; viewmodel supplies the complete block
       html('mIntel',intel.length?intel.map(o=>{
         const cls2=o.kind==='ULTRA'?'ultra':o.kind==='ESCORT'?'escort':'contact';
         const ageCls=o.ageSec<120?'fresh':o.ageSec<1800?'stale':'cold';
         const trust=o.kind==='ULTRA'
           ? `estimate ±${o.uncNm.toFixed(1)} nm · ${o.trend|| (o.closing?'CLOSING':'OPENING')} ${Math.abs(o.rangeRateKn||0).toFixed(1)} kn · CPA ${Number.isFinite(o.cpaNm)?o.cpaNm.toFixed(1):'--'} nm`
           : `${o.source==='VISUAL'?'sighted':'sonar'} · ${Math.round((o.confidence||0)*100)}% sure`;
-        /* Steering at the bearing is a stern chase you never win. This line
-           is the collision course and the time it takes — and when there is
-           no solution at the speed she is making, it says so and tells her
-           what it would take on the surface. */
+        // Legacy renderer note retained inside the disabled block.
         let icpt;
         if(o.icptNow) icpt=`<b class="ic-go">INTERCEPT ${fmtDeg(o.icptNow.courseDeg)}</b> · ${agef(o.icptNow.timeSec)} at this speed`;
         else if(o.icptFlank) icpt=`<b class="ic-warn">SURFACE AND RUN</b> · ${fmtDeg(o.icptFlank.courseDeg)}, ${agef(o.icptFlank.timeSec)} at flank`;
@@ -976,14 +902,14 @@ class TouchCtrl{
         :'<div class="intel-empty">Nothing held. Listen on the hydrophones, sweep with the scope, and come shallow for the broadcast.</div>');
 
       html('mRadio',R.inbox.length?R.inbox.map((m,i)=>
-        `<div class="log-entry"><b style="color:${m.type==='ULTRA'?'var(--ok)':(m.type==='WARNING'||m.type==='SPECIAL INTELLIGENCE')?'var(--alert)':'var(--ink)'}">`+
+        `<div class="log-entry"><b style="color:${m.intel?'var(--ok)':(m.type==='WARNING'||m.type==='SPECIAL INTELLIGENCE')?'var(--alert)':'var(--ink)'}">`+
         `${m.type} · ${m.subject}</b>${i===0?'<span class="sig-new">LATEST</span>':''}`+
         `<span class="sig-age">${agef(now2-(m.time||now2))} ago</span><br>${m.text}</div>`).join('')
-        :'<span style="color:var(--dim)">No traffic copied yet. Come shallower than 42 ft when the broadcast is up.</span>');
-      const caplog=(state.campaign.importantEvents||[]).slice().reverse();
-      html('mCaptainLog',caplog.length?caplog.map(e=>`<div class="log-entry"><b>${e.date||('T+'+fmtTime(e.t))}</b> · ${e.text}</div>`).join('')
+        :'<span style="color:var(--dim)">No traffic copied yet. Come shallower than 42 ft when the broadcast is up.</span>'); */
+      const caplog=viewModel.log.captain;
+      html('mCaptainLog',caplog.length?caplog.map(e=>`<div class="log-entry"><b>${e.date}</b> · ${e.text}</div>`).join('')
         :'<span style="color:var(--dim)">No major events entered yet.</span>');
-      html('mLog',state.log.slice(0,30).map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">T+${fmtTime(e.t)} ${e.message}</div>`).join(''));
+      html('mLog',viewModel.log.patrol.map(e=>`<div class="log-entry ${e.level==='warn'?'warn':e.level==='bad'?'bad':''}">${e.time} ${e.text}</div>`).join(''));
     }
   }
 }

@@ -1,32 +1,42 @@
-class SimEngineASW extends SimEngineASWBrain {
+const ASWSystem={
   updateEscortBeh(esc,e,sub,W,idx,total,dt){
-    this.ensureASWState();
+    this.sys.aswBrain.ensureASWState();
     const role=esc.aswRole||'SCREEN',tactics=aswTactics(this.state),training=aswTraining(esc,this.state),attackPace=clamp(tactics.attackSpeedFactor*(.82+training*.18),.75,1.18);
     const noFullPattern=(esc.dcRemaining!==undefined&&esc.dcRemaining<SONAR.patternSize);
     if(noFullPattern&&e.alertState!=='UNAWARE'&&role!=='DAMAGED_GUARD'&&role!=='CONVOY_GUARD'){
       esc.aswExpended=true;esc.aswRole='CONVOY_GUARD';
-      const tgt=this.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.convoyFrame()?.speedKn||9)+2.5,8,17);}return;
+      const tgt=this.sys.aswBrain.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.sys.aswBrain.convoyFrame()?.speedKn||9)+2.5,8,17);}return;
     }
     if(role==='DAMAGED_GUARD'){
       const casualty=W.contacts.find(c=>c.id===esc.guardShipId&&!c.sunk);
       if(casualty){
-        const tgt=this.damagedGuardTarget(esc,casualty),err=tgt?distNm(esc.position,tgt):0;
+        const tgt=this.sys.aswBrain.damagedGuardTarget(esc,casualty),err=tgt?distNm(esc.position,tgt):0;
         if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
         esc.desiredSpeed=clamp((casualty.speedKnots||0)+1.5+err*.7,4,13);
         return;
       }
-      this.assignASWRoles(null,true);
+      this.sys.aswBrain.assignASWRoles(null,true);
     }
     const informedIds=Array.isArray(e.alertedEscortIds)?e.alertedEscortIds:[];
     const locallyInformed=!informedIds.length||informedIds.includes(esc.id);
+    const now=this.state.time.elapsedSeconds||0;
+    if(esc.remoteAlarmPosition&&now<(esc.remoteAlarmUntil||0)&&!informedIds.includes(esc.id)){
+      // This escort is reacting to another U-boat's attack position.  It must
+      // not consume the shared player datum or silently become informed about
+      // ownship merely because both attacks happen in the same convoy battle.
+      const p=(now+(esc.remoteAlarmPhase||0)*37)/52,r=.22+.12*Math.min(3,Math.max(0,(esc.remoteAlarmPhase||0))),aim={xNm:esc.remoteAlarmPosition.xNm+Math.sin(p)*r,yNm:esc.remoteAlarmPosition.yNm+Math.cos(p)*r};
+      esc.desiredHeading=bearingBetween(esc.position,aim);esc.desiredSpeed=13;esc.aswRole='REMOTE_PROSECUTION';return;
+    }else if(esc.remoteAlarmPosition&&now>=(esc.remoteAlarmUntil||0)){
+      delete esc.remoteAlarmPosition;delete esc.remoteAlarmUntil;delete esc.remoteAlarmPhase;if(esc.aswRole==='REMOTE_PROSECUTION')esc.aswRole='SCREEN';
+    }
     if(e.alertState==='UNAWARE'||!locallyInformed){
       // Enemy knowledge is local. An escort that has not observed the attack
       // and has not received a convoy signal/radio report keeps screening; it
       // must not inherit the shared ASW datum merely because another escort did.
-      const tgt=this.screenTarget(esc);
+      const tgt=this.sys.aswBrain.screenTarget(esc);
       if(tgt){
         const err=distNm(esc.position,tgt);esc.desiredHeading=bearingBetween(esc.position,tgt);
-        const frame=this.convoyFrame();esc.desiredSpeed=clamp((frame?.speedKn||9)+2.2+err*.55,7,17);
+        const frame=this.sys.aswBrain.convoyFrame();esc.desiredSpeed=clamp((frame?.speedKn||9)+2.2+err*.55,7,17);
       }
       return;
     }
@@ -35,15 +45,15 @@ class SimEngineASW extends SimEngineASWBrain {
     // else works from the common ASW datum/solution; no course order below uses
     // ownship's true coordinates.
     if(role==='CONVOY_GUARD'){
-      const tgt=this.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.convoyFrame()?.speedKn||9)+2,7,16);}return;
+      const tgt=this.sys.aswBrain.screenTarget(esc);if(tgt){esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=clamp((this.sys.aswBrain.convoyFrame()?.speedKn||9)+2,7,16);}return;
     }
 
     if(e.alertState==='SEARCHING'){
-      const A=this.ensureASWState(),now=this.state.time.elapsedSeconds,cueAge=now-(A.datumAt||-999);
+      const A=this.sys.aswBrain.ensureASWState(),now=this.state.time.elapsedSeconds,cueAge=now-(A.datumAt||-999);
       const hotCue=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN'].includes(A.lastCue);
       const canSpeculate=role==='PROSECUTOR'&&hotCue&&cueAge<420&&(esc.dcRemaining===undefined||esc.dcRemaining>=SONAR.patternSize)
         &&esc.speculativeCueGeneration!==A.cueGeneration;
-      const tgt=(canSpeculate?this.aswDatum(18):null)||this.searchTarget(esc)||this.screenTarget(esc);
+      const tgt=(canSpeculate?this.sys.aswBrain.aswDatum(18):null)||this.sys.aswBrain.searchTarget(esc)||this.sys.aswBrain.screenTarget(esc);
       if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
       esc.desiredSpeed=(role==='PROSECUTOR'?(canSpeculate?17:11):role==='CONTAINMENT'?13:12)*attackPace;
       if(canSpeculate&&tgt){
@@ -66,7 +76,7 @@ class SimEngineASW extends SimEngineASWBrain {
     // containment and sweep ships keep their assigned geometry and can take
     // over if they obtain the next firm echo.
     if(role!=='PROSECUTOR'){
-      const tgt=this.searchTarget(esc)||this.aswDatum(35)||this.screenTarget(esc);
+      const tgt=this.sys.aswBrain.searchTarget(esc)||this.sys.aswBrain.aswDatum(35)||this.sys.aswBrain.screenTarget(esc);
       if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);
       esc.desiredSpeed=(role==='CONTAINMENT'?16:13)*attackPace;
       this.surfaceAction(esc,e,sub,W,dt);
@@ -74,21 +84,21 @@ class SimEngineASW extends SimEngineASWBrain {
     }
 
     if(esc.dcRemaining!==undefined&&esc.dcRemaining<SONAR.patternSize){
-      this.assignASWRoles(null,true);
-      const tgt=this.screenTarget(esc)||this.aswDatum();if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;
+      this.sys.aswBrain.assignASWRoles(null,true);
+      const tgt=this.sys.aswBrain.screenTarget(esc)||this.sys.aswBrain.aswDatum();if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;
     }
 
-    const sol=e.solution&&!e.solution.decoy?e.solution:null,raw=this.aswDatum();
-    if(!raw){const tgt=this.searchTarget(esc)||this.screenTarget(esc);if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;}
+    const sol=e.solution&&!e.solution.decoy?e.solution:null,raw=this.sys.aswBrain.aswDatum();
+    if(!raw){const tgt=this.sys.aswBrain.searchTarget(esc)||this.sys.aswBrain.screenTarget(esc);if(tgt)esc.desiredHeading=bearingBetween(esc.position,tgt);esc.desiredSpeed=12;return;}
 
     // A visual solution can lead a surfaced run, but even then the helm follows
     // the plotted solution rather than a hidden direct reference to ownship.
     if(e.visualOnSub&&(sol?.depthFt??999)<30){
-      const aim=this.aswDatum(18)||raw;esc.desiredHeading=bearingBetween(esc.position,aim);esc.desiredSpeed=24*attackPace;esc.lastAimRange=undefined;
+      const aim=this.sys.aswBrain.aswDatum(18)||raw;esc.desiredHeading=bearingBetween(esc.position,aim);esc.desiredSpeed=24*attackPace;esc.lastAimRange=undefined;
       this.surfaceAction(esc,e,sub,W,dt);return;
     }
 
-    const lr=degToRad(sol?.courseDeg??this.ensureASWState().estimatedCourseDeg??0),spd=sol?.speedKn??this.ensureASWState().estimatedSpeedKn??0;
+    const lr=degToRad(sol?.courseDeg??this.sys.aswBrain.ensureASWState().estimatedCourseDeg??0),spd=sol?.speedKn??this.sys.aswBrain.ensureASWState().estimatedSpeedKn??0;
     const sinkT=clamp((sol?.depthFt??130)/SONAR.sinkFps,4,55);let drop={...raw};
     for(let it=0;it<2;it++){
       const toGo=Math.min(300,distNm(esc.position,drop)/Math.max(esc.speedKnots,8)*3600),lead=spd*((toGo+sinkT)/3600);
@@ -103,7 +113,7 @@ class SimEngineASW extends SimEngineASWBrain {
     const passingOver=rngToAim>prevR-1e-7&&rngToAim<.20,recent=W.depthCharges.some(dc=>dc.ownerId===esc.id&&dc.ageSec<12);
     if((rngToAim<.05||passingOver)&&!recent&&e.alertState==='ATTACKING')this.dropDC(esc,sub,{xNm:esc.position.xNm,yNm:esc.position.yNm});
     this.surfaceAction(esc,e,sub,W,dt);
-  }
+  },
 
   /* Gunfire is allowed only from an actual visual hold. The fire-control range
      comes from the noisy enemy solution; true range is used only by the hidden
@@ -117,26 +127,29 @@ class SimEngineASW extends SimEngineASWBrain {
       if(estRng<gunRange&&esc.gunTimer>8){
         esc.gunTimer=0;
         const pHit=clamp(1-trueRng/gunRange,0,1)**1.6*(day>.3?.62:lit?.5:.34)*(1-clamp(env.seaState,0,1)*.3);
-        const hit=Math.random()<pHit;this.noteSurfaceGunfire?.(esc,sub,hit);
+        const hit=Math.random()<pHit;this.sys.battleAtmosphere.noteSurfaceGunfire(esc,sub,hit);
         if(hit){
-          const dmg=4+Math.random()*11;this.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
-          this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');audio.playShellImpact?.(bearingBetween(sub.position,esc.position),sub.heading,.9);
-        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);audio.playShellSplash?.(clamp(trueRng/gunRange,0,1));}
+          const dmg=4+Math.random()*11;this.sys.damage.applyShock(dmg);this.state.weapons.explosions.push({position:{...sub.position},ageSec:0,maxAgeSec:5,label:'SHELL HIT'});
+          this.log(`${esc.name} has the range — shell hit, ${dmg.toFixed(0)}% damage. TAKE HER DOWN!`,'bad');PresentationBridge.audio(this.state).playShellImpact?.(bearingBetween(sub.position,esc.position),sub.heading,.9);
+        }else{this.log(`${esc.name} is firing — splashes ${estRng>gunRange*.6?'short':'close aboard'}.`);PresentationBridge.audio(this.state).playShellSplash?.(clamp(trueRng/gunRange,0,1),bearingBetween(sub.position,esc.position),sub.heading);}
       }
     }else esc.gunTimer=0;
-  }
+  },
 
   /* A depth-charge setting is made from the enemy solution. Actual ownship
      depth is consulted only later by updateDCs(), when the physical explosion
      is resolved. */
   dropDC(esc,sub,aim,opts={}){
-    const W=this.state.world,e=W.enemy,env=W.environment,sol=e.solution&&!e.solution.decoy?e.solution:null;
-    const speculative=!!opts.speculative;
-    const estDepth=clamp(sol?.depthFt??(70+(env.layerDepthFt||190)*.34),15,420);if(estDepth<25)return;
-    const layer=env.layerDepthFt||200,belowLayer=estDepth>layer+15,base=(20+estDepth*.10+(belowLayer?58:0))*(speculative?1.45:1);
+    const e=this.state.world.enemy,W=this.state.world,env=this.state.world.environment,sol=e.solution&&!e.solution.decoy?e.solution:null;
+    const speculative=!!opts.speculative||!e.contactHeld;
+    const estDepth=clamp(sol?.depthFt??(70+(env?.layerDepthFt||190)*.34),15,420);if(estDepth<25)return;
+    const layer=env?.layerDepthFt||200,belowLayer=estDepth>layer+15,base=(20+estDepth*.10+(belowLayer?58:0))*(speculative?1.45:1);
     let skill=clamp(1-(esc.attacksMade||0)*.11,.45,1);if(e.contactHeld)skill*=.55;
     const hist=this.state.campaign?.historicalProfile||null,tactics=aswTactics(this.state),training=aswTraining(esc,this.state);
-    const err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1)*tactics.depthErrorFactor/training;let guess=clamp(estDepth+err*(Math.random()<.5?-1:1),45,400);
+    const trueBelowLayer=sub.depthFeet>layer+15;
+    const refractBias=trueBelowLayer?-clamp((sub.depthFeet-layer)*0.40*(1.25-training*0.3),20,70):0;
+    const err=base*skill*(.35+Math.random()*1.15)*(hist?.depthChargeErrorFactor||1)*tactics.depthErrorFactor/training;
+    let guess=clamp(estDepth+refractBias+err*(Math.random()<.5?-1:1),45,400);
     esc.attacksMade=(esc.attacksMade||0)+1;esc.dcRemaining=Math.max(0,(esc.dcRemaining===undefined?28:esc.dcRemaining)-SONAR.patternSize);
     const hdg=degToRad(esc.heading),patternId=`DCP-${W.nextDcPatternId=(W.nextDcPatternId||0)+1}`;
     for(let i=0;i<SONAR.patternSize;i++){
@@ -154,10 +167,11 @@ class SimEngineASW extends SimEngineASWBrain {
     // setting internal; SOUND can infer only broad shallow/deep intent from the
     // later splash-to-burst interval.
     this.log(speculative?`DEPTH CHARGES — ${esc.name} is trying the last datum with a ${SONAR.patternSize}-charge pattern.`:`DEPTH CHARGES — ${esc.name} is beginning a ${SONAR.patternSize}-charge attack run.`,'bad');
-    this.aarRecordEvent?.('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,count:SONAR.patternSize,depthFt:guess},esc.position,aim||sub.position);
-    this.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
-    if(esc.dcRemaining<SONAR.patternSize){esc.aswExpended=true;if(!esc.dcExhaustedNoted){esc.dcExhaustedNoted=true;this.log(`${esc.name} has expended her usable depth-charge patterns and is returning to the convoy screen.`);}this.assignASWRoles(null,true);}
-  }
+    this.aar.recordEvent('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,escortName:esc.name,count:SONAR.patternSize,depthFt:Math.round(guess),subDepthFeet:Math.round(sub.depthFeet),layerDepthFt:Math.round(layer),layerProtected:trueBelowLayer,speculative},esc.position,aim||sub.position);
+    this.aar.enemyResponse?.(speculative?'SPECULATIVE_DEPTH_CHARGE':'ASW_ATTACK_RUN',{source:esc.name,confidence:speculative?.35:.85,errNm:distNm(esc.position,sub.position),xNm:esc.position.xNm,yNm:esc.position.yNm},[esc.id],speculative?'last datum search':'active asdic track',{escortName:esc.name,dcCount:SONAR.patternSize,depthFt:Math.round(guess),subDepthFeet:Math.round(sub.depthFeet),layerProtected:trueBelowLayer});
+    this.sys.aswBrain.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
+    if(esc.dcRemaining<SONAR.patternSize){esc.aswExpended=true;if(!esc.dcExhaustedNoted){esc.dcExhaustedNoted=true;this.log(`${esc.name} has expended her usable depth-charge patterns and is returning to the convoy screen.`);}this.sys.aswBrain.assignASWRoles(null,true);}
+  },
 
   updateDCs(dt){
     const W=this.state.world; const sub=this.state.playerSub;
@@ -168,7 +182,7 @@ class SimEngineASW extends SimEngineASWBrain {
         dc.waterEntryPlayed=true;const splashRange=distNm(dc.position,sub.position),hearRange=sub.depthFeet>10?1.45:2.2;
         // Real audibility gate: a distant attack on a stale datum must be silent,
         // not reduced to a minimum-volume rhythmic tick that betrays hidden action.
-        if(splashRange<hearRange)audio.event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/hearRange,0,1)});
+        if(splashRange<hearRange)PresentationBridge.audio(this.state).event?.('DEPTH_CHARGE_SPLASH',{distanceFactor:clamp(splashRange/hearRange,0,1),bearingDeg:bearingBetween(sub.position,dc.position),ownHeading:sub.heading});
         // Only the first charge in a pattern speaks for the group. The report is
         // qualitative and range-limited; it does not reveal the destroyer's set depth.
         if((dc.patternIndex??0)===0&&splashRange<hearRange){
@@ -191,7 +205,7 @@ class SimEngineASW extends SimEngineASWBrain {
         const dS=clamp(1-dD/75,0,1);
         const air=dc.source==='AIR',strength=air?(dc.strength||28):62;
         const dmg=strength*hS*dS;
-        this.state.campaign._depthChargeAttackSeen=true;
+        this.state.runtime.campaign._depthChargeAttackSeen=true;
         this.state.weapons.explosions.push({position:{...dc.position},ageSec:0,maxAgeSec:10,label:dmg>4?`DC -${Math.round(dmg)}`:'DC'});
         if(dmg<=1&&hNm<0.5) this.shake(clamp(2.2-hNm*4,0.2,2.2));   // felt, not damaging
         if(!air&&(dc.patternIndex??0)===0&&hNm<1.45){
@@ -200,11 +214,12 @@ class SimEngineASW extends SimEngineASWBrain {
           if(dc.fuseSec>=25)this.log('SOUND — long sink time; the charges were set deep.','warn');
           else if(dc.fuseSec<=11)this.log('SOUND — short sink time; the charges were set shallow.','warn');
         }
-        if(dmg>1){this.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');if(acousticNm<audibleNm)audio.playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
-        else{if(air||(dc.patternIndex??0)===0)this.log(`${air?'Aerial depth charge':'Depth-charge pattern'} detonating nearby.`,'warn');if(acousticNm<audibleNm)audio.playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
+        if(dmg>1){this.sys.damage.applyShock(dmg);this.log(`${air?'Aerial depth charge':'Depth charge'}! Hull/system damage ${dmg.toFixed(0)}%.`,dmg>15?'bad':'warn');if(acousticNm<audibleNm)PresentationBridge.audio(this.state).playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.9,false);}
+        else{if(air||(dc.patternIndex??0)===0)this.log(`${air?'Aerial depth charge':'Depth-charge pattern'} detonating nearby.`,'warn');if(acousticNm<audibleNm)PresentationBridge.audio(this.state).playDepthCharge(clamp(acousticNm/audibleNm,0,1));particles.spawnExplosion(dc.position.xNm,dc.position.yNm,0.5,false);}
       }
     }
     W.depthCharges=W.depthCharges.filter(dc=>dc.status==='SINKING'||dc.ageSec<dc.fuseSec+6);
+    if(W.depthCharges.length>32)W.depthCharges.splice(0,W.depthCharges.length-32);
   }
 
   /* Remember what the world looked like, so a transit can be broken off the

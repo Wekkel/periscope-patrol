@@ -25,6 +25,15 @@ function ensureShipDamage(c){
   D.fireRate=Number.isFinite(D.fireRate)?D.fireRate:0;  // + grows, - is being contained
   D.trim=clamp(Number(D.trim)||0,-1,1);                 // + down by bow, - down by stern
   D.list=clamp(Number(D.list)||0,-1,1);
+  D.visualTrim=Number.isFinite(D.visualTrim)?D.visualTrim:D.trim;
+  D.visualList=Number.isFinite(D.visualList)?D.visualList:D.list;
+  D.visualFlotation=Number.isFinite(D.visualFlotation)?D.visualFlotation:D.flotation;
+  D.shudderAmp=Number.isFinite(D.shudderAmp)?D.shudderAmp:0;
+  D.shudderTime=Number.isFinite(D.shudderTime)?D.shudderTime:0;
+  if(!D.compartments||typeof D.compartments!=='object'){
+    D.compartments={bow:0,forwardHold:0,midships:0,afterHold:0,stern:0};
+  }
+  D.hitSide=Number.isFinite(D.hitSide)?(D.hitSide>=0?1:-1):null;
   D.hitCount=Math.max(0,Number(D.hitCount)||0);
   D.lastHitAt=Number.isFinite(D.lastHitAt)?D.lastHitAt:-999;
   D.lastHitLocation=D.lastHitLocation||null;
@@ -38,6 +47,11 @@ function ensureShipDamage(c){
   D.abandonAt=Number.isFinite(D.abandonAt)?D.abandonAt:null;
   D.abandoned=!!D.abandoned;
   D.killCredited=!!D.killCredited;
+  D.secondaryExplosions=Array.isArray(D.secondaryExplosions)?D.secondaryExplosions:[];
+  D.boilerRuptured=!!D.boilerRuptured;
+  D.boilerTimer=Number.isFinite(D.boilerTimer)?D.boilerTimer:0;
+  D.magazineDetonated=!!D.magazineDetonated;
+  D.magazineTimer=Number.isFinite(D.magazineTimer)?D.magazineTimer:0;
 
   // Old saves can contain the former cumulative deck-gun "HP" value. Preserve
   // the fact that a ship was already damaged by translating it once into the
@@ -76,22 +90,57 @@ function shipDamageCondition(c){
 function shipDamageSpeedFactor(c){
   const D=ensureShipDamage(c);if(!D)return 1;
   if(c.sunk||D.abandoned)return 0;
-  return clamp((1-D.propulsion*.88)*(1-D.flotation*.35)*(1-D.fire*.10),.04,1);
+  const base=(1-D.propulsion*.88)*(1-D.flotation*.35)*(1-D.fire*.10);
+  const bowDrag=clamp(Math.max(0,D.trim-.25)*.35,0,.30);
+  const sternEmergence=clamp(Math.max(0,-D.trim-.25)*.45,0,.40);
+  const listDrag=clamp(Math.abs(D.list)*.18,0,.22);
+  return clamp(base*(1-bowDrag)*(1-sternEmergence)*(1-listDrag),.02,1);
 }
 function shipDamageTurnFactor(c){
   const D=ensureShipDamage(c);if(!D)return 1;
-  return clamp(1-D.steering*.82,.10,1);
+  const trimPenalty=clamp(Math.abs(D.trim)*.22,0,.30);
+  const listPenalty=clamp(Math.abs(D.list)*.18,0,.25);
+  return clamp((1-D.steering*.82)*(1-trimPenalty)*(1-listPenalty),.06,1);
 }
 function shipIsStraggler(c){
   if(!c||c.sunk||c.harborTarget||isSurfaceCombatant(c)||c.convoyId!=='MAIN')return false;
   const D=ensureShipDamage(c),base=Math.max(1,c.baseSpeed||c.speedKnots||8);
-  return D.abandoned||D.propulsion>.55||D.flotation>.68||D.fire>.72||(c.speedKnots||0)<base*.58;
+  return !!c.convoyNaturalStraggler||D.abandoned||D.propulsion>.55||D.flotation>.68||D.fire>.72||(c.speedKnots||0)<base*.58;
 }
 function shipTorpedoHitLocation(hitFrac){
-  if(hitFrac>.24)return 'BOW';
-  if(hitFrac<-.32)return 'STERN';
-  if(hitFrac<-.07)return 'ENGINE ROOM';
+  if(hitFrac>.28)return 'BOW';
+  if(hitFrac>.08)return 'FORWARD_HOLD';
+  if(hitFrac<-.35)return 'STERN';
+  if(hitFrac<-.12)return 'AFTER_HOLD';
   return 'MIDSHIPS';
+}
+function shipAttitude(c, visual=false){
+  const D=ensureShipDamage(c);
+  if(!D)return {rollRad:0,pitchRad:0,draftOffsetM:0,listDeg:0,trimFt:0,listText:'EVEN KEEL',trimText:'EVEN KEEL',conditionSummary:'INTACT'};
+  const effectiveList=visual&&Number.isFinite(D.visualList)?D.visualList:D.list;
+  const effectiveTrim=visual&&Number.isFinite(D.visualTrim)?D.visualTrim:D.trim;
+  let shudderRoll=0, shudderPitch=0;
+  if(visual&&(D.shudderAmp||0)>0.005){
+    const osc=Math.sin((D.shudderTime||0)*16.0)*D.shudderAmp*0.035;
+    shudderRoll=osc*0.6;
+    shudderPitch=osc*0.4;
+  }
+  const maxRollRad=0.436; // ~25 deg
+  const rollRad=clamp(effectiveList*maxRollRad+shudderRoll,-maxRollRad,maxRollRad);
+  const listDegVal=Math.round((rollRad*180)/Math.PI);
+  const listText=Math.abs(listDegVal)<2?'EVEN KEEL':`LIST ${Math.abs(listDegVal)}° ${listDegVal>0?'STBD':'PORT'}`;
+
+  const maxPitchRad=0.209; // ~12 deg
+  const pitchRad=clamp(-effectiveTrim*maxPitchRad+shudderPitch,-maxPitchRad,maxPitchRad);
+  const lenFt=(c.lengthYards||400)*3;
+  const trimFtVal=Math.round(effectiveTrim*(lenFt*0.04));
+  const trimText=Math.abs(effectiveTrim)<0.10?'EVEN KEEL':effectiveTrim>0?`TRIM ${Math.abs(trimFtVal)}FT HEAD`:`TRIM ${Math.abs(trimFtVal)}FT STERN`;
+
+  const baseDraftM=(c.dimensions?.draftFt?c.dimensions.draftFt*0.3048:(c.lengthYards||400)*0.02);
+  const effectiveFlot=visual&&Number.isFinite(D.visualFlotation)?D.visualFlotation:D.flotation;
+  const draftOffsetM=clamp(effectiveFlot*baseDraftM*0.75,0,baseDraftM*1.5);
+  const conditionSummary=listText==='EVEN KEEL'&&trimText==='EVEN KEEL'?'EVEN KEEL':`${listText} · ${trimText}`;
+  return {rollRad,pitchRad,draftOffsetM,listDeg:listDegVal,trimFt:trimFtVal,listText,trimText,conditionSummary};
 }
 function shipDamageSummary(c){
   const D=ensureShipDamage(c);if(!D)return '';
@@ -107,7 +156,10 @@ function _shipSetDamage(c,D,key,add){D[key]=clamp(D[key]+Math.max(0,add),0,1);}
 function _shipScheduleOutcome(engine,c,D,impactKey){
   const now=engine.state.time.elapsedSeconds||0;
   const h=_shipHash01(`${c.id}:${impactKey}:outcome`);
-  if(D.flotation>=.985){D.founderingAt=now;return;}
+  if(D.flotation>=.985){
+    if(D.founderingAt===null)D.founderingAt=now+14+h*10;
+    return;
+  }
   if(D.flotation>.86&&D.founderingAt===null){
     const delay=50+(1-D.flotation)*520+h*80;
     D.founderingAt=now+clamp(delay,35,190);
@@ -128,14 +180,24 @@ function applyTorpedoShipDamage(engine,c,impact){
   const variance=.90+_shipHash01(`${c.id}:${impact.torpedoId||D.hitCount}:${location}`)*.20;
   const p=clamp(warhead/292,.72,1.08)*size*angle*variance;
   let f=0,prop=0,steer=0,fire=0,flood=0,trim=0;
-  if(location==='ENGINE ROOM'){
-    f=.25;prop=.78;steer=.08;fire=.34;flood=.00010;trim=-.10;
+  if(location==='ENGINE ROOM'||location==='MIDSHIPS'){
+    f=.68;prop=.76;steer=.14;fire=.36;flood=.00036;trim=.02;
+    D.compartments.midships=clamp((D.compartments.midships||0)+.85*p,0,1);
   }else if(location==='BOW'){
-    f=.54;prop=.12;steer=.03;fire=.08;flood=.00028;trim=.72;
+    f=.52;prop=.10;steer=.04;fire=.08;flood=.00030;trim=.74;
+    D.compartments.bow=clamp((D.compartments.bow||0)+.75*p,0,1);
+  }else if(location==='FORWARD_HOLD'){
+    f=.60;prop=.18;steer=.06;fire=.18;flood=.00032;trim=.42;
+    D.compartments.forwardHold=clamp((D.compartments.forwardHold||0)+.70*p,0,1);
+  }else if(location==='AFTER_HOLD'){
+    f=.56;prop=.38;steer=.22;fire=.14;flood=.00026;trim=-.38;
+    D.compartments.afterHold=clamp((D.compartments.afterHold||0)+.68*p,0,1);
   }else if(location==='STERN'){
-    f=.34;prop=.38;steer=.73;fire=.10;flood=.00016;trim=-.48;
+    f=.40;prop=.82;steer=.85;fire=.12;flood=.00022;trim=-.72;
+    D.compartments.stern=clamp((D.compartments.stern||0)+.80*p,0,1);
   }else{
-    f=.69;prop=.29;steer=.10;fire=.27;flood=.00034;trim=.05;
+    f=.60;prop=.30;steer=.10;fire=.20;flood=.00030;trim=.05;
+    D.compartments.midships=clamp((D.compartments.midships||0)+.60*p,0,1);
   }
   if(c.type==='TANKER')fire*=1.28;
   if(isSurfaceCombatant(c)){f*=1.06;prop*=.95;}
@@ -143,8 +205,12 @@ function applyTorpedoShipDamage(engine,c,impact){
   _shipSetDamage(c,D,'steering',steer*p);_shipSetDamage(c,D,'fire',fire*p);
   D.floodRate=Math.max(D.floodRate,flood*p);
   D.fireRate=Math.max(D.fireRate,(D.fire>.28?.00008:.00002)*p);
+  const hitSide=impact.hitSide!==undefined?(impact.hitSide>=0?1:-1):1;
+  D.hitSide=hitSide;
   D.trim=clamp(D.trim+trim*p,-1,1);
-  D.list=clamp(D.list+(impact.hitSide||1)*(.12+.18*f*p),-1,1);
+  D.list=clamp(D.list+hitSide*(.14+.20*f*p),-1,1);
+  D.shudderAmp=Math.min(1.0,(D.shudderAmp||0)+0.85*p);
+  D.shudderTime=0;
   D.hitCount++;D.lastHitAt=now;D.lastHitLocation=location;D.lastHitFrac=impact.hitFrac;
   D.lastWeapon='TORPEDO';D.lastWeaponId=impact.torpedoId||null;D.lastAttackerSide='PLAYER';D.lastAttackerId='PLAYER_SUB';
   if(D.steering>.62&&Math.abs(D.rudderBiasDeg)<1){
@@ -202,11 +268,43 @@ function applyDeckGunShipDamage(engine,c,hit){
   return{location,material,state:D,condition:shipDamageCondition(c)};
 }
 
+const SINK_TRAJECTORIES={
+  0:'PLUNGE_BOW',
+  1:'PLUNGE_STERN',
+  2:'BREAK_MIDSHIPS',
+  3:'SETTLE_LIST',
+  4:'CAPSIZE'
+};
+
+function shipDetermineSinkTrajectory(c,D){
+  const frac=Number.isFinite(D?.lastHitFrac)?D.lastHitFrac:0;
+  // Tankers or ships with severe listing capsize onto their beam ends
+  if(c?.type==='TANKER'||Math.abs(D?.list||0)>=0.40){
+    return {style:4,trajectory:SINK_TRAJECTORIES[4]};
+  }
+  // Long cargo / merchants breaking midships under midships blast
+  const longHull=(c?.lengthYards||0)>=360||c?.type==='CARGO'||c?.type==='MERCHANT';
+  if(longHull&&((D?.compartments&&D.compartments.midships>=0.55)||D?.lastHitLocation==='MIDSHIPS'||D?.lastHitLocation==='ENGINE ROOM')){
+    return {style:2,trajectory:SINK_TRAJECTORIES[2]};
+  }
+  // Steep plunge bow / stern
+  if((D?.compartments&&D.compartments.bow>=0.50)||frac>0.20||(D?.trim||0)>=0.35){
+    return {style:0,trajectory:SINK_TRAJECTORIES[0]};
+  }
+  if((D?.compartments&&D.compartments.stern>=0.50)||frac<-0.20||(D?.trim||0)<=-0.35){
+    return {style:1,trajectory:SINK_TRAJECTORIES[1]};
+  }
+  const h=_shipHash01(`${c?.id||'X'}:${D?.lastWeaponId||D?.hitCount||0}:sink`);
+  const style=h<0.50?2:3;
+  return {style,trajectory:SINK_TRAJECTORIES[style]};
+}
+
 function _shipSinkStyle(c,D){
-  const frac=Number.isFinite(D.lastHitFrac)?D.lastHitFrac:0;
-  if(frac>.22)return 0;
-  if(frac<-.22)return 1;
-  return _shipHash01(`${c.id}:${D.lastWeaponId||D.hitCount}:sink`)<.58?2:3;
+  return shipDetermineSinkTrajectory(c,D).style;
+}
+function shipCaptainLog(engine,...args){
+  const captainLog=engine?.captainLog||engine?.ctx?.captainLog;
+  return captainLog?.(...args);
 }
 function beginShipSinking(engine,c,reason='FLOODING'){
   if(!c||c.sunk)return false;
@@ -214,7 +312,9 @@ function beginShipSinking(engine,c,reason='FLOODING'){
   c.sunk=true;c.sinkingProgress=0;c.speedKnots=0;c.desiredSpeed=0;c.sunkAt=now;
   c.hitFrac=Number.isFinite(D.lastHitFrac)?D.lastHitFrac:(c.hitFrac??0);
   c.hitSide=c.hitSide??(D.list>=0?1:-1);
-  c.sinkStyle=_shipSinkStyle(c,D);
+  const sinkInfo=shipDetermineSinkTrajectory(c,D);
+  c.sinkStyle=sinkInfo.style;
+  c.sinkTrajectory=sinkInfo.trajectory;
   const fast=D.flotation>.995||reason==='STRUCTURAL';
   c.sinkDurationSec=fast?(isSurfaceCombatant(c)?25:34)+_shipHash01(`${c.id}:sinkdur`)*18
                     :(isSurfaceCombatant(c)?36:56)+_shipHash01(`${c.id}:sinkdur`)*34;
@@ -227,15 +327,15 @@ function beginShipSinking(engine,c,reason='FLOODING'){
         D.killCredited=true;D.killPoints=0;
         const tr=engine.state.world.contactTracks?.[c.id],known=!!(tr&&tr.confidence>.04)||distNm(engine.state.playerSub.position,c.position)<10;
         if(known){
-          engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name} sunk by enemy surface gunfire.`,'warn');
+          engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name} sunk by enemy surface gunfire.`,'warn', 'KRITIEK');
           engine.log(`${c.name} is sinking under enemy gunfire. No player penalty or enemy tonnage credited.`,'warn');
-          engine.captainLog?.('FRIENDLY_LOST_TO_ENEMY',`${c.name} lost to enemy surface gunfire.`,{contactId:c.id,type:c.displayType||c.type,attackerId:D.lastAttackerId},`friendly-enemy-loss:${c.id}`);
+        shipCaptainLog(engine,'FRIENDLY_LOST_TO_ENEMY',`${c.name} lost to enemy surface gunfire.`,{contactId:c.id,type:c.displayType||c.type,attackerId:D.lastAttackerId},`friendly-enemy-loss:${c.id}`);
         }
       }else{
         const pts=side==='FRIENDLY'?-2500:-1000;camp.score+=pts;D.killCredited=true;D.killPoints=pts;
-        engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name}. ${pts.toLocaleString()} pts.`,'bad');
+        engine.notify(`${side==='FRIENDLY'?'FRIENDLY SHIP':'NEUTRAL CRAFT'} LOST — ${c.name}. ${pts.toLocaleString()} pts.`,'bad', 'KRITIEK');
         engine.log(`${c.name} is sinking — ${side.toLowerCase()} traffic hit. No enemy tonnage credited.`,'bad');
-        engine.captainLog?.(side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
+        shipCaptainLog(engine,side==='FRIENDLY'?'FRIENDLY_FIRE':'NEUTRAL_LOSS',`${c.name} lost to our fire.`,{contactId:c.id,type:c.displayType||c.type,weapon:D.lastWeapon||'DAMAGE'},`nonenemy-loss:${c.id}`);
       }
     }else{
       const combatant=typeof isSurfaceCombatant==='function'&&isSurfaceCombatant(c);
@@ -244,13 +344,19 @@ function beginShipSinking(engine,c,reason='FLOODING'){
       const attackObj=camp.objectives?.find?.(o=>o.id==='attack')||(!camp.missionType?camp.objectives?.[1]:null);
       if(attackObj)attackObj.done=true;
       D.killCredited=true;D.killPoints=pts;
-      engine.notify(`${D.lastWeapon==='DECK_GUN'?'DECK GUN':'TORPEDO DAMAGE'} — ${c.name} is going down. +${pts} pts.`,'ok');
+      engine.notify(`${D.lastWeapon==='DECK_GUN'?'DECK GUN':'TORPEDO DAMAGE'} — ${c.name} is going down. +${pts} pts.`,'ok', 'KRITIEK');
       engine.log(`${c.name} is sinking — ${reason.toLowerCase()}. ${camp.tonnageSunk.toLocaleString()} tons sunk.`,'bad');
-      engine.captainLog?.('SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:D.lastWeapon||'DAMAGE'},`sunk:${c.id}`);
+      shipCaptainLog(engine,'SHIP_SUNK',`${c.name} sunk.`,{contactId:c.id,type:c.displayType||c.type,tons:c.tonsFactor||0,weapon:D.lastWeapon||'DAMAGE'},`sunk:${c.id}`);
     }
   }
-  if(c.harborTarget){engine.noteHarborAttack?.(c);if(engine.state.world.harbor){engine.state.world.harbor.alert=2;engine.state.world.harbor.suspicion=100;}}
-  if(!c.side||c.side==='ENEMY')engine.alertEscorts?.('SHIP_HIT',{...c.position},1);engine.checkMissionObjectives?.();
+  if(c.harborTarget){
+    if(engine.sys?.harbor?.noteHarborAttack)engine.sys.harbor.noteHarborAttack(c);
+    else engine.noteHarborAttack?.(c);
+    if(engine.state.world.harbor){engine.state.world.harbor.alert=2;engine.state.world.harbor.suspicion=100;}
+  }
+  if(!c.side||c.side==='ENEMY')engine.sys?.enemyAI?.alertEscorts?.('SHIP_HIT',{...c.position},1);
+  if(engine.sys?.mission?.checkObjectives)engine.sys.mission.checkObjectives();
+  else engine.checkMissionObjectives?.();
   return true;
 }
 
@@ -266,6 +372,65 @@ function updateShipDamage(engine,c,dt){
       else D.fire=clamp(D.fire-(.000045-Math.min(.000035,D.fireRate))*dt,0,1);
       if(D.fire>.72){D.propulsion=clamp(D.propulsion+dt*.000020*D.fire,0,1);D.flotation=clamp(D.flotation+dt*.000009*D.fire,0,1);}
     }
+    // Secondary boiler rupture under sustained engine room / midships fire
+    if(D.fire>.55&&!D.boilerRuptured&&((D.compartments&&D.compartments.midships>.30)||D.lastHitLocation==='MIDSHIPS'||D.lastHitLocation==='ENGINE ROOM')){
+      D.boilerTimer+=dt;
+      const boilerThresh=12+_shipHash01(`${c.id}:boiler`)*10;
+      if(D.boilerTimer>=boilerThresh){
+        D.boilerRuptured=true;
+        D.secondaryExplosions.push({type:'BOILER_EXPLOSION',time:now,location:'MIDSHIPS'});
+        D.flotation=clamp(D.flotation+.18,0,1);
+        D.floodRate=Math.max(D.floodRate,.00045);
+        D.propulsion=clamp(D.propulsion+.35,0,1);
+        engine.log?.(`${c.name} — boiler explosion amidships! Steam and debris erupted.`,'bad');
+        engine.notify?.(`BOILER EXPLOSION — ${c.name} steam rupture!`, 'warn', 'KRITIEK');
+        if(typeof particles!=='undefined'&&particles.spawnBoilerSteam&&c.position){
+          particles.spawnBoilerSteam(c.position.xNm,c.position.yNm,1.2);
+        }
+        if(typeof particles!=='undefined'&&particles.spawnExplosion&&c.position){
+          particles.spawnExplosion(c.position.xNm,c.position.yNm,1.0,true);
+        }
+      }
+    }
+    // Secondary magazine detonation under heavy fire on armed / ammunition vessels
+    const armedShip=(typeof isSurfaceCombatant==='function'&&isSurfaceCombatant(c))||/AMMUNITION|MUNITION/i.test(c.displayType||'')||(c.type==='CARGO'&&_shipHash01(`${c.id}:ammoCargo`)<.22);
+    if(D.fire>.65&&!D.magazineDetonated&&armedShip){
+      D.magazineTimer+=dt;
+      const magThresh=16+_shipHash01(`${c.id}:mag`)*14;
+      if(D.magazineTimer>=magThresh){
+        D.magazineDetonated=true;
+        D.secondaryExplosions.push({type:'MAGAZINE_DETONATION',time:now,location:'AFTER_HOLD'});
+        D.flotation=1.0;
+        D.fire=1.0;
+        engine.log?.(`${c.name} — catastrophic magazine detonation! Hull breaking apart.`,'bad');
+        engine.notify?.(`SECONDARY DETONATION — ${c.name} magazine ruptured!`, 'warn', 'KRITIEK');
+        if(typeof particles!=='undefined'&&particles.spawnFireBurst&&c.position){
+          particles.spawnFireBurst(c.position.xNm,c.position.yNm,1.8);
+        }
+        if(typeof particles!=='undefined'&&particles.spawnExplosion&&c.position){
+          particles.spawnExplosion(c.position.xNm,c.position.yNm,2.2,true);
+        }
+        beginShipSinking(engine,c,'STRUCTURAL');
+        return;
+      }
+    }
+    if((D.shudderAmp||0)>0.005){
+      D.shudderTime=(D.shudderTime||0)+dt;
+      D.shudderAmp*=Math.exp(-dt/1.15);
+    }else{
+      D.shudderAmp=0;D.shudderTime=0;
+    }
+    const tau=Math.max(10,((c.lengthYards||400)/400)*16);
+    const frac=1-Math.exp(-dt/tau);
+    if(Number.isFinite(D.visualTrim))D.visualTrim+=(D.trim-D.visualTrim)*frac;
+    if(Number.isFinite(D.visualList))D.visualList+=(D.list-D.visualList)*frac;
+    if(Number.isFinite(D.visualFlotation))D.visualFlotation+=(D.flotation-D.visualFlotation)*frac;
+  }
+  if(dt>0&&D.compartments){
+    const targetTrim=clamp((D.compartments.bow*.85+D.compartments.forwardHold*.45)-(D.compartments.stern*.80+D.compartments.afterHold*.40),-1,1);
+    if(Math.abs(targetTrim)>.05)D.trim+=clamp(targetTrim-D.trim,-dt*.004,dt*.004);
+    const targetList=clamp((D.hitSide||(D.list>=0?1:-1))*(D.compartments.midships*.42+D.compartments.forwardHold*.25+D.compartments.afterHold*.25+D.compartments.bow*.12+D.compartments.stern*.12),-1,1);
+    if(Math.abs(targetList)>.05)D.list+=clamp(targetList-D.list,-dt*.003,dt*.003);
   }
   if(D.flotation>.70){
     const targetTrim=D.lastHitLocation==='BOW'?.9:D.lastHitLocation==='STERN'?-.72:D.trim;

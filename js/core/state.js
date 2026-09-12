@@ -1,42 +1,196 @@
 // ═══════════════════════════════════════════════════ STATE
-function createState(areaKey){
-  const area=PATROL_AREAS[areaKey];
-  // MEGA PACIFIC: patrol metadata stays cheap at boot; only the selected chart
-  // expands its terrain/bathymetry. Never reintroduce area.terrain here or the
-  // ten-map catalogue will all be built on low-memory devices before play starts.
-  const terrain=materializePatrolTerrain(area),chartBounds=patrolChartBounds(area);
+function materializeSubmarinePropulsionCharacteristics(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId){
+  const profile=getSubmarineProfile(profileId);
+  if(!profile)throw new Error(`Unknown submarine profile: ${profileId}`);
+  const x=profile.propulsion;
+  if(!x)throw new Error(`Submarine ${profile.id} has no propulsion profile.`);
+  return{...x,fuel:{...x.fuel},battery:{...x.battery}};
+}
+
+function materializeFreshSubmarine(profileId=DEFAULT_GAME_IDENTITY.submarineProfileId,torpedoSpecOverride=null){
+  const profile=getSubmarineProfile(profileId);
+  if(!profile)throw new Error(`Unknown submarine profile: ${profileId}`);
+  const weapons=profile.weapons;
+  const torpedoSpecKey=torpedoSpecOverride&&TORPEDO_SPECS[torpedoSpecOverride]
+    ?torpedoSpecOverride:weapons.defaultTorpedoSpecKey;
+  const torpedoSpec=TORPEDO_SPECS[torpedoSpecKey];
+  if(!torpedoSpec)throw new Error(`Submarine ${profile.id} references unknown torpedo spec: ${torpedoSpecKey}`);
+  const tubes=weapons.tubes.map(t=>({
+    id:t.id,pos:t.pos,status:'LOADED_DRY',specKey:torpedoSpecKey,flooded:false,
+    gyroAngle:t.gyroAngle,reloadProgress:1,spreadOffsetDeg:0
+  }));
+  return{profile,weapons,propulsionProfile:materializeSubmarinePropulsionCharacteristics(profile.id),torpedoSpecKey,torpedoSpec,tubes};
+}
+
+function initRuntime(state){
+  if(!state||typeof state!=='object')throw new Error('Cannot initialize runtime for an invalid state.');
+  const runtime=state.runtime&&typeof state.runtime==='object'?state.runtime:(state.runtime={});
+  runtime.effects=Array.isArray(runtime.effects)?runtime.effects:[];
+  runtime.audioState=runtime.audioState&&typeof runtime.audioState==='object'?runtime.audioState:{};
+  runtime.aar=runtime.aar&&typeof runtime.aar==='object'?runtime.aar:{};
+  runtime.aar.routeClock=Number.isFinite(runtime.aar.routeClock)?runtime.aar.routeClock:999;
+  runtime.aar.trackClock=Number.isFinite(runtime.aar.trackClock)?runtime.aar.trackClock:999;
+  runtime.aar.airStates=runtime.aar.airStates&&typeof runtime.aar.airStates==='object'?runtime.aar.airStates:{};
+  runtime.aar.seenTrackIds=runtime.aar.seenTrackIds&&typeof runtime.aar.seenTrackIds==='object'?runtime.aar.seenTrackIds:{};
+  runtime.aar.harborPenetrationLogged=!!runtime.aar.harborPenetrationLogged;
+  runtime.campaign=runtime.campaign&&typeof runtime.campaign==='object'?runtime.campaign:{};
+  runtime.playerSub=runtime.playerSub&&typeof runtime.playerSub==='object'?runtime.playerSub:{};
+  runtime.tdc=runtime.tdc&&typeof runtime.tdc==='object'?runtime.tdc:{};
+  runtime.environment=runtime.environment&&typeof runtime.environment==='object'?runtime.environment:{};
+  runtime.time=runtime.time&&typeof runtime.time==='object'?runtime.time:{};
+  runtime.deckGun=runtime.deckGun&&typeof runtime.deckGun==='object'?runtime.deckGun:{};
+  runtime.sound=runtime.sound&&typeof runtime.sound==='object'?runtime.sound:{};
+  runtime.radar=runtime.radar&&typeof runtime.radar==='object'?runtime.radar:{};
+  runtime.collisionPrev=runtime.collisionPrev&&typeof runtime.collisionPrev==='object'?runtime.collisionPrev:{};
+  const campaign=state.campaign&&typeof state.campaign==='object'?state.campaign:null;
+  if(campaign){
+    for(const key of ['_captainEventSeq','_careerStartDate','_historyRecorded','_historyRecordId','_lossAarOffered','_headingHome','_rvSeen','_approachReached','_portServiceLock','_portTouchActive','_depthChargeAttackSeen']){
+      if(campaign[key]!==undefined&&runtime.campaign[key]===undefined)runtime.campaign[key]=campaign[key];
+      delete campaign[key];
+    }
+  }
+  // Collision and depth-warning state is runtime-only.  Move legacy values
+  // before installing compatibility accessors so saves never retain them.
+  const playerSub=state.playerSub&&typeof state.playerSub==='object'?state.playerSub:null;
+  if(playerSub){
+    for(const key of ['_nhdWarned','_keelClosingFps','_suctWarn','_collisionPrev']){
+      if(playerSub[key]!==undefined&&runtime.playerSub[key]===undefined)runtime.playerSub[key]=playerSub[key];
+      delete playerSub[key];
+    }
+  }
+  for(const contact of state.world?.contacts||[]){
+    if(!contact?.id)continue;
+    if(contact._collisionPrev!==undefined&&runtime.collisionPrev[contact.id]===undefined)
+      runtime.collisionPrev[contact.id]=contact._collisionPrev;
+    delete contact._collisionPrev;
+  }
+  const environment=state.world?.environment&&typeof state.world.environment==='object'?state.world.environment:null;
+  if(environment){
+    for(const key of ['_baseVisibilityNm','_weatherBaseVisibilityNm','_weatherBaseSeaState']){
+      if(environment[key]!==undefined&&runtime.environment[key]===undefined)runtime.environment[key]=environment[key];
+      delete environment[key];
+    }
+  }
+  const tdc=state.tdc&&typeof state.tdc==='object'?state.tdc:null;
+  if(tdc){for(const key of ['_lastSolvedTargetId','_lastSolveAt']){if(tdc[key]!==undefined&&runtime.tdc[key]===undefined)runtime.tdc[key]=tdc[key];delete tdc[key];}}
+  const time=state.time&&typeof state.time==='object'?state.time:null;
+  if(time){if(time._watch!==undefined&&runtime.time.watch===undefined)runtime.time.watch=time._watch;delete time._watch;}
+  const deckGun=state.weapons?.deckGun&&typeof state.weapons.deckGun==='object'?state.weapons.deckGun:null;
+  if(deckGun&&deckGun._aarLastAttackAt!==undefined&&runtime.deckGun._aarLastAttackAt===undefined){runtime.deckGun._aarLastAttackAt=deckGun._aarLastAttackAt;delete deckGun._aarLastAttackAt;}
+  const sound=state.world?.sound&&typeof state.world.sound==='object'?state.world.sound:null;
+  if(sound&&sound._tick!==undefined&&runtime.sound.tick===undefined){runtime.sound.tick=sound._tick;delete sound._tick;}
+  const radar=state.world?.radar&&typeof state.world.radar==='object'?state.world.radar:null;
+  if(radar&&radar._tick!==undefined&&runtime.radar.tick===undefined){runtime.radar.tick=radar._tick;delete radar._tick;}
+  runtime.presentation=runtime.presentation&&typeof runtime.presentation==='object'?runtime.presentation:{};
+  if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactToken'))runtime.presentation.impactToken=null;
+  if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactStartedWall'))runtime.presentation.impactStartedWall=null;
+  if(!Object.prototype.hasOwnProperty.call(runtime.presentation,'impactTimer'))runtime.presentation.impactTimer=null;
+  if(!Array.isArray(runtime.presentation.impactQueue))runtime.presentation.impactQueue=[];
+  runtime.world=runtime.world&&typeof runtime.world==='object'?runtime.world:{};
+  const world=state.world&&typeof state.world==='object'?state.world:null;
+  if(world){
+    for(const key of ['atmosphere','collisionEvents','lastCollision','_collisionCooldowns','sound','radar','weatherSystem','traffic']){
+      if(world[key]!==undefined){
+        if(runtime.world[key]===undefined)runtime.world[key]=world[key];
+        delete world[key];
+      }
+      Object.defineProperty(world,key,{configurable:true,enumerable:false,get(){return runtime.world[key];},set(value){runtime.world[key]=value;}});
+    }
+  }
+  // Legacy saves may contain underscore-prefixed state members. Move their
+  // values into a non-persistent runtime bucket and leave non-enumerable
+  // accessors so old simulation code continues to address the same fields.
+  // Rebuild the inventory on each initialization so replaced patrol objects
+  // do not leave stale accessor slots behind.
+  runtime.legacyFields=[];
+  const seen=new Set();
+  const visit=(obj,path='state')=>{
+    if(!obj||typeof obj!=='object'||obj===runtime||seen.has(obj))return;
+    seen.add(obj);
+    for(const key of Object.keys(obj)){
+      const value=obj[key];
+      if(key.startsWith('_')){
+        const slot={path:`${path}.${key}`,key,value};runtime.legacyFields.push(slot);delete obj[key];
+        Object.defineProperty(obj,key,{configurable:true,enumerable:false,get(){return slot.value;},set(next){slot.value=next;}});
+      }else if(value&&typeof value==='object')visit(value,`${path}.${key}`);
+    }
+  };
+  visit(state);
+  // Fields introduced lazily after a save has been written need an accessor
+  // even though the old snapshot contains no enumerable property to inspect.
+  const lazy=[];
+  const resolve=(path)=>path.split('.').reduce((o,k)=>o?.[k],state);
+  for(const [path,keys] of lazy){const obj=resolve(path);if(!obj||typeof obj!=='object')continue;for(const key of keys){if(Object.prototype.hasOwnProperty.call(obj,key))continue;const slot={path:`state.${path}.${key}`,key,value:undefined};runtime.legacyFields.push(slot);Object.defineProperty(obj,key,{configurable:true,enumerable:false,get(){return slot.value;},set(next){slot.value=next;}});}}
+  return runtime;
+}
+
+/* Initialize schema-owned state once at lifecycle boundaries.  The update
+   loop must consume these structures, not recreate them every tick. */
+function initializeStateSchema(engine,reset=false){
+  if(!engine)return;
+  engine.ensureTacticalExtensions?.();
+  engine.ensureWorldExtensions?.();
+  engine.ensurePatrolRuntimeContext?.();
+  engine.sys?.career?.ensureCareerPatrolState?.();
+  engine.ensureHistoricalCampaignProfile?.();
+  engine.ensureMissionFramework?.();
+  engine.sys?.intel?.ensureRadioOperations?.();
+  engine.sys?.soundRadar?.ensureSoundRadarState?.();
+  engine.sys?.weather?.ensureWeatherSystem?.(reset);
+  engine.sys?.aswBrain?.ensureASWState?.();
+  engine.ensureBattleAtmosphereState?.(reset);
+  engine.sys?.collision?.ensureCollisionState?.();
+  engine.sys?.damage?.ensureDamageState?.();
+  engine.ensureTrafficDirector?.(reset);
+  engine.ensureAfterActionReport?.(reset);
+}
+
+function createState(areaKey=null,requestedIdentity=DEFAULT_GAME_IDENTITY){
+  const validation=validateGameIdentity(requestedIdentity);
+  if(!validation.ok)throw new Error(`Invalid game identity: ${validation.errors.join('; ')}`);
+  const identity=Object.freeze({...validation.identity});
+  const campaignProfile=getCampaignProfile(identity.campaignProfileId);
+  const resolvedAreaKey=areaKey||campaignProfile.defaultArea;
+  if(Array.isArray(campaignProfile.patrolAreaIds)&&!campaignProfile.patrolAreaIds.includes(resolvedAreaKey))
+    throw new Error(`Patrol area ${resolvedAreaKey} does not belong to campaign ${campaignProfile.id}.`);
+  const area=PATROL_AREAS[resolvedAreaKey];
+  if(!area)throw new Error(`Patrol area data missing: ${resolvedAreaKey}`);
+  const fresh=materializeFreshSubmarine(identity.submarineProfileId);
+  const subProfile=fresh.profile,weaponProfile=fresh.weapons;
+  const startDate=campaignProfile.defaultStartDate;
   const historyId=`p1-${Date.now().toString(36)}-${Math.floor(Math.random()*1e9).toString(36)}`;
-  return{
-    time:{elapsedSeconds:0,timeScale:1,campaignDate:'1943-08-17'},
-    log:[{t:0,level:'info',message:`Patrol commenced. Area: ${areaKey}. Good hunting.`}],
+  // Terrain remains lazy: Pacific expands only its selected chart, while an
+  // explicitly terrain-less open-ocean area materializes no coastline at all.
+  // Never rebuild a whole theater catalogue here on low-memory devices.
+  const terrain=materializePatrolTerrain(area),chartBounds=patrolChartBounds(area);
+  const state={
+    runtime:{effects:[],audioState:{},presentation:{impactToken:null,impactStartedWall:null,impactTimer:null,impactQueue:[]}},
+    time:{elapsedSeconds:0,timeScale:1,preModalScale:1,modalPauses:0,campaignDate:startDate,campaignDateTime:`${startDate} 00:00:00`},
+    log:[{t:0,level:'info',message:`Patrol commenced. Area: ${resolvedAreaKey}. Good hunting.`}],
     tactical:{activeStation:'TACTICAL',periscopeBearing:90,periscopeZoom:1,bridgeBearing:90,bridgeBinoculars:false,soundBearing:90,soundDisplay:'PASSIVE',selectedTrackId:null,impactObservation:null},
     tdc:{targetId:null,bearing:null,rangeNm:null,targetCourse:null,targetSpeedKnots:null,
-      torpedoSpecKey:'mk14fast',
-      torpedoType:'Mark 14 Fast',torpedoSpeedKnots:46,torpedoMaxRangeNm:4.9,
+      torpedoSpecKey:fresh.torpedoSpecKey,
+      torpedoType:fresh.torpedoSpec.name,torpedoSpeedKnots:fresh.torpedoSpec.speedKnots,torpedoMaxRangeNm:fresh.torpedoSpec.maxRangeNm,
       torpedoRunDepthFt:10,
       dudMode:'reduced',
       autoTrack:true,trackSource:'PLOT',
       gyroAngle:null,tubeTurnDeg:null,launchBank:null,launchGeometry:null,solutionCourse:null,interceptRunNm:null,predictedMissNm:null,angleOnBow:null,timeToImpactSec:null,solutionQuality:0,status:'NO TARGET',
       manualBearing:90,manualRange:5,manualCourse:270,manualSpeed:8},
     weapons:{
-      tubes:[
-        // Forward tubes 1-4
-        {id:1,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:0},
-        {id:2,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:0},
-        {id:3,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:0},
-        {id:4,pos:'FWD',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:0,reloadProgress:1,spreadOffsetDeg:0},
-        // Aft tubes 5-6 (fire 180° from heading)
-        {id:5,pos:'AFT',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:180,reloadProgress:1,spreadOffsetDeg:0},
-        {id:6,pos:'AFT',status:'LOADED_DRY',specKey:'mk14fast',flooded:false,gyroAngle:180,reloadProgress:1,spreadOffsetDeg:0}
-      ],
-      torpedoInventory:16,activeTorpedoes:[],nextTorpedoId:1,hits:[],duds:[],explosions:[],
-      deckGun:{manned:false,ammo:120,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1}
+      tubes:fresh.tubes,
+      torpedoInventory:weaponProfile.torpedoInventory,activeTorpedoes:[],nextTorpedoId:1,hits:[],duds:[],explosions:[],
+      deckGun:{manned:false,ammo:weaponProfile.deckGun.ammo,trainDeg:0,elevationDeg:1.0,lastFireAt:-999,shots:0,hits:0,shells:[],splashes:[],lastFall:null,flashUntil:-1}
     },
     campaign:{
-      patrolArea:areaKey,score:0,scenarioSeed:1,missionStatus:'PATROL',
-      patrolNumber:1,totalScore:0,startDate:'1943-08-17',
+      // New patrols carry explicit identity. Legacy saves are stamped and
+      // validated once by SaveSystem/materializeGameIdentity().
+      campaignSchemaVersion:PP_CAMPAIGN_SCHEMA_VERSION,contentSchemaVersion:PP_CONTENT_SCHEMA_VERSION,
+      campaignId:identity.campaignId,warPartyId:identity.warPartyId,theaterId:identity.theaterId,playerFactionId:identity.playerFactionId,
+      campaignProfileId:identity.campaignProfileId,
+      patrolArea:resolvedAreaKey,score:0,scenarioSeed:1,missionStatus:'PATROL',
+      patrolNumber:1,totalScore:0,startDate:startDate,
       historyId,
-      _careerStartDate:'1943-08-17 06:00',_historyRecorded:false,_historyRecordId:null,
+      _careerStartDate:`${startDate} 06:00`,_historyRecorded:false,_historyRecordId:null,
       importantEvents:[],_captainEventSeq:0,
       objectives:[
         {text:'Locate enemy convoy',done:false},
@@ -53,18 +207,19 @@ function createState(areaKey){
       interceptPlot:null,intelFitRequest:null,intelContextSeq:0,
       recenterSeq:0,weatherOverlay:false},
     world:{
-      contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,_collisionCooldowns:{},
-      aaManned:false,aaAmmo:1200,aaKills:0,aaHurt:0,
-      airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,sdOn:true,nextCheck:120},
-      sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,qcLastAt:-999,_tick:0},
+      contacts:[],contactTracks:{},aircraft:[],knuckles:[],collisionEvents:[],lastCollision:null,
+      aaManned:false,aaAmmo:weaponProfile.aaGun.ammo,aaKills:0,aaHurt:0,
+      airThreat:{level:area.environment.airThreat===undefined?0.55:area.environment.airThreat,alarmedAt:-999,airWarningOn:!!subProfile.sensors.airWarningRadar,nextCheck:120},
+      sound:{bearingMarks:{},lastOperatorAt:-999,lastOperatorReport:null,activeEchoLastAt:-999,qcLastAt:-999},
       radar:null,weatherSystem:null,
       traffic:{version:2,enabled:false,groups:[],nextId:1,clock:0,generated:false},
-      radio:{pending:null,inbox:[],unread:0,nextBroadcast:300,copying:0},
+      radio:{pending:null,inbox:[],unread:0,nextBroadcast:getCampaignRadioIntelProfile(identity.campaignProfileId)?.initialBroadcastSec??300,copying:0},
       environment:makePatrolEnvironment(area.environment),
       enemy:{alertState:'UNAWARE',alertTimerSec:0,lastKnownSubPosition:null,lastKnownConfidence:0,
         searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0},
       depthCharges:[],
       harbor:null,harborInitialized:false,harborIntel:null,
+      patrolContext:{...makePatrolRuntimeContext(identity,resolvedAreaKey,historyId)},
       chartBounds,
       terrain,
       portScenes:materializePortScenes(area),
@@ -74,11 +229,12 @@ function createState(areaKey){
       shallowZones:terrain.filter(t=>t.depth==='SHALLOW'||t.type==='REEF')
     },
     playerSub:{
+      profileId:subProfile.id,presentation:materializeSubmarinePresentation(subProfile.id),dimensions:{...subProfile.dimensions},
       mode:'SURFACED',position:{...(area.start||{xNm:0,yNm:0})},heading:90,orderedHeading:90,rudder:0,
       depthFeet:0,orderedDepthFeet:0,verticalSpeedFps:0,ballastState:'NEUTRAL',trim:0,
-      propulsion:{engineMode:'DIESEL',orderedRpm:250,actualRpm:0,speedKnots:0,fuel:100,battery:100,chargeRate:0},
+      propulsion:{characteristics:fresh.propulsionProfile,engineMode:'DIESEL',orderedRpm:250,actualRpm:0,speedKnots:0,fuel:100,battery:100,chargeRate:0},
       stealth:{silentRunning:false,acousticSignature:0,visualProfile:1},
-      damage:{hullIntegrity:100,crushDepthFeet:420,flooding:0,ballastDamage:0,motorDamage:0,
+      damage:{hullIntegrity:100,crushDepthFeet:subProfile.damage.crushDepthFeet,flooding:0,ballastDamage:0,motorDamage:0,
         rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
         pumpActive:false,pumpTripped:false,pumpLoadSec:0,damageControlActive:false,repairPriority:'FLOODING',
         driveBankOffline:false,damageEventSeq:0,repairFloor:{},instrumentBias:{},
@@ -87,4 +243,6 @@ function createState(areaKey){
       seabedFeet:3000,keelClearanceFeet:3000,bottomType:'DEEP',bottomed:false,suction:0
     }
   };
+  initRuntime(state);
+  return state;
 }

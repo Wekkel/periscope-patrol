@@ -140,7 +140,7 @@ function torpedoInterceptRunNm(tdc,spec){
 
 function torpedoRangeInfo(state,preferredId){
   if(!state||!state.playerSub||!state.tdc)return null;
-  const tdc=state.tdc,spec=TORPEDO_SPECS[tdc.torpedoSpecKey]||TORPEDO_SPECS.mk14fast;if(!spec)return null;
+  const tdc=state.tdc,spec=TORPEDO_SPECS[tdc.torpedoSpecKey];if(!spec)return null;
   const id=preferredId||state.tactical?.selectedTrackId||tdc.targetId;if(!id)return null;
   const sub=state.playerSub,tr=state.world?.contactTracks?.[id];
   let pos=null,bearing=tdc.bearing,rangeNm=tdc.rangeNm,course=tdc.targetCourse,speed=tdc.targetSpeedKnots,confidence=.65;

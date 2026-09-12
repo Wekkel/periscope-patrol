@@ -13,22 +13,30 @@ const ASW_SCREEN_STATIONS=Object.freeze({
 function aswYear(dateLike){
   const m=String(dateLike||'').match(/(19\d{2})/);return m?+m[1]:1943;
 }
-function aswAreaRisk(areaKey){
-  return areaKey==='Truk Approaches'||areaKey==='Luzon Strait'?1:areaKey==='Java Sea'?-1:0;
+function aswDoctrine(profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  return getCampaignDoctrineProfile(profileId)?.asw||null;
 }
-function aswEscortCount(areaKey,merchantCount,opts={}){
-  let n=merchantCount<=2?1:merchantCount<=4?2:3;
-  n+=aswAreaRisk(areaKey);
-  const y=aswYear(opts.startDate);if(y>=1944)n++;else if(y<=1942)n--;
-  const d=String(opts.difficulty||'').toUpperCase();if(d==='HARD')n++;else if(d==='EASY')n--;
-  return clamp(n,1,4);
+function aswAreaRisk(areaKey,profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  return Number(aswDoctrine(profileId)?.areaRisk?.[areaKey]||0);
 }
-function aswScreenRoles(count,areaKey,opts={}){
-  if(count<=1)return['FORWARD_SCREEN'];
-  if(count===2)return['FORWARD_SCREEN','REAR_GUARD'];
-  if(count===3)return['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK'];
-  const scout=aswAreaRisk(areaKey)>0||String(opts.difficulty||'').toUpperCase()==='HARD'||aswYear(opts.startDate)>=1944;
-  return['FORWARD_SCREEN','PORT_FLANK','STARBOARD_FLANK',scout?'ROAMING_SCOUT':'REAR_GUARD'];
+function aswEscortCount(areaKey,merchantCount,opts={},profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  const D=aswDoctrine(profileId),C=D?.escortCount;if(!C)return 1;
+  const band=C.merchantBands?.find(x=>x.max===undefined||merchantCount<=x.max);
+  let n=Number(band?.count??1)+aswAreaRisk(areaKey,profileId);
+  const y=aswYear(opts.startDate);
+  for(const m of C.yearModifiers||[])if((m.from===undefined||y>=m.from)&&(m.through===undefined||y<=m.through))n+=Number(m.add||0);
+  n+=Number(C.difficultyModifiers?.[String(opts.difficulty||'').toUpperCase()]||0);
+  return clamp(n,Number(C.min??1),Number(C.max??4));
+}
+function aswScreenRoles(count,areaKey,opts={},profileId=DEFAULT_GAME_IDENTITY.campaignProfileId){
+  const D=aswDoctrine(profileId);if(!D)return['FORWARD_SCREEN'];
+  const base=[...(D.screenRoles?.[count]||D.screenRoles?.[4]||['FORWARD_SCREEN'])];
+  const R=D.roamingScout,y=aswYear(opts.startDate),difficulty=String(opts.difficulty||'').toUpperCase();
+  if(R&&count>Number(R.replaceIndex??3)){
+    const scout=aswAreaRisk(areaKey,profileId)>=Number(R.minAreaRisk??1)||difficulty===String(R.difficulty||'').toUpperCase()||y>=Number(R.fromYear??9999);
+    if(scout)base[Number(R.replaceIndex??3)]=R.role||'ROAMING_SCOUT';
+  }
+  return base.slice(0,count);
 }
 
 /* Doctrine changes how an informed escort works a noisy datum; it never gives
@@ -55,8 +63,8 @@ function aswTraining(esc,state){
   return clamp(Number(esc?.aswTraining??profile?.aswTraining??aswTactics(state).training),.55,1.25);
 }
 
-class SimEngineASWBrain extends SimEngineWeather{
-  ensureASWState(){
+const ASWBrainSystem={
+ensureASWState(){
     const W=this.state.world,e=W.enemy||(W.enemy={}),now=this.state.time.elapsedSeconds||0;
     const A=e.asw||(e.asw={});
     if(!Number.isFinite(A.generation))A.generation=0;
@@ -76,7 +84,8 @@ class SimEngineASWBrain extends SimEngineWeather{
     if(!Number.isFinite(A.prosecutionHardDeadlineAt))A.prosecutionHardDeadlineAt=-1;
     if(!Array.isArray(A.pingEvents))A.pingEvents=[];
     const escorts=W.contacts.filter(c=>isASWCombatant(c));
-    const fallback=aswScreenRoles(escorts.length,this.state.campaign.patrolArea,{startDate:this.state.campaign.startDate,difficulty:this.state.campaign.difficulty});
+    const campaign=this.state.campaign||{},fallback=aswScreenRoles(escorts.length,campaign.patrolArea,
+      {startDate:campaign.startDate,difficulty:campaign.difficulty},campaign.campaignProfileId);
     for(let i=0;i<escorts.length;i++){
       const x=escorts[i];
       if(!ASW_SCREEN_STATIONS[x.screenRole])x.screenRole=fallback[i]||'REAR_GUARD';
@@ -86,9 +95,8 @@ class SimEngineASWBrain extends SimEngineWeather{
       if(x.sonarContact===undefined)x.sonarContact=false;
     }
     return A;
-  }
-
-  aswProsecutionLimits(){
+  },
+aswProsecutionLimits(){
     const d=String(this.state.campaign?.difficulty||'').toUpperCase();
     // Gameplay budget, in simulation seconds. A destroyer can continue beyond
     // the soft limit while it holds a firm contact, but an intermittent weak
@@ -97,19 +105,17 @@ class SimEngineASWBrain extends SimEngineWeather{
     if(d==='HARD')return{softSec:24*60*f,hardSec:40*60*f};
     if(d==='EASY')return{softSec:14*60*f,hardSec:26*60*f};
     return{softSec:18*60*f,hardSec:32*60*f};
-  }
-
-  armASWProsecution(reason='CONTACT',restart=false){
+  },
+armASWProsecution(reason='CONTACT',restart=false){
     const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0,L=this.aswProsecutionLimits();
-    const strong=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN','COLLISION','EMERGENCY_BLOW','ACTIVE_QC'].includes(reason);
+    const strong=['SHIP_HIT','TORPEDO_LAUNCH','TORPEDO_SIGHTED','TORPEDO_DUD','DECK_GUN','COLLISION','EMERGENCY_BLOW','ACTIVE_ECHO','ACTIVE_QC'].includes(reason);
     const missing=A.prosecutionStartedAt<0||A.prosecutionSoftDeadlineAt<=now||A.prosecutionHardDeadlineAt<=now;
     if(restart||missing||strong){
       A.prosecutionStartedAt=now;A.prosecutionSoftDeadlineAt=now+L.softSec;A.prosecutionHardDeadlineAt=now+L.hardSec;A.prosecutionReason=reason;
     }
     return A;
-  }
-
-  aswProsecutionExpiry(){
+  },
+aswProsecutionExpiry(){
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0;
     if(e.alertState==='UNAWARE')return null;
     // Old saves have no episode timestamps. Start a fair fresh budget on the
@@ -119,13 +125,11 @@ class SimEngineASWBrain extends SimEngineWeather{
     if(now>=A.prosecutionHardDeadlineAt&&!e.visualOnSub)return'HARD_LIMIT';
     if(now>=A.prosecutionSoftDeadlineAt&&!firm)return'SOFT_LIMIT';
     return null;
-  }
-
-  resetASWProsecution(){
+  },
+resetASWProsecution(){
     const A=this.ensureASWState();A.prosecutionStartedAt=-1;A.prosecutionSoftDeadlineAt=-1;A.prosecutionHardDeadlineAt=-1;delete A.prosecutionReason;
-  }
-
-  convoyFrame(){
+  },
+convoyFrame(){
     const W=this.state.world,all=W.contacts.filter(c=>c.convoyId==='MAIN'&&c.type!=='ESCORT'&&!c.sunk&&!c.harborTarget);
     if(!all.length)return null;
     const core=all.filter(c=>!shipIsStraggler(c)),ships=core.length?core:all;
@@ -134,23 +138,20 @@ class SimEngineASWBrain extends SimEngineWeather{
       yNm:ships.reduce((v,c)=>v+c.position.yNm,0)/ships.length,
       heading:lead.desiredHeading===undefined?lead.heading:lead.desiredHeading,
       speedKn:lead.baseSpeed||lead.speedKnots||8};
-  }
-
-  damagedGuardShip(){
-    const candidates=this.state.world.contacts.filter(c=>c.convoyId==='MAIN'&&shipIsStraggler(c));
+  },
+damagedGuardShip(){
+    const candidates=this.state.world.contacts.filter(c=>c.convoyId==='MAIN'&&shipIsStraggler(c)&&(c.convoyGuardEligible!==false||shipDamageSeverity(c)>.10));
     if(!candidates.length)return null;
     return candidates.slice().sort((a,b)=>shipDamageSeverity(b)-shipDamageSeverity(a)||
       distNm(a.position,this.convoyFrame()||a.position)-distNm(b.position,this.convoyFrame()||b.position))[0];
-  }
-
-  damagedGuardTarget(esc,ship){
+  },
+damagedGuardTarget(esc,ship){
     if(!ship)return null;
     const r=degToRad(ship.heading||0),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
     const side=_shipHash01(`${esc.id}:guard-side`)<.5?-1:1;
     return{xNm:ship.position.xNm-fx*.45+sx*side*.60,yNm:ship.position.yNm-fy*.45+sy*side*.60};
-  }
-
-  screenTarget(esc){
+  },
+screenTarget(esc){
     const f=this.convoyFrame();if(!f)return null;
     const st=ASW_SCREEN_STATIONS[esc.screenRole]||ASW_SCREEN_STATIONS.REAR_GUARD;
     let fwd=st.fwd,side=st.side;
@@ -163,16 +164,14 @@ class SimEngineASWBrain extends SimEngineWeather{
     }
     const r=degToRad(f.heading),fx=Math.sin(r),fy=-Math.cos(r),sx=Math.cos(r),sy=Math.sin(r);
     return{xNm:f.xNm+fx*fwd+sx*side,yNm:f.yNm+fy*fwd+sy*side};
-  }
-
-  cueEstimate(pos,conf=0.5,reason='NOISE'){
+  },
+cueEstimate(pos,conf=0.5,reason='NOISE'){
     const base={SHIP_HIT:.07,TORPEDO_DUD:.16,TORPEDO_LAUNCH:.28,TORPEDO_SIGHTED:.22,EMERGENCY_BLOW:.18,
-      DECK_GUN:.12,COLLISION:.05,AIR_ATTACK:.34,NOISE:.46}[reason]??.32;
+      DECK_GUN:.12,COLLISION:.05,AIR_ATTACK:.34,NOISE:.46,RADIO_BEARING:.72}[reason]??.32;
     const maxErr=base*clamp(1.35-conf*.55,.65,1.25)*aswTactics(this.state).depthErrorFactor,a=Math.random()*Math.PI*2,r=Math.sqrt(Math.random())*maxErr;
     return{xNm:pos.xNm+Math.cos(a)*r,yNm:pos.yNm+Math.sin(a)*r,errNm:maxErr};
-  }
-
-  noteASWCue(pos,conf,reason){
+  },
+noteASWCue(pos,conf,reason){
     const e=this.state.world.enemy,A=this.ensureASWState(),q=this.cueEstimate(pos,conf,reason),now=this.state.time.elapsedSeconds;
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.lastKnownConfidence=Math.max(e.lastKnownConfidence||0,conf||0);
     e.searchCenter={xNm:q.xNm,yNm:q.yNm};
@@ -180,18 +179,16 @@ class SimEngineASWBrain extends SimEngineWeather{
     A.searchRadiusNm=clamp(.45+q.errNm*1.6,.45,1.4);A.lastCue=reason;A.cueGeneration++;
     this.assignASWRoles(null,true);
     return q;
-  }
-
-  freshStrongASWCue(s=null){
+  },
+freshStrongASWCue(s=null){
     const A=this.ensureASWState(),now=this.state.time.elapsedSeconds||0,source=A.datum?.source||A.lastCue;
     if(!['ACTIVE_QC','ACTIVE_ECHO'].includes(source)||now-(A.datumAt||-999)>48)return false;
     // A solution's age is the only knowledge-safe timestamp available on old
     // saves. The new acoustic cue wins only when it is actually newer; a fresh
     // visual/sonar fix remains superior.
     return !s||!Number.isFinite(s.ageSec)||(A.datumAt||-999)>now-s.ageSec+2;
-  }
-
-  aswDatum(leadSec=0){
+  },
+aswDatum(leadSec=0){
     const e=this.state.world.enemy,A=this.ensureASWState();
     const s=e.solution&&!e.solution.decoy?e.solution:null;
     const cueWins=this.freshStrongASWCue(s),base=!cueWins&&s?{xNm:s.xNm,yNm:s.yNm}:{...(A.datum||e.searchCenter||e.lastKnownSubPosition||{})};
@@ -202,9 +199,8 @@ class SimEngineASWBrain extends SimEngineWeather{
       base.xNm+=Math.sin(r)*d;base.yNm-=Math.cos(r)*d;
     }
     return base;
-  }
-
-  noteASWFix(esc,source='ACTIVE',quality=.7){
+  },
+noteASWFix(esc,source='ACTIVE',quality=.7){
     const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds,s=e.solution;
     if(!s)return;
     const wasHeld=!!e.contactHeld;
@@ -219,17 +215,15 @@ class SimEngineASWBrain extends SimEngineWeather{
       A.generation++;
     }
     return quality;
-  }
-
-  loseASWContact(){
+  },
+loseASWContact(){
     const e=this.state.world.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     A.searchStartedAt=now;A.searchRadiusNm=clamp(.45+(e.solution?.errNm||A.datum?.errNm||.08)*2,.45,1.2);
     const d=this.aswDatum();if(d){e.searchCenter={xNm:d.xNm,yNm:d.yNm};A.datum={...A.datum,...d};}
     this.assignASWRoles(null,true);
     this.log('ASW plot: firm contact lost; escorts are widening the search box.');
-  }
-
-  assignASWRoles(preferredId=null,force=false){
+  },
+assignASWRoles(preferredId=null,force=false){
     const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
     if(!force&&now-A.lastRoleAssignAt<8)return;
     const escorts=W.contacts.filter(c=>isASWCombatant(c));if(!escorts.length)return;
@@ -277,10 +271,9 @@ class SimEngineASWBrain extends SimEngineWeather{
     A.roleGeneration++;A.lastRoleAssignAt=now;
     A.roles=Object.fromEntries(escorts.map(x=>[x.id,x.aswRole]));
     this.log(`ASW roles: ${escorts.map(x=>`${x.id} ${x.aswRole.replace('_',' ')}`).join(' · ')}`);
-  }
-
-  updateASWBrain(dt){
-    const W=this.state.world,e=W.enemy,A=this.ensureASWState(),now=this.state.time.elapsedSeconds;
+  },
+updateASWBrain(dt){
+    const W=this.state.world,e=W.enemy,A=e.asw;if(!A)return;const now=this.state.time.elapsedSeconds;
     const escorts=W.contacts.filter(c=>isASWCombatant(c));
     for(const x of escorts)if(x.sonarContact&&now>(x.sonarContactUntil||-1))x.sonarContact=false;
     const straggler=this.damagedGuardShip(),guard=escorts.find(x=>x.aswRole==='DAMAGED_GUARD');
@@ -299,9 +292,8 @@ class SimEngineASWBrain extends SimEngineWeather{
       A.searchRadiusNm=clamp((A.searchRadiusNm||.55)+dt*(.0085+Math.min(lost,360)/360*.006)*f,.45,5.5);
       const d=this.aswDatum();if(d)e.searchCenter={xNm:d.xNm,yNm:d.yNm};
     }
-  }
-
-  searchTarget(esc){
+  },
+searchTarget(esc){
     const e=this.state.world.enemy,A=this.ensureASWState(),datum=this.aswDatum();if(!datum)return this.screenTarget(esc);
     const role=esc.aswRole||'SWEEP',r=clamp(A.searchRadiusNm||.7,.4,5.5),t=(e.searchPhase||0),course=e.solution?.courseDeg??A.estimatedCourseDeg??0;
     if(role==='CONVOY_GUARD'||role==='SCREEN')return this.screenTarget(esc)||datum;
@@ -329,4 +321,4 @@ class SimEngineASWBrain extends SimEngineWeather{
     const leg=Math.floor(t/38)%4,dirs=[0,90,180,270],rings=1+Math.floor(t/152),rr=Math.min(r,.45+rings*.42),a=degToRad(normDeg(course+dirs[leg]));
     return{xNm:datum.xNm+Math.sin(a)*rr,yNm:datum.yNm-Math.cos(a)*rr};
   }
-}
+};

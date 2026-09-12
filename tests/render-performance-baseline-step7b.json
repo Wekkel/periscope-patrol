@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "source": "tests/boot-harness.mjs",
+  "capturedAfter": "P58-step7b-2-periscope-hotfix-rev1",
+  "totals": {
+    "drawCalls": 22627,
+    "audioCalls": 993
+  },
+  "stations": {
+    "TACTICAL": 707,
+    "BRIDGE": 2396,
+    "SOUND": 201,
+    "PERISCOPE": 2039,
+    "MAP": 1162,
+    "DECK_GUN": 2208
+  }
+}

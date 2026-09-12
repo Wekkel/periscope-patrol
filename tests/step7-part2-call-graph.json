@@ -1,0 +1,2881 @@
+{
+  "generatedFrom": "tests/call-graph-current.json",
+  "classes": [
+    "SimEngineTorpedoes",
+    "SimEngineDeckGun",
+    "SimEngineAAGun"
+  ],
+  "methods": [
+    {
+      "name": "standDownAA",
+      "class": "SimEngineAAGun",
+      "file": "js/simulation/weapons/aa-gun.js",
+      "line": 2,
+      "end": 6,
+      "callDetails": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 5,
+          "offset": 122,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 5,
+          "offset": 143,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world.aaManned",
+          "access": "read",
+          "line": 3
+        },
+        {
+          "path": "state.world.aaManned",
+          "access": "write",
+          "line": 4
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 5
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "name": "manageAutomaticAA",
+      "class": "SimEngineAAGun",
+      "file": "js/simulation/weapons/aa-gun.js",
+      "line": 8,
+      "end": 26,
+      "callDetails": [
+        {
+          "name": "clearDeckForDive",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 17,
+          "offset": 632,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 154
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "standDownAA",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 18,
+          "offset": 702,
+          "definedBy": {
+            "class": "SimEngineAAGun",
+            "file": "js/simulation/weapons/aa-gun.js",
+            "line": 2
+          },
+          "relation": "same"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 25,
+          "offset": 1094,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 9
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 9
+        },
+        {
+          "path": "state.weapons.deckGun",
+          "access": "read",
+          "line": 9
+        },
+        {
+          "path": "clearDeckForDive",
+          "access": "read",
+          "line": 17
+        },
+        {
+          "path": "standDownAA",
+          "access": "read",
+          "line": 18
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 25
+        }
+      ]
+    },
+    {
+      "name": "aaCasualty",
+      "class": "SimEngineAAGun",
+      "file": "js/simulation/weapons/aa-gun.js",
+      "line": 28,
+      "end": 35,
+      "callDetails": [
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 33,
+          "offset": 199,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 29
+        },
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 29
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 33
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 34
+        }
+      ]
+    },
+    {
+      "name": "updateAAGun",
+      "class": "SimEngineAAGun",
+      "file": "js/simulation/weapons/aa-gun.js",
+      "line": 37,
+      "end": 81,
+      "callDetails": [
+        {
+          "name": "manageAutomaticAA",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 40,
+          "offset": 216,
+          "definedBy": {
+            "class": "SimEngineAAGun",
+            "file": "js/simulation/weapons/aa-gun.js",
+            "line": 8
+          },
+          "relation": "same"
+        },
+        {
+          "name": "standDownAA",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 43,
+          "offset": 347,
+          "definedBy": {
+            "class": "SimEngineAAGun",
+            "file": "js/simulation/weapons/aa-gun.js",
+            "line": 2
+          },
+          "relation": "same"
+        },
+        {
+          "name": "standDownAA",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 44,
+          "offset": 444,
+          "definedBy": {
+            "class": "SimEngineAAGun",
+            "file": "js/simulation/weapons/aa-gun.js",
+            "line": 2
+          },
+          "relation": "same"
+        },
+        {
+          "name": "standDownAA",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 45,
+          "offset": 559,
+          "definedBy": {
+            "class": "SimEngineAAGun",
+            "file": "js/simulation/weapons/aa-gun.js",
+            "line": 2
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 61,
+          "offset": 1470,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 68,
+          "offset": 1885,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 73,
+          "offset": 2123,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 38
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 38
+        },
+        {
+          "path": "manageAutomaticAA",
+          "access": "read",
+          "line": 40
+        },
+        {
+          "path": "standDownAA",
+          "access": "read",
+          "line": 43
+        },
+        {
+          "path": "standDownAA",
+          "access": "read",
+          "line": 44
+        },
+        {
+          "path": "standDownAA",
+          "access": "read",
+          "line": 45
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 61
+        },
+        {
+          "path": "_aaSnd",
+          "access": "read",
+          "line": 62
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 62
+        },
+        {
+          "path": "_aaSnd",
+          "access": "write",
+          "line": 63
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 63
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 63
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 68
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 73
+        },
+        {
+          "path": "state.weapons.explosions.push",
+          "access": "read",
+          "line": 74
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 78
+        }
+      ]
+    },
+    {
+      "name": "airDepthChargeAttack",
+      "class": "SimEngineAAGun",
+      "file": "js/simulation/weapons/aa-gun.js",
+      "line": 83,
+      "end": 108,
+      "callDetails": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 105,
+          "offset": 1713,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aarRecordEvent",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 106,
+          "offset": 1854,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 29
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 107,
+          "offset": 1997,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "lower"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 84
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 84
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 96
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 104
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 105
+        },
+        {
+          "path": "aarRecordEvent",
+          "access": "read",
+          "line": 106
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 107
+        }
+      ]
+    },
+    {
+      "name": "airAttack",
+      "class": "SimEngineAAGun",
+      "file": "js/simulation/weapons/aa-gun.js",
+      "line": 110,
+      "end": 127,
+      "callDetails": [
+        {
+          "name": "airDepthChargeAttack",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 113,
+          "offset": 179,
+          "definedBy": {
+            "class": "SimEngineAAGun",
+            "file": "js/simulation/weapons/aa-gun.js",
+            "line": 83
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 119,
+          "offset": 688,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aaCasualty",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 123,
+          "offset": 1169,
+          "definedBy": {
+            "class": "SimEngineAAGun",
+            "file": "js/simulation/weapons/aa-gun.js",
+            "line": 28
+          },
+          "relation": "same"
+        },
+        {
+          "name": "applyShock",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 124,
+          "offset": 1230,
+          "definedBy": {
+            "class": "SimEngineDamage",
+            "file": "js/simulation/damage-control.js",
+            "line": 80
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 124,
+          "offset": 1374,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 125,
+          "offset": 1563,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 126,
+          "offset": 1714,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "lower"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 111
+        },
+        {
+          "path": "airDepthChargeAttack",
+          "access": "read",
+          "line": 113
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 117
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 119
+        },
+        {
+          "path": "state.weapons.explosions.push",
+          "access": "read",
+          "line": 122
+        },
+        {
+          "path": "aaCasualty",
+          "access": "read",
+          "line": 123
+        },
+        {
+          "path": "applyShock",
+          "access": "read",
+          "line": 124
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 124
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 124
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 125
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 125
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 126
+        }
+      ]
+    },
+    {
+      "name": "deckGunTarget",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 11,
+      "end": 14,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state.tactical.selectedTrackId",
+          "access": "read",
+          "line": 12
+        },
+        {
+          "path": "state.tdc.targetId",
+          "access": "read",
+          "line": 12
+        },
+        {
+          "path": "state.world.contacts.find",
+          "access": "read",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "name": "deckGunBallisticSolution",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 16,
+      "end": 48,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state",
+          "access": "read",
+          "line": 17
+        }
+      ]
+    },
+    {
+      "name": "deckGunElevationFor",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 50,
+      "end": 52,
+      "callDetails": [
+        {
+          "name": "deckGunBallisticSolution",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 51,
+          "offset": 53,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 16
+          },
+          "relation": "same"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "deckGunBallisticSolution",
+          "access": "read",
+          "line": 51
+        }
+      ]
+    },
+    {
+      "name": "layDeckGun",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 54,
+      "end": 82,
+      "callDetails": [
+        {
+          "name": "deckGunTarget",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 55,
+          "offset": 84,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 11
+          },
+          "relation": "same"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 56,
+          "offset": 124,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 57,
+          "offset": 190,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 60,
+          "offset": 420,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 63,
+          "offset": 700,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "deckGunBallisticSolution",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 70,
+          "offset": 1208,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 16
+          },
+          "relation": "same"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 75,
+          "offset": 1462,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "deckGunBallisticSolution",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 77,
+          "offset": 1637,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 16
+          },
+          "relation": "same"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 79,
+          "offset": 1764,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 81,
+          "offset": 1921,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.weapons.deckGun",
+          "access": "read",
+          "line": 55
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 55
+        },
+        {
+          "path": "deckGunTarget",
+          "access": "read",
+          "line": 55
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 56
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 57
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 58
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 60
+        },
+        {
+          "path": "state.world.environment.visibilityNm",
+          "access": "read",
+          "line": 62
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 63
+        },
+        {
+          "path": "deckGunBallisticSolution",
+          "access": "read",
+          "line": 70
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 75
+        },
+        {
+          "path": "deckGunBallisticSolution",
+          "access": "read",
+          "line": 77
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 79
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 81
+        }
+      ]
+    },
+    {
+      "name": "fireDeckGun",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 84,
+      "end": 122,
+      "callDetails": [
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 86,
+          "offset": 137,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 87,
+          "offset": 230,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 88,
+          "offset": 350,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 89,
+          "offset": 435,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 91,
+          "offset": 585,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "deckGunTarget",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 92,
+          "offset": 654,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 11
+          },
+          "relation": "same"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 95,
+          "offset": 765,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "aarGunRound",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 115,
+          "offset": 2189,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 74
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aarRecordEvent",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 117,
+          "offset": 2430,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 29
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 119,
+          "offset": 2607,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "shake",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 121,
+          "offset": 2737,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 114
+          },
+          "relation": "higher"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.weapons.deckGun",
+          "access": "read",
+          "line": 85
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 85
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 85
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 86
+        },
+        {
+          "path": "state.time.timeScale",
+          "access": "write",
+          "line": 87
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 87
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 88
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 89
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 90
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 91
+        },
+        {
+          "path": "deckGunTarget",
+          "access": "read",
+          "line": 92
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 95
+        },
+        {
+          "path": "state.world.environment.seaState",
+          "access": "read",
+          "line": 97
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 99
+        },
+        {
+          "path": "aarGunRound",
+          "access": "read",
+          "line": 115
+        },
+        {
+          "path": "aarRecordEvent",
+          "access": "read",
+          "line": 117
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 119
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 120
+        },
+        {
+          "path": "shake",
+          "access": "read",
+          "line": 121
+        }
+      ]
+    },
+    {
+      "name": "segmentShipGunHit",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 124,
+      "end": 131,
+      "callDetails": [],
+      "fieldAccess": []
+    },
+    {
+      "name": "deckGunFallText",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 133,
+      "end": 140,
+      "callDetails": [
+        {
+          "name": "deckGunTarget",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 134,
+          "offset": 44,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 11
+          },
+          "relation": "same"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "deckGunTarget",
+          "access": "read",
+          "line": 134
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 135
+        }
+      ]
+    },
+    {
+      "name": "damageShipByDeckGun",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 142,
+      "end": 177,
+      "callDetails": [
+        {
+          "name": "noteHarborAttack",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 150,
+          "offset": 547,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "aarGunFinish",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 161,
+          "offset": 1464,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 75
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 165,
+          "offset": 1967,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "aarRecordEvent",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 168,
+          "offset": 2096,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 29
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 176,
+          "offset": 2613,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.weapons.deckGun",
+          "access": "read",
+          "line": 143
+        },
+        {
+          "path": "state.weapons",
+          "access": "read",
+          "line": 143
+        },
+        {
+          "path": "ctx.noteHarborAttack",
+          "access": "read",
+          "line": 150
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 152
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 153
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 160
+        },
+        {
+          "path": "aarGunFinish",
+          "access": "read",
+          "line": 161
+        },
+        {
+          "path": "state.weapons.explosions.push",
+          "access": "read",
+          "line": 163
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 164
+        },
+        {
+          "path": "state.playerSub.position",
+          "access": "read",
+          "line": 164
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 165
+        },
+        {
+          "path": "aarRecordEvent",
+          "access": "read",
+          "line": 168
+        },
+        {
+          "path": "state.playerSub.position",
+          "access": "read",
+          "line": 170
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 172
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 176
+        }
+      ]
+    },
+    {
+      "name": "updateDeckGun",
+      "class": "SimEngineDeckGun",
+      "file": "js/simulation/weapons/deck-gun.js",
+      "line": 179,
+      "end": 213,
+      "callDetails": [
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 184,
+          "offset": 329,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "segmentShipGunHit",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 200,
+          "offset": 1299,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 124
+          },
+          "relation": "same"
+        },
+        {
+          "name": "damageShipByDeckGun",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 202,
+          "offset": 1389,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 142
+          },
+          "relation": "same"
+        },
+        {
+          "name": "deckGunFallText",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 205,
+          "offset": 1659,
+          "definedBy": {
+            "class": "SimEngineDeckGun",
+            "file": "js/simulation/weapons/deck-gun.js",
+            "line": 133
+          },
+          "relation": "same"
+        },
+        {
+          "name": "aarGunFinish",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 206,
+          "offset": 1747,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 75
+          },
+          "relation": "higher"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.weapons.deckGun",
+          "access": "read",
+          "line": 180
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 180
+        },
+        {
+          "path": "state.world.environment.seaState",
+          "access": "read",
+          "line": 182
+        },
+        {
+          "path": "state.tactical.activeStation",
+          "access": "write",
+          "line": 183
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 184
+        },
+        {
+          "path": "state.world.contacts",
+          "access": "read",
+          "line": 199
+        },
+        {
+          "path": "segmentShipGunHit",
+          "access": "read",
+          "line": 200
+        },
+        {
+          "path": "damageShipByDeckGun",
+          "access": "read",
+          "line": 202
+        },
+        {
+          "path": "deckGunFallText",
+          "access": "read",
+          "line": 205
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 205
+        },
+        {
+          "path": "aarGunFinish",
+          "access": "read",
+          "line": 206
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 207
+        }
+      ]
+    },
+    {
+      "name": "floodTube",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 2,
+      "end": 12,
+      "callDetails": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 4,
+          "offset": 130,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 11,
+          "offset": 657,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.weapons.tubes.find",
+          "access": "read",
+          "line": 3
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 4
+        },
+        {
+          "path": "state.playerSub.heading",
+          "access": "read",
+          "line": 9
+        },
+        {
+          "path": "state.tdc.solutionCourse",
+          "access": "write",
+          "line": 10
+        },
+        {
+          "path": "state.tdc.solutionCourse",
+          "access": "read",
+          "line": 10
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 11
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 11
+        }
+      ]
+    },
+    {
+      "name": "interceptRunNm",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 17,
+      "end": 17,
+      "callDetails": [],
+      "fieldAccess": []
+    },
+    {
+      "name": "fireTorpedo",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 19,
+      "end": 106,
+      "callDetails": [
+        {
+          "name": "updateTdc",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 24,
+          "offset": 517,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 524
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 28,
+          "offset": 724,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 29,
+          "offset": 891,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 30,
+          "offset": 1074,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 33,
+          "offset": 1243,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "interceptRunNm",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 38,
+          "offset": 1601,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 17
+          },
+          "relation": "same"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 41,
+          "offset": 1717,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 44,
+          "offset": 1984,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 55,
+          "offset": 2769,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 60,
+          "offset": 3130,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 61,
+          "offset": 3310,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 62,
+          "offset": 3467,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aarTorpedoLaunch",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 96,
+          "offset": 5454,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 60
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 101,
+          "offset": 5801,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "notify",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 102,
+          "offset": 5962,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 104,
+          "offset": 6121,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 105,
+          "offset": 6221,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "higher"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.tdc",
+          "access": "read",
+          "line": 22
+        },
+        {
+          "path": "state.world",
+          "access": "read",
+          "line": 22
+        },
+        {
+          "path": "state.tdc.targetId",
+          "access": "read",
+          "line": 22
+        },
+        {
+          "path": "state.tdc",
+          "access": "read",
+          "line": 23
+        },
+        {
+          "path": "state.tdc.targetId",
+          "access": "read",
+          "line": 23
+        },
+        {
+          "path": "state.tdc.autoTrack",
+          "access": "read",
+          "line": 23
+        },
+        {
+          "path": "updateTdc",
+          "access": "read",
+          "line": 24
+        },
+        {
+          "path": "state.weapons.tubes.find",
+          "access": "read",
+          "line": 25
+        },
+        {
+          "path": "state.tdc",
+          "access": "read",
+          "line": 26
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 26
+        },
+        {
+          "path": "state.weapons",
+          "access": "read",
+          "line": 27
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 28
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 29
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 30
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 33
+        },
+        {
+          "path": "interceptRunNm",
+          "access": "read",
+          "line": 38
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 41
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 44
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 47
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 55
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 60
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 61
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 62
+        },
+        {
+          "path": "aarTorpedoLaunch",
+          "access": "read",
+          "line": 96
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 101
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 102
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 103
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 104
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 105
+        }
+      ]
+    },
+    {
+      "name": "fireSpread",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 108,
+      "end": 108,
+      "callDetails": [
+        {
+          "name": "fireSpreadByPos",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 108,
+          "offset": 15,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 110
+          },
+          "relation": "same"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "fireSpreadByPos",
+          "access": "read",
+          "line": 108
+        },
+        {
+          "path": "state.tdc",
+          "access": "read",
+          "line": 108
+        }
+      ]
+    },
+    {
+      "name": "fireSpreadByPos",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 110,
+      "end": 120,
+      "callDetails": [
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 112,
+          "offset": 131,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "fireTorpedo",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 117,
+          "offset": 498,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 19
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 119,
+          "offset": 642,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.weapons.tubes.filter",
+          "access": "read",
+          "line": 111
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 112
+        },
+        {
+          "path": "state.weapons.activeTorpedoes.length",
+          "access": "read",
+          "line": 113
+        },
+        {
+          "path": "fireTorpedo",
+          "access": "read",
+          "line": 117
+        },
+        {
+          "path": "state.weapons.activeTorpedoes.length",
+          "access": "read",
+          "line": 118
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 119
+        }
+      ]
+    },
+    {
+      "name": "reportMiss",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 125,
+      "end": 136,
+      "callDetails": [
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 126,
+          "offset": 62,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 129,
+          "offset": 233,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 134,
+          "offset": 564,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "log",
+          "access": "read",
+          "line": 126
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 129
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 134
+        }
+      ]
+    },
+    {
+      "name": "sampleTorpedoWake",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 139,
+      "end": 146,
+      "callDetails": [],
+      "fieldAccess": []
+    },
+    {
+      "name": "torpedoWakeForImpact",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 148,
+      "end": 158,
+      "callDetails": [
+        {
+          "name": "sampleTorpedoWake",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 150,
+          "offset": 71,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 139
+          },
+          "relation": "same"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "sampleTorpedoWake",
+          "access": "read",
+          "line": 150
+        }
+      ]
+    },
+    {
+      "name": "torpedoWakeForPreImpact",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 160,
+      "end": 172,
+      "callDetails": [
+        {
+          "name": "torpedoWakeForImpact",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 162,
+          "offset": 140,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 148
+          },
+          "relation": "same"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "torpedoWakeForImpact",
+          "access": "read",
+          "line": 162
+        }
+      ]
+    },
+    {
+      "name": "torpedoShipSweepHit",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 174,
+      "end": 205,
+      "callDetails": [],
+      "fieldAccess": []
+    },
+    {
+      "name": "updateTorpedoes",
+      "class": "SimEngineTorpedoes",
+      "file": "js/simulation/weapons/torpedoes.js",
+      "line": 207,
+      "end": 364,
+      "callDetails": [
+        {
+          "name": "sampleTorpedoWake",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 220,
+          "offset": 639,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 139
+          },
+          "relation": "same"
+        },
+        {
+          "name": "aarTorpedoFinish",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 221,
+          "offset": 722,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 69
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "reportMiss",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 221,
+          "offset": 759,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 125
+          },
+          "relation": "same"
+        },
+        {
+          "name": "harborTorpedoNetHit",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 223,
+          "offset": 851,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "revealHarborNet",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 224,
+          "offset": 902,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "aarTorpedoFinish",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 225,
+          "offset": 967,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 69
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 227,
+          "offset": 1111,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "maybeMerchantSpotTorpedo",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 252,
+          "offset": 2929,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 72
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "torpedoShipSweepHit",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 253,
+          "offset": 2991,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 174
+          },
+          "relation": "same"
+        },
+        {
+          "name": "sampleTorpedoWake",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 256,
+          "offset": 3185,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 139
+          },
+          "relation": "same"
+        },
+        {
+          "name": "noteHarborAttack",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 267,
+          "offset": 3987,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "aarTorpedoFinish",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 274,
+          "offset": 4323,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 69
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 276,
+          "offset": 4589,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 277,
+          "offset": 4739,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aarTorpedoFinish",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 291,
+          "offset": 5474,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 69
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 297,
+          "offset": 6011,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 298,
+          "offset": 6110,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aarTorpedoFinish",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 301,
+          "offset": 6270,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 69
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "captureImpactShipState",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 302,
+          "offset": 6338,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 17
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "noteHarborAttack",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 311,
+          "offset": 7336,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "alertEscorts",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 312,
+          "offset": 7380,
+          "definedBy": {
+            "class": "SimEngineEnemyAI",
+            "file": "js/simulation/ai/enemy-ai.js",
+            "line": 87
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "aarRecordEvent",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 318,
+          "offset": 7691,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 29
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "offerImpactObservation",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 321,
+          "offset": 8034,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 55
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "torpedoWakeForPreImpact",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 323,
+          "offset": 8362,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 160
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 327,
+          "offset": 8679,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "notify",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 328,
+          "offset": 8821,
+          "definedBy": {
+            "class": "SimEngineCore",
+            "file": "js/simulation/engine-core.js",
+            "line": 146
+          },
+          "relation": "lower"
+        },
+        {
+          "name": "checkMissionObjectives",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 330,
+          "offset": 8969,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 121
+          },
+          "relation": "higher"
+        },
+        {
+          "name": "reportMiss",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 344,
+          "offset": 9768,
+          "definedBy": {
+            "class": "SimEngineTorpedoes",
+            "file": "js/simulation/weapons/torpedoes.js",
+            "line": 125
+          },
+          "relation": "same"
+        },
+        {
+          "name": "log",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 360,
+          "offset": 10518,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 822
+          },
+          "relation": "higher"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "state.weapons",
+          "access": "read",
+          "line": 208
+        },
+        {
+          "path": "sampleTorpedoWake",
+          "access": "read",
+          "line": 220
+        },
+        {
+          "path": "aarTorpedoFinish",
+          "access": "read",
+          "line": 221
+        },
+        {
+          "path": "reportMiss",
+          "access": "read",
+          "line": 221
+        },
+        {
+          "path": "ctx.harborTorpedoNetHit",
+          "access": "read",
+          "line": 223
+        },
+        {
+          "path": "ctx.revealHarborNet",
+          "access": "read",
+          "line": 224
+        },
+        {
+          "path": "aarTorpedoFinish",
+          "access": "read",
+          "line": 225
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 227
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 228
+        },
+        {
+          "path": "state.world.harbor",
+          "access": "read",
+          "line": 229
+        },
+        {
+          "path": "state.world.contacts",
+          "access": "read",
+          "line": 241
+        },
+        {
+          "path": "maybeMerchantSpotTorpedo",
+          "access": "read",
+          "line": 252
+        },
+        {
+          "path": "torpedoShipSweepHit",
+          "access": "read",
+          "line": 253
+        },
+        {
+          "path": "sampleTorpedoWake",
+          "access": "read",
+          "line": 256
+        },
+        {
+          "path": "ctx.noteHarborAttack",
+          "access": "read",
+          "line": 267
+        },
+        {
+          "path": "aarTorpedoFinish",
+          "access": "read",
+          "line": 274
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 276
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 277
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 278
+        },
+        {
+          "path": "aarTorpedoFinish",
+          "access": "read",
+          "line": 291
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 292
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 297
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 298
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 299
+        },
+        {
+          "path": "aarTorpedoFinish",
+          "access": "read",
+          "line": 301
+        },
+        {
+          "path": "captureImpactShipState",
+          "access": "read",
+          "line": 302
+        },
+        {
+          "path": "state.time.elapsedSeconds",
+          "access": "read",
+          "line": 306
+        },
+        {
+          "path": "state.tactical.activeStation",
+          "access": "read",
+          "line": 310
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 310
+        },
+        {
+          "path": "ctx.noteHarborAttack",
+          "access": "read",
+          "line": 311
+        },
+        {
+          "path": "alertEscorts",
+          "access": "read",
+          "line": 312
+        },
+        {
+          "path": "aarRecordEvent",
+          "access": "read",
+          "line": 318
+        },
+        {
+          "path": "state.playerSub.position",
+          "access": "read",
+          "line": 320
+        },
+        {
+          "path": "offerImpactObservation",
+          "access": "read",
+          "line": 321
+        },
+        {
+          "path": "torpedoWakeForPreImpact",
+          "access": "read",
+          "line": 323
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 327
+        },
+        {
+          "path": "notify",
+          "access": "read",
+          "line": 328
+        },
+        {
+          "path": "checkMissionObjectives",
+          "access": "read",
+          "line": 330
+        },
+        {
+          "path": "reportMiss",
+          "access": "read",
+          "line": 344
+        },
+        {
+          "path": "state.world.contacts",
+          "access": "read",
+          "line": 351
+        },
+        {
+          "path": "state.tdc.torpedoSpecKey",
+          "access": "read",
+          "line": 358
+        },
+        {
+          "path": "log",
+          "access": "read",
+          "line": 360
+        }
+      ]
+    }
+  ],
+  "externalCallers": [
+    {
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 464,
+      "caller": "SimEngineAircraft.updateAircraft",
+      "target": "airAttack",
+      "kind": "direct",
+      "relation": "higher"
+    },
+    {
+      "file": "js/simulation/ai/aircraft.js",
+      "line": 490,
+      "caller": "SimEngineAircraft.updateAircraft",
+      "target": "aaCasualty",
+      "kind": "direct",
+      "relation": "higher"
+    },
+    {
+      "file": "js/simulation/engine-core.js",
+      "line": 341,
+      "caller": "SimEngineCore.applyCmd",
+      "target": "layDeckGun",
+      "kind": "optional-object",
+      "relation": "unresolved"
+    },
+    {
+      "file": "js/simulation/engine-core.js",
+      "line": 342,
+      "caller": "SimEngineCore.applyCmd",
+      "target": "fireDeckGun",
+      "kind": "optional-object",
+      "relation": "unresolved"
+    },
+    {
+      "file": "js/simulation/engine-core.js",
+      "line": 458,
+      "caller": "SimEngineCore.applyCmd",
+      "target": "floodTube",
+      "kind": "optional-object",
+      "relation": "unresolved"
+    },
+    {
+      "file": "js/simulation/engine-core.js",
+      "line": 459,
+      "caller": "SimEngineCore.applyCmd",
+      "target": "fireTorpedo",
+      "kind": "optional-object",
+      "relation": "unresolved"
+    },
+    {
+      "file": "js/simulation/engine-core.js",
+      "line": 460,
+      "caller": "SimEngineCore.applyCmd",
+      "target": "floodTube",
+      "kind": "direct",
+      "relation": "higher"
+    },
+    {
+      "file": "js/simulation/engine-core.js",
+      "line": 461,
+      "caller": "SimEngineCore.applyCmd",
+      "target": "fireSpread",
+      "kind": "optional-object",
+      "relation": "unresolved"
+    },
+    {
+      "file": "js/simulation/engine-core.js",
+      "line": 494,
+      "caller": "SimEngineCore.applyCmd",
+      "target": "floodTube",
+      "kind": "direct",
+      "relation": "higher"
+    },
+    {
+      "file": "js/simulation/engine-core.js",
+      "line": 496,
+      "caller": "SimEngineCore.applyCmd",
+      "target": "fireSpreadByPos",
+      "kind": "optional-object",
+      "relation": "unresolved"
+    },
+    {
+      "file": "js/simulation/physics-navigation.js",
+      "line": 160,
+      "caller": "SimEngine.updateSub",
+      "target": "updateTorpedoes",
+      "kind": "direct",
+      "relation": "lower"
+    },
+    {
+      "file": "js/simulation/physics-navigation.js",
+      "line": 160,
+      "caller": "SimEngine.updateSub",
+      "target": "updateDeckGun",
+      "kind": "direct",
+      "relation": "lower"
+    },
+    {
+      "file": "js/simulation/physics-navigation.js",
+      "line": 161,
+      "caller": "SimEngine.updateSub",
+      "target": "updateAAGun",
+      "kind": "optional-direct",
+      "relation": "lower"
+    }
+  ]
+}

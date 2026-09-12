@@ -11,6 +11,20 @@ const knotsNmSec=k=>k/3600;
 const bearingBetween=(a,b)=>normDeg(radToDeg(Math.atan2(b.xNm-a.xNm,-(b.yNm-a.yNm))));
 const distNm=(a,b)=>Math.hypot(a.xNm-b.xNm,a.yNm-b.yNm);
 const fmtTime=s=>{const h=Math.floor(s/3600);const m=Math.floor((s%3600)/60);return `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;};
+const isPrimaryMissionTarget=(state,targetIdOrContact)=>{
+  if(!state||!targetIdOrContact)return false;
+  const id=typeof targetIdOrContact==='string'?targetIdOrContact:targetIdOrContact.id;
+  const c=typeof targetIdOrContact==='object'&&targetIdOrContact.missionRole?targetIdOrContact:(state.world?.contacts||[]).find(x=>x.id===id);
+  if(c?.missionRole==='HIGH_VALUE_TARGET'||c?.missionRole==='HARBOR_STRIKE_TARGET'||c?.missionRole==='ESCORT_HUNT_TARGET'||c?.missionRole==='RECON_TARGET'||c?.missionRole==='SURVIVOR')return true;
+  if(c?.harborTarget&&state.campaign?.primaryMission?.type==='HARBOR_STRIKE')return true;
+  const m=state.campaign?.primaryMission;
+  if(m){
+    if(m.targetId&&m.targetId===id)return true;
+    if(Array.isArray(m.targetIds)&&m.targetIds.includes(id))return true;
+    if(m.survivorId&&m.survivorId===id)return true;
+  }
+  return false;
+};
 
 
 /* ═══════════════════════════════════════════════════ BUILD CHANNEL
@@ -30,8 +44,14 @@ const PP_BUILD=(()=>{
   const path=(typeof location!=='undefined'&&location.pathname)||'';
   const isDev=/(?:^|\/)dev(?:\/|$)/i.test(path);
   const storagePrefix=isDev?'ppdev_':'';
-  const api={channel:isDev?'atlantic-dev':'production',isDev,storagePrefix,
+  // Atlantic DEV patch number is a human test-build identity, separate from
+  // the service-worker VERSION/cache token. Bump this in every atlantic-dev
+  // patch so a tester can report the exact patch without translating a SHA.
+  const devPatch=isDev?58:null;
+  const api={channel:isDev?'atlantic-dev':'production',isDev,devPatch,storagePrefix,
     storageKey:key=>storagePrefix+String(key),
+    // Lets support diagnostics distinguish a coherent touch shell from a
+    // page where an older cached stylesheet was combined with newer scripts.
     touchUiContract:()=>{
       try{return getComputedStyle(document.documentElement).getPropertyValue('--pp-touch-ui-contract').trim().replace(/^['"]|['"]$/g,'')||'missing';}
       catch(_){return 'unavailable';}
@@ -47,8 +67,3 @@ if(typeof document!=='undefined'){
     if(apple)apple.setAttribute('content','Periscope DEV');
   }
 }
-
-// Surface-engine hysteresis. These are deliberately a little forgiving: the boat
-// has no snorkel, but a depth controller hovering at 2–5 ft must not strand her.
-const DIESEL_CUTOFF_FT=12;
-const DIESEL_RESTART_FT=8;

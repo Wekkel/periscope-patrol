@@ -1,15 +1,14 @@
 // ═══════════════════════════════════════════════════ GAME FACADE
 class Game{
-  constructor(){
-    const startArea='Solomon Sea';
-    this.state=createState(startArea);
+  constructor(identity=DEFAULT_GAME_IDENTITY){
+    this.state=createState(null,identity);
+    const startArea=this.state.campaign.patrolArea;
     const bootEngine=new SimEngine(this.state,new CommandBus());
     bootEngine.ensureHistoricalCampaignProfile?.(true);
     this.state.world.contacts=bootEngine.makeConvoy(PATROL_AREAS[startArea],{areaKey:startArea,startDate:this.state.campaign.startDate,historicalProfile:this.state.campaign.historicalProfile});
     this.bus=new CommandBus();
     this.engine=new SimEngine(this.state,this.bus);
-    this.engine.ensureHistoricalCampaignProfile?.();
-    this.engine.ensureTrafficDirector?.(true);
+    initializeStateSchema(this.engine,true);
   }
   dispatch(cmd){
     /* Station changes are UI/navigation state, not physics orders.  Keeping
@@ -17,7 +16,7 @@ class Game{
        subsystem could leave the visible station frozen even though the user
        had tapped another tab. Apply these synchronously so TAC/MAP/BRG/SND/
        SCOPE/GUN navigation is independent of the next simulation tick. */
-    if(cmd?.type==='SET_ACTIVE_STATION'){
+    if(cmd?.type==='SET_ACTIVE_STATION'||cmd?.type==='PAUSE_FOR_MODAL'||cmd?.type==='RESUME_FROM_MODAL'){
       this.engine.ensureTacticalExtensions?.();
       this.engine.ensureWorldExtensions?.();
       this.engine.applyCmd(cmd);
@@ -29,4 +28,3 @@ class Game{
   update(dt){this.engine.update(dt);}
   getSnapshot(){return this.state;}
 }
-

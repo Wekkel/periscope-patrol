@@ -1,0 +1,274 @@
+// ═══════════════════════════════════════════════════ MULTI-THEATER CAMPAIGNS
+/* P43–P50 authored catalogue. This file is loaded after the base Pacific and
+   Atlantic catalogues and their compact coastline data. Only the selected
+   patrol area's coastline is expanded by getPatrolTerrain(); this registry is
+   metadata plus compact coordinate literals and stays within the mobile budget. */
+const PP_CAMPAIGN_SCHEMA_VERSION=2,PP_CONTENT_SCHEMA_VERSION=1;
+const _mtClone=x=>JSON.parse(JSON.stringify(x));
+const _mtFreeze=x=>{if(x&&typeof x==='object'&&!Object.isFrozen(x)){Object.values(x).forEach(_mtFreeze);Object.freeze(x);}return x;};
+
+const MULTI_FACTION_PROFILES=_mtFreeze({
+  italy:{id:'italy',displayName:'Regia Marina',shortName:'RM'}
+});
+
+function getDisposition(observerFactionId,targetFactionId,date,campaignId,missionContext={}){
+  if(!observerFactionId||!targetFactionId)return'UNKNOWN';
+  if(observerFactionId===targetFactionId)return'FRIENDLY';
+  const c=CAMPAIGN_DEFINITIONS[campaignId];if(!c)return'UNKNOWN';
+  const key=[observerFactionId,targetFactionId].sort().join(':');
+  if((c.alliedPairs||[]).includes(key))return'ALLIED';
+  if((c.hostilePairs||[]).includes(key))return'HOSTILE';
+  if((c.neutralFactionIds||[]).includes(targetFactionId))return'NEUTRAL';
+  return missionContext.declaredHostile===true?'HOSTILE':'UNKNOWN';
+}
+
+const _station=(id,base,patch)=>_mtFreeze(Object.assign(_mtClone(base),{id},patch));
+const MULTI_STATION_PRESENTATION_PROFILES={
+  'ijn-fleet-sub':_station('ijn-fleet-sub',STATION_PRESENTATION_PROFILES['us-fleet-submarine'],{
+    theme:'ijn-fleet',language:'ja-JP',
+    palette:{faceInner:'#161412',faceOuter:'#080706',bezel:'#54483b',ink:'#f0ebd8',muted:'#a69a84',dim:'#706452',order:'#d63a2a',ok:'#8fae6a',tickMajor:'#f0ebd8',tickMinor:'#a69a84',font:'ui-monospace,"SF Mono",Menlo,monospace'},
+    depth:{factor:.3048,suffix:'m',unit:'METER',fine:'SEN',deep:'SHIN',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
+    gauges:{course:'Shinro',depth:'Shinkou',power:'Sokuryoku',courseLegends:['TENRAN','JIKI'],powerSurface:'JŪYU',powerSubmerged:'DENKI',rpm:'KAI-TEN',speed:'SETSU'},
+    orders:{heading:'Shinro',depth:'Shinkou',power:'Kaiten',speed:'Sokuryoku',engine:'Kikan',ballast:'Chūsui',silent:'Mutei Kōkō',alarm:'SEN-KOU!',surface:'Fujō',dive:'Sensui',crashDive:'Kyūsoku Sensui',blow:'Kaikyū Fushō',bottom:'Chakutei'},
+    roles:{captain:'Kanchō',executive:'Fukuchō',engineer:'Kikanchō',radio:'Tsūshinin'},
+    sensors:{room:'Chōonshitsu',operator:'chōonshu'},
+    tubes:{prefix:'Hasshakan ',forward:'KANSOU',aft:'KOUBU',forwardTitle:'Kansou Hasshakan',aftTitle:'Koubu Hasshakan',flood:'Chūsui',fire:'Hassha!',roomTitle:'Gyoraishitsu'},
+    confirmations:['Ha!','Ryōkai!','Gokurōsama!'],
+    engineOrders:['TEISHI','BIYOKU','HANJŌ','ZENSHIN','KAISHIN','SAIKOU']
+  }),
+  'rn-submarine':_station('rn-submarine',STATION_PRESENTATION_PROFILES['us-fleet-submarine'],{
+    theme:'rn-admiralty',language:'en-GB',
+    palette:{faceInner:'#121922',faceOuter:'#080d14',bezel:'#6b583e',ink:'#e2e7ec',muted:'#8e9eab',dim:'#586877',order:'#e5b158',ok:'#68b894',tickMajor:'#e2e7ec',tickMinor:'#8e9eab',font:'ui-monospace,"SF Mono",Menlo,monospace'},
+    depth:{factor:1,suffix:'ft',unit:'FEET',fine:'SHALLOW',deep:'DEEP',scopeFeet:55,detentsDisplay:[0,55,100,150,200,250]},
+    gauges:{course:'Course',depth:'Depth',power:'Speed',courseLegends:['GYRO','DIRECTOR'],powerSurface:'DIESEL',powerSubmerged:'MAIN MOTOR',rpm:'REV/MIN',speed:'KNOTS'},
+    orders:{heading:'Heading',depth:'Depth',power:'Revs',speed:'Speed',engine:'Telegraph',ballast:'Main Ballast',silent:'Silent Running',alarm:'ACTION STATIONS',surface:'Surface',dive:'Dive',crashDive:'Emergency Dive',blow:'Main Vent Blow',bottom:'Bottom Boat'},
+    roles:{captain:'Captain',executive:'First Lieutenant',engineer:'Engineer Officer',radio:'Wireless Operator'},
+    sensors:{room:'Asdic Compartment',operator:'ASDIC operator'},
+    tubes:{prefix:'Tube ',forward:'BOW',aft:'STERN',forwardTitle:'Bow Tubes',aftTitle:'Stern Tubes',flood:'Flood',fire:'Fire',roomTitle:'Torpedo Compartment'},
+    confirmations:['Aye aye, Sir!','Very good, Sir.','Carrying out now, Sir!'],
+    engineOrders:['STOP','DEAD SLOW','SLOW','HALF','FULL','EMERGENCY']
+  }),
+  'rm-submarine':_station('rm-submarine',STATION_PRESENTATION_PROFILES['km-type-vii'],{
+    theme:'rm-brass',language:'it-IT',
+    palette:{faceInner:'#1c1813',faceOuter:'#0a0907',bezel:'#8c6d3b',ink:'#f4ecd8',muted:'#b5a482',dim:'#7a6b52',order:'#e8a838',ok:'#83a76a',tickMajor:'#f4ecd8',tickMinor:'#b5a482',font:'ui-monospace,"SF Mono",Menlo,monospace'},
+    depth:{factor:.3048,suffix:'m',unit:'METRI',fine:'FINE',deep:'PROF',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
+    gauges:{course:'Rotta',depth:'Profondità',power:'Velocità',courseLegends:['GIRO','BUSSOLA'],powerSurface:'TERMICO',powerSubmerged:'ELETTRICO',rpm:'GIRI',speed:'NODI'},
+    orders:{heading:'Rotta',depth:'Profondità',power:'Giri',speed:'Velocità',engine:'Telegrafo',ballast:'Casse zavorra',silent:'Navigazione silenziosa',alarm:'POSTI DI COMBATTIMENTO',surface:'Emersione',dive:'Immersione',crashDive:'Rapida immersione',blow:'Esaurimento ad aria',bottom:'Posarsi sul fondo'},
+    roles:{captain:'Comandante',executive:'Ufficiale in seconda',engineer:'Direttore di macchina',radio:'Radiotelegrafista'},
+    sensors:{room:'Camera idrofonica',operator:'operatore idrofonico'},
+    tubes:{prefix:'Tubo ',forward:'PRUA',aft:'POPPA',forwardTitle:'Tubi di prora',aftTitle:'Tubi di poppa',flood:'Allagamento',fire:'Lancio!',roomTitle:'Camera di lancio'},
+    confirmations:['Comandi, Comandante!','Signor sì!','Eseguo subito!'],
+    engineOrders:['ALT','MOLTO ADAGIO','ADAGIO','MEZZA FORZA','AVANTI TUTTA','FORZA ESTREMA']
+  }),
+  'vmf-submarine':_station('vmf-submarine',STATION_PRESENTATION_PROFILES['km-type-vii'],{
+    theme:'vmf-red',language:'ru-RU',
+    palette:{faceInner:'#151719',faceOuter:'#08090a',bezel:'#4e5559',ink:'#e6ebed',muted:'#959fa5',dim:'#606a70',order:'#de3333',ok:'#6eb875',tickMajor:'#e6ebed',tickMinor:'#959fa5',font:'ui-monospace,"SF Mono",Menlo,monospace'},
+    depth:{factor:.3048,suffix:'m',unit:'METERS',fine:'MALAYA',deep:'GLUBINA',scopeFeet:55,detentsDisplay:[0,20,40,60,80,100,120,140]},
+    gauges:{course:'Kurs',depth:'Glubina',power:'Khod',courseLegends:['GIRO','MAGNIT'],powerSurface:'DIZEL',powerSubmerged:'ELEKTRO',rpm:'OB/MIN',speed:'UZLOV'},
+    orders:{heading:'Kurs',depth:'Glubina',power:'Ob/min',speed:'Khod',engine:'Mashinny',ballast:'Ballast',silent:'Besshumny khod',alarm:'BOEVAYA TREVOGA!',surface:'Vsplytie',dive:'Pogruzhenie',crashDive:'Srochnoe pogruzhenie',blow:'Produvka',bottom:'Na grunt'},
+    roles:{captain:'Komandir',executive:'Pomoshchnik',engineer:'Mekhanik',radio:'Radist'},
+    sensors:{room:'Gidroakustika',operator:'gidroakustik'},
+    tubes:{prefix:'Apparat ',forward:'NOS',aft:'KORMA',forwardTitle:'Nosovye apparaty',aftTitle:'Kormovye apparaty',flood:'Zapolnenie',fire:'Pusk!',roomTitle:'Torpedny otsek'},
+    confirmations:['Yest, tovarishch komandir!','Tak tochno!','Slushayus!'],
+    engineOrders:['STOP','SAMYY MALYY','MALYY','SREDNIY','POLNYY','SAMYY BYSTRYY']
+  })
+};
+_mtFreeze(MULTI_STATION_PRESENTATION_PROFILES);
+
+Object.assign(TORPEDO_SPECS,{
+  'type95-mod1':{shortName:'T95',name:'Type 95 Mod 1',speedKnots:49,maxRangeNm:4.86,warheadKg:405,reliability:.91,acousticPenalty:.08,dudChanceBase:.07,visibleWake:true,note:'IJN submarine oxygen torpedo; performance is bounded for a 30-minute tactical chart.'},
+  'mk-viii-rn':{shortName:'MK8',name:'British 21-inch Mark VIII',speedKnots:41,maxRangeNm:4.0,warheadKg:340,reliability:.90,acousticPenalty:.06,dudChanceBase:.08,visibleWake:true,note:'Royal Navy wet-heater baseline.'},
+  'siluro-w270':{shortName:'W270',name:'Siluro Tipo W 270/533.4',speedKnots:46,maxRangeNm:4.32,warheadKg:270,reliability:.86,acousticPenalty:.06,dudChanceBase:.11,visibleWake:true,note:'Regia Marina 533 mm gameplay profile.'},
+  '53-38':{shortName:'53-38',name:'Soviet 53-38',speedKnots:44,maxRangeNm:4.32,warheadKg:300,reliability:.84,acousticPenalty:.07,dudChanceBase:.12,visibleWake:true,note:'Soviet steam torpedo gameplay profile.'}
+});
+
+function _sub(id,name,className,factionId,theaterId,presentationId,torpedoSpecKey,baseId='type-viic-1941'){
+  const x=_mtClone(SUBMARINE_PROFILES[baseId]);Object.assign(x,{id,displayName:name,className,factionId,theaterId,stationPresentationId:presentationId,visualModelKey:id.toUpperCase()});x.weapons.defaultTorpedoSpecKey=torpedoSpecKey;
+  const guns={japan:{label:'14 cm/40 deck gun',shortLabel:'14 CM',muzzleVelocityMS:700},britain:{label:'4-inch deck gun',shortLabel:'4-IN',muzzleVelocityMS:716},italy:{label:'100 mm deck gun',shortLabel:'100 MM',muzzleVelocityMS:840},soviet:{label:'100 mm deck gun',shortLabel:'100 MM',muzzleVelocityMS:800}};
+  if(guns[factionId])Object.assign(x.weapons.deckGun,guns[factionId]);
+  if(factionId==='japan')x.sensors={passiveSound:{capabilityId:'PASSIVE_SOUND',label:'Hydrophones'},activeEcho:{capabilityId:'ACTIVE_ECHO',label:'Active echo-ranging',shortLabel:'ECHO',fixLabel:'ECHO FIX'}};
+  const nationalAudios={
+    japan:{key:'IJN_I_CLASS',electricPitch:1.04,dieselPitch:0.95,dieselLevel:1.05,hullMass:1.20,commandPitch:1.12,telegraphPitch:1.45,telegraphTone:'BRASS_CLANG',hydrophoneBandwidth:'TYPE93_ARRAY'},
+    britain:{key:'RN_T_CLASS',electricPitch:0.96,dieselPitch:1.05,dieselLevel:0.95,hullMass:1.10,commandPitch:1.02,telegraphPitch:1.18,telegraphTone:'ADMIRALTY_BELL',hydrophoneBandwidth:'ASDIC_PASSIVE'},
+    italy:{key:'RM_MARCELLO',electricPitch:1.00,dieselPitch:1.08,dieselLevel:0.94,hullMass:0.95,commandPitch:1.05,telegraphPitch:0.92,telegraphTone:'BRONZE_BELL',hydrophoneBandwidth:'IDROFONO_BASE'},
+    soviet:{key:'VMF_S_CLASS',electricPitch:1.12,dieselPitch:1.18,dieselLevel:1.02,hullMass:0.90,commandPitch:0.95,telegraphPitch:0.82,telegraphTone:'IRON_CHIME',hydrophoneBandwidth:'MARS_PASSIVE'}
+  };
+  if(nationalAudios[factionId])x.audio=Object.assign({},x.audio,nationalAudios[factionId]);
+  return _mtFreeze(x);
+}
+const MULTI_SUBMARINE_PROFILES=_mtFreeze({
+  'ijn-i-class-1942':_sub('ijn-i-class-1942','IJN I-class patrol submarine','I-15 class','japan','pacific','ijn-fleet-sub','type95-mod1','gato-silversides'),
+  'rn-t-class-1942':_sub('rn-t-class-1942','Royal Navy T-class submarine','T class','britain','atlantic','rn-submarine','mk-viii-rn'),
+  'rn-u-class-med':_sub('rn-u-class-med','Royal Navy U-class submarine','U class','britain','mediterranean','rn-submarine','mk-viii-rn'),
+  'rm-marcello-1941':_sub('rm-marcello-1941','Regia Marina Marcello-class submarine','Marcello class','italy','mediterranean','rm-submarine','siluro-w270'),
+  'km-viic-baltic':_sub('km-viic-baltic','Type VIIC Baltic boat','Type VIIC','germany','baltic','km-type-vii','g7e-t3'),
+  'vmf-s-class-1942':_sub('vmf-s-class-1942','Soviet S-class submarine','S class','soviet','baltic','vmf-submarine','53-38'),
+  'ijn-i-class-indian':_sub('ijn-i-class-indian','IJN I-class Indian Ocean boat','I-15 class','japan','indian-ocean','ijn-fleet-sub','type95-mod1','gato-silversides'),
+  'rn-t-class-eastern':_sub('rn-t-class-eastern','Royal Navy T-class Eastern Fleet boat','T class','britain','indian-ocean','rn-submarine','mk-viii-rn')
+});
+
+const _vehicle=(id,factionId,gameplayType,modelKey,recognition,doctrine,traits={})=>_mtFreeze({id,factionId,gameplayType,modelKey,recognition,doctrine,availableFrom:19400101,...traits});
+const MULTI_VESSEL_PROFILES={};
+const _escortModels=_mtFreeze({
+  usa:{destroyer:'US_FLETCHER_DESTROYER',escort:'US_DESTROYER_ESCORT'},japan:{destroyer:'DESTROYER',escort:'KAIBOKAN'},
+  germany:{destroyer:'GERMAN_TORPEDO_BOAT',escort:'GERMAN_MINESWEEPER'},britain:{destroyer:'TOWN_DESTROYER_1941',escort:'FLOWER_CORVETTE_1941'},
+  italy:{destroyer:'ITALIAN_SOLDATI_DESTROYER',escort:'ITALIAN_GABBIANO_CORVETTE'},soviet:{destroyer:'SOVIET_GNEVNY_DESTROYER',escort:'SOVIET_PATROL_ESCORT'}
+});
+const _escortTraining=_mtFreeze({usa:1.00,japan:.84,germany:.88,britain:.96,italy:.78,soviet:.74});
+for(const [f,name] of Object.entries({usa:'US',japan:'Japanese',germany:'German',britain:'British',italy:'Italian',soviet:'Soviet'})){
+  MULTI_VESSEL_PROFILES[`${f}-merchant`]=_vehicle(`${f}-merchant`,f,'MERCHANT',f==='britain'?'ATLANTIC_FREIGHTER':'MERCHANT',`${name} cargo vessel`,`Campaign-authored ${name} merchant routing and emergency turn.`);
+  MULTI_VESSEL_PROFILES[`${f}-tanker`]=_vehicle(`${f}-tanker`,f,'TANKER','TANKER',`${name} tanker`,`Protected high-value logistics traffic.`);
+  MULTI_VESSEL_PROFILES[`${f}-destroyer`]=_vehicle(`${f}-destroyer`,f,'DESTROYER',_escortModels[f].destroyer,`${name} destroyer`,`Area/date ASW screen and datum attack.`,{aswTraining:_escortTraining[f]});
+  MULTI_VESSEL_PROFILES[`${f}-escort`]=_vehicle(`${f}-escort`,f,'ESCORT',_escortModels[f].escort,`${name} escort`,`Close screen, search and depth-charge response.`,{aswTraining:Math.max(.55,_escortTraining[f]-.06)});
+  MULTI_VESSEL_PROFILES[`${f}-raft`]=_vehicle(`${f}-raft`,f,'RAFT','RAFT',`${name} survival raft`,'Stationary rescue target.');
+}
+_mtFreeze(MULTI_VESSEL_PROFILES);
+const MULTI_ASW_TACTICS=_mtFreeze({
+  usa:{id:'usa',searchPattern:'CIRCULAR',prosecutionFactor:1.04,searchGrowthFactor:1.02,speculativeAttackFactor:1.00,attackSpeedFactor:1.02,depthErrorFactor:.96,training:.98,yearBands:[{from:1944,prosecutionFactor:1.14,searchGrowthFactor:1.12,depthErrorFactor:.86,training:1.08}]},
+  japan:{id:'japan',searchPattern:'SECTOR',prosecutionFactor:.90,searchGrowthFactor:.88,speculativeAttackFactor:.82,attackSpeedFactor:.94,depthErrorFactor:1.16,training:.82,yearBands:[{from:1944,prosecutionFactor:1.02,searchGrowthFactor:1.02,speculativeAttackFactor:.96,training:.94}]},
+  germany:{id:'germany',searchPattern:'EXPANDING_SQUARE',prosecutionFactor:.92,searchGrowthFactor:.91,speculativeAttackFactor:.88,attackSpeedFactor:1.00,depthErrorFactor:1.10,training:.86,yearBands:[{from:1943,prosecutionFactor:1.02,searchGrowthFactor:1.02,depthErrorFactor:.98,training:.95}]},
+  britain:{id:'britain',searchPattern:'EXPANDING_SQUARE',prosecutionFactor:.96,searchGrowthFactor:.95,speculativeAttackFactor:.92,attackSpeedFactor:.96,depthErrorFactor:1.08,training:.86,yearBands:[{from:1943,prosecutionFactor:1.12,searchGrowthFactor:1.12,speculativeAttackFactor:1.08,attackSpeedFactor:1.03,depthErrorFactor:.91,training:1.02},{from:1944,prosecutionFactor:1.18,searchGrowthFactor:1.18,speculativeAttackFactor:1.14,attackSpeedFactor:1.05,depthErrorFactor:.84,training:1.10}]},
+  italy:{id:'italy',searchPattern:'SECTOR',prosecutionFactor:.82,searchGrowthFactor:.80,speculativeAttackFactor:.72,attackSpeedFactor:.92,depthErrorFactor:1.24,training:.74,yearBands:[{from:1943,prosecutionFactor:.90,searchGrowthFactor:.88,depthErrorFactor:1.13,training:.82}]},
+  soviet:{id:'soviet',searchPattern:'CIRCULAR',prosecutionFactor:.86,searchGrowthFactor:.84,speculativeAttackFactor:.76,attackSpeedFactor:.94,depthErrorFactor:1.20,training:.72,yearBands:[{from:1944,prosecutionFactor:.96,searchGrowthFactor:.94,depthErrorFactor:1.08,training:.84}]}
+});
+const MULTI_AIRCRAFT_PROFILES=_mtFreeze(Object.fromEntries(Object.entries({usa:'US Navy patrol aircraft',japan:'IJN maritime patrol aircraft',germany:'Luftwaffe maritime patrol aircraft',britain:'RAF Coastal Command aircraft',italy:'Regia Aeronautica maritime aircraft',soviet:'Soviet naval patrol aircraft'}).map(([f,name])=>[`${f}-maritime-air`,{id:`${f}-maritime-air`,factionId:f,name,kind:'BOMBER',availableFrom:19400101,engines:2,spanM:24,lengthM:18,speedKnots:[150,220],ordnance:'DEPTH_CHARGE',recognition:`${name}; identification remains sensor-dependent`,doctrine:'Area/date patrol, report, attack and re-attack.',audio:{key:'TWIN_BOMBER',engines:2,rpm:2200,blades:3,weight:1.05,dark:.90}}])));
+
+const MISSION_MECHANICS=['CONVOY_INTERDICTION','HIGH_VALUE_INTERCEPT','SHADOW_REPORT','RECONNAISSANCE','MINELAYING','SPECIAL_TRANSPORT','HARBOR_STRIKE','LIFEGUARD','ESCORT_HUNT','WEATHER_AMBUSH'];
+const MISSION_LABELS={CONVOY_INTERDICTION:'Area Patrol',HIGH_VALUE_INTERCEPT:'Priority Intercept',SHADOW_REPORT:'Shadow and Report',RECONNAISSANCE:'Coastal Reconnaissance',MINELAYING:'Mine Operation',SPECIAL_TRANSPORT:'Clandestine Transport',HARBOR_STRIKE:'Chokepoint Penetration',LIFEGUARD:'Rescue Coordination',ESCORT_HUNT:'Warship Intercept',WEATHER_AMBUSH:'Campaign Climax'};
+function _missionProfile(id,party,base,opponent,specialOpsProfile){
+  const content=Object.assign(_mtClone(US_PACIFIC_MISSION_PROFILE.content),_mtClone(base.content||{})),defs={};
+  for(const [i,type] of MISSION_MECHANICS.entries())defs[type]={
+    id:`${id}-${String(i+1).padStart(2,'0')}`,title:`${party.shortName} ${MISSION_LABELS[type].toUpperCase()}`,reward:1200+i*140,
+    briefing:`${party.commandName} assigns ${MISSION_LABELS[type].toLowerCase()} under ${party.doctrine}. Intelligence is uncertain; identify before committing and return to the designated friendly water.`,
+    mechanic:type,objectives:['develop player-held contact','complete the mission-specific action','survive the reaction','return'],
+    choices:['route and transit policy','surface/submerged approach','engage, report or disengage','return timing'],requirements:{dateWindow:party.dateWindow,boatProfileId:party.submarineProfileId},
+    seedVariants:[`${type}-A`,`${type}-B`,`${type}-C`],expectedDurationMin:[24,36],failStates:['assigned target or window irrecoverably lost','boat lost','return condition abandoned'],returnCriteria:['primary result resolved','friendly return area reached surfaced and stopped'],
+    aarQuestions:['What did you actually know before committing?','Which choice changed enemy reaction?'],aarLessons:[`Review ${party.doctrine}.`,'Separate plotted estimates from simulation truth.','Preserve fuel, battery and an escape route.']};
+  const walk=x=>{if(!x||typeof x!=='object')return;for(const [k,v] of Object.entries(x)){if(k==='vesselProfileId'){const p=x.side==='FRIENDLY'?party.factionId:opponent,g=String(x.gameplayType||x.type||'MERCHANT').toUpperCase();x[k]=`${p}-${g==='TANKER'?'tanker':g==='DESTROYER'?'destroyer':['ESCORT','WARSHIP','PATROL_CRAFT'].includes(g)?'escort':g==='RAFT'?'raft':'merchant'}`;}else walk(v);}};walk(content);
+  // HARBOR_STRIKE vereist echte havengeometrie (mijnen, net, vaargeul) via
+  // HarborSystem.setupHarbor(), die alleen vult wanneer areaKey exact
+  // overeenkomt met specialOpsProfile.harborRaid.areaKey. Zonder die match
+  // valt de missie terug op een lege ankerplaats-fallback zonder enige
+  // verdediging — dus HARBOR_STRIKE hoort niet in de pool van een gebied dat
+  // niet die exacte harborRaid-areaKey is.
+  const poolForArea=()=>MISSION_MECHANICS.filter(m=>m!=='HARBOR_STRIKE');
+  const defaultPool=MISSION_MECHANICS.filter(m=>m!=='HARBOR_STRIKE');
+  return _mtFreeze({id:`${id}-missions-v2`,defaultMissionType:MISSION_MECHANICS[0],autoDescription:`Ten distinct ${party.shortName} operations; AUTO follows area, date and seed.`,definitions:defs,missionPoolsByArea:Object.fromEntries(party.patrolAreaIds.map(a=>[a,poolForArea(a)])),defaultMissionPool:defaultPool,content});
+}
+
+const WAR_PARTY_PROFILES={
+  'pacific-usa':{id:'pacific-usa',campaignId:'pacific-submarine-war',factionId:'usa',shortName:'USN',commandName:'COMSUBPAC',conflictSide:'ALLIES',submarineProfileId:'gato-silversides',runtimeCampaignProfileId:'us-pacific',patrolAreaIds:['Solomon Sea','Bismarck Sea','Luzon Strait','Truk Approaches','Java Sea','Yellow Sea','Kii Suido / Honshu Approaches','East China Sea / Formosa Approaches','Sulu Sea / Tawi-Tawi','Kurile / Hokkaido Approaches'],dateWindow:['1942-01-01','1945-08-15'],doctrine:'independent commerce interdiction and fleet support',tutorials:['intercept plotting','radar and night surface approach'],honors:['Navy Unit Commendation'],aarIdentity:'United States submarine patrol report'},
+  'pacific-japan':{id:'pacific-japan',campaignId:'pacific-submarine-war',factionId:'japan',shortName:'IJN',commandName:'Sixth Fleet',conflictSide:'AXIS',submarineProfileId:'ijn-i-class-1942',runtimeCampaignProfileId:'japanese-pacific',patrolAreaIds:['Philippine Sea Fleet Routes — IJN'],dateWindow:['1942-01-01','1945-08-15'],doctrine:'fleet scouting, long-range patrol and special transport',tutorials:['Type 95 geometry','fleet reconnaissance'],honors:['Distinguished Patrol Citation'],aarIdentity:'Imperial Japanese Navy patrol report'},
+  'atlantic-germany':{id:'atlantic-germany',campaignId:'battle-atlantic',factionId:'germany',shortName:'KM',commandName:'B.d.U.',conflictSide:'AXIS',submarineProfileId:'type-viic-1941',runtimeCampaignProfileId:'german-atlantic-1941',patrolAreaIds:['North Atlantic Convoy Lanes','Western Approaches','Greenland–Iceland Gap','Norwegian Arctic Fjord Approaches'],dateWindow:['1941-01-01','1944-12-31'],doctrine:'contact keeping, convoy concentration and survival under growing air cover',tutorials:['contact report','night attack position'],honors:['Frontspange'],aarIdentity:'Kriegsmarine war patrol report'},
+  'atlantic-britain':{id:'atlantic-britain',campaignId:'battle-atlantic',factionId:'britain',shortName:'RN',commandName:'Admiralty',conflictSide:'ALLIES',submarineProfileId:'rn-t-class-1942',runtimeCampaignProfileId:'british-atlantic',patrolAreaIds:['Bay of Biscay / Norwegian Route — RN'],dateWindow:['1941-01-01','1944-12-31'],doctrine:'offensive patrol against Axis shipping and warships under Admiralty control',tutorials:['ASDIC interpretation','recognition discipline'],honors:['Distinguished Service Order'],aarIdentity:'Royal Navy submarine patrol report'},
+  'med-italy':{id:'med-italy',campaignId:'mediterranean-war',factionId:'italy',shortName:'RM',commandName:'Maricosom',conflictSide:'AXIS',submarineProfileId:'rm-marcello-1941',runtimeCampaignProfileId:'italian-mediterranean',patrolAreaIds:['Central Mediterranean Supply Route — RM'],dateWindow:['1941-01-01','1943-09-08'],doctrine:'night surface approach through clear, shallow chokepoints',tutorials:['coastal air warning','minefield passage'],honors:['Medaglia al Valore'],aarIdentity:'Regia Marina mission report'},
+  'med-britain':{id:'med-britain',campaignId:'mediterranean-war',factionId:'britain',shortName:'RN',commandName:'Tenth Submarine Flotilla',conflictSide:'ALLIES',submarineProfileId:'rn-u-class-med',runtimeCampaignProfileId:'british-mediterranean',patrolAreaIds:['Central Mediterranean Supply Route — RN'],dateWindow:['1941-01-01','1943-12-31'],doctrine:'close coastal ambush and interdiction of Axis North Africa supply',tutorials:['clear-water exposure','chokepoint escape'],honors:['Malta patrol citation'],aarIdentity:'Royal Navy Mediterranean patrol report'},
+  'baltic-germany':{id:'baltic-germany',campaignId:'baltic-war',factionId:'germany',shortName:'KM',commandName:'Führer der Unterseeboote Ost',conflictSide:'AXIS',submarineProfileId:'km-viic-baltic',runtimeCampaignProfileId:'german-baltic',patrolAreaIds:['Gulf of Finland Barriers — KM'],dateWindow:['1941-06-22','1944-09-30'],doctrine:'confined-water patrol behind mine, net and coastal observation belts',tutorials:['barrier navigation','seasonal visibility'],honors:['Baltic patrol clasp'],aarIdentity:'Baltic U-boat patrol report'},
+  'baltic-soviet':{id:'baltic-soviet',campaignId:'baltic-war',factionId:'soviet',shortName:'VMF',commandName:'Red Banner Baltic Fleet',conflictSide:'ALLIES',submarineProfileId:'vmf-s-class-1942',runtimeCampaignProfileId:'soviet-baltic',patrolAreaIds:['Gulf of Finland Barriers — VMF'],dateWindow:['1941-06-22','1944-12-31'],doctrine:'break through dense barriers for constrained Baltic patrols',tutorials:['mine and net exits','coastal hydrophones'],honors:['Order of the Red Banner'],aarIdentity:'Soviet Baltic Fleet patrol report'},
+  'indian-japan':{id:'indian-japan',campaignId:'indian-ocean-war',factionId:'japan',shortName:'IJN',commandName:'Eighth Submarine Squadron',conflictSide:'AXIS',submarineProfileId:'ijn-i-class-indian',runtimeCampaignProfileId:'japanese-indian-ocean',patrolAreaIds:['Bay of Bengal Monsoon Routes — IJN'],dateWindow:['1942-01-01','1944-12-31'],doctrine:'long-range reconnaissance, commerce attack and special operations',tutorials:['monsoon visibility','fuel planning'],honors:['Indian Ocean patrol citation'],aarIdentity:'IJN Indian Ocean patrol report'},
+  'indian-britain':{id:'indian-britain',campaignId:'indian-ocean-war',factionId:'britain',shortName:'RN',commandName:'Eastern Fleet',conflictSide:'ALLIES',submarineProfileId:'rn-t-class-eastern',runtimeCampaignProfileId:'british-indian-ocean',patrolAreaIds:['Bay of Bengal Monsoon Routes — RN'],dateWindow:['1942-01-01','1944-12-31'],doctrine:'long-range interception, reconnaissance and regional fleet support',tutorials:['monsoon fronts','limited-base endurance'],honors:['Eastern Fleet patrol citation'],aarIdentity:'Royal Navy Eastern Fleet patrol report'}
+};
+
+const CAMPAIGN_DEFINITIONS=_mtFreeze({
+  'pacific-submarine-war':{id:'pacific-submarine-war',displayName:'Pacific Submarine War, 1942–45',theaterId:'pacific',regionId:'pacific-ocean',conflict:'Pacific War',dateWindow:['1942-01-01','1945-08-15'],areas:['western and central Pacific'],playableWarPartyIds:['pacific-usa','pacific-japan'],missionSetIds:['pacific-usa-missions-v2','pacific-japan-missions-v2'],terrainBoundary:'ONE_ACTIVE_PATROL_AREA',historicalContext:'Submarine reconnaissance, fleet support and commerce interdiction.',availability:'PLAYABLE',hostilePairs:['japan:usa'],alliedPairs:['britain:usa'],neutralFactionIds:[]},
+  'battle-atlantic':{id:'battle-atlantic',displayName:'Battle of the Atlantic / European Atlantic, 1941–44',theaterId:'atlantic',regionId:'north-atlantic',conflict:'Battle of the Atlantic',dateWindow:['1941-01-01','1944-12-31'],areas:['North Atlantic','Western Approaches','Norwegian routes'],playableWarPartyIds:['atlantic-germany','atlantic-britain'],missionSetIds:['atlantic-germany-missions-v2','atlantic-britain-missions-v2'],terrainBoundary:'ONE_ACTIVE_PATROL_AREA',historicalContext:'Convoy war, weather, air coverage and coastal approaches.',availability:'PLAYABLE',hostilePairs:['britain:germany'],alliedPairs:['britain:canada'],neutralFactionIds:[]},
+  'mediterranean-war':{id:'mediterranean-war',displayName:'Mediterranean Submarine War, 1941–43',theaterId:'mediterranean',regionId:'mediterranean',conflict:'Mediterranean campaign',dateWindow:['1941-01-01','1943-12-31'],areas:['central Mediterranean chokepoints'],playableWarPartyIds:['med-italy','med-britain'],missionSetIds:['med-italy-missions-v2','med-britain-missions-v2'],terrainBoundary:'ONE_ACTIVE_PATROL_AREA',historicalContext:'Clear shallow water, mines, air power and North Africa supply routes.',availability:'PLANNED',hostilePairs:['britain:italy'],alliedPairs:['germany:italy'],neutralFactionIds:[]},
+  'baltic-war':{id:'baltic-war',displayName:'Baltic Submarine War, 1941–44',theaterId:'baltic',regionId:'baltic-sea',conflict:'Baltic naval war',dateWindow:['1941-06-22','1944-12-31'],areas:['Gulf of Finland and Baltic exits'],playableWarPartyIds:['baltic-germany','baltic-soviet'],missionSetIds:['baltic-germany-missions-v2','baltic-soviet-missions-v2'],terrainBoundary:'ONE_ACTIVE_PATROL_AREA',historicalContext:'Confined exits, dense barriers, coastal observation and seasonal light.',availability:'PLANNED',hostilePairs:['germany:soviet'],alliedPairs:[],neutralFactionIds:[]},
+  'indian-ocean-war':{id:'indian-ocean-war',displayName:'Indian Ocean Submarine War, 1942–44',theaterId:'indian-ocean',regionId:'indian-ocean',conflict:'Indian Ocean operations',dateWindow:['1942-01-01','1944-12-31'],areas:['Bay of Bengal and eastern trade routes'],playableWarPartyIds:['indian-japan','indian-britain'],missionSetIds:['indian-japan-missions-v2','indian-britain-missions-v2'],terrainBoundary:'ONE_ACTIVE_PATROL_AREA',historicalContext:'Long endurance, monsoon visibility, reconnaissance and trade routes.',availability:'PLANNED',hostilePairs:['britain:japan'],alliedPairs:['britain:usa'],neutralFactionIds:[]}
+});
+
+function getCampaignDefinition(id){return CAMPAIGN_DEFINITIONS[id]||null;}
+function getWarPartyProfile(id){return WAR_PARTY_PROFILES[id]||null;}
+function getSelectableCampaignDefinitions(){return Object.freeze(Object.values(CAMPAIGN_DEFINITIONS).filter(c=>c.availability==='PLAYABLE'&&c.playableWarPartyIds.every(id=>warPartyCompleteness(id).ready)));}
+function getSelectableWarParties(campaignId){const c=getCampaignDefinition(campaignId);return Object.freeze((c?.playableWarPartyIds||[]).map(getWarPartyProfile).filter(p=>warPartyCompleteness(p?.id).ready));}
+
+function _makeArea(spec){return{displayName:spec.displayName||spec.description,geography:Object.freeze({...spec.geography}),description:spec.description,terrainKey:spec.description,chartStartZoom:spec.chartStartZoom||2.1,
+  convoyRoutes:[{...spec.route}],start:{...spec.start},ports:spec.ports.map(p=>({...p,known:p.known!==false})),navigationCorridors:(spec.navigationCorridors||[]).map(c=>({...c,points:c.points.map(p=>({...p}))})),
+  pacingProfile:{targetMinutes:30,contactRangeNm:spec.contactRangeNm||[14,23]},environment:{daylight:.5,visibilityNm:9,seaState:.48,layerDepthFt:170,weather:'OVERCAST',airThreat:.65,...spec.environment},
+  convoySpeedRange:spec.convoySpeedRange||[7,11],convoyCountRange:spec.convoyCountRange||[4,7],difficulty:spec.difficulty||'HARD'};}
+const _newAreas={
+  'Philippine Sea Fleet Routes — IJN':_makeArea({displayName:'Mariana Islands — Philippine Sea',geography:{region:'Mariana Islands, western Philippine Sea',landmarks:['Saipan','Tinian','Rota']},description:'Fleet-scouting patrol west of the Mariana Islands; Saipan, Tinian and Rota define the visible island chain.',route:{from:{xNm:-116,yNm:-52},to:{xNm:104,yNm:34},label:'MARIANA FLEET SCOUTING ROUTE'},start:{xNm:-82,yNm:86},ports:[{name:'Mariana patrol rendezvous',pos:{xNm:-82,yNm:94},side:'FRIENDLY',scene:'SUB_BASE',heading:180},{name:'Saipan outer anchorage',pos:{xNm:104,yNm:34},side:'ENEMY',scene:'ROADSTEAD',heading:248}],navigationCorridors:[{label:'SAIPAN OUTER APPROACH',side:'ENEMY',widthNm:1.5,minDepthFeet:40,points:[{xNm:68,yNm:12},{xNm:88,yNm:24},{xNm:104,yNm:34}]}],environment:{weather:'TROPICAL SQUALLS',visibilityNm:13,layerDepthFt:220}}),
+  'Bay of Biscay / Norwegian Route — RN':_makeArea({displayName:'Bay of Biscay — Brest Approaches',geography:{region:'Bay of Biscay, approaches west of Brest',landmarks:['Brittany','Île d’Ouessant','Île de Sein']},description:'Royal Navy offensive patrol off the real Brittany coast: Brest approaches, Île d’Ouessant and Île de Sein.',route:{from:{xNm:-122,yNm:-42},to:{xNm:96,yNm:37},label:'BREST COASTAL ROUTE'},start:{xNm:-70,yNm:95},ports:[{name:'RN Biscay rendezvous',pos:{xNm:-70,yNm:103},side:'FRIENDLY',scene:'SUB_BASE',heading:180},{name:'Brest outer roadstead',pos:{xNm:108,yNm:52},side:'ENEMY',scene:'ROADSTEAD',heading:248}],navigationCorridors:[{label:'USHANT APPROACH',side:'ENEMY',widthNm:1.8,minDepthFeet:50,points:[{xNm:68,yNm:30},{xNm:88,yNm:40},{xNm:108,yNm:52}]}],environment:{weather:'ATLANTIC OVERCAST',visibilityNm:8}}),
+  'Central Mediterranean Supply Route — RM':_makeArea({displayName:'Malta–Pantelleria Channel — RM',geography:{region:'Malta–Pantelleria Channel, central Mediterranean',landmarks:['Sicily','Malta','Gozo','Pantelleria']},description:'Italian patrol across the real Malta–Pantelleria Channel, between Sicily, Malta and Pantelleria.',route:{from:{xNm:-118,yNm:-70},to:{xNm:106,yNm:20},label:'MALTA–PANTELLERIA SUPPLY ROUTE'},start:{xNm:-76,yNm:90},ports:[{name:'Augusta patrol rendezvous',pos:{xNm:-76,yNm:98},side:'FRIENDLY',scene:'SUB_BASE',heading:180},{name:'Malta outer anchorage',pos:{xNm:106,yNm:20},side:'ENEMY',scene:'CONVOY_PORT',heading:246}],navigationCorridors:[{label:'PANTELLERIA PASSAGE',side:'ENEMY',widthNm:1.3,minDepthFeet:35,points:[{xNm:78,yNm:-4},{xNm:92,yNm:8},{xNm:106,yNm:20}]}],contactRangeNm:[12,21],environment:{weather:'MEDITERRANEAN CLEAR',visibilityNm:18,seaState:.24,layerDepthFt:105}}),
+  'Central Mediterranean Supply Route — RN':_makeArea({displayName:'Malta–Pantelleria Channel — RN',geography:{region:'Malta–Pantelleria Channel, central Mediterranean',landmarks:['Sicily','Malta','Gozo','Pantelleria']},description:'Tenth Flotilla patrol across the real Malta–Pantelleria Channel, attacking Axis traffic bound for North Africa.',route:{from:{xNm:-118,yNm:-70},to:{xNm:106,yNm:20},label:'NORTH AFRICA SUPPLY ROUTE'},start:{xNm:-76,yNm:90},ports:[{name:'Malta patrol rendezvous',pos:{xNm:-76,yNm:98},side:'FRIENDLY',scene:'SUB_BASE',heading:180},{name:'Tripoli-bound convoy offing',pos:{xNm:106,yNm:20},side:'ENEMY',scene:'CONVOY_PORT',heading:246}],navigationCorridors:[{label:'PANTELLERIA PASSAGE',side:'ENEMY',widthNm:1.3,minDepthFeet:35,points:[{xNm:78,yNm:-4},{xNm:92,yNm:8},{xNm:106,yNm:20}]}],contactRangeNm:[12,21],environment:{weather:'MEDITERRANEAN CLEAR',visibilityNm:18,seaState:.24,layerDepthFt:105}}),
+  'Gulf of Finland Barriers — KM':_makeArea({displayName:'Gulf of Finland — Western Barrier — KM',geography:{region:'Gulf of Finland, Helsinki–Kronstadt sector',landmarks:['Finnish coast','Estonian coast','Gogland','Kotlin']},description:'German barrier patrol in the real Gulf of Finland, between the Finnish and Estonian coasts and the Gogland–Kotlin island line.',route:{from:{xNm:-112,yNm:-60},to:{xNm:105,yNm:-20},label:'GULF OF FINLAND COASTAL LANE'},start:{xNm:-68,yNm:102},ports:[{name:'Helsinki patrol rendezvous',pos:{xNm:-68,yNm:110},side:'FRIENDLY',scene:'SUB_BASE',heading:180},{name:'Kronstadt outer roadstead',pos:{xNm:108,yNm:54},side:'ENEMY',scene:'ROADSTEAD',heading:250}],navigationCorridors:[{label:'GOGLAND BARRIER GAP',side:'ENEMY',widthNm:.9,minDepthFeet:30,points:[{xNm:61,yNm:27},{xNm:83,yNm:38},{xNm:108,yNm:54}]}],contactRangeNm:[10,18],environment:{weather:'BALTIC HAZE',visibilityNm:7,seaState:.35,layerDepthFt:80,airThreat:.72}}),
+  'Gulf of Finland Barriers — VMF':_makeArea({displayName:'Gulf of Finland — Western Barrier — VMF',geography:{region:'Gulf of Finland, Helsinki–Kronstadt sector',landmarks:['Finnish coast','Estonian coast','Gogland','Kotlin']},description:'Soviet breakthrough patrol in the real Gulf of Finland through the Gogland–Kotlin barrier sector.',route:{from:{xNm:-112,yNm:-60},to:{xNm:105,yNm:-20},label:'GULF OF FINLAND COASTAL LANE'},start:{xNm:-68,yNm:102},ports:[{name:'Kronstadt patrol rendezvous',pos:{xNm:-68,yNm:110},side:'FRIENDLY',scene:'SUB_BASE',heading:180},{name:'Helsinki outer roadstead',pos:{xNm:108,yNm:54},side:'ENEMY',scene:'ROADSTEAD',heading:250}],navigationCorridors:[{label:'GOGLAND BARRIER GAP',side:'ENEMY',widthNm:.9,minDepthFeet:30,points:[{xNm:61,yNm:27},{xNm:83,yNm:38},{xNm:108,yNm:54}]}],contactRangeNm:[10,18],environment:{weather:'BALTIC HAZE',visibilityNm:7,seaState:.35,layerDepthFt:80,airThreat:.72}}),
+  'Bay of Bengal Monsoon Routes — IJN':_makeArea({displayName:'Andaman Sea & Bay of Bengal — IJN',geography:{region:'Andaman Sea and eastern Bay of Bengal',landmarks:['North Andaman','Great Nicobar','Preparis Island']},description:'Japanese long-range patrol in the real Andaman Sea and eastern Bay of Bengal, around the Andaman and Nicobar islands.',route:{from:{xNm:-121,yNm:-70},to:{xNm:106,yNm:-10},label:'ANDAMAN–BENGAL TRADE ROUTE'},start:{xNm:-88,yNm:100},ports:[{name:'Port Blair patrol rendezvous',pos:{xNm:-88,yNm:108},side:'FRIENDLY',scene:'SUB_BASE',heading:180},{name:'Rangoon approaches',pos:{xNm:110,yNm:58},side:'ENEMY',scene:'ROADSTEAD',heading:248}],navigationCorridors:[{label:'PREPARIS OFFING',side:'ENEMY',widthNm:2.2,minDepthFeet:45,points:[{xNm:68,yNm:34},{xNm:90,yNm:46},{xNm:110,yNm:58}]}],environment:{weather:'MONSOON SQUALLS',visibilityNm:8,seaState:.68,layerDepthFt:235}}),
+  'Bay of Bengal Monsoon Routes — RN':_makeArea({displayName:'Andaman Sea & Bay of Bengal — RN',geography:{region:'Andaman Sea and eastern Bay of Bengal',landmarks:['North Andaman','Great Nicobar','Preparis Island']},description:'Eastern Fleet patrol in the real Andaman Sea and eastern Bay of Bengal, using the Andaman–Nicobar island chain as cover.',route:{from:{xNm:-121,yNm:-70},to:{xNm:106,yNm:-10},label:'ANDAMAN–BENGAL TRADE ROUTE'},start:{xNm:-88,yNm:100},ports:[{name:'Trincomalee patrol rendezvous',pos:{xNm:-88,yNm:108},side:'FRIENDLY',scene:'SUB_BASE',heading:180},{name:'Rangoon approaches',pos:{xNm:110,yNm:58},side:'ENEMY',scene:'ROADSTEAD',heading:248}],navigationCorridors:[{label:'PREPARIS OFFING',side:'ENEMY',widthNm:2.2,minDepthFeet:45,points:[{xNm:68,yNm:34},{xNm:90,yNm:46},{xNm:110,yNm:58}]}],environment:{weather:'MONSOON SQUALLS',visibilityNm:8,seaState:.68,layerDepthFt:235}})
+};
+for(const [areaKey,area] of Object.entries(_newAreas))area.terrainKey=areaKey;
+Object.assign(PATROL_AREAS,_newAreas);
+function _historical(base,party,torpedo){const x=_mtClone(base);x.id=`${party.id}-history-v2`;x.defaultDate=party.dateWindow[0];if(x.equipment?.torpedoes)x.equipment.torpedoes=x.equipment.torpedoes.slice(0,1).map(q=>({...q,specKey:torpedo,availableFrom:Number(party.dateWindow[0].replaceAll('-',''))}));return _mtFreeze(x);}
+function _buildTheaterHarborRaid(party,opponent){
+  const areaKey=party.patrolAreaIds.find(a=>PATROL_AREAS[a]?.ports?.some(p=>p.side==='ENEMY'))||party.patrolAreaIds[0];
+  const area=PATROL_AREAS[areaKey],enemyPort=area?.ports?.find(p=>p.side==='ENEMY');
+  const portName=enemyPort?.name||'defended anchorage',shortName=portName.replace(/ (outer|approaches|roadstead|anchorage).*/i,''),id=`${party.id}-raid`;
+  return _mtFreeze({
+    harborRaid:_mtFreeze({
+      id,areaKey,portName,shortName,optionalObjectiveId:id,
+      geometry:_mtFreeze({outerRadiusNm:5.4,innerRadiusNm:1.4,channelBearing:Number(enemyPort?.heading||68),channelHalfWidthNm:.42,channelSafeHalfWidthNm:.34,channelDepthFeet:95,innerBasinDepthFeet:85,mineInnerNm:2.1,mineOuterNm:4.6,netRangeNm:1.8,netHalfSpanNm:1.15,netGapHalfNm:.28,netMaxDepthFt:280,hydrophoneRangeNm:4.5,batteryRangeNm:5.2}),
+      mines:_mtFreeze({count:26,maxPlacementAttempts:250,channelExclusionDeg:14}),
+      targets:_mtFreeze({
+        fixed:_mtFreeze([
+          _mtFreeze({id:'H-01',name:`${shortName} Fleet Oiler`,type:'TANKER',vesselProfileId:`${opponent}-tanker`,displayType:'FLEET OILER',bearing:210,rangeNm:.75,lengthYards:540,tonsFactor:9500,harborValue:2500,visualProfile:1.1}),
+          _mtFreeze({id:'H-02',name:`${shortName} Supply Ship`,type:'MERCHANT',vesselProfileId:`${opponent}-merchant`,displayType:'SUPPLY SHIP',bearing:320,rangeNm:.65,lengthYards:480,tonsFactor:6800,harborValue:2000,visualProfile:1.0}),
+          _mtFreeze({id:'H-03',name:`${shortName} Depot Vessel`,type:'MERCHANT',vesselProfileId:`${opponent}-merchant`,displayType:'DEPOT SHIP',bearing:115,rangeNm:.88,lengthYards:420,tonsFactor:4500,harborValue:1600,visualProfile:.95})
+        ]),
+        heavy:_mtFreeze({
+          id:'H-04',chance:.42,
+          high:_mtFreeze({name:`${shortName} Capital Unit`,type:'WARSHIP',vesselProfileId:`${opponent}-destroyer`,displayType:'CAPITAL UNIT',bearing:30,rangeNm:.48,lengthYards:720,tonsFactor:18000,harborValue:7500,visualProfile:1.35}),
+          low:_mtFreeze({name:`${shortName} Heavy Tender`,type:'TANKER',vesselProfileId:`${opponent}-tanker`,displayType:'HEAVY TENDER',bearing:30,rangeNm:.48,lengthYards:580,tonsFactor:11000,harborValue:4500,visualProfile:1.15})
+        })
+      }),
+      intel:_mtFreeze({eligibleBaseSec:450,eligibleSpreadSec:400}),careerAward:_mtFreeze({id:`${id}-award`,title:`Successful ${shortName} penetration`}),
+      radioSignal:_mtFreeze({type:'SPECIAL INTELLIGENCE',subject:`${shortName.toUpperCase()} DEFENSES`,text:`HEAVY UNIT OR FLEET SUPPLY VESSEL REPORTED AT ${shortName.toUpperCase()}. PENETRATE SWEPT CHANNEL AND ENGAGE AT DISCRETION.`}),
+      events:_mtFreeze({visualIdentifiedId:'HEAVY_UNIT_IDENTIFIED',visualIdentifiedKey:`${id}-identified`,visualBanner:`${shortName.toUpperCase()} VISUAL IDENTIFICATION`,reconCompleteId:'HARBOR_RECON_COMPLETE',reconCompleteKey:`${id}-recon-complete`,penetrationId:'HARBOR_PENETRATION',penetrationText:`Entered ${shortName} harbor defenses.`})
+    })
+  });
+}
+function _runtimeProfile(party){
+  const isAuthored=typeof CAMPAIGN_PROFILES!=='undefined'&&Boolean(CAMPAIGN_PROFILES[party.runtimeCampaignProfileId]);
+  const base=party.runtimeCampaignProfileId==='us-pacific'?CAMPAIGN_PROFILES['us-pacific']:party.runtimeCampaignProfileId==='german-atlantic-1941'?CAMPAIGN_PROFILES['german-atlantic-1941']:(party.conflictSide==='AXIS'?CAMPAIGN_PROFILES['german-atlantic-1941']:CAMPAIGN_PROFILES['us-pacific']);
+  const opponent=(CAMPAIGN_DEFINITIONS[party.campaignId].hostilePairs[0]||'').split(':').find(x=>x!==party.factionId)||'unknown',sub=MULTI_SUBMARINE_PROFILES[party.submarineProfileId]||SUBMARINE_PROFILES[party.submarineProfileId],torp=sub.weapons.defaultTorpedoSpecKey;
+  const theaterSpecialOps=_buildTheaterHarborRaid(party,opponent);
+  const x=_mtClone(base);Object.assign(x,{id:party.runtimeCampaignProfileId,displayName:isAuthored?base.displayName:`${CAMPAIGN_DEFINITIONS[party.campaignId].displayName} — ${party.shortName}`,theaterId:CAMPAIGN_DEFINITIONS[party.campaignId].theaterId,playerFactionId:party.factionId,opposingFactionIds:[opponent],submarineProfileId:party.submarineProfileId,commandName:party.commandName,defaultArea:party.patrolAreaIds[0],patrolAreaIds:isAuthored?[...base.patrolAreaIds]:[...party.patrolAreaIds],defaultStartDate:party.dateWindow[0],campaignId:party.campaignId,warPartyId:party.id,devSelectable:true,developmentStage:isAuthored?(base.developmentStage||'COMPLETE_VERTICAL_SLICE'):'COMPLETE_VERTICAL_SLICE'});
+  x.doctrineProfile.asw.tactics=_mtClone(MULTI_ASW_TACTICS[opponent]||MULTI_ASW_TACTICS.japan);
+  x.missionProfile=isAuthored?_mtClone(base.missionProfile):_missionProfile(party.id,party,base.missionProfile||US_PACIFIC_MISSION_PROFILE,opponent,theaterSpecialOps);x.historicalModel=_historical(base.historicalModel,party,torp);x.verticalSliceAcceptance=_mtClone(VERTICAL_SLICE_ACCEPTED);
+  x.specialOperationsProfile=base.specialOperationsProfile?(party.runtimeCampaignProfileId==='us-pacific'?_mtClone(base.specialOperationsProfile):theaterSpecialOps):theaterSpecialOps;
+  x.radioIntelProfile=_mtClone(base.radioIntelProfile||US_PACIFIC_RADIO_INTEL_PROFILE);x.radioIntelProfile.id=`${party.id}-radio-v2`;
+  const radioWords=z=>{if(!z||typeof z!=='object')return;for(const [k,v] of Object.entries(z)){if(typeof v==='string')z[k]=v.replaceAll('COMSUBPAC',party.commandName).replaceAll('B.d.U.',party.commandName).replaceAll('ULTRA',`${party.commandName} INTEL`);else radioWords(v);}};radioWords(x.radioIntelProfile);
+  const normalize=z=>{if(!z||typeof z!=='object')return;for(const [k,v] of Object.entries(z)){if(k==='vesselProfileId'){const owner=z.side==='FRIENDLY'?party.factionId:opponent,g=String(z.gameplayType||z.type||'MERCHANT').toUpperCase();z[k]=`${owner}-${g==='TANKER'?'tanker':g==='DESTROYER'?'destroyer':['ESCORT','WARSHIP','PATROL_CRAFT'].includes(g)?'escort':'merchant'}`;z.factionId=owner;}else if(k==='aircraftProfileId')z[k]=`${opponent}-maritime-air`;else normalize(v);}};
+  normalize(x.primaryConvoyProfile);normalize(x.ambientTrafficProfile);normalize(x.doctrineProfile);return _mtFreeze(x);
+}
+const MULTI_CAMPAIGN_PROFILES={};for(const p of Object.values(WAR_PARTY_PROFILES))MULTI_CAMPAIGN_PROFILES[p.runtimeCampaignProfileId]=_runtimeProfile(p);_mtFreeze(MULTI_CAMPAIGN_PROFILES);_mtFreeze(WAR_PARTY_PROFILES);
+const MULTI_CAMPAIGN_LOAD_BOUNDARIES=_mtFreeze(Object.fromEntries(Object.keys(MULTI_CAMPAIGN_PROFILES).map(id=>[id,{catalogPartition:id,terrainStrategy:'PATROL_SCOPED',maximumResidentLargeAreas:1}])));
+
+function warPartyCompleteness(id){
+  const p=WAR_PARTY_PROFILES[id];
+  if(!p)return Object.freeze({ready:false,missing:Object.freeze(['WarPartyProfile'])});
+  if(typeof CAMPAIGN_PROFILES!=='undefined'&&CAMPAIGN_PROFILES[p.runtimeCampaignProfileId]){
+    return typeof verticalSliceReadiness==='function'?verticalSliceReadiness(p.runtimeCampaignProfileId):Object.freeze({ready:true,missing:Object.freeze([])});
+  }
+  const r=p&&MULTI_CAMPAIGN_PROFILES[p.runtimeCampaignProfileId],missing=[];
+  if(!r)missing.push('runtimeCampaignProfile');
+  if(Object.keys(r?.missionProfile?.definitions||{}).length!==10)missing.push('exactlyTenMissions');
+  for(const d of Object.values(r?.missionProfile?.definitions||{})){if(!d.objectives?.length||d.choices?.length<2||d.seedVariants?.length<3||!d.failStates?.length||d.expectedDurationMin?.[0]>30||d.expectedDurationMin?.[1]<30||!d.returnCriteria?.length||d.aarLessons?.length<2)missing.push(`missionContract:${d.id}`);}
+  if(!getSubmarineProfile(p?.submarineProfileId))missing.push('submarine');if(!p?.tutorials?.length)missing.push('tutorials');if(!p?.aarIdentity)missing.push('aarIdentity');
+  if(!(p?.patrolAreaIds||[]).every(a=>PATROL_AREAS[a]))missing.push('patrolGeography');
+  return Object.freeze({ready:missing.length===0,missing:Object.freeze([...new Set(missing)])});
+}
+
+const _geoProfiles={
+  'Philippine Sea Fleet Routes — IJN':[{n:'Saipan',pk:474,a:118,j:.03,seed:2101,p:[121,18,135,14,144,23,141,38,130,44,119,35]},{n:'Tinian',pk:187,a:48,j:.02,seed:2102,p:[111,49,120,45,127,52,123,67,114,70,108,60]},{n:'Rota',pk:491,a:56,j:.02,seed:2103,p:[85,-2,98,-7,108,0,104,12,91,15,82,7]}],
+  'Bay of Biscay / Norwegian Route — RN':[{n:'Brittany (Finistère Coast)',pk:104,a:2500,j:.10,seed:2201,p:[172,-172,172,172,151,172,145,148,151,125,140,104,147,83,133,62,140,39,128,20,136,0,125,-22,133,-49,120,-78,128,-108,119,-137,126,-172]},{n:'Île d’Ouessant',pk:61,a:24,j:.02,seed:2202,p:[105,31,113,27,120,31,117,39,109,42,103,37]},{n:'Île de Sein',pk:9,a:4,j:.01,seed:2203,p:[96,61,101,58,105,62,102,67,97,66]}],
+  'Central Mediterranean Supply Route — RM':[{n:'Sicily (Southern Coast)',pk:3329,a:2600,j:.08,seed:2301,p:[172,94,160,90,148,94,137,89,124,95,112,91,101,98,91,95,82,102,74,100,69,112,77,125,92,132,112,126,132,132,151,126,172,132]},{n:'Malta',pk:253,a:52,j:.02,seed:2302,p:[-28,56,-12,52,3,58,8,68,-4,76,-22,73,-33,64]},{n:'Gozo',pk:113,a:26,j:.02,seed:2303,p:[-43,75,-31,71,-20,77,-25,87,-39,89,-49,83]},{n:'Pantelleria',pk:836,a:39,j:.02,seed:2304,p:[54,22,67,17,79,24,76,36,64,40,52,33]}],
+  'Central Mediterranean Supply Route — RN':[{n:'Sicily (Southern Coast)',pk:3329,a:2600,j:.08,seed:2301,p:[172,94,160,90,148,94,137,89,124,95,112,91,101,98,91,95,82,102,74,100,69,112,77,125,92,132,112,126,132,132,151,126,172,132]},{n:'Malta',pk:253,a:52,j:.02,seed:2302,p:[-28,56,-12,52,3,58,8,68,-4,76,-22,73,-33,64]},{n:'Gozo',pk:113,a:26,j:.02,seed:2303,p:[-43,75,-31,71,-20,77,-25,87,-39,89,-49,83]},{n:'Pantelleria',pk:836,a:39,j:.02,seed:2304,p:[54,22,67,17,79,24,76,36,64,40,52,33]}],
+  'Gulf of Finland Barriers — KM':[{n:'Finnish Coast (Porkkala–Helsinki)',pk:110,a:3150,j:.08,seed:2401,p:[-172,172,172,172,172,138,151,133,133,137,115,130,99,134,82,126,65,131,48,123,31,128,14,120,-4,125,-23,118,-42,124,-61,117,-80,123,-100,116,-119,122,-140,117,-159,124,-172,120]},{n:'Estonian Coast (Tallinn Shore)',pk:55,a:2900,j:.08,seed:2402,p:[-172,-172,172,-172,172,-131,151,-126,133,-130,113,-123,95,-128,76,-121,58,-127,39,-120,21,-126,3,-119,-17,-125,-37,-118,-57,-124,-77,-117,-97,-123,-118,-116,-139,-122,-158,-117,-172,-121]},{n:'Gogland',pk:173,a:43,j:.02,seed:2403,p:[39,4,52,-4,64,6,60,20,47,24,36,16]},{n:'Kotlin',pk:15,a:8,j:.01,seed:2404,p:[100,35,112,32,122,37,116,43,104,43]}],
+  'Gulf of Finland Barriers — VMF':[{n:'Finnish Coast (Porkkala–Helsinki)',pk:110,a:3150,j:.08,seed:2401,p:[-172,172,172,172,172,138,151,133,133,137,115,130,99,134,82,126,65,131,48,123,31,128,14,120,-4,125,-23,118,-42,124,-61,117,-80,123,-100,116,-119,122,-140,117,-159,124,-172,120]},{n:'Estonian Coast (Tallinn Shore)',pk:55,a:2900,j:.08,seed:2402,p:[-172,-172,172,-172,172,-131,151,-126,133,-130,113,-123,95,-128,76,-121,58,-127,39,-120,21,-126,3,-119,-17,-125,-37,-118,-57,-124,-77,-117,-97,-123,-118,-116,-139,-122,-158,-117,-172,-121]},{n:'Gogland',pk:173,a:43,j:.02,seed:2403,p:[39,4,52,-4,64,6,60,20,47,24,36,16]},{n:'Kotlin',pk:15,a:8,j:.01,seed:2404,p:[100,35,112,32,122,37,116,43,104,43]}],
+  'Bay of Bengal Monsoon Routes — IJN':[{n:'Myanmar Coast (Ayeyarwady Delta)',pk:3053,a:3100,j:.09,seed:2501,p:[172,-172,172,172,143,172,137,151,143,128,132,106,139,83,126,61,133,38,120,16,127,-7,117,-31,124,-53,114,-78,121,-101,112,-126,118,-150,110,-172]},{n:'Preparis Island',pk:67,a:16,j:.02,seed:2502,p:[83,26,91,20,99,25,96,34,87,37,80,32]},{n:'North Andaman',pk:459,a:64,j:.03,seed:2503,p:[20,57,30,45,39,51,40,65,31,75,22,69]},{n:'South Andaman',pk:365,a:54,j:.03,seed:2504,p:[2,23,13,13,23,20,20,34,9,39,-1,33]},{n:'Great Nicobar',pk:642,a:38,j:.02,seed:2505,p:[-22,-22,-10,-30,2,-23,-1,-10,-14,-5,-26,-12]}],
+  'Bay of Bengal Monsoon Routes — RN':[{n:'Myanmar Coast (Ayeyarwady Delta)',pk:3053,a:3100,j:.09,seed:2501,p:[172,-172,172,172,143,172,137,151,143,128,132,106,139,83,126,61,133,38,120,16,127,-7,117,-31,124,-53,114,-78,121,-101,112,-126,118,-150,110,-172]},{n:'Preparis Island',pk:67,a:16,j:.02,seed:2502,p:[83,26,91,20,99,25,96,34,87,37,80,32]},{n:'North Andaman',pk:459,a:64,j:.03,seed:2503,p:[20,57,30,45,39,51,40,65,31,75,22,69]},{n:'South Andaman',pk:365,a:54,j:.03,seed:2504,p:[2,23,13,13,23,20,20,34,9,39,-1,33]},{n:'Great Nicobar',pk:642,a:38,j:.02,seed:2505,p:[-22,-22,-10,-30,2,-23,-1,-10,-14,-5,-26,-12]}]
+};
+for(const key of Object.keys(_newAreas))COASTLINES[key]=_geoProfiles[key];
+
+function resolveCampaignForRuntimeProfile(runtimeId){return Object.values(WAR_PARTY_PROFILES).find(p=>p.runtimeCampaignProfileId===runtimeId)||null;}
+function validateCampaignCatalog(){const errors=[];for(const c of Object.values(CAMPAIGN_DEFINITIONS)){if(c.playableWarPartyIds.length!==2)errors.push(`${c.id}: exactly two war parties required`);for(const id of c.playableWarPartyIds){const q=warPartyCompleteness(id);if(!q.ready)errors.push(`${id}: ${q.missing.join(', ')}`);}}return{ok:errors.length===0,errors,campaigns:Object.keys(CAMPAIGN_DEFINITIONS).length,warParties:Object.keys(WAR_PARTY_PROFILES).length,missions:Object.values(WAR_PARTY_PROFILES).reduce((n,p)=>n+Object.keys((getCampaignProfile(p.runtimeCampaignProfileId)||MULTI_CAMPAIGN_PROFILES[p.runtimeCampaignProfileId])?.missionProfile?.definitions||{}).length,0)};}

@@ -1,15 +1,13 @@
-// ═══════════════════════════════════════════════════ SURFACE BRIDGE VIEW
-// Wide, unmasked conning-tower view. It deliberately reuses the existing
-// periscope/deck-gun world renderer so a second 3-D engine is not kept alive.
-class CanvasViewBridge extends CanvasViewPeriscope {
+/* Bridge station rendering and surface-watch interaction. */
+const BridgeStation={
   setupBridgeCam(state,fovDeg,w,h){
     const tact=state.tactical,cx=w/2,cy=this.portrait?h*.47:h*.50,r=w/2;
     return makeWorldCamera(state,{heightM:BRIDGE_VIEW.cameraHeightM,bearingDeg:tact.bridgeBearing,
       fovDeg,cx,cy,r,viewW:w,viewH:h,kind:'BRIDGE'});
-  }
+  },
 
   bridgeSurfaceMotion(state,t){
-    const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),spd=clamp((sub.propulsion?.speedKnots||0)/18,0,1);
+    const sub=state.playerSub,sea=clamp(state.world.environment?.seaState||0,0,1),maxSurface=Math.max(1,sub.propulsion?.characteristics?.maxSurfaceSpeedKn||18),spd=clamp((sub.propulsion?.speedKnots||0)/maxSurface,0,1);
     if((sub.depthFeet||0)>8)return{heaveM:0,pitchDeg:0,rollDeg:0};
     const live=clamp(.18+sea*.82+spd*.22,0,1.15);
     return{
@@ -17,7 +15,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       pitchDeg:Math.sin(t*.71+.35)*(.08+.72*sea+.13*spd)*live,
       rollDeg:Math.sin(t*.57+2.2)*(.10+1.05*sea)*live
     };
-  }
+  },
 
   drawBridge(ctx,w,h,state){
     const sub=state.playerSub,tact=state.tactical,env=state.world.environment,t=state.time.elapsedSeconds;
@@ -30,7 +28,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       return;
     }
     const zoom=bridgeZoomAmount(state),bino=zoom>.55,fov=bridgeFovDeg(state);
-    const cam=this.setupBridgeCam(state,fov,w,h),deckCam={...cam},motion=(this.bridgeSurfaceMotion||CanvasViewBridge.prototype.bridgeSurfaceMotion).call(this,state,t);
+    const cam=this.setupBridgeCam(state,fov,w,h),deckCam={...cam},motion=this.bridgeSurfaceMotion(state,t);
     // The observer and submarine move together, so ownship stays stable in the
     // foreground while the horizon/world gently heaves, pitches and rolls.
     cam.h+=motion.heaveM;cam.cy+=Math.tan(degToRad(motion.pitchDeg))*cam.f;
@@ -45,7 +43,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     try{
       ctx.save();ctx.translate(cam.cx,cam.cy);ctx.rotate(degToRad(-motion.rollDeg));ctx.translate(-cam.cx,-cam.cy);
       this.drawSky3D(ctx,w,h,cam,state,env.daylight,env.weather||'CLEAR',t);
-      this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t);
+      this.drawSea3D(ctx,w,h,cam,env.daylight,env.seaState,env.weather||'CLEAR',t,env);
       this.drawTerrain3D(ctx,cam,state,env.daylight);
       this.drawWeatherCells3D?.(ctx,cam,state,env.daylight,t);
       this.drawBattleAtmosphereBack?.(ctx,cam,state,env.daylight,t);
@@ -61,13 +59,13 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       // ownship therefore does not wobble relative to the observer.
       this.drawBridgeForedeck(ctx,w,h,deckCam,state,t);
       this.drawBridgeDeckSpray?.(ctx,w,h,state,t);
-      (this.drawBridgeDiveSequence||CanvasViewBridge.prototype.drawBridgeDiveSequence).call(this,ctx,w,h,state,t);
+      this.drawBridgeDiveSequence(ctx,w,h,state,t);
       if((env.precipitation||0)>.04||weatherIsWet(env.weather))this.drawRain(ctx,w,h,env.seaState,t,env.weather,env.precipitation||.25);
       if(env.seaState>.58&&this.quality>.48)this.drawScopeSpray(ctx,w,h,env.seaState,t);
       if(env.daylight<.32)this.drawNightOverlay(ctx,w,h,env.daylight);
     }finally{this.quality=savedQ;}
     this.drawBridgeHud(ctx,w,h,state,cam,bino);
-  }
+  },
 
   drawDistantBridgeSmoke(ctx,cam,state,dl,t){
     if(dl<.16||this.quality<.32)return;
@@ -78,7 +76,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       const bear=bearingBetween(own,c.position),bd=shortDelta(cam.bearingDeg,bear);
       if(Math.abs(bd)>cam.fovDeg*.52)continue;
       const E=c.position.xNm*NM_M,N=-c.position.yNm*NM_M;
-      const p=this.proj(cam,E,N,18);if(!p)continue;
+      const p=projectWorldPoint(cam,E,N,18);if(!p)continue;
       const strength=clamp(1-(rng-vis*.72)/(vis*.72),.08,.75)*(c.type==='TANKER'?1.25:1);
       const n=this.lowSpec?2:3;
       for(let i=0;i<n;i++){
@@ -88,7 +86,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
         ctx.beginPath();ctx.arc(p.x+drift,p.y-i*rr*2.2,rr,0,Math.PI*2);ctx.fill();
       }
     }
-  }
+  },
 
   drawBridgeAircraft(ctx,cam,state,dl,t){
     // Aircraft are world entities, not 2-D station icons. The shared renderer in
@@ -97,7 +95,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     // passes the camera. This is deliberately Canvas2D pseudo-3D, not a costly
     // second 3-D engine.
     this.drawWorldAircraft(ctx,cam,state,dl,t,{station:'BRIDGE'});
-  }
+  },
 
   drawBridgeForedeck(ctx,w,h,cam,state,t){
     // The old bridge used a screen-space trapezoid.  Its bow point was
@@ -111,7 +109,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     ctx.strokeStyle='rgba(105,119,112,.68)';ctx.lineWidth=Math.max(1,1.4*k);
     const ry=h-10*k;ctx.beginPath();ctx.moveTo(w*.08,ry);ctx.lineTo(w*.92,ry);ctx.stroke();
     for(let x=.12;x<.92;x+=.10){ctx.beginPath();ctx.moveTo(w*x,ry);ctx.lineTo(w*x,ry-12*k);ctx.stroke();}
-  }
+  },
 
   drawBridgeDiveSequence(ctx,w,h,state,t){
     const seq=state.tactical.bridgeDiveSequence;if(!seq?.active)return;
@@ -136,7 +134,7 @@ class CanvasViewBridge extends CanvasViewPeriscope {
     if(p>=.90){const q=clamp((p-.90)/.10,0,1);ctx.strokeStyle=`rgba(174,188,180,${.85*q})`;ctx.lineWidth=Math.max(2,3*k);ctx.beginPath();ctx.ellipse(hatchX,hatchY,hatchR*(1-q*.08),hatchR*.58*(1-q*.08),0,0,Math.PI*2);ctx.stroke();}
     ctx.fillStyle='rgba(3,13,16,.70)';this.rr(ctx,w*.18,18*k,w*.64,34*k,5*k);ctx.fill();ctx.fillStyle=crash?'#ef6a58':'#f5c65c';ctx.font=this.fnt(9.5,true);ctx.textAlign='center';
     ctx.fillText(p<.78?(crash?'CRASH DIVE — CLEAR THE BRIDGE!':'DIVE — BRIDGE WATCH GOING BELOW'):p<.92?'LAST MAN DOWN':'HATCH SHUT',w/2,39*k);ctx.textAlign='left';
-  }
+  },
 
   drawBridgeHud(ctx,w,h,state,cam,bino){
     const k=this.k,t=state.tactical,sub=state.playerSub;
@@ -154,17 +152,29 @@ class CanvasViewBridge extends CanvasViewPeriscope {
       ctx.fillStyle='rgba(245,198,92,.88)';ctx.font=this.fnt(8.5);ctx.textAlign='right';
       ctx.fillText(`TARGET ${id} · ${tr.rangeEstimateNm.toFixed(2)} nm · ${fmtDeg(tr.bearing)}`,w-12*k,22*k);ctx.textAlign='left';
     }
-  }
+  },
 
   pickBridgeContact(state,clientX,clientY){
-    const p=this.toLocal(clientX,clientY),cam=this.bridgeCam;if(!cam||!bridgeCanUse(state))return null;
+    // toLocal() lives only on MapStation's object (map.js), so it is not
+    // reachable as this.toLocal from the BRIDGE station context — calling
+    // it here used to throw every time, so tapping a contact on the bridge
+    // silently did nothing (the exception was swallowed by the event
+    // listener). Compute the local point directly off the shared core
+    // instead, same as the fixed CanvasView.toLocal does.
+    const core=this.core,rect=core.canvas.getBoundingClientRect();
+    const p={x:(clientX-rect.left)*(core.w/(rect.width||core.w)),y:(clientY-rect.top)*(core.h/(rect.height||core.h))};
+    // this.bridgeCam is likewise only fresh while BRIDGE is the context that
+    // most recently drew; this.core.bridgeCam is refreshed every frame the
+    // bridge view is on screen.
+    const cam=this.core?.bridgeCam??this.bridgeCam;if(!cam||!bridgeCanUse(state))return null;
     let best=null,bd=Infinity;
     for(const c of state.world.contacts){
       if(c.sunk&&(c.sinkingProgress??0)>=1)continue;
       if(distNm(state.playerSub.position,c.position)>bridgeVisualLimitNm(state,c)*1.02)continue;
-      const scr=this.proj(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
+      const scr=projectWorldPoint(cam,c.position.xNm*NM_M,-c.position.yNm*NM_M,5);if(!scr)continue;
       const d=Math.hypot(scr.x-p.x,(scr.y-p.y)*.65);if(d<bd){bd=d;best=c.id;}
     }
     return bd<Math.max(48,62*this.k)?best:null;
   }
-}
+};
+

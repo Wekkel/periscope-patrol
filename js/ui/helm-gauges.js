@@ -1,6 +1,10 @@
 class HelmGauges{
   constructor(game,touch){
-    this.game=game; this.touch=touch; this.views=[]; this.focus=null; this.raf=null;
+    this.game=game; this.touch=touch; this.views=[]; this.focus=null; this.raf=null; this.currentLayout=LayoutService.get();
+    // Keep the hidden/just-shown gauge canvas sized during a browser resize or
+    // viewport-toolbar change even when the simulation loop is throttled. A
+    // caller-supplied layout still always wins in size(layout).
+    LayoutService.subscribe(layout=>{this.currentLayout=layout;this.scheduleSize();});
     const host=document.getElementById('helmGauges');
     if(!host) return;
     this.host=host;
@@ -30,32 +34,36 @@ class HelmGauges{
   /* ── the dial definitions, read straight off the boat ─────────────── */
   spec(key){
     const s=this.game.getSnapshot(), sub=s.playerSub, p=sub.propulsion;
+    const ui=getPlayerStationPresentation(s),depthUi=ui.depth||{},depthFactor=Number(depthUi.factor)||1;
     const seabed=sub.seabedFeet??3000, crush=sub.damage.crushDepthFeet||420;
     const test=crush*0.73;
-    const surf=p.engineMode==='DIESEL', ms=surf?18:8.5;
-    const knots=r=>ms*(1-Math.exp(-clamp(r,0,450)/170));
+    const pc=p.characteristics||{},surf=p.engineMode==='DIESEL',
+      maxRpm=pc.normalizedMaxRpm??450,response=pc.rpmResponse??170,
+      surfaceMax=pc.maxSurfaceSpeedKn??18,submergedMax=pc.maxSubmergedSpeedKn??8.5,ms=surf?surfaceMax:submergedMax;
+    const knots=r=>ms*(1-Math.exp(-clamp(r,0,maxRpm)/response));
     const noise=r=>{const kn=knots(r);
-      return clamp(((r/450)*0.6+Math.pow(kn/18,2)*0.8)*(sub.depthFeet>65?0.85:1),0,1.5);};
-    const maxDepth=Math.max(0,Math.min(crush-10,seabed-25));
+      return clamp(((r/maxRpm)*0.6+Math.pow(kn/surfaceMax,2)*0.8)*(sub.depthFeet>65?0.85:1),0,1.5);};
+    const maxDepth=Math.max(0,Math.min(crush-10,seabed-25)),maxDepthDisplay=maxDepth*depthFactor;
 
     if(key==='depth') return {
       key,start:-90,sweep:270,wrap:false,gain:1,
-      max:this._dMax||200, unit:'FEET',
-      ordered:sub.orderedDepthFeet, actual:sub.depthFeet,
-      limit:[0,maxDepth], detents:[0,55,100,150,200,250].filter(d=>d<=maxDepth),
-      step:(this._dMax||200)<=230?[10,50]:[25,100],
-      send:v=>this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:Math.round(v)}),
-      big:sub.depthFeet.toFixed(0), danger:sub.depthFeet>test,
-      legend:[(this._dMax||200)<=230?'FINE':'DEEP','FEET'],
-      ctx:{seabed,test,crush,maxDepth,scope:55,bottomed:!!sub.bottomed},
+      max:this._dMax||200*depthFactor, unit:depthUi.unit||'FEET',
+      ordered:sub.orderedDepthFeet*depthFactor, actual:sub.depthFeet*depthFactor,
+      limit:[0,maxDepthDisplay], detents:(depthUi.detentsDisplay||[0,55,100,150,200,250]).filter(d=>d<=maxDepthDisplay),
+      step:(this._dMax||200*depthFactor)<=230*depthFactor?(depthFactor<.9?[5,20]:[10,50]):(depthFactor<.9?[10,50]:[25,100]),
+      send:v=>this.game.dispatch({type:'SET_ORDERED_DEPTH',depthFeet:Math.round(v/depthFactor)}),
+      big:(sub.depthFeet*depthFactor).toFixed(0), danger:sub.depthFeet>test,
+      legend:[(this._dMax||200*depthFactor)<=230*depthFactor?(depthUi.fine||'FINE'):(depthUi.deep||'DEEP'),depthUi.unit||'FEET'],
+      ctx:{seabed:seabed*depthFactor,test:test*depthFactor,crush:crush*depthFactor,maxDepth:maxDepthDisplay,scope:(depthUi.scopeFeet||55)*depthFactor,bottomed:!!sub.bottomed},
+      presentation:ui,
       lines:(()=>{
-        const gap=sub.orderedDepthFeet-sub.depthFeet, fpm=sub.verticalSpeedFps*60, out=[];
+        const gap=(sub.orderedDepthFeet-sub.depthFeet)*depthFactor, fpm=sub.verticalSpeedFps*60*depthFactor, out=[];
         if(sub.bottomed) out.push(['on the bottom','ok']);
         else if(Math.abs(gap)<1.5) out.push(['steady','dim']);
-        else if(Math.abs(fpm)<3) out.push([`${Math.abs(gap).toFixed(0)} ft to go — not answering`,'alert']);
-        else out.push([`${fpm>0?'↓':'↑'} ${Math.abs(fpm).toFixed(0)} ft/min · ${Math.abs(gap/sub.verticalSpeedFps).toFixed(0)}s`,'dim']);
-        const clr=seabed-sub.depthFeet;
-        if(seabed<3000) out.push([`${clr.toFixed(0)} ft under keel`,clr<25?'danger':clr<60?'alert':'dim']);
+        else if(Math.abs(fpm)<3) out.push([`${Math.abs(gap).toFixed(0)} ${depthUi.suffix||'ft'} to go — not answering`,'alert']);
+        else out.push([`${fpm>0?'↓':'↑'} ${Math.abs(fpm).toFixed(0)} ${depthUi.suffix||'ft'}/min · ${Math.abs((sub.orderedDepthFeet-sub.depthFeet)/sub.verticalSpeedFps).toFixed(0)}s`,'dim']);
+        const clr=(seabed-sub.depthFeet)*depthFactor;
+        if(seabed<3000) out.push([`${clr.toFixed(0)} ${depthUi.suffix||'ft'} under keel`,clr<25*depthFactor?'danger':clr<60*depthFactor?'alert':'dim']);
         return out;})()
     };
 
@@ -70,7 +78,8 @@ class HelmGauges{
         limit:null, detents:det, soft:[0,45,90,135,180,225,270,315], step:[5,30],
         send:v=>this.game.dispatch({type:'SET_ORDERED_HEADING',heading:normDeg(v)}),
         big:String(Math.round(normDeg(sub.heading))).padStart(3,'0'), danger:false,
-        legend:['GYRO','REPEATER'],
+        legend:ui.gauges?.courseLegends||['GYRO','REPEATER'],
+        presentation:ui,
         ctx:{tgt,wp,heading:sub.heading},
         lines:(()=>{
           const d=shortDelta(sub.heading,sub.orderedHeading), out=[];   // to − from
@@ -85,14 +94,15 @@ class HelmGauges{
     }
 
     return {
-      key,start:135,sweep:270,wrap:false,gain:1,max:450,unit:'RPM',
+      key,start:135,sweep:270,wrap:false,gain:1,max:maxRpm,unit:'RPM',
       ordered:p.orderedRpm, actual:p.actualRpm,
-      limit:[0,450], detents:[0,120,200,250,350,450], step:[25,100],
-      bells:[[0,'STOP'],[120,'SLOW'],[200,'2/3'],[250,'STD'],[350,'FULL'],[450,'FLANK']],
+      limit:[0,maxRpm], detents:[0,120,200,250,350,maxRpm], step:[25,100],
+      bells:[[0,ui.engineOrders?.[0]||'STOP'],[120,ui.engineOrders?.[1]||'SLOW'],[200,ui.engineOrders?.[2]||'2/3'],[250,ui.engineOrders?.[3]||'STD'],[350,ui.engineOrders?.[4]||'FULL'],[maxRpm,ui.engineOrders?.[5]||'FLANK']],
       send:v=>this.game.dispatch({type:'SET_ENGINE_RPM',rpm:Math.round(v)}),
       big:p.speedKnots.toFixed(1), danger:false,
-      legend:[p.engineMode==='DIESEL'?'DIESEL':'BATTERY','RPM'],
-      ctx:{knots,noise,ms,surf,silent:sub.stealth.silentRunning},
+      legend:[p.engineMode==='DIESEL'?(ui.gauges?.powerSurface||'DIESEL'):(ui.gauges?.powerSubmerged||'BATTERY'),ui.gauges?.rpm||'RPM'],
+      presentation:ui,
+      ctx:{knots,noise,ms,surf,silent:sub.stealth.silentRunning,maxRpm,response},
       lines:(()=>{
         const out=[[`${p.actualRpm.toFixed(0)} rpm`,'dim']], n=sub.stealth.acousticSignature;
         out.push([`noise ${(n*100).toFixed(0)}% — ${n>0.6?'heard for miles':n>0.35?'audible to an escort':'quiet'}`,
@@ -113,14 +123,16 @@ class HelmGauges{
      with nothing to show for further dragging. */
   stepScale(dt){
     const s=this.game.getSnapshot(), sub=s.playerSub;
-    const deepest=Math.max(sub.depthFeet,sub.orderedDepthFeet);
+    const ui=getPlayerStationPresentation(s),factor=Number(ui.depth?.factor)||1;
+    const deepest=Math.max(sub.depthFeet,sub.orderedDepthFeet)*factor;
     if(this._dFine===undefined) this._dFine=true;
-    if(this._dFine&&deepest>150) this._dFine=false;
-    if(!this._dFine&&deepest<120) this._dFine=true;
+    if(this._dFine&&deepest>150*factor) this._dFine=false;
+    if(!this._dFine&&deepest<120*factor) this._dFine=true;
     const seabed=sub.seabedFeet??3000;
-    const target=this._dFine?200
-      :Math.max(300,Math.ceil((Math.min(seabed,sub.damage.crushDepthFeet||420)+40)/50)*50);
-    this._dMax=this._dMax||200;
+    const quantum=factor<.9?20:50;
+    const target=this._dFine?200*factor
+      :Math.max(300*factor,Math.ceil(((Math.min(seabed,sub.damage.crushDepthFeet||420)+40)*factor)/quantum)*quantum);
+    this._dMax=this._dMax||200*factor;
     this._dMax=this._dMax+(target-this._dMax)*clamp(dt*4.5,0,1);
   }
 
@@ -226,16 +238,16 @@ class HelmGauges{
     this._sizeRaf=requestAnimationFrame(doubleFrame?()=>requestAnimationFrame(run):run);
   }
 
-  size(){
+  size(layout=this.currentLayout){
     if(!this.host) return;
     const W=this.host.clientWidth;
     if(!W) return;                                   // pane is hidden: leave it alone
     const GAP=6;
-    const touch=document.documentElement.dataset.lay==='touch';
-    const portrait=window.matchMedia?window.matchMedia('(orientation: portrait)').matches:(innerHeight>=innerWidth);
+    const touch=layout.shell==='touch';
+    const portrait=layout.orientation==='portrait';
     const vis=this.views.filter(v=>!this.focus||v.key===this.focus);
     const n=Math.max(1,vis.length);
-    const cols=this.focus?1:(touch?(portrait?Math.min(2,n):Math.min(3,n)):Math.min(3,n));
+    const cols=this.focus?1:(layout.device==='phone'&&portrait?Math.min(2,n):Math.min(3,n));
     const raw=(W-GAP*(cols-1))/cols;
     // On a very narrow phone the physical width can be below the preferred
     // 152 px floor; never overflow the bank just to satisfy the preference.
@@ -261,17 +273,51 @@ class HelmGauges{
   /* ── drawing ──────────────────────────────────────────────────────── */
   draw(v,dt){
     const G=this.spec(v.key), {ctx,geom}=v, {cx,cy,R}=geom;
+    const ui=G.presentation||{},pal=ui.palette||{};
+    const title=v.el.querySelector('.hg-t');if(title)title.textContent=ui.gauges?.[v.key]||v.key;
     /* Three tiers, not one cliff. At 165 px — what a phone in portrait
        actually gives us — the dial must still show its scale, or it is a
        picture of an instrument rather than an instrument. */
     const tiny=R<52, small=R<72, F=small?0.9:1;
+    this.currentGaugeFont=pal.font||ui.gaugeFont||'ui-monospace,"SF Mono",Menlo,monospace';
     v.flash=Math.max(0,v.flash-dt*2.2);
     ctx.clearRect(0,0,v.cv.width,v.cv.height);
     const bg=ctx.createRadialGradient(cx,cy-R*0.3,R*0.1,cx,cy,R);
-    bg.addColorStop(0,'#0d2029'); bg.addColorStop(1,'#050f13');
+    bg.addColorStop(0,pal.faceInner||'#0d2029'); bg.addColorStop(1,pal.faceOuter||'#050f13');
     ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.fill();
-    ctx.strokeStyle='#2f5f56'; ctx.lineWidth=Math.max(2,R*0.02);
+
+    // National instrument bezel and physical casing characteristics
+    const theme=ui.theme||'us-fleet';
+    ctx.strokeStyle=pal.bezel||'#2f5f56'; ctx.lineWidth=Math.max(2,R*0.024);
     ctx.beginPath(); ctx.arc(cx,cy,R,0,7); ctx.stroke();
+    if(theme==='rm-brass'){
+      ctx.strokeStyle='rgba(232,168,56,.35)'; ctx.lineWidth=Math.max(1,R*0.012);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.97,0,7); ctx.stroke();
+    } else if(theme==='vmf-red'){
+      ctx.strokeStyle='rgba(97,114,127,.4)'; ctx.lineWidth=Math.max(1,R*0.015);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.97,0,7); ctx.stroke();
+      const rivetR=Math.max(1.8,R*0.018); ctx.fillStyle='rgba(150,160,166,.65)';
+      for(let bolt=0;bolt<4;bolt++){
+        const ba=(Math.PI/4)+bolt*(Math.PI/2);
+        ctx.beginPath(); ctx.arc(cx+Math.cos(ba)*R*0.955,cy+Math.sin(ba)*R*0.955,rivetR,0,7); ctx.fill();
+      }
+    } else if(theme==='km-bakelite'){
+      ctx.strokeStyle='rgba(134,121,90,.3)'; ctx.lineWidth=Math.max(1,R*0.012);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.975,0,7); ctx.stroke();
+      ctx.fillStyle=pal.order||'#d6a84a';
+      ctx.beginPath(); ctx.arc(cx,cy-R*0.96,Math.max(1.5,R*0.015),0,7); ctx.fill();
+    } else if(theme==='rn-admiralty'){
+      ctx.strokeStyle='rgba(107,88,62,.4)'; ctx.lineWidth=Math.max(1,R*0.014);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.97,0,7); ctx.stroke();
+    } else if(theme==='ijn-fleet'){
+      ctx.strokeStyle='rgba(125,94,80,.3)'; ctx.lineWidth=Math.max(1,R*0.012);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.975,0,7); ctx.stroke();
+      ctx.fillStyle=pal.order||'#d63a2a';
+      ctx.beginPath(); ctx.arc(cx,cy-R*0.96,Math.max(1.5,R*0.015),0,7); ctx.fill();
+    } else {
+      ctx.strokeStyle='rgba(58,125,112,.3)'; ctx.lineWidth=Math.max(1,R*0.012);
+      ctx.beginPath(); ctx.arc(cx,cy,R*0.975,0,7); ctx.stroke();
+    }
 
     const rOut=R*0.90, rIn=R*0.70, A=val=>degToRad(this.v2a(G,val));
     const arc=(v0,v1,r0,r1)=>{ctx.beginPath();ctx.arc(cx,cy,r1,A(v0),A(v1));
@@ -323,35 +369,35 @@ class HelmGauges{
     if(G.key==='power'){
       const C=G.ctx;
       let rAud=null,rLoud=null;
-      for(let r=0;r<=450;r+=5){const n=C.noise(r);
+      for(let r=0;r<=C.maxRpm;r+=5){const n=C.noise(r);
         if(rAud===null&&n>0.35)rAud=r; if(rLoud===null&&n>0.60)rLoud=r;}
-      if(rAud!==null){arc(rAud,rLoud??450,rOut*0.93,rOut);ctx.fillStyle='rgba(245,198,92,.55)';ctx.fill();}
-      if(rLoud!==null){arc(rLoud,450,rOut*0.93,rOut);ctx.fillStyle='rgba(239,106,88,.72)';ctx.fill();}
+      if(rAud!==null){arc(rAud,rLoud??C.maxRpm,rOut*0.93,rOut);ctx.fillStyle='rgba(245,198,92,.55)';ctx.fill();}
+      if(rLoud!==null){arc(rLoud,C.maxRpm,rOut*0.93,rOut);ctx.fillStyle='rgba(239,106,88,.72)';ctx.fill();}
       if(C.surf){
-        let rStop=450;
-        for(let r=0;r<=450;r+=5){ if(clamp(1-Math.pow(r/450,2)*1.15,0,1)<0.05){rStop=r;break;} }
+        let rStop=C.maxRpm;
+        for(let r=0;r<=C.maxRpm;r+=5){ if(clamp(1-Math.pow(r/C.maxRpm,2)*1.15,0,1)<0.05){rStop=r;break;} }
         arc(0,rStop,rIn*0.72,rIn*0.80);ctx.fillStyle='rgba(111,224,143,.30)';ctx.fill();
       }
-      const NORM=1-Math.exp(-450/170);
+      const NORM=1-Math.exp(-C.maxRpm/C.response);
       for(let k=2;k<=Math.floor(C.ms);k+=2){
-        const r=-170*Math.log(1-(k/C.ms)*NORM);
-        if(!isFinite(r)||r>450) continue;
+        const r=-C.response*Math.log(1-(k/C.ms)*NORM);
+        if(!isFinite(r)||r>C.maxRpm) continue;
         const a=A(r);
-        ctx.strokeStyle='rgba(143,179,168,.55)';ctx.lineWidth=Math.max(1,R*0.007);
+        ctx.strokeStyle=pal.muted?(pal.muted+'8c'):'rgba(143,179,168,.55)';ctx.lineWidth=Math.max(1,R*0.007);
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*rIn*0.62,cy+Math.sin(a)*rIn*0.62);
         ctx.lineTo(cx+Math.cos(a)*rIn*0.72,cy+Math.sin(a)*rIn*0.72);ctx.stroke();
-        if(!tiny&&k%4===0){ctx.fillStyle='rgba(143,179,168,.75)';ctx.font=this.fnt(R*0.062);
+        if(!tiny&&k%4===0){ctx.fillStyle=pal.muted?(pal.muted+'bf'):'rgba(143,179,168,.75)';ctx.font=this.fnt(R*0.062);
           ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(String(k),cx+Math.cos(a)*rIn*0.54,cy+Math.sin(a)*rIn*0.54);}
       }
       for(const [r,name] of G.bells){
         const a=A(r);
-        ctx.strokeStyle='rgba(223,238,232,.75)';ctx.lineWidth=Math.max(1.6,R*0.013);
+        ctx.strokeStyle=pal.ink?(pal.ink+'bf'):'rgba(223,238,232,.75)';ctx.lineWidth=Math.max(1.6,R*0.013);
         ctx.beginPath();
         ctx.moveTo(cx+Math.cos(a)*rOut,cy+Math.sin(a)*rOut);
         ctx.lineTo(cx+Math.cos(a)*(rOut-R*0.10),cy+Math.sin(a)*(rOut-R*0.10));ctx.stroke();
-        if(!tiny){ctx.fillStyle='rgba(223,238,232,.8)';ctx.font=this.fnt(R*0.068);
+        if(!tiny){ctx.fillStyle=pal.ink?(pal.ink+'cc'):'rgba(223,238,232,.8)';ctx.font=this.fnt(R*0.068);
           ctx.textAlign='center';ctx.textBaseline='middle';
           ctx.fillText(name,cx+Math.cos(a)*(rOut-R*0.185),cy+Math.sin(a)*(rOut-R*0.185));}
       }
@@ -361,14 +407,14 @@ class HelmGauges{
     for(let val=0;val<=top+1e-6;val+=st){
       const a=A(val), isM=Math.abs(val%maj)<1e-6, len=isM?R*0.115:R*0.055;
       ctx.strokeStyle=(G.key==='depth'&&val>=G.ctx.test)?'rgba(239,106,88,.9)'
-        :isM?'rgba(223,238,232,.85)':'rgba(143,179,168,.42)';
+        :isM?(pal.tickMajor||pal.ink||'rgba(223,238,232,.85)'):(pal.tickMinor||pal.muted||'rgba(143,179,168,.42)');
       ctx.lineWidth=isM?Math.max(1.6,R*0.012):Math.max(1,R*0.006);
       ctx.beginPath();
       ctx.moveTo(cx+Math.cos(a)*rOut,cy+Math.sin(a)*rOut);
       ctx.lineTo(cx+Math.cos(a)*(rOut-len),cy+Math.sin(a)*(rOut-len));ctx.stroke();
       if(isM&&G.key!=='power'&&!tiny){
         const rr=rOut-len-R*0.085;
-        ctx.fillStyle='rgba(223,238,232,.78)';ctx.font=this.fnt(R*0.085*F);
+        ctx.fillStyle=pal.tickMajor||pal.ink||'rgba(223,238,232,.78)';ctx.font=this.fnt(R*0.085*F);
         ctx.textAlign='center';ctx.textBaseline='middle';
         const t=G.wrap?(val===0?'N':val===90?'E':val===180?'S':val===270?'W':String(val)):String(Math.round(val));
         ctx.fillText(t,cx+Math.cos(a)*rr,cy+Math.sin(a)*rr);
@@ -376,7 +422,7 @@ class HelmGauges{
     }
 
     if(!small){
-      ctx.fillStyle='rgba(92,125,116,.9)';ctx.font=this.fnt(R*0.072);
+      ctx.fillStyle=pal.dim||pal.muted||'rgba(92,125,116,.9)';ctx.font=this.fnt(R*0.072);
       ctx.textAlign='center';ctx.textBaseline='middle';
       const lx=G.wrap?cx:cx-R*0.45, ly=G.wrap?cy-R*0.44:cy-R*0.45;
       ctx.fillText(G.legend[0],lx,ly);ctx.fillText(G.legend[1],lx,ly+R*0.10);
@@ -384,34 +430,34 @@ class HelmGauges{
 
     {const a=A(G.ordered);
      ctx.save();ctx.translate(cx,cy);ctx.rotate(a);
-     ctx.fillStyle='rgba(245,198,92,.95)';
+     ctx.fillStyle=pal.order||'rgba(245,198,92,.95)';
      ctx.beginPath();
      ctx.moveTo(rOut*0.99,0);ctx.lineTo(rOut*0.86,-R*0.030);
      ctx.lineTo(R*0.10,-R*0.012);ctx.lineTo(R*0.10,R*0.012);
      ctx.lineTo(rOut*0.86,R*0.030);ctx.closePath();ctx.fill();ctx.restore();
-     ctx.fillStyle='#f5c65c';
+     ctx.fillStyle=pal.order||'#f5c65c';
      ctx.beginPath();ctx.arc(cx+Math.cos(a)*R*0.955,cy+Math.sin(a)*R*0.955,Math.max(3,R*0.028),0,7);ctx.fill();}
 
     {const a=A(G.actual);
      ctx.save();ctx.translate(cx,cy);ctx.rotate(a);
      ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=R*0.05;ctx.shadowOffsetY=R*0.012;
-     ctx.fillStyle=G.danger?'#ef6a58':'#dfeee8';
+     ctx.fillStyle=G.danger?'#ef6a58':(pal.ink||'#dfeee8');
      ctx.beginPath();
      ctx.moveTo(rOut*0.93,0);ctx.lineTo(rOut*0.74,-R*0.055);
      ctx.lineTo(-R*0.16,-R*0.026);ctx.lineTo(-R*0.16,R*0.026);
      ctx.lineTo(rOut*0.74,R*0.055);ctx.closePath();ctx.fill();ctx.restore();}
-    ctx.fillStyle='#0a1a20';ctx.beginPath();ctx.arc(cx,cy,R*0.085,0,7);ctx.fill();
-    ctx.strokeStyle='rgba(143,179,168,.5)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.fillStyle=pal.faceOuter||'#0a1a20';ctx.beginPath();ctx.arc(cx,cy,R*0.085,0,7);ctx.fill();
+    ctx.strokeStyle=pal.bezel||'rgba(143,179,168,.5)';ctx.lineWidth=1.5;ctx.stroke();
 
     const low=v.pointer&&v.pointer.y>cy, ty=low?cy-R*0.30:cy+R*0.30;
     ctx.textAlign='center';ctx.textBaseline='alphabetic';
-    ctx.fillStyle=G.danger?'#ef6a58':'#dfeee8';
+    ctx.fillStyle=G.danger?'#ef6a58':(pal.ink||'#dfeee8');
     ctx.font=this.fnt(R*0.30*F,true);
     ctx.fillText(G.big,cx,ty);
-    ctx.font=this.fnt(R*0.095*F);ctx.fillStyle='rgba(143,179,168,.85)';
-    ctx.fillText(G.key==='power'?'KNOTS':G.unit,cx,ty+R*0.11);
+    ctx.font=this.fnt(R*0.095*F);ctx.fillStyle=pal.muted||'rgba(143,179,168,.85)';
+    ctx.fillText(G.key==='power'?(ui.gauges?.speed||'KNOTS'):G.unit,cx,ty+R*0.11);
     if(!tiny){
-      const cols={dim:'rgba(143,179,168,.9)',alert:'#f5c65c',danger:'#ef6a58',ok:'#6fe08f'};
+      const cols={dim:pal.muted||'rgba(143,179,168,.9)',alert:pal.order||'#f5c65c',danger:'#ef6a58',ok:pal.ok||'#6fe08f'};
       ctx.font=this.fnt(Math.max(8.5,R*0.082));
       // a small dial gets the one line that matters most; a big one gets all
       const lines=small?G.lines.slice(0,1):G.lines;
@@ -425,7 +471,7 @@ class HelmGauges{
       ctx.beginPath();ctx.arc(cx,cy,R*0.955,a-0.06,a+0.06);ctx.stroke();
     }
   }
-  fnt(px,bold){ return `${bold?'bold ':''}${Math.round(px)}px ui-monospace,"SF Mono",Menlo,monospace`; }
+  fnt(px,bold){ return `${bold?'bold ':''}${Math.round(px)}px ${this.currentGaugeFont||'ui-monospace,"SF Mono",Menlo,monospace'}`; }
 
   /* ── THE VALUE YOU ARE SETTING ─────────────────────────────────────
      It used to be drawn on the dial a short way above the touch point,
@@ -440,10 +486,10 @@ class HelmGauges{
       el.id='hgChip';
       document.body.appendChild(el);
     }
-    const label=G.key==='course'?'COURSE':G.key==='depth'?'DEPTH':'ENGINE';
+    const ui=G.presentation||{},label=G.key==='course'?(ui.gauges?.course||'COURSE'):G.key==='depth'?(ui.gauges?.depth||'DEPTH'):(ui.gauges?.power||'ENGINE');
     const val=G.wrap?String(Math.round(G.ordered)).padStart(3,'0')+'°'
-                    :G.key==='power'?Math.round(G.ordered)+' rpm'
-                    :Math.round(G.ordered)+' ft';
+                    :G.key==='power'?Math.round(G.ordered)+' '+(ui.gauges?.rpm||'rpm')
+                    :Math.round(G.ordered)+' '+(ui.depth?.suffix||'ft');
     el.innerHTML=`<span>ORDER ${label}</span><b>${val}</b>`;
     const h=(typeof innerHeight==='number'?innerHeight:800);
     el.classList.toggle('low',clientY<h*0.45);       // hand high → chip low
@@ -476,4 +522,3 @@ class HelmGauges{
     this.raf=requestAnimationFrame(loop);
   }
 }
-

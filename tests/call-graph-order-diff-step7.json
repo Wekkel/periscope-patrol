@@ -1,0 +1,343 @@
+{
+  "baselineShaNote": "immutable baseline; not rewritten",
+  "update": [
+    {
+      "index": 0,
+      "baseline": "ensureTacticalExtensions",
+      "current": "ensureTacticalExtensions",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 1,
+      "baseline": "ensureWorldExtensions",
+      "current": "ensureWorldExtensions",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 2,
+      "baseline": "ensurePatrolRuntimeContext",
+      "current": "ensurePatrolRuntimeContext",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 3,
+      "baseline": "ensureCareerPatrolState",
+      "current": "ensureCareerPatrolState",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 4,
+      "baseline": "ensureHistoricalCampaignProfile",
+      "current": "ensureHistoricalCampaignProfile",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 5,
+      "baseline": "ensureMissionFramework",
+      "current": "ensureMissionFramework",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 6,
+      "baseline": "processCommands",
+      "current": "processCommands",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 7,
+      "baseline": "finalizePatrol",
+      "current": "finalizePatrol",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 8,
+      "baseline": "offerLossAar",
+      "current": "offerLossAar",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 9,
+      "baseline": "compressedCollisionWatch",
+      "current": "compressedCollisionWatch",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 10,
+      "baseline": "canUseOpenSeaTransitStep",
+      "current": "canUseOpenSeaTransitStep",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 11,
+      "baseline": "updateSub",
+      "current": "updateSub",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 12,
+      "baseline": "finalizePatrol",
+      "current": "finalizePatrol",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 13,
+      "baseline": "offerLossAar",
+      "current": "offerLossAar",
+      "same": true,
+      "semanticTarget": null
+    }
+  ],
+  "updateSub": [
+    {
+      "index": 0,
+      "baseline": "captureCollisionFrame",
+      "current": "captureCollisionFrame",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 1,
+      "baseline": "updateBridgeDiveSequence",
+      "current": "updateBridgeDiveSequence",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 2,
+      "baseline": "updateHeading",
+      "current": "updateHeading",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 3,
+      "baseline": "updateDepth",
+      "current": "updateDepth",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 4,
+      "baseline": "updatePropulsion",
+      "current": "updatePropulsion",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 5,
+      "baseline": "updatePosition",
+      "current": "updatePosition",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 6,
+      "baseline": "applyTerrainEffects",
+      "current": "applyTerrainEffects",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 7,
+      "baseline": "updateWeather",
+      "current": "updateWeather",
+      "same": true,
+      "semanticTarget": "this.sys.weather.update"
+    },
+    {
+      "index": 8,
+      "baseline": "updateTrafficDirector",
+      "current": "updateTrafficDirector",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 9,
+      "baseline": "updateWorld",
+      "current": "updateWorld",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 10,
+      "baseline": "updateVesselCollisions",
+      "current": "updateVesselCollisions",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 11,
+      "baseline": "updateSigs",
+      "current": "updateSigs",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 12,
+      "baseline": "updateHarbor",
+      "current": "updateHarbor",
+      "same": true,
+      "semanticTarget": "this.sys.harbor.update"
+    },
+    {
+      "index": 13,
+      "baseline": "updateDetection",
+      "current": "updateDetection",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 14,
+      "baseline": "updateSoundRadar",
+      "current": "updateSoundRadar",
+      "same": true,
+      "semanticTarget": "this.sys.soundRadar.update"
+    },
+    {
+      "index": 15,
+      "baseline": "updateHarborKnowledge",
+      "current": "updateHarborKnowledge",
+      "same": true,
+      "semanticTarget": "this.sys.harbor.updateHarborKnowledge"
+    },
+    {
+      "index": 16,
+      "baseline": "updateTdc",
+      "current": "updateTdc",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 17,
+      "baseline": "updateTorpedoes",
+      "current": "updateTorpedoes",
+      "same": true,
+      "semanticTarget": "this.sys.torpedoes.update"
+    },
+    {
+      "index": 18,
+      "baseline": "updateDeckGun",
+      "current": "updateDeckGun",
+      "same": true,
+      "semanticTarget": "this.sys.deckGun.update"
+    },
+    {
+      "index": 19,
+      "baseline": "updateEnemyAI",
+      "current": "updateEnemyAI",
+      "same": true,
+      "semanticTarget": "this.sys.enemyAI.update"
+    },
+    {
+      "index": 20,
+      "baseline": "updateAircraft",
+      "current": "updateAircraft",
+      "same": true,
+      "semanticTarget": "this.sys.aircraft.update"
+    },
+    {
+      "index": 21,
+      "baseline": "updateAAGun",
+      "current": "updateAAGun",
+      "same": true,
+      "semanticTarget": "this.sys.aaGun.update"
+    },
+    {
+      "index": 22,
+      "baseline": "updateRadio",
+      "current": "updateRadio",
+      "same": true,
+      "semanticTarget": "this.sys.intel.update"
+    },
+    {
+      "index": 23,
+      "baseline": "updateMapState",
+      "current": "updateMapState",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 24,
+      "baseline": "updateBattleAtmosphere",
+      "current": "updateBattleAtmosphere",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 25,
+      "baseline": "updateMissionFramework",
+      "current": "updateMissionFramework",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 26,
+      "baseline": "steerWaypoint",
+      "current": "steerWaypoint",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 27,
+      "baseline": "updateDmg",
+      "current": "updateDmg",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 28,
+      "baseline": "updateDmgCtrl",
+      "current": "updateDmgCtrl",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 29,
+      "baseline": "checkMissionObjectives",
+      "current": "checkMissionObjectives",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 30,
+      "baseline": "checkPortArrival",
+      "current": "checkPortArrival",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 31,
+      "baseline": "updateModeAfter",
+      "current": "updateModeAfter",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 32,
+      "baseline": "updateWarnings",
+      "current": "updateWarnings",
+      "same": true,
+      "semanticTarget": null
+    },
+    {
+      "index": 33,
+      "baseline": "updateAfterActionRecorder",
+      "current": "updateAfterActionRecorder",
+      "same": true,
+      "semanticTarget": null
+    }
+  ]
+}

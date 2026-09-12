@@ -77,7 +77,7 @@ The principal `sys` edges are:
 
 | System | Explicit system dependencies |
 |---|---|
-| `CoreSystem` | all command-owning systems; it is the composition root |
+| `CoreSystem` | `sys.career`, `sys.collision`, `sys.damage`, `sys.deckGun`, `sys.enemyAI`, `sys.harbor`, `sys.intel`, `sys.soundRadar`, `sys.torpedoes`, `sys.weather` |
 | `HarborSystem` | `sys.damage` |
 | `WeatherSystem` | none |
 | `SoundRadarSystem` | `sys.enemyAI` for escort alerting |
@@ -104,8 +104,8 @@ Files:
 - `js/simulation/weapons/deck-gun.js` — 3-inch/50 gun state, laying, firing, shell damage.
 - `js/simulation/weapons/aa-gun.js` — 20 mm AA behavior.
 - `js/simulation/radio-intel.js` — radio/ULTRA/intelligence flow.
-- `js/simulation/sensors.js` — lookout, visual/acoustic contact tracking and signatures. Electronic contact fixes use generic `ACTIVE_ECHO` / `SURFACE_RADAR` IDs; legacy `QC ECHO` / `SJ RADAR` values are normalized for old-save compatibility.
-- `js/simulation/sound-radar.js` — passive-sound/active-echo/surface-radar operation. It maps the current historical US fit data onto generic runtime capability fields while retaining legacy `sd*`/`sj*` aliases until the later campaign/equipment-by-date migration.
+- `js/simulation/sensors.js` — lookout, visual/acoustic contact tracking and signatures. Electronic contact fixes use generic `ACTIVE_ECHO` / `SURFACE_RADAR` IDs; schema-v4 migration converts legacy `QC ECHO` / `SJ RADAR` values once at load.
+- `js/simulation/sound-radar.js` — passive-sound/active-echo/surface-radar operation. It maps historical fit data onto generic runtime capability fields; serialized `sd*`/`sj*` aliases are converted by schema-v4 migration.
 - `js/simulation/ai/asw-brain.js` — shared escort search/doctrine mechanics; campaign doctrine supplies area risk, escort-count and screen-role policy.
 - `js/simulation/ai/escort-asw.js` — escort ASW sensor/prosecution behavior.
 - `js/simulation/physics-navigation.js` — transit watch, submarine movement/physics/navigation and final `SimEngine` class.
@@ -226,9 +226,9 @@ Sensor simulation must not infer equipment identity from a US-specific display s
 
 `CAMPAIGN_PROFILES` owns authored historical progression. The current `us-pacific` profile contains the broad Pacific era bands, dated radar/torpedo availability, radar performance bands, war-progression factors and the small set of area-specific multipliers that previously lived as US/Pacific conditionals inside `historical-campaign.js`. `historical-campaign.js` is now a materializer: once per patrol/date change it resolves those data into `campaign.historicalProfile`, which remains the cheap runtime object used by sensors, ASW and traffic.
 
-New code should prefer `historicalProfile.sensorCapabilities[CAPABILITY_ID]` and `availableTorpedoes`. The old `sdAvailable`, `sjAvailable`, `sjRangeNm`, `sjErrorFactor`, `sjSweepSec` and `sjRadarDepthFt` fields remain additive compatibility aliases while untouched Pacific UI/save consumers migrate. A future Atlantic campaign must author its own historical model in the catalog; do not add Type VII, Kriegsmarine or Allied date exceptions to `historical-campaign.js`.
+New code should prefer `historicalProfile.sensorCapabilities[CAPABILITY_ID]` and `availableTorpedoes`. Schema-v4 migration converts serialized radar aliases (`sdAvailable`, `sjAvailable`, `sjRangeNm`, `sjErrorFactor`, `sjSweepSec`, `sjRadarDepthFt`) to equipment-neutral runtime names before simulation begins. A future Atlantic campaign must author its own historical model in the catalog; do not add Type VII, Kriegsmarine or Allied date exceptions to `historical-campaign.js`.
 
-Legacy serialized track sources `SJ RADAR` and `QC ECHO` are accepted and normalized at read/use boundaries. Do not remove those aliases until the save-schema migration explicitly converts them.
+Legacy serialized track sources `SJ RADAR` and `QC ECHO` are converted by schema-v4 migration; simulation code uses only `SURFACE_RADAR` and `ACTIVE_ECHO`.
 
 ### Surface-vessel identity boundary
 
@@ -312,7 +312,7 @@ authored torpedo-spec trait.
 
 ### Portable profile / save compatibility boundary
 
-The portable player-profile envelope is versioned separately from career records and from serialized patrol state. `SaveSystem._migrateProfile()` translates old envelope formats; `SaveSystem.STATE_SCHEMA_VERSION` plus `_migrateSnapshot()` is the compatibility boundary for manual saves, quick saves, autosaves and transferred live patrols. The quick slot has its own storage key and shares the normal snapshot/migration path rather than masquerading as manual slot six. Pre-Mega snapshots are schema 0 and are upgraded additively by the existing `ensure*` runtime shims. A future release that makes a destructive state change must add its migration in `_migrateSnapshot()` before increasing the schema version; an older build must reject a newer schema rather than guess. This separation is intentional: adding a future subsystem must not force every historical `.ppprofile.json` backup to mirror the newest in-memory schema.
+The portable player-profile envelope is versioned separately from career records and from serialized patrol state. `SaveSystem._migrateProfile()` translates old envelope formats; `SaveSystem.STATE_SCHEMA_VERSION` plus `_migrateSnapshot()` is the compatibility boundary for manual saves, quick saves, autosaves and transferred live patrols. The quick slot has its own storage key and shares the normal snapshot/migration path rather than masquerading as manual slot six. Pre-Mega snapshots are schema 0 and are upgraded additively by versioned migration steps, including schema v4 legacy-name normalization. A future release that makes a destructive state change must add its migration in `_migrateSnapshot()` before increasing the schema version; an older build must reject a newer schema rather than guess. This separation is intentional: adding a future subsystem must not force every historical `.ppprofile.json` backup to mirror the newest in-memory schema.
 
 A profile checksum is integrity metadata only. Because the complete game and client code are public, no symmetric key embedded in JavaScript can establish trusted scores: the key and verification path would be available to the player. Do not add obfuscated client secrets as an anti-cheat mechanism. If trusted competitive state is ever required, make the authoritative signature/validation service external to the open client.
 
@@ -366,341 +366,14 @@ the Type VII vertical slice; if that work exposes a genuinely shared missing
 contract, add it then with a Pacific regression gate rather than pre-building a
 generic framework.
 
-### Phase-2 patch 11 — Atlantic / Type VIIC bootstrap boundary
+### Phase-2 patches 11–36 — Atlantic Foundation, Expansion & Acceptance (Summary)
 
-Phase 2 begins with an intentionally non-playable Atlantic foundation rather
-than a copied Pacific scenario. `ATLANTIC_1941_GAME_IDENTITY` selects the
-`german-atlantic-1941` campaign and `type-viic-1941` submarine profile for
-deterministic development tests, but the normal Pacific scenario selector only
-renders patrol areas authored by its active campaign. Do not expose the
-Atlantic campaign as a normal patrol until it has its own convoy, mission,
-doctrine/escort and return-loop content.
+The Atlantic theater introduces the Type VIIC profile (`german-atlantic-1941`) with historical displacement, five-tube configuration, G7e/G7a torpedo specifications, and passive GHG hydrophone modeling. Open-ocean convoy operations (`North Atlantic Convoy Lanes`, `Western Approaches`, `Greenland–Iceland Gap`) operate under the single-area memory boundary.
 
-The first Atlantic slice is anchored to late 1941. The Type VIIC profile uses
-contemporary German handbook / Allied examination data for the dimensions,
-submerged displacement used by the collision model, five-tube arrangement,
-maximum fourteen-torpedo load, 8.8 cm / 2 cm ammunition and broad maximum
-speeds. G7e T2 and G7a T1 fast-setting specifications are likewise authored as
-separate torpedo specs. The current reserve magazine remains the game's cheap
-undifferentiated reload pool; modelling historically exact mixed rack loads is
-not a prerequisite for this bootstrap patch.
-
-Historical-source confidence must remain visible in data comments. In
-particular, the German Type VIIC handbook gives a 100 m construction depth and
-105 m pressure-dock test but does not provide one universal operational/collapse
-limit in the referenced table. The engine nevertheless requires a finite
-failure boundary, so the Type VIIC `crushDepthFeet` is explicitly tagged
-`crushDepthProvisional:true`. It must not be presented as an exact historical
-collapse depth until a stronger source and gameplay decision exist. The
-lightweight fuel/battery response coefficients are also provisional gameplay
-calibration; profile ownership is proven now, exact endurance calibration comes
-with the playable vertical slice.
-
-The 1941 boat has only authored passive GHG hydrophones at this stage. Generic
-sensor UI/controller code must treat missing capabilities as genuinely absent:
-no fallback Active Echo or surface-radar control may appear, and the engine
-must reject an active-echo command if no such set is fitted. Likewise, helm,
-engine-command and machinery-audio RPM scaling must read the materialized
-submarine propulsion characteristics rather than retaining Gato's 450-rpm
-normalization in a UI/audio side path.
-
-`North Atlantic Convoy Lanes` is deliberately an open-ocean bootstrap area with
-`terrainKey:null`. `createState()` therefore materializes an empty terrain list
-instead of asking the Pacific terrain provider to invent an unknown map. Real
-Atlantic coastline/port geography should be added only when a concrete vertical
-slice needs it, preserving the one-selected-area / low-memory terrain rule.
-
-
-### Phase-2 patch 12 — first Atlantic convoy world slice
-
-The `german-atlantic-1941` campaign now owns its first mission-critical surface
-world content: a representative late-1941 Allied convoy plus a deliberately
-minimal close-escort doctrine. This is not a named HX/SC convoy reconstruction.
-The engine should be able to prove non-Pacific materialization before the game
-spends complexity on exact sailing manifests, national merchant mixes, named
-escort groups or Atlantic ambient traffic.
-
-`GERMAN_ATLANTIC_1941_PRIMARY_CONVOY_PROFILE` owns nine merchant/tanker slots
-and three Flower-class escort identities. Merchant size/tonnage mix is authored
-gameplay data within plausible wartime bands, not a claim that one historical
-convoy contained those exact hulls. Contemporary U-boat KTBs support the
-existing 7–9 knot area speed band, with 8 knots repeatedly appearing in convoy
-plots. Flower corvettes are a historically appropriate Atlantic close-escort
-class, but the first slice reuses the existing low-cost `PATROL_CRAFT` render
-mesh. `vesselProfileId='uk-flower-corvette-1941'` is the historical/gameplay
-identity; `modelKey='PATROL_CRAFT'` is only a temporary rendering choice and
-must not be confused with a finished Flower-class 3-D model.
-
-The campaign also authors `GERMAN_ATLANTIC_1941_DOCTRINE_PROFILE`. Its one-to-
-three-escort screen is intentionally representative gameplay doctrine rather
-than a universal claim about every September 1941 escort group. It is enough to
-exercise the existing ASW role/state machine without importing Japanese area
-risk or Pacific aircraft. Aircraft remain absent from this first Atlantic
-slice; they should be added only with a dated Atlantic air doctrine.
-
-The traffic director still requires explicit campaign ownership, so Atlantic
-has an authored zero-density ambient profile. This is intentional. A zero
-profile is preferable to either a Pacific fallback or invented background
-shipping: patch 12 proves the mission-critical convoy can pass tactical →
-abstract → tactical LOD while preserving British vessel identity. Ambient
-freighters, independents, stragglers and other U-boats can be introduced later
-when they support concrete Atlantic gameplay.
-
-
-### Phase-2 patch 13 — Atlantic contact-keeper loop
-
-The first playable Atlantic loop is deliberately narrower than a full wolfpack
-simulation. `GERMAN_ATLANTIC_1941_MISSION_PROFILE` makes CONTACT KEEPER the sole
-late-1941 mission: find the assigned convoy, build a sufficiently reliable
-course/speed track, hold a safe shadowing band, then come to the surface/antenna
-depth long enough to transmit a contact report to B.d.U. The Pacific
-`SHADOW_REPORT` path keeps its previous timings and completion behavior when no
-`CONTACT_KEEPER` content is authored.
-
-Other U-boats are event/state only at this stage. A completed report creates one
-small `world.cooperativeSubmarines` record with a deterministic count and ETA;
-it does not spawn tactical submarine contacts, run extra AI, or consume the
-simulation budget on boats the player cannot currently interact with. A later
-attack/wolfpack patch may consume that state if it creates a concrete gameplay
-benefit.
-
-Atlantic now owns a B.d.U. radio-intelligence presentation profile. The shared
-radio room still receives, copies and dead-reckons stale shipping fixes using
-its existing cheap mechanics, but player-facing text no longer inherits ULTRA.
-The internal `world.ultra` key remains a legacy implementation detail only.
-Optional radio categories are truly optional: a campaign without an authored
-air/lifeguard broadcast falls through to its weather copy rather than borrowing
-Pacific content.
-
-The Atlantic DEV scenario selector may switch campaign identity only on the DEV
-build. `NEW_PATROL` therefore accepts an explicitly validated `gameIdentity` at
-the patrol lifecycle boundary. Switching submarines does not carry an old
-boat's torpedo spec across factions, terrain-less open ocean stays terrain-less,
-and air-warning state is rebuilt from the selected submarine profile. Historical
-scenario launches explicitly return to the default Pacific identity so a user
-cannot strand a Pacific scenario inside the Atlantic campaign by switching tabs.
-
-
-### Phase-2 patch 14 — B.d.U. attack order and night surface approach
-
-CONTACT KEEPER no longer ends when the outbound movement report is transmitted.
-For the Atlantic 1941 profile only, the report schedules one campaign-authored
-priority B.d.U. reply through the existing radio receiver. The order is not
-telepathic mission state: it becomes player knowledge only after the normal
-antenna-depth / 40-second copy path has received it. `world.radio.priority` is a
-lazy mission queue and is absent from untouched Pacific state.
-
-The player must then preserve contact until darkness and gain a surfaced attack
-position ahead of the convoy. This is deliberately a gameplay abstraction of
-late-1941 night surface doctrine, not an exact reconstruction of a single
-historical attack drill. Contemporary KTBs show contact keepers operating at the
-limit of visibility, B.d.U. issuing approach/initiation orders, commanders
-waiting for sufficient darkness, and night brightness/moonlight affecting the
-attack decision. The German commander's handbook likewise treats the night
-surface attack as a positioning/course problem forward of the target's beam.
-The profile therefore authors broad tuning thresholds (daylight, depth, range,
-forward/lateral geometry and a short hold time); none should be presented as a
-literal Kriegsmarine regulation distance.
-
-The mission framework only verifies campaign-authored approach geometry and
-whether the existing enemy state has firm contact. It does not add a second
-stealth/detection model. Weather, moon, visual range, escort lookouts and enemy
-knowledge remain owned by the existing shared world/AI systems. When the
-position is held long enough the mission marks `attackPositionReady` but remains
-ACTIVE: torpedo attack, escort reaction and withdrawal are intentionally left
-for the next vertical-slice step rather than declaring victory before a weapon
-is fired.
-
-Patch-13 saves that completed CONTACT KEEPER at report transmission are migrated
-narrowly on first mission-framework ensure: if the patrol has not already been
-completed at port, the mission is reopened with the new `release` and `approach`
-objectives. Any reward already credited by patch 13 is retained and flagged so
-it cannot be awarded twice. New patch-14 patrols do not complete or credit the
-mission at report transmission.
-
-### Phase-2 patch 15 — convoy attack, escort reaction and withdrawal
-
-CONTACT KEEPER v3 now carries the first Atlantic loop through the player's own
-attack and escape. An attack objective is satisfied only by a torpedo launched
-after the night attack position was earned and directed at the main convoy (or,
-for manual TDC, by a geometrically plausible shot from close to the convoy).
-The mission does not require a hit: tactical consequences and survival remain
-interesting after a miss or dud, and ship damage continues to belong to the
-shared weapons/damage systems.
-
-Crucially, mission code does not alert the escorts. `fireTorpedo()`, merchant
-lookouts, torpedo wakes, hits/duds and the existing local information relay
-continue to decide what the convoy can plausibly know. CONTACT KEEPER merely
-observes that shared enemy state. A quiet electric-torpedo attack may therefore
-start its withdrawal before an escort has a firm datum; an observed attack may
-instead trigger the existing search/prosecution system.
-
-Evasion deliberately permits both historically plausible tactical outcomes:
-breaking an actual firm escort contact after diving, or using darkness/surface
-speed to open the inner screen when no firm contact was ever obtained. The
-campaign authors only broad gameplay thresholds for quiet hold and withdrawal
-range. Once firm contact is broken and the boat remains at least six nautical
-miles from the convoy core for the authored hold time, the primary mission is
-complete and the normal return-to-base lifecycle resumes. This is a mission
-state layer only; it adds no duplicate ASDIC, visibility or escort AI.
-
-Patch-14 CONTACT KEEPER saves migrate additively to v3 by gaining `attack`,
-`evade` and `withdraw` objectives. Completed report/order/approach state is
-retained, and no prior reward is reissued.
-
-
-## Atlantic DEV patch 17 — North Atlantic environment
-
-The 1941 Atlantic slice now owns a concrete `NORTH_ATLANTIC_1941` climate identity and `NORTH_ATLANTIC` visual tone. Weather keeps a persistent low-overcast background between broader, longer-lived frontal cells rather than collapsing to the Pacific clear-sky baseline after weather initialization. The shared renderer uses the same row/particle budget but selects a colder sky/sea palette, stronger horizon haze and longer swell only for that visual tone. Pacific weather/rendering stays on the existing branch. Bridge motion speed normalization also reads the materialized submarine surface-speed characteristic instead of assuming an 18-knot Gato.
-
-
-## Atlantic DEV patch 18 — vessel visual pass
-
-Atlantic vessel identity now reaches dedicated shared-renderer model keys. The Flower-class escort, freighter/tramp/cargo-liner/coaster/tanker variants and Type VIIC ownship casing no longer borrow Pacific patrol-craft/Gato silhouettes. These are recognition-grade Canvas2D vector models, deliberately not museum meshes; all damage, sinking, wake and LOD mechanics remain shared. The Type VIIC forward deck-gun mount and visible casing proportions are selected from the submarine profile's `visualModelKey`, while Pacific keeps the existing fleet-boat deck path.
-
-## Atlantic DEV patch 19 — campaign picker UI regression
-
-The DEV-only theater/campaign `<select>` is created while `ScenarioSelector` is
-constructed, before `picker.js` has loaded.  The per-render enhancement therefore
-cannot wrap that first instance, while the older PRIMARY MISSION select is repaired
-later by `Picker.enhanceAll()` in bootstrap.  Android consequently opened its native
-system selector for THEATER / CAMPAIGN.
-
-Patch 19 adds `campaignProfileSelect` to that bootstrap enhancement pass and gives
-it the same explicit in-app picker footprint as PRIMARY MISSION.  Subsequent
-`renderCards()` calls continue to enhance newly-created instances directly.  This
-is a DEV UI regression fix only; no campaign, simulation or production behavior is
-changed.
-
-## Atlantic DEV patch 20 — living convoy columns
-
-The first world-building pass deliberately reuses the existing shared convoy,
-damage, tactical-LOD and escort-role systems.  The Atlantic primary-convoy
-profile now authors a readable three-column merchant body plus bounded station
-jitter, individual station-keeping quality and a possible slow after-column
-straggler.  These values are materialized once when the patrol is created, so
-the simulation hot loop performs no random generation and saves reproduce the
-same convoy character.
-
-Healthy ships correct toward imperfect personal stations instead of converging
-on mathematically exact points.  A natural straggler follows the convoy route at
-its own sustainable pace, while damaged merchants continue to become stragglers
-through the existing propulsion/flotation/fire rules.  The existing ASW role
-allocator may leave one escort with a qualifying straggler when enough escorts
-remain; it does not duplicate escort AI or reveal player position.  Pacific
-profiles do not author these dynamics and therefore retain their prior behavior.
-
-## Atlantic DEV patch 21 — abstract wolfpack effects
-
-The CONTACT KEEPER support record can now produce a bounded one-or-two-event
-attack sequence after B.d.U. release.  Supporting boats remain abstract: no
-submarine contact, physics body, sensor loop or tactical AI is spawned.  When
-the primary convoy is inside the tactical bubble, an event can damage (but not
-sink or credit) one merchant, turn it into a real straggler, create a visible
-blast and divert the nearest available escort to a local remote-alarm search.
-
-That detached escort steers only from the other boat's attack position.  It
-does not write or consume player `enemy.solution`, does not join
-`alertedEscortIds`, and therefore gains no telepathic knowledge of ownship.  A
-later direct observation or convoy relay about the player's attack takes
-priority normally.  If the player did not have a useful plot or proximity to
-the event, only generic B.d.U. group traffic is logged rather than revealing an
-exact target position.
-
-## Atlantic DEV patch 22 — air gap and radio bearings
-
-The historical model now continues through 1944 instead of freezing every
-career patrol in the September-1941 force balance.  Aircraft, escort skill,
-surface opportunity, merchant density and HF/DF risk change in authored date
-bands; the improved straight-running G7e T3 becomes available in 1942.  The
-existing career calendar and refit message path expose these changes without an
-XP tree.
-
-Coastal Command patrols use the shared aircraft AI with an Atlantic roster.
-Their spawn chance is multiplied by a cheap position/date coverage profile: a
-broad central air gap is very quiet in 1941, then progressively closes through
-1943–44.  This is pressure, not omniscience; actual detection still uses local
-daylight, weather, sea state, surface trace and aircraft geometry.
-
-The campaign's required contact transmission now carries a date-dependent
-HF/DF risk.  When triggered, escorts within plausible relay range receive only
-a deliberately broad `RADIO_BEARING` cue.  The cue error is much larger than a
-weapon/visual datum and no escort outside the local communication boundary is
-magically alerted.  Pacific missions never author this exposure.
-
-## Atlantic DEV patch 23 — campaign breadth
-
-The Atlantic career now exposes three terrain-less open-ocean patrol areas:
-the mid-ocean convoy lanes, the air-threatened Western Approaches and the cold
-Greenland–Iceland route. They deliberately share no invented coastline; route
-geometry, weather, air pressure, start/return points and difficulty create
-different operational problems inside the existing single-area memory budget.
-
-AUTO orders are no longer CONTACT KEEPER every patrol. Campaign-authored area
-and era pools select contact-keeper/wolfpack work, direct convoy attacks or a
-front-line weather ambush. All three reuse proven mission mechanics with
-Atlantic wording. The late-war escort table can add a fourth Town-class
-destroyer to the Flower screen.
-
-Ambient Atlantic traffic is a bounded three-to-seven abstract groups:
-independents, tankers, slow unescorted stragglers and occasional small convoys.
-The traffic director materializes only the nearest groups, preserves their
-Atlantic vessel/model identity and reduces them again outside the tactical
-bubble. This adds horizon uncertainty without a full-ocean entity cost.
-
-## Atlantic DEV patch 24 — shared combat feedback
-
-The shared MAIN-FIRST backlog is forward-ported without changing Atlantic's
-theater-specific sensor names or AI paths. Torpedo miss coaching now follows
-only the intended TDC target; a fresh, noisy active-echo cue can replace an
-older enemy plot without exposing exact ownship position. Active transmission
-uses a red two-step confirmation and a short directional wave in SOUND.
-
-Weapon refusals state the corrective action. The general alarm is an irregular
-mechanical klaxon, depth-charge water entry has separate slap/body/bubble
-layers, and burst loudness uses actual horizontal-plus-depth slant distance
-rather than damage. AAR merchant side profiles place the superstructure aft.
-
-## Atlantic DEV patch 25 — 4 GB tablet guardrails
-
-The Helio G88 / 4 GB device class remains an explicit render target. Existing
-adaptive frame quality, a 1.5 DPR ceiling, a 2.2-megapixel canvas budget, lazy
-terrain, three tactical traffic groups and capped battle-atmosphere lists are
-retained. The general particle system now also has hard 420-particle and
-120-spark ceilings, preventing simultaneous convoy wakes, gunfire and depth
-charges from creating an unbounded transient render list.
-
-## Atlantic DEV patch 35 — future campaign gates
-
-`THEATER_FAMILIES`, `THEATER_PROFILES` and `REGION_PROFILES` separate
-presentation grouping from geography. The Baltic Sea has one canonical region
-under the European family and is neither Pacific nor Atlantic terrain. The
-Norwegian Arctic remains an Atlantic-presented region. Future Japanese,
-British, Soviet, German, Mediterranean and Indian Ocean slices live only in
-`FUTURE_VERTICAL_SLICE_BLUEPRINTS`; these reference records are never scenario
-options and do not import their proposed campaign modules.
-
-A campaign may become DEV-selectable only when `verticalSliceReadiness()`
-passes the complete `VERTICAL_SLICE_REQUIREMENTS` contract: identity, boat and
-station presentation, dated equipment, rosters, air/ASW doctrine, geography,
-at least three missions, terminology, tutorials, AAR, persistence and
-performance acceptance. `getSelectableCampaignProfiles()` is the sole selector
-source, so a partial catalog entry fails closed instead of exposing an empty
-campaign.
-
-`CAMPAIGN_LOAD_BOUNDARIES` records a one-active-area terrain budget for every
-playable campaign. Terrain continues through `getPatrolTerrain(areaKey)`, whose
-one-entry cache evicts the previous large chart. Planned module names are only
-ownership boundaries: they must not enter `index.html`, `sw.js` or the offline
-shell until a complete vertical slice is implemented.
-
-## Atlantic DEV patch 36 — release-candidate acceptance
-
-The cumulative candidate is gated by syntax and assetgraph checks, the full
-P27–P35 targeted regression set, a 24-run Atlantic matrix (three areas, 1941–44,
-NORMAL/HARD, 600 simulated seconds each) and a separate 7,200-second heavy
-scene. That scene requires four escorts, three tactical ambient groups and an
-aircraft while driving battle-atmosphere lists to their hard ceilings. It also
-round-trips patrol start, mid-mission, attack/cinematic, damage and return/AAR
-states. Browser/device interaction remains a physical acceptance gate; the VM
-stress result is not presented as a measured device frame rate.
+- **Convoy & Shadowing (P11–21)**: Three-column convoy formations, stragglers, and the `CONTACT_KEEPER` v3 loop covering detection, B.d.U. reporting, night surface approach, and cooperative U-boat simulation (`world.cooperativeSubmarines`).
+- **Air Gap & Radio Bearings (P22)**: Historical date bands through 1944; progressive air gap closure; date-dependent HF/DF risk generating broad `RADIO_BEARING` cues for nearby escorts.
+- **Campaign Breadth (P23)**: Three open-ocean patrol areas, diversified AUTO mission pools (contact-keeper, direct attack, weather ambush), and bounded ambient shipping materialization.
+- **Combat Feedback (P24)**: Target-specific TDC miss coaching, active-echo cue replacement, two-step sound transmission, mechanical klaxon alarm, and horizontal-plus-depth slant burst loudness.
+- **Hardware Guardrails (P25)**: Helio G88 / 4 GB tablet performance compliance (1.5 DPR ceiling, 2.2 MP canvas budget, lazy terrain, 420 particle / 120 spark caps).
+- **Future Campaign Gates (P35)**: Canonical theater family separation, strict `verticalSliceReadiness()` requirements contract, and single-active-area terrain cache eviction.
+- **Release Acceptance (P36)**: 24-run regression matrix, 7,200s heavy scene stress validation, and complete save/load lifecycle round-tripping.

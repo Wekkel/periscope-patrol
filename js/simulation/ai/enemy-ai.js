@@ -1,8 +1,8 @@
-class SimEngineEnemyAI extends SimEngineTorpedoes {
+const EnemyAISystem={
   markEscortAlerted(esc){
     if(!esc?.id)return false;const e=this.state.world.enemy;
     const ids=new Set(Array.isArray(e.alertedEscortIds)?e.alertedEscortIds:[]);ids.add(esc.id);e.alertedEscortIds=[...ids];return true;
-  }
+  },
 
   startMerchantEvasion(c,threatPos,reason='ATTACK',direct=false){
     if(!c||c.sunk||c.stationary||c.harborTarget||isSurfaceCombatant(c)||(c.side&&c.side!=='ENEMY'))return false;
@@ -22,7 +22,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       this.log(`${c.name} ${direct?'under direct attack':'has seen the attack'} — emergency turn and speed.`);
     }
     return true;
-  }
+  },
 
   surfaceAttackObservers(reason,pos,meta={}){
     const s=this.state,W=s.world,now=s.time.elapsedSeconds||0,out=[];
@@ -42,7 +42,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       c.surfaceAlarmSeenAt=now;
     }
     return out;
-  }
+  },
 
   surfaceAlarmRelayType(from,esc,reason){
     if(!from?.convoyId||!esc?.convoyId||from.convoyId!==esc.convoyId)return null;
@@ -55,11 +55,11 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     // routine suspicion never gets this long-range shortcut.
     if(['SHIP_HIT','TORPEDO_DUD','TORPEDO_SIGHTED','DECK_GUN'].includes(reason))return 'RADIO';
     return null;
-  }
+  },
 
   escortDirectlyNotices(reason,esc,pos,conf){
     const rng=distNm(esc.position,pos);
-    if(['ACTIVE_QC','NOISE','EMERGENCY_BLOW','COLLISION','AIR_ATTACK'].includes(reason))return rng<=18;
+    if(['ACTIVE_ECHO','ACTIVE_QC','NOISE','EMERGENCY_BLOW','COLLISION','AIR_ATTACK','RADIO_BEARING'].includes(reason))return rng<=18;
     const s=this.state,W=s.world,wx=weatherBetween(s,esc.position,pos),day=clamp(W.environment.daylight??1,0,1),visual=Math.max(.8,(wx.visibilityNm||.5)*(.35+day*.30));
     const limit=reason==='SHIP_HIT'?Math.min(7,visual*1.25+1)
       :reason==='DECK_GUN'?Math.min(7.5,visual*1.1)
@@ -67,7 +67,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       :reason==='TORPEDO_SIGHTED'?Math.min(2.5,visual*.45+.25)
       :reason==='TORPEDO_LAUNCH'?Math.min(4.5,2.2+(conf||0)*2.5):18;
     return rng<=limit;
-  }
+  },
 
   maybeMerchantSpotTorpedo(t,c,gap){
     if(!t||!c||c.sunk||c.stationary||c.harborTarget||isSurfaceCombatant(c)||(c.side&&c.side!=='ENEMY')||t.isElectric)return false;
@@ -82,10 +82,10 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     this.startMerchantEvasion(c,t.position,'TORPEDO_SIGHTED',true);
     this.alertEscorts('TORPEDO_SIGHTED',{...c.position},.72,{sourceShipId:c.id});
     return true;
-  }
+  },
 
   alertEscorts(reason,pos,conf,meta={}){
-    const W=this.state.world,e=W.enemy;this.ensureASWState?.();
+    const W=this.state.world,e=W.enemy;
     // First let surface ships react to what THEY can plausibly perceive. This
     // must happen before the escort early-return: a lone freighter still takes
     // evasive action after being hit even when no ASW ship is nearby.
@@ -98,7 +98,7 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       for(const o of observers){
         const via=this.surfaceAlarmRelayType(o.ship,esc,reason);if(!via)continue;
         relayed.push(esc);esc.lastAlarmVia=via;esc.lastAlarmFrom=o.ship.id;esc.lastAlarmAt=this.state.time.elapsedSeconds||0;
-        if(via==='VISUAL')this.noteTacticalSignal?.(o.ship,esc,true);
+        if(via==='VISUAL')this.sys.battleAtmosphere.noteTacticalSignal(o.ship,esc,true);
         break;
       }
     }
@@ -110,22 +110,22 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
     }
     for(const esc of localEscorts)this.markEscortAlerted(esc);
     const wasUnaware=e.alertState==='UNAWARE',newState=conf>.75?'ATTACKING':'SEARCHING';if(!(e.alertState==='ATTACKING'&&newState==='SEARCHING'))e.alertState=newState;
-    const timers={TORPEDO_LAUNCH:360,TORPEDO_SIGHTED:300,SHIP_HIT:600,EMERGENCY_BLOW:260,TORPEDO_DUD:210,COLLISION:320,DECK_GUN:340,AIR_ATTACK:240,NOISE:180,ACTIVE_QC:280};
+    const timers={TORPEDO_LAUNCH:360,TORPEDO_SIGHTED:300,SHIP_HIT:600,EMERGENCY_BLOW:260,TORPEDO_DUD:210,COLLISION:320,DECK_GUN:340,AIR_ATTACK:240,NOISE:180,ACTIVE_ECHO:280,ACTIVE_QC:280,RADIO_BEARING:240};
     e.alertTimerSec=Math.max(e.alertTimerSec,timers[reason]||200);
-    const q=this.noteASWCue?this.noteASWCue(pos,conf,reason):{xNm:pos.xNm,yNm:pos.yNm};
-    this.armASWProsecution?.(reason,wasUnaware);
+    const q=this.sys.aswBrain.noteASWCue?this.sys.aswBrain.noteASWCue(pos,conf,reason):{xNm:pos.xNm,yNm:pos.yNm};
+    this.sys.aswBrain.armASWProsecution?.(reason,wasUnaware);
     e.lastKnownSubPosition={xNm:q.xNm,yNm:q.yNm};e.searchCenter={xNm:q.xNm,yNm:q.yNm};
     e.searchPattern=reason==='SHIP_HIT'?'COORDINATED':['TORPEDO_LAUNCH','TORPEDO_SIGHTED'].includes(reason)?'CONVERGE':'CREEPING';e.searchPhase=0;
     const via=relayed.length&&!direct.length?(relayed[0].lastAlarmVia||'signal'):'local observation';
-    this.aarEnemyResponse?.(reason,{...q,confidence:conf,source:reason},localEscorts,via);
+    this.aar.enemyResponse(reason,{...q,confidence:conf,source:reason},localEscorts,via);
     this.log(`Escort screen alerted by ${reason} via ${via}; datum uncertainty about ${Math.round((q.errNm||.1)*2025)} yd.`);
     return true;
-  }
+  },
 
 
   updateEnemyAI(dt){
-    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,A=this.ensureASWState?.();
-    const budgetExpiry=this.aswProsecutionExpiry?.();
+    const W=this.state.world,e=W.enemy,sub=this.state.playerSub,A=this.sys.aswBrain.ensureASWState?.();
+    const budgetExpiry=this.sys.aswBrain.aswProsecutionExpiry?.();
     if(budgetExpiry)e.alertTimerSec=0;
     if(e.alertTimerSec>0){
       // Quiet/deep running reduces SENSOR quality; it should not make a destroyer
@@ -135,17 +135,17 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       e.alertTimerSec=Math.max(0,e.alertTimerSec-decay);
     }
     if(e.alertTimerSec<=0&&e.alertState!=='UNAWARE'){
-      e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;e.alertedEscortIds=[];this.assignASWRoles?.(null,true);
+      e.alertState='UNAWARE';e.lastKnownConfidence=0;e.contactHeld=false;e.solution=null;e.alertedEscortIds=[];this.sys.aswBrain.assignASWRoles?.(null,true);
       this.log(budgetExpiry==='HARD_LIMIT'?'Escort commander breaks off the prolonged hunt; convoy screen reforming.':'Escort search abandoned; convoy screen reforming.');
-      this.resetASWProsecution?.();
-      if(this.state.campaign._depthChargeAttackSeen){this.captainLog?.('DEPTH_CHARGE_ATTACK_SURVIVED','Depth-charge attack survived.',{},`dc-survived:${Math.floor((this.state.time.elapsedSeconds||0)/60)}`);this.state.campaign._depthChargeAttackSeen=false;}
+      this.sys.aswBrain.resetASWProsecution?.();
+      if(this.state.runtime.campaign._depthChargeAttackSeen){this.captainLog?.('DEPTH_CHARGE_ATTACK_SURVIVED','Depth-charge attack survived.',{},`dc-survived:${Math.floor((this.state.time.elapsedSeconds||0)/60)}`);this.state.runtime.campaign._depthChargeAttackSeen=false;}
       const camp=this.state.campaign,evade=camp.objectives?.find?.(o=>o.id==='evade')||(!camp.missionType?camp.objectives?.[2]:null);
       if(evade)evade.done=true;
     }
-    e.searchPhase=(e.searchPhase||0)+dt;this.updateASWBrain?.(dt);this.updateSonar(dt);
-    const escorts=W.contacts.filter(c=>isASWCombatant(c));escorts.forEach((esc,i)=>this.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
+    e.searchPhase=(e.searchPhase||0)+dt;this.sys.aswBrain.updateASWBrain?.(dt);this.sys.sensors.updateSonar(dt);
+    const escorts=W.contacts.filter(c=>isASWCombatant(c));escorts.forEach((esc,i)=>this.sys.asw.updateEscortBeh(esc,e,sub,W,i,escorts.length,dt));
     this.updateSurfaceTrafficCombat?.(dt);
-    this.updateLookouts(dt);
+    this.sys.sensors.updateLookouts(dt);
 
     // Passive listening may wake the screen, but it creates a deliberately
     // rough bearing/range datum. It never writes ownship's exact position into
@@ -160,14 +160,14 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
           estRng=clamp(rng*(1+(Math.random()-.5)*2*rangeFactor),.1,SONAR.maxRangeNm*1.25),br=degToRad(normDeg(trueBear+bearErr)),
           est={xNm:esc.position.xNm+Math.sin(br)*estRng,yNm:esc.position.yNm-Math.cos(br)*estRng};
         const passiveWasUnaware=e.alertState==='UNAWARE';this.markEscortAlerted(esc);e.alertState='SEARCHING';e.alertTimerSec=Math.max(e.alertTimerSec,det>.35?180:120);e.lastKnownConfidence=Math.max(e.lastKnownConfidence||0,det);
-        const A=this.ensureASWState?.();if(A){A.datum={...est,errNm:clamp(rng*rangeFactor,.16,.9),source:'PASSIVE'};A.datumAt=this.state.time.elapsedSeconds;A.searchStartedAt=this.state.time.elapsedSeconds;A.searchRadiusNm=clamp(.5+rng*rangeFactor,.6,1.8);}
-        this.armASWProsecution?.('PASSIVE',passiveWasUnaware);
-        e.lastKnownSubPosition={...est};e.searchCenter={...est};this.assignASWRoles?.(esc.id,true);
+        const A=this.sys.aswBrain.ensureASWState?.();if(A){A.datum={...est,errNm:clamp(rng*rangeFactor,.16,.9),source:'PASSIVE'};A.datumAt=this.state.time.elapsedSeconds;A.searchStartedAt=this.state.time.elapsedSeconds;A.searchRadiusNm=clamp(.5+rng*rangeFactor,.6,1.8);}
+        this.sys.aswBrain.armASWProsecution?.('PASSIVE',passiveWasUnaware);
+        e.lastKnownSubPosition={...est};e.searchCenter={...est};this.sys.aswBrain.assignASWRoles?.(esc.id,true);
         this.log(`${esc.name}: passive hydrophone bearing — escort screen searching.`);
       }
     }
-    this.updateDCs(dt);
-  }
+    this.sys.asw.updateDCs(dt);
+  },
 
   /* Local surface traffic combat. This is deliberately not a second naval
      warfare simulator: only already-materialised ships inside the player's
@@ -223,13 +223,13 @@ class SimEngineEnemyAI extends SimEngineTorpedoes {
       const size=clamp(shipVisualLengthM(target,280)/120,.55,1.35),sea=clamp(wx.seaState||0,0,1);
       const pHit=Math.pow(clamp(1-best/gunRange,0,1),1.15)*(.34+.34*day)*size*(1-sea*.34)*clamp(wx.visibilityNm/8,.35,1.15);
       const hit=Math.random()<clamp(pHit,.025,.62);
-      this.noteSurfaceGunfire?.(h,target,hit);
+      this.sys.battleAtmosphere.noteSurfaceGunfire(h,target,hit);
       if(hit){
         const lenNm=shipVisualLengthNm(target,280),along=(Math.random()-.5)*lenNm*.72;
         const dmg=applyDeckGunShipDamage(this,target,{lenNm,along,lateral:0,z:3+Math.random()*8,source:'NPC_SURFACE_GUN',attackerId:h.id,attackerSide:'ENEMY'});
         const hr=degToRad(target.heading||0),impact={xNm:target.position.xNm+Math.sin(hr)*along,yNm:target.position.yNm-Math.cos(hr)*along};
         s.weapons.explosions.push({position:impact,zM:4+Math.random()*7,ageSec:0,maxAgeSec:4,label:'SURFACE GUN HIT'});
-        particles.spawnExplosion?.(impact.xNm,impact.yNm,.26,false);audio.playHit?.();
+        particles.spawnExplosion?.(impact.xNm,impact.yNm,.26,false);PresentationBridge.audio(this.state).playHit?.();
         updateShipDamage(this,target,0);
         const tr=W.contactTracks?.[target.id];if((tr&&tr.confidence>.04)||distNm(sub.position,target.position)<10)
           this.log(`${h.name} hit ${target.name} — ${dmg.location.toLowerCase()}, ${shipDamageCondition(target).toLowerCase()}.`,'warn');

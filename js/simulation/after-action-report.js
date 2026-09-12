@@ -2,10 +2,10 @@
 // A compact patrol recorder. It stores low-frequency, grouped samples only;
 // there is no replay simulation and no render loop during the patrol.
 const AAR_VERSION=2;
-const AAR_ROUTE_SAMPLE_SEC=15;
-const AAR_TRACK_SAMPLE_SEC=30;
+const AAR_ROUTE_SAMPLE_SEC=10;
+const AAR_TRACK_SAMPLE_SEC=10;
 const AAR_MAX_ROUTE=900;
-const AAR_MAX_POINTS_PER_TRACK=480; // four hours at 30-second sampling
+const AAR_MAX_POINTS_PER_TRACK=720; // two hours at 10-second sampling
 const AAR_MAX_EVENTS=500;
 function _aarClone(v){return v==null?v:JSON.parse(JSON.stringify(v));}
 function _aarPush(a,v,max){a.push(v);if(a.length>max)a.splice(0,a.length-max);}
@@ -20,10 +20,18 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
     ensureAfterActionReport(reset=false){
       const c=this.state.campaign;
       if(reset||!c.afterAction){
-        c.afterAction={version:AAR_VERSION,route:[],observedById:{},truthById:{},events:[],torpedoes:[],gunRounds:[],enemyResponses:[],aircraftEvaded:0,
-          _routeClock:999,_trackClock:999,_airStates:{},_seenTrackIds:{},_trukPenetrationLogged:false};
+        c.afterAction={version:AAR_VERSION,route:[],observedById:{},truthById:{},events:[],decisions:[],torpedoes:[],gunRounds:[],enemyResponses:[],aircraftEvaded:0,pacingSummary:null,
+          };
       }
-      const A=c.afterAction;A.version=AAR_VERSION;A.gunRounds=Array.isArray(A.gunRounds)?A.gunRounds:[];A.enemyResponses=Array.isArray(A.enemyResponses)?A.enemyResponses:[];return A;
+      const A=c.afterAction,R=this.state.runtime.aar||(this.state.runtime.aar={routeClock:999,trackClock:999,airStates:{},seenTrackIds:{},harborPenetrationLogged:false});
+      // Migrate the pre-8a recorder clocks once; these fields are runtime and
+      // must not live in the persistent after-action record.
+      if(A._routeClock!==undefined){R.routeClock=A._routeClock;delete A._routeClock;}
+      if(A._trackClock!==undefined){R.trackClock=A._trackClock;delete A._trackClock;}
+      if(A._airStates){R.airStates=A._airStates;delete A._airStates;}
+      if(A._seenTrackIds){R.seenTrackIds=A._seenTrackIds;delete A._seenTrackIds;}
+      if(A._harborPenetrationLogged!==undefined){R.harborPenetrationLogged=A._harborPenetrationLogged;delete A._harborPenetrationLogged;}
+      A.version=AAR_VERSION;A.decisions=Array.isArray(A.decisions)?A.decisions:[];A.gunRounds=Array.isArray(A.gunRounds)?A.gunRounds:[];A.enemyResponses=Array.isArray(A.enemyResponses)?A.enemyResponses:[];return A;
     },
 
     aarRecordEvent(type,text,data={},position=null,targetPosition=null){
@@ -47,6 +55,10 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
         if(!Number.isFinite(d.visibilityNm))d.visibilityNm=+(env.visibilityNm||0).toFixed(1);
         if(!Number.isFinite(d.daylight))d.daylight=+(env.daylight??1).toFixed(2);
         if(!Number.isFinite(d.escortThreat)&&q)d.escortThreat=(s.world.contacts||[]).filter(x=>x?.id!==target.id&&_aarCombatant(x)&&x.position&&distNm(x.position,q)<=4.5).length;
+        const tr=s.world.contactTracks?.[target.id],profile=typeof getVesselProfile==='function'?getVesselProfile(target.vesselProfileId):null;d.vesselProfileId=target.vesselProfileId||null;d.targetFactionId=target.factionId||inferVesselFactionId?.(target,s)||null;d.recognitionProfile=profile?.recognition||null;d.doctrineProfile=profile?.doctrine||null;
+        d.dispositionAtEvent=typeof getDisposition==='function'?getDisposition(s.campaign.playerFactionId,d.targetFactionId,s.time.campaignDate,s.campaign.campaignId,{declaredHostile:target.side==='ENEMY'}):(target.side||'UNKNOWN');
+        d.observationSource=tr?.source||tr?.lastSensorSource||d.source||'UNOBSERVED';
+        d.playerKnowledge={held:!!tr,typeEstimate:tr?.typeEstimate||'UNKNOWN',confidence:Number(tr?.confidence)||0,visualHullConfirmed:!!tr?.visualHullConfirmed};
       }
       const ev={t,type:String(type||'EVENT'),text:String(text||type||'Event'),position:p,targetPosition:tp,data:d};
       const k=data?.aarKey||data?.key;if(k&&A.events.some(x=>x.key===k))return null;if(k)ev.key=k;
@@ -69,44 +81,57 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
 
     aarGunRound(shell){if(!shell)return;const A=this.ensureAfterActionReport(),sub=this.state.playerSub;_aarPush(A.gunRounds,{id:shell.id,t:this.state.time.elapsedSeconds||0,bearing:shell.bearing,elevation:shell.elevation,muzzleVelocityMS:shell.muzzleVelocityMS,weaponLabel:shell.weaponLabel,start:_aarPos({xNm:shell.xNm,yNm:shell.yNm}),ownHeading:sub.heading,status:'IN_FLIGHT',contactId:null,material:null},120);},
     aarGunFinish(shell,status,position=null,contact=null,material=null){const A=this.ensureAfterActionReport(),r=A.gunRounds.find(x=>x.id===shell?.id);if(!r)return;r.status=status;r.endT=this.state.time.elapsedSeconds||0;r.end=_aarPos(position);r.contactId=contact?.id||null;r.material=material||null;if(r.start&&r.end)r.rangeNm=distNm(r.start,r.end);},
-    aarEnemyResponse(reason,cue,receivers=[],via='local observation'){const A=this.ensureAfterActionReport(),now=this.state.time.elapsedSeconds||0;_aarPush(A.enemyResponses,{t:now,reason:String(reason||'UNKNOWN'),source:String(cue?.source||reason||'UNKNOWN'),via:String(via||'local observation'),confidence:Number(cue?.confidence)||0,uncertaintyNm:Number(cue?.errNm)||0,receiverIds:receivers.map(x=>typeof x==='string'?x:x?.id).filter(Boolean),datum:_aarPos(cue)},80);},
+    aarRecordDecision(type,text,data={},position=null){
+      const A=this.ensureAfterActionReport(),s=this.state,t=s.time.elapsedSeconds||0;
+      const sub=s.playerSub||{},p=_aarPos(position)||_aarPos(sub.position),d=_aarClone(data||{});
+      const dec={t:Math.round(t),type:String(type||'DECISION'),text:String(text||type||'Order executed'),depthFeet:+(sub.depthFeet||0).toFixed(1),heading:+(sub.heading||0).toFixed(1),speedKnots:+(sub.propulsion?.speedKnots||0).toFixed(1),position:p,data:d};
+      _aarPush(A.decisions,dec,100);
+      this.aarRecordEvent('COMMAND_DECISION',dec.text,{decisionType:dec.type,...dec.data},p);
+      return dec;
+    },
+    aarEnemyResponse(reason,cue,receivers=[],via='local observation',extra={}){const A=this.ensureAfterActionReport(),now=this.state.time.elapsedSeconds||0;_aarPush(A.enemyResponses,{t:Math.round(now),reason:String(reason||'UNKNOWN'),source:String(cue?.source||reason||'UNKNOWN'),via:String(via||'local observation'),confidence:Number(cue?.confidence)||0,uncertaintyNm:Number(cue?.errNm)||0,receiverIds:receivers.map(x=>typeof x==='string'?x:x?.id).filter(Boolean),datum:_aarPos(cue),..._aarClone(extra||{})},80);},
 
     updateAfterActionRecorder(dt){
-      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING')return;const A=this.ensureAfterActionReport(),now=s.time.elapsedSeconds||0,sub=s.playerSub,W=s.world;
-      A._routeClock=(A._routeClock||0)+dt;A._trackClock=(A._trackClock||0)+dt;
-      if(A._routeClock>=AAR_ROUTE_SAMPLE_SEC||A.route.length===0){
-        A._routeClock=0;_aarTimelinePush(A.route,[Math.round(now),+sub.position.xNm.toFixed(4),+sub.position.yNm.toFixed(4),+sub.depthFeet.toFixed(1),+sub.heading.toFixed(1),+sub.propulsion.speedKnots.toFixed(1)],AAR_MAX_ROUTE);
+      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING')return;const A=c.afterAction;if(!A)return;const now=s.time.elapsedSeconds||0,sub=s.playerSub,W=s.world;
+      const R=s.runtime.aar||(s.runtime.aar={routeClock:999,trackClock:999,airStates:{},seenTrackIds:{},harborPenetrationLogged:false});
+      R.routeClock=(R.routeClock||0)+dt;R.trackClock=(R.trackClock||0)+dt;
+      if(R.routeClock>=AAR_ROUTE_SAMPLE_SEC||A.route.length===0){
+        R.routeClock=0;_aarTimelinePush(A.route,[Math.round(now),+sub.position.xNm.toFixed(4),+sub.position.yNm.toFixed(4),+sub.depthFeet.toFixed(1),+sub.heading.toFixed(1),+sub.propulsion.speedKnots.toFixed(1)],AAR_MAX_ROUTE);
       }
-      if(A._trackClock>=AAR_TRACK_SAMPLE_SEC){
-        A._trackClock=0;
+      if(R.trackClock>=AAR_TRACK_SAMPLE_SEC){
+        R.trackClock=0;
         for(const tr of Object.values(W.contactTracks||{})){
           if(!tr||tr.confidence<.12)continue;const p=tr.plotPosition||tr.lastFixPosition;if(!p)continue;
           let g=A.observedById[tr.id];if(!g)g=A.observedById[tr.id]={id:tr.id,type:tr.typeEstimate||'UNKNOWN',affiliation:tr.affiliation||null,points:[]};
           g.type=tr.typeEstimate||g.type;g.affiliation=tr.affiliation||g.affiliation;
           _aarTimelinePush(g.points,[Math.round(now),+p.xNm.toFixed(4),+p.yNm.toFixed(4),+(tr.courseEstimate||0).toFixed(1),+(tr.speedEstimateKnots||0).toFixed(1),
             +tr.confidence.toFixed(2),+(tr.positionConfidence??tr.confidence).toFixed(2),_aarSourceCode(tr.source||tr.lastSensorSource),tr.visualHullConfirmed?1:0],AAR_MAX_POINTS_PER_TRACK);
-          if(!A._seenTrackIds[tr.id]){A._seenTrackIds[tr.id]=true;this.aarRecordEvent('FIRST_SIGHTING',`First contact — ${tr.typeEstimate||tr.id}.`,{contactId:tr.id,source:tr.source||tr.lastSensorSource||'UNKNOWN'},p);}
+          if(!R.seenTrackIds[tr.id]){R.seenTrackIds[tr.id]=true;this.aarRecordEvent('FIRST_SIGHTING',`First contact — ${tr.typeEstimate||tr.id}.`,{contactId:tr.id,source:tr.source||tr.lastSensorSource||'UNKNOWN'},p);}
         }
         for(const x of W.contacts||[]){
           if(!x||!x.position)continue;const known=!!W.contactTracks?.[x.id],near=distNm(sub.position,x.position)<=38,important=x.convoyId==='MAIN'||x.harborTarget;
-          if(!known&&!near&&!important)continue;
-          let g=A.truthById[x.id];if(!g)g=A.truthById[x.id]={id:x.id,type:x.displayType||x.type||'SHIP',side:x.side||'ENEMY',convoyId:x.convoyId||null,trafficGroupId:x.trafficGroupId||null,points:[]};
+          let g=A.truthById[x.id];if(!g)g=A.truthById[x.id]={id:x.id,type:x.displayType||x.type||'SHIP',side:x.side||'ENEMY',factionId:x.factionId||null,vesselProfileId:x.vesselProfileId||null,convoyId:x.convoyId||null,trafficGroupId:x.trafficGroupId||null,points:[]};
           _aarTimelinePush(g.points,[Math.round(now),+x.position.xNm.toFixed(4),+x.position.yNm.toFixed(4),+(x.heading||0).toFixed(1),+(x.speedKnots||0).toFixed(1),x.sunk?1:0],AAR_MAX_POINTS_PER_TRACK);
         }
       }
       const live={};for(const a of W.aircraft||[]){if(a.side==='FRIENDLY')continue;
-        live[a.id]=true;const st=A._airStates[a.id]||(A._airStates[a.id]={attacked:false,seen:false,lastState:a.state,pos:_aarPos(a.position)});
+        live[a.id]=true;const st=R.airStates[a.id]||(R.airStates[a.id]={attacked:false,seen:false,lastState:a.state,pos:_aarPos(a.position),name:a.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,kind:a.kind||null});
         st.pos=_aarPos(a.position);st.seen=st.seen||!!a.seenBySub;
-        if(!st.attacked&&(a.state==='ATTACKING'||a.state==='STRAFING')){st.attacked=true;this.aarRecordEvent('AIRCRAFT_ATTACK',`${a.name||'Aircraft'} attacking.`,{aircraftId:a.id,name:a.name||'Aircraft'},a.position);}
+        if(!st.attacked&&(a.state==='ATTACKING'||a.state==='STRAFING')){st.attacked=true;this.aarRecordEvent('AIRCRAFT_ATTACK',`${a.name||'Aircraft'} attacking.`,{aircraftId:a.id,name:a.name||'Aircraft',aircraftProfileId:a.aircraftProfileId||null,kind:a.kind||null},a.position);}
         st.lastState=a.state;st.shotDown=!!a.shotDown;
       }
-      for(const [id,st] of Object.entries(A._airStates)){if(live[id]||st.finished)continue;st.finished=true;if(st.attacked&&!st.shotDown){A.aircraftEvaded++;this.aarRecordEvent('AIRCRAFT_EVADED','Aircraft attack evaded.',{aircraftId:id},st.pos);}}
-      const I=W.harborIntel;if(I?.raid?.attempted&&!A._trukPenetrationLogged){A._trukPenetrationLogged=true;this.aarRecordEvent('TRUK_PENETRATION','Entered the Truk anchorage defenses.',{},sub.position);}
+      for(const [id,st] of Object.entries(R.airStates)){if(live[id]||st.finished)continue;st.finished=true;if(st.attacked&&!st.shotDown){A.aircraftEvaded++;this.aarRecordEvent('AIRCRAFT_EVADED','Aircraft attack evaded.',{aircraftId:id},st.pos);}}
+      // Migrate recorder state from the original Truk-only flag without replaying
+      // the penetration event when an in-progress patrol loads after this refactor.
+      if(R.harborPenetrationLogged==null)R.harborPenetrationLogged=!!A._trukPenetrationLogged;
+      const I=W.harborIntel,harborOp=getCampaignHarborOperationProfile(c.campaignProfileId),event=harborOp?.events;
+      if(I?.raid?.attempted&&!R.harborPenetrationLogged&&event?.penetrationId){R.harborPenetrationLogged=true;this.aarRecordEvent(event.penetrationId,event.penetrationText,{},sub.position);}
     },
 
     buildAfterActionReplay(){
       const A=this.ensureAfterActionReport();return{version:AAR_VERSION,route:_aarClone(A.route),observedTracks:_aarClone(Object.values(A.observedById||{})),truthTracks:_aarClone(Object.values(A.truthById||{})),
-        events:_aarClone(A.events),torpedoes:_aarClone(A.torpedoes),gunRounds:_aarClone(A.gunRounds),enemyResponses:_aarClone(A.enemyResponses),aircraftEvaded:Number(A.aircraftEvaded)||0};
+        events:_aarClone(A.events),decisions:_aarClone(A.decisions||[]),torpedoes:_aarClone(A.torpedoes),gunRounds:_aarClone(A.gunRounds),enemyResponses:_aarClone(A.enemyResponses),aircraftEvaded:Number(A.aircraftEvaded)||0,
+        pacingSummary:_aarClone(A.pacingSummary||this.state.campaign?.pacingSummary||null)};
     }
   });
 })();

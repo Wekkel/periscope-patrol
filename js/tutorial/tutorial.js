@@ -219,23 +219,25 @@ class Tutorial{
   /* controlled sandbox: one slow merchant, good weather, no duds */
   setupScenario(){
     const g=this.game;
-    g.dispatch({type:'NEW_PATROL',areaKey:'Java Sea',training:true});
+    const before=g.getSnapshot(),identity=resolveGameIdentity(before),campaign=getCampaignProfile(identity.campaignProfileId),areaKey=campaign?.defaultArea||before.campaign?.patrolArea;
+    g.dispatch({type:'NEW_PATROL',areaKey,gameIdentity:identity,training:true});
     g.update(0.001);                       // drain the command queue
     const s=g.getSnapshot();
     s.time.elapsedSeconds=0;s.time.timeScale=1;
     const sub=s.playerSub,targetPos=this.waterPoint(sub.position,20,4.3,60);
-    if(!targetPos)throw new Error('No navigable training target in Java Sea');
-    s.world.contacts=[{
-      id:'TGT-1',name:'Kaiyo Maru',type:'MERCHANT',lengthYards:430,
+    if(!targetPos)throw new Error(`No navigable training target in ${areaKey}`);
+    const atlantic=identity.playerFactionId==='germany';
+    s.world.contacts=[materializeVesselIdentity({
+      id:'TGT-1',name:atlantic?'Training Freighter':'Kaiyo Maru',type:'MERCHANT',vesselProfileId:atlantic?'uk-tramp-1941':undefined,lengthYards:430,
       visualProfile:1.05,acousticBase:0.42,tonsFactor:5000,
       position:targetPos,heading:262,speedKnots:8,
       convoyRole:'MERCHANT',formationIndex:0
-    }];
+    },s)];
     s.world.contactTracks={};s.world.depthCharges=[];
     s.weapons.activeTorpedoes=[];s.weapons.hits=[];s.weapons.duds=[];s.weapons.explosions=[];
-    s.weapons.torpedoInventory=16;
+    s.weapons.torpedoInventory=getSubmarineProfile(identity.submarineProfileId).weapons.torpedoInventory;
     for(const t of s.weapons.tubes){t.status='LOADED_DRY';t.flooded=false;t.reloadProgress=1;}
-    s.world.environment={daylight:0.9,visibilityNm:16,seaState:0.15,weather:'CLEAR',_baseVisibilityNm:16};
+    s.world.environment={daylight:0.9,visibilityNm:16,seaState:0.15,weather:'CLEAR'};s.runtime.environment._baseVisibilityNm=16;
     // Training is a scripted sandbox. NEW_PATROL also creates the ordinary
     // Pacific traffic director and air-threat clock; leaving those alive lets a
     // random patrol craft/task group or aircraft wander into a long lesson and
@@ -247,11 +249,14 @@ class Tutorial{
       searchPattern:'RANDOM',searchCenter:{xNm:0,yNm:0},searchAngle:0};
     s.tdc.dudMode='none';s.tdc.targetId=null;s.tdc.solutionQuality=0;
     s.tactical.selectedTrackId=null;s.tactical.activeStation='TACTICAL';s.tactical.periscopeBearing=20;
-    s.map.plottedCourse=[];s.map.ownshipTrail=[];s.map.exploredCells={};
+    // Keep the sandbox defensively clean even if a future setup path bypasses
+    // part of NEW_PATROL. The lifecycle transaction performs the authoritative
+    // reset; this makes the tutorial's own contract explicit as well.
+    s.map.plottedCourse=[];s.map.ownshipTrail=[];s.map.exploredCells={};s.map.interceptPlot=null;s.map.intelFitRequest=null;s.map.visibilityFootprint=null;
     sub.heading=20;sub.orderedHeading=20;
     sub.depthFeet=0;sub.orderedDepthFeet=0;sub.verticalSpeedFps=0;
     sub.propulsion.orderedRpm=0;sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;
-    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;sub._nhdWarned=false;
+    sub.propulsion.fuel=100;sub.propulsion.battery=100;sub.propulsion.chargeRate=0;sub.cannotHoldDepth=false;s.runtime.playerSub._nhdWarned=false;
     sub.stealth.silentRunning=false;
     Object.assign(sub.damage,{hullIntegrity:100,flooding:0,ballastDamage:0,motorDamage:0,
       rudderDamage:0,periscopeDamage:0,tdcDamage:0,gyroDamage:0,pumpDamage:0,electricalDamage:0,
@@ -264,8 +269,23 @@ class Tutorial{
     s.campaign.objectives=[
       {text:'Find the merchant',done:false},{text:'Sink it',done:false},
       {text:'Evade the escort',done:false},{text:'Finish the training',done:false}];
-    s.log=[{t:0,level:'warn',message:'=== TRAINING PATROL — Java Sea ==='}];
+    s.log=[{t:0,level:'warn',message:`=== TRAINING PATROL — ${areaKey} ===`}];
     const sel=document.getElementById('mDudSel');if(sel)sel.value='none';
+  }
+
+  presentationBody(st,state){
+    const sub=getSubmarineProfile(state.playerSub.profileId),ui=getPlayerStationPresentation(state),sensor=getPlayerSensorPresentation(state),tubes=state.weapons.tubes||[],f=tubes.filter(t=>t.pos==='FWD').map(t=>t.id),a=tubes.filter(t=>t.pos==='AFT').map(t=>t.id),torp=TORPEDO_SPECS[state.tdc.torpedoSpecKey]||{},gun=sub?.weapons?.deckGun?.label||'deck gun';
+    let body=String(st.body||'')
+      .replace(/USS Silversides/g,sub?.displayName||'your submarine')
+      .replace(/off Java/g,`in ${state.campaign.patrolArea}`)
+      .replace(/the 3-inch deck gun/gi,`the ${gun}`)
+      .replace(/Tubes 1–4 fire forward, 5–6 fire aft\./g,`${ui.tubes.forwardTitle} ${f.join('–')} fire forward; ${ui.tubes.aftTitle} ${a.join('–')} fires aft.`)
+      .replace(/A Mark 14 runs at 46 kn/g,`${torp.name||'The selected torpedo'} runs at ${Number(torp.speedKnots||0).toFixed(0)} kn`)
+      .replace(/Historically about a quarter of Mark 14s were duds;/g,'Historical reliability varied by weapon and period;');
+    if(sensor.surfaceSearchRadar)body=body.replace(/SJ radar/gi,sensor.surfaceSearchRadar.label);
+    else body=body.replace(/, or view SJ radar when fitted/gi,'').replace(/<b>SJ Radar<\/b> switches this station to surface-search radar only on patrol dates when the set is fitted\./g,'No surface-search radar is fitted to this boat on this patrol.');
+    if(!sensor.activeEcho)body=body.replace(/<br><br><b>Do not confuse that with ◉ Echo Range\.<\/b>[\s\S]*?worth giving away your presence\./,'<br><br>No active echo-ranging control is fitted to this boat; the station presents only equipment actually materialized for the patrol date.');
+    return body;
   }
 
   soundMarkCount(s){
@@ -409,7 +429,7 @@ class Tutorial{
     if(!c){
       const pos=this.waterPoint(sub.position,sub.heading,.82,20);if(!pos)throw new Error('No navigable deck-gun training position');c={id:'GUN-T',name:'Training Hulk',type:'MERCHANT',displayType:'TARGET HULK',lengthYards:145,visualProfile:.9,acousticBase:.1,tonsFactor:0,trainingHulk:true,
         position:pos,heading:normDeg(sub.heading+90),speedKnots:0,desiredSpeed:0,stationary:true,side:'ENEMY'};
-      W.contacts.push(c);
+      materializeVesselIdentity(c,s);W.contacts.push(c);
     }
     W.contactTracks[c.id]={id:c.id,typeEstimate:'TARGET HULK',affiliation:'ENEMY',bearing:bearingBetween(sub.position,c.position),rangeEstimateNm:distNm(sub.position,c.position),
       courseEstimate:c.heading,speedEstimateKnots:0,confidence:1,source:'VISUAL',lastSensorSource:'VISUAL',lastUpdated:now,staleSeconds:0,contactType:c.type,lengthYards:c.lengthYards,
@@ -423,13 +443,13 @@ class Tutorial{
     s.world.contacts=s.world.contacts.filter(c=>c.id!=='GUN-T');delete s.world.contactTracks?.['GUN-T'];
     if(s.world.contacts.some(c=>c.id==='ESC-T')) return;
     const escortBearing=normDeg(sub.heading+150),escortPos=this.waterPoint(sub.position,escortBearing,2.4,50);if(!escortPos)throw new Error('No navigable escort training position');
-    s.world.contacts.push({
+    s.world.contacts.push(materializeVesselIdentity({
       id:'ESC-T',name:'Patrol Vessel',type:'ESCORT',lengthYards:290,
       visualProfile:0.7,acousticBase:0.6,tonsFactor:0,
       position:escortPos,
       heading:normDeg(sub.heading-30),speedKnots:14,
       convoyRole:'ESCORT_FWD',formationIndex:0,zigzagPhase:0,zigzagTimer:0,dcRemaining:24+Math.floor(Math.random()*18)
-    });
+    },s));
     s.world.enemy.alertState='SEARCHING';
     s.world.enemy.alertTimerSec=0;
     s.world.enemy.lastKnownSubPosition={...sub.position};
@@ -495,9 +515,9 @@ class Tutorial{
     buzz(10);
   }
 
-  resolveHl(id){
+  resolveHl(id,layout=LayoutService.get()){
     if(!id)return null;
-    const ids=String(id).split('|'),desk=document.documentElement.dataset.lay==='desk';
+    const ids=String(id).split('|'),desk=layout.shell==='desk';
     const chosen=ids.length>1?(desk?ids[1]:ids[0]):ids[0];
     return document.getElementById(chosen)||ids.map(x=>document.getElementById(x)).find(Boolean)||null;
   }
@@ -505,7 +525,7 @@ class Tutorial{
     this._hlSpec=id||null;
     this.clearHl();
     if(!id) return;
-    const el=this.resolveHl(id);
+    const el=this.resolveHl(id,LayoutService.get());
     if(el){el.classList.add('tut-hl');this.hlEl=el;}
   }
   clearHl(){if(this.hlEl){this.hlEl.classList.remove('tut-hl');this.hlEl=null;}}
@@ -551,7 +571,7 @@ class Tutorial{
     const g=id=>document.getElementById(id);
     const t=g('tutTitle'),b=g('tutBody'),go=g('tutGoal'),pr=g('tutProg'),nx=g('tutNext');
     if(t) t.textContent=st.title;
-    if(b) b.innerHTML=st.body;
+    if(b) b.innerHTML=this.presentationBody(st,this.game.getSnapshot());
     if(go){
       go.innerHTML=st.goal?`<span class="tick">${st.check?(done?'✓':'○'):'›'}</span> ${st.goal}`:'';
       go.classList.toggle('done',done);
