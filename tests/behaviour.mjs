@@ -1643,5 +1643,68 @@ simCore.updateSeabed(hardTouchSub, 1.0);
 assert.ok(shockApplied > 0, 'Hard impact at 4.0 kn must apply shock damage to hull');
 assert.equal(escortAlerted, true, 'Hard impact at 4.0 kn must alert enemy escorts via acoustic signature surge');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5');
+// 20. Audio Polyfonie & Kraakbegrenzing (Helios Baseline) (3 tests)
+const audioMod = await load('js/audio/audio-engine.js', ['AudioEngine'], {
+  performance, clamp, degToRad, shortDelta, distNm, bearingBetween
+});
+const testAudio = new audioMod.AudioEngine();
+testAudio.enabled = true;
+testAudio.ctx = {
+  currentTime: 10,
+  createGain: () => ({ gain: { setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, cancelScheduledValues() {}, setTargetAtTime() {}, value: 1 }, connect() {} }),
+  createBufferSource: () => ({ playbackRate: { value: 1, setTargetAtTime() {} }, connect() {}, start() {}, stop() {} }),
+  createBiquadFilter: () => ({ frequency: { value: 400 }, Q: { value: 1 }, connect() {} }),
+  createOscillator: () => ({ frequency: { setValueAtTime() {}, linearRampToValueAtTime() {}, value: 100 }, connect() {}, start() {}, stop() {} })
+};
+testAudio.busNodes = {
+  system: { connect() {} },
+  command: { connect() {} },
+  machinery: { connect() {} },
+  sensor: { connect() {} },
+  weapons: { connect() {} },
+  world: { connect() {} },
+  mission: { connect() {} }
+};
+
+// Test 1: playCreak 3500ms throttling
+let creakCalls = 0;
+testAudio._tryHybrid = (id) => { if (id === 'HULL_CREAK') { creakCalls++; return true; } return false; };
+testAudio.lastCreak = 0;
+testAudio.playCreak();
+assert.equal(creakCalls, 1, 'First playCreak call must trigger hybrid creak');
+testAudio.playCreak();
+assert.equal(creakCalls, 1, 'Immediate subsequent playCreak call must be throttled');
+testAudio.lastCreak = Date.now() - 3600;
+testAudio.playCreak();
+assert.equal(creakCalls, 2, 'playCreak must execute after 3500ms cooldown');
+
+// Test 2: playWaypoint 450ms debounce & command bus routing
+let waypointClacks = [];
+testAudio._metalClack = (weight, lowHz, ringHz, bus) => { waypointClacks.push({ weight, lowHz, ringHz, bus }); };
+testAudio.lastWaypoint = 0;
+testAudio.playWaypoint();
+assert.equal(waypointClacks.length, 1, 'First playWaypoint must sound');
+assert.equal(waypointClacks[0].bus, 'command', 'playWaypoint must route to command bus, not system bus');
+testAudio.playWaypoint();
+assert.equal(waypointClacks.length, 1, 'Rapid playWaypoint within 450ms must be debounced');
+testAudio.lastWaypoint = Date.now() - 500;
+testAudio.playWaypoint();
+assert.equal(waypointClacks.length, 2, 'playWaypoint must sound again after 450ms cooldown');
+
+// Test 3: _tryHybrid HULL_CREAK voice-capping (max 1 active voice)
+delete testAudio._tryHybrid; // restore prototype method
+testAudio.hybridBuffers.set('HULL_CREAK', {});
+testAudio.hybridMeta.set('HULL_CREAK', { activeVoices: 0, lastUsed: 0 });
+testAudio.hybridVoices = [];
+
+assert.equal(testAudio._tryHybrid('HULL_CREAK'), true);
+assert.equal(testAudio.hybridVoices.length, 1);
+assert.equal(testAudio.hybridMeta.get('HULL_CREAK').activeVoices, 1);
+
+// Second trigger must gracefully fade previous voice and maintain max 1 active voice
+assert.equal(testAudio._tryHybrid('HULL_CREAK'), true);
+assert.equal(testAudio.hybridVoices.length, 1, 'HULL_CREAK must never stack multiple active voices');
+assert.equal(testAudio.hybridMeta.get('HULL_CREAK').activeVoices, 1, 'HULL_CREAK activeVoices must remain exactly 1');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3');
 

@@ -4,7 +4,7 @@ class AudioEngine{
     this._gestureResumeRequested=false;this.gestureResumeAttempts=0;this.lastGestureEvent=null;this._gestureUnlockRearm=null;
     this.sfxVolume=.62;this.musicVolume=.42;this.noiseBuffer=null;this.sonarVariant=3;
     this.busNodes={};this.mixTargets={system:1,command:1,sensor:1,world:1,machinery:1,weapons:1,mission:1};this.duckUntil=0;this.duckFactor=1;
-    this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;this.lastRadio=0;
+    this.lastPing=0;this.lastEnemyPingAt=0;this.lastDC=0;this.lastLaunch=0;this.lastCreak=0;this.lastWaypoint=0;this.lastSystem=0;this.lastTdcBell=0;this.lastBattleStations=0;this.lastRadio=0;
     this.titleStartPlayed=false;this.titleCueGain=null;
     this.battleNoiseSource=null;this.seaGain=null;this.windGain=null;this.rainGain=null;this.harborGain=null;this.harborOsc=null;this.harborOscGain=null;this.dieselOsc=null;this.dieselGain=null;this.torpedoOsc=null;this.torpedoGain=null;this.torpedoPan=null;this.escortMachinery=null;
     this.soundIdentity={key:'US_FLEET_BOAT',electricPitch:1,dieselPitch:1,dieselLevel:1,hullMass:1,commandPitch:1,telegraphPitch:1.0,telegraphTone:'CHADBURN',hydrophoneBandwidth:'WIDE'};
@@ -219,6 +219,28 @@ class AudioEngine{
     if(!buffer){this._loadHybrid(id).catch(()=>{});return false;}
     const meta=this.hybridMeta.get(id);
     if(meta)meta.lastUsed=performance.now();
+
+    // Helios polyfonie-begrenzing: stemmen per geluid limiteren om fase-clipping te voorkomen.
+    // Met name HULL_CREAK, GENERAL_ALARM en RADIO_INTELLIGENCE mogen nooit met meerdere stemmen stapelen.
+    const maxSampleVoices=id==='HULL_CREAK'?1:(id==='GENERAL_ALARM'||id==='RADIO_INTELLIGENCE'?1:4);
+    if((meta?.activeVoices||0)>=maxSampleVoices){
+      if(maxSampleVoices===1){
+        const existing=this.hybridVoices.find(v=>v.id===id);
+        if(existing){
+          try{
+            const nowFade=this.ctx.currentTime;
+            existing.gain.gain.cancelScheduledValues(nowFade);
+            existing.gain.gain.setValueAtTime(Math.max(0.0001,existing.gain.gain.value||0.0001),nowFade);
+            existing.gain.gain.linearRampToValueAtTime(0.0001,nowFade+0.012);
+            existing.source.stop(nowFade+0.015);
+          }catch(_){}
+          this.hybridVoices=this.hybridVoices.filter(v=>v!==existing);
+          if(meta.activeVoices>0)meta.activeVoices--;
+        }
+      }else{
+        return false;
+      }
+    }
 
     while(this.hybridVoices.length>=this.hybridMaxVoices){
       const oldest=this.hybridVoices.shift();
@@ -669,7 +691,13 @@ class AudioEngine{
   playStrafe(){this.ensure();for(let i=0;i<5;i++)setTimeout(()=>this._filteredNoise(.055,.12,{type:'bandpass',freq:1150,q:.55,attack:.001},null,0,'weapons'),i*62);}
 
   playUiConfirm(weight=.28){this.ensure();this._metalClack(weight,96,820,'system');}
-  playWaypoint(){this.ensure();this._metalClack(.24,92,620,'system');}
+  playWaypoint(){
+    const now=Date.now();
+    if(now-(this.lastWaypoint||0)<450)return;
+    this.lastWaypoint=now;
+    this.ensure();
+    this._metalClack(.18,120,540,'command');
+  }
   playRadioMessage(){
     this.ensure();if(Date.now()-this.lastRadio<550)return;this.lastRadio=Date.now();
     if(this._tryHybrid('RADIO_INTELLIGENCE'))return;
@@ -799,7 +827,15 @@ class AudioEngine{
     this._filteredNoise(.55,.98*v,{type:'lowpass',freq:220,q:.5,attack:.003},bearingDeg,ownHeading,'weapons');
     this._noise(.35,180,'sawtooth',.35*v,bearingDeg,ownHeading,'weapons');
   }
-  playCreak(){if(this._tryHybrid('HULL_CREAK'))return;this.ensure();this._noise(.55,86,'sine',.09,null,0,'machinery');setTimeout(()=>this._noise(.7,54,'sine',.055,null,0,'machinery'),180);}
+  playCreak(){
+    const now=Date.now();
+    if(now-(this.lastCreak||0)<3500)return;
+    this.lastCreak=now;
+    if(this._tryHybrid('HULL_CREAK',{volume:.85}))return;
+    this.ensure();
+    this._noise(.55,86,'sine',.09,null,0,'machinery');
+    setTimeout(()=>this._noise(.7,54,'sine',.055,null,0,'machinery'),180);
+  }
 
   _ensureBattleLoops(){
     if(!this.ctx||this.battleNoiseSource)return;

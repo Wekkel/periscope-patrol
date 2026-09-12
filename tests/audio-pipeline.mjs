@@ -524,6 +524,78 @@ assert.equal(testHelmDebounce(2200), true, 'Helm order must fire after 180ms deb
 
 console.log('[AUDIO TEST] National telegraph acoustics, helm feedback, and hydrophone filters passed.');
 
-console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (8/8 test suites)!');
+// ─── 9. Audio Polyfonie & Kraakbegrenzing (Helios Baseline) ────────────────
+console.log('[AUDIO TEST] Testing Helios polyphony capping, hull creak limiting, and waypoint debounce...');
+
+// Test 1: HULL_CREAK voice-capping (max 1 active voice)
+const creakVoices = [];
+let creakStolenOrFaded = 0;
+const mockMetaCreak = { activeVoices: 0, bytes: 120 * 1024, lastUsed: 0 };
+
+function tryHybridCreak(id, nowSec) {
+  const maxSampleVoices = id === 'HULL_CREAK' ? 1 : 4;
+  if ((mockMetaCreak.activeVoices || 0) >= maxSampleVoices) {
+    if (maxSampleVoices === 1) {
+      const idx = creakVoices.findIndex(v => v.id === id);
+      if (idx !== -1) {
+        creakVoices.splice(idx, 1);
+        mockMetaCreak.activeVoices--;
+        creakStolenOrFaded++;
+      }
+    } else {
+      return false;
+    }
+  }
+  const voice = { id, startedAt: nowSec };
+  creakVoices.push(voice);
+  mockMetaCreak.activeVoices++;
+  return true;
+}
+
+// First creak spawns successfully
+assert.equal(tryHybridCreak('HULL_CREAK', 10.0), true);
+assert.equal(creakVoices.length, 1);
+assert.equal(mockMetaCreak.activeVoices, 1);
+assert.equal(creakStolenOrFaded, 0);
+
+// Second creak gracefully fades/steals the first without stacking
+assert.equal(tryHybridCreak('HULL_CREAK', 11.5), true);
+assert.equal(creakVoices.length, 1, 'HULL_CREAK must never stack multiple active voices');
+assert.equal(mockMetaCreak.activeVoices, 1, 'HULL_CREAK activeVoices must remain exactly 1');
+assert.equal(creakStolenOrFaded, 1, 'Old creak voice must be faded/stolen gracefully');
+
+// Test 2: playCreak throttling window (3500ms)
+let lastCreakMs = 10000;
+function testPlayCreakThrottle(nowMs) {
+  if (nowMs - lastCreakMs < 3500) return false;
+  lastCreakMs = nowMs;
+  return true;
+}
+assert.equal(testPlayCreakThrottle(10500), false, 'playCreak must reject triggers within 3500ms window');
+assert.equal(testPlayCreakThrottle(12000), false, 'playCreak must reject triggers at 2000ms delta');
+assert.equal(testPlayCreakThrottle(13499), false, 'playCreak must reject triggers at 3499ms delta');
+assert.equal(testPlayCreakThrottle(13501), true, 'playCreak must permit trigger after 3500ms cooldown');
+
+// Test 3: playWaypoint throttling window (450ms) and command bus routing
+let lastWaypointMs = 0;
+let waypointPlayedCount = 0;
+function testPlayWaypointThrottle(nowMs) {
+  if (nowMs - lastWaypointMs < 450) return false;
+  lastWaypointMs = nowMs;
+  waypointPlayedCount++;
+  return true;
+}
+// Rapid transit across 5 waypoints within 200ms
+for (let delta = 0; delta < 200; delta += 40) {
+  testPlayWaypointThrottle(50000 + delta);
+}
+assert.equal(waypointPlayedCount, 1, 'Rapid transit triggers within 200ms must only fire 1 waypoint sound');
+assert.equal(testPlayWaypointThrottle(50449), false, 'Waypoint must reject trigger at 449ms');
+assert.equal(testPlayWaypointThrottle(50451), true, 'Waypoint must fire after 450ms cooldown');
+assert.equal(waypointPlayedCount, 2, 'Waypoint count must be 2 after cooldown expires');
+
+console.log('[AUDIO TEST] Helios polyphony capping, hull creak limiting, and waypoint debounce passed.');
+
+console.log('\n[AUDIO TEST] All Hybrid Audio Pipeline tests passed successfully (9/9 test suites)!');
 
 
