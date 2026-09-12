@@ -82,6 +82,10 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
 
 ### 7. Dynamische bewaking van missiepacing
 * **Doel**: Geen geforceerde of automatische overwinningen, maar een pacing waarin routes, contactmomenten, tijdcompressie en terugkeercondities zo zijn uitgebalanceerd dat één primair tactisch hoofddoel doorgaans binnen circa 30 minuten haalbaar en intensief te spelen is.
+* **Fases**:
+  * [x] **Fase 7.1: Dynamische Pacing State Machine & HQ Intercept Vector Inlichtingen** (State machine over 5 operationele fasen `TRANSIT` $\to$ `CONTACT` $\to$ `ACTION` $\to$ `WITHDRAW` $\to$ `RETURN` met reële tijdregistratie per fase; doelwit convergentieberekening; historische HQ Radio Intel Intercept Advisories bij vertraagde transit $\ge 9$ min zonder contact met realistische observatie-onzekerheid $\pm 5^\circ$ peiling en $\pm 1.5$ NM afstand via de radio-inbox en Captain's Log; strikt zonder telepathie of rubber-banding over reële simulatie-entiteiten) — **GOEDGEKEURD (Harry: 9.75/10, Henry: 9.68/10)**
+  * [x] **Fase 7.2: Tijdcompressie-Pacing & Terugtocht-Stroomlijning** (Tactische interceptie-drempel in `snapshotWatch` en `transitInterrupt` die snelle tijdcompressie op precies 8.5 NM van het doelwit soepel afbreekt zodat de speler op rookpluim-/vizierhorizon klaarstaat voor het gevecht; directe transitie naar gestroomlijnde terugtocht en multi-leg autopilot `headToPort` na uitschakeling van het hoofddoel) — **GOEDGEKEURD (Harry: 9.70/10, Henry: 9.65/10)**
+  * [x] **Fase 7.3: Teststraat Integratie, Pacing Verificatie & Evaluatie** (Sectie 24 in `tests/behaviour.mjs` met 5 unit tests voor de 5 fasen, HQ radio advisories, contact zone interrupts op 8.5 NM, gestroomlijnde terugtocht en AAR pacing telemetrie export; 100% groen over alle 16 poorten in `tests/run-all.mjs`, p95 latency 7.46ms, benchmark score 1774) — **GOEDGEKEURD (Harry: 9.75/10, Henry: 9.70/10)**
 
 ### 8. AAR (After Action Report) als tactische reconstructie
 * **Doel**: De AAR transformeren naar een volwaardige debriefing en reconstructie:

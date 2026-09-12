@@ -35,21 +35,179 @@ function _missionHash(seed,text){
 }
 function _missionObj(c,id){return (c.objectives||[]).find(o=>o.id===id);}
 function _missionSetDone(c,id,done=true){const o=_missionObj(c,id);if(o)o.done=!!done;return o;}
-function _missionPacingStage(c,m){
-  if(m.result!=='ACTIVE')return'RETURN';const done=id=>!!_missionObj(c,id)?.done;
-  if(['escape','evade','withdraw'].some(done))return'WITHDRAW';
+function _missionPacingStage(c,m,s=null){
+  if(m.result!=='ACTIVE'||c.missionStatus==='RETURN TO BASE'||c.missionStatus==='COMPLETED')return'RETURN';
+  const done=id=>!!_missionObj(c,id)?.done;
+  if(['escape','withdraw'].some(done))return'RETURN';
+  if(done('evade')||m.escortReactionSeen)return'WITHDRAW';
   const actionId=m.type==='SHADOW_REPORT'?(m.contactKeeperVersion?'attack':'report'):{CONVOY_INTERDICTION:'attack',HIGH_VALUE_INTERCEPT:'neutralize',RECONNAISSANCE:'identify',LIFEGUARD:'recover',SPECIAL_TRANSPORT:'transfer',RECON_INSERTION:'transfer',RECON_EXTRACTION:'transfer',MINELAYING:'lay',ESCORT_HUNT:'neutralize',HARBOR_STRIKE:'neutralize',WEATHER_AMBUSH:'attack'}[m.type];
-  if(done(actionId))return'ACTION';
-  if(['locate','intercept','approach','zone','rendezvous','station'].some(done))return'CONTACT';
+  if(done(actionId))return'WITHDRAW';
+
+  const weaponsEngaged=s&&((s.weapons?.torpedoes?.some?.(t=>!t.finished))||(m.hitBaseline!==undefined&&(s.weapons?.hits?.length||0)>m.hitBaseline)||m.neutralizedShips>0||m.attackPositionReady||(s.world?.enemy?.alertState==='ATTACKING'));
+  if(weaponsEngaged)return'ACTION';
+
+  if(['locate','intercept','approach','zone','rendezvous','station','develop','shadow'].some(done))return'CONTACT';
+  const tracks=s?.world?.contactTracks||{};
+  const holdsTarget=Object.values(tracks).some(tr=>tr&&tr.confidence>=0.15&&(tr.convoyId==='MAIN'||tr.id===m.targetId));
+  if(holdsTarget)return'CONTACT';
+
   return'TRANSIT';
 }
+
+function _missionPrimaryTarget(engine,m){
+  const s=engine?.state,W=s?.world;if(!W)return null;
+  if(m.targetId){
+    const t=(W.contacts||[]).find(c=>c.id===m.targetId&&!c.sunk);
+    if(t)return{pos:t.position,heading:t.heading||0,speedKnots:t.speedKnots||0,name:t.name||m.targetLabel||'Target Vessel',entity:t};
+  }
+  if(['CONVOY_INTERDICTION','SHADOW_REPORT','WEATHER_AMBUSH'].includes(m.type)){
+    const g=W.traffic?.primaryGroup;
+    if(g?.position&&Number.isFinite(g.heading)){
+      return{pos:g.position,heading:g.heading,speedKnots:g.speedKnots||8.5,name:'Primary Convoy',entity:null};
+    }
+    const merchants=(W.contacts||[]).filter(c=>c.convoyId==='MAIN'&&!c.sunk);
+    if(merchants.length){
+      const avgX=merchants.reduce((n,x)=>n+x.position.xNm,0)/merchants.length;
+      const avgY=merchants.reduce((n,x)=>n+x.position.yNm,0)/merchants.length;
+      const lead=merchants[0];
+      return{pos:{xNm:avgX,yNm:avgY},heading:lead.heading||0,speedKnots:lead.speedKnots||8,name:'Primary Convoy',entity:lead};
+    }
+  }
+  if(m.station)return{pos:m.station,heading:0,speedKnots:0,name:'Lifeguard Station',entity:null};
+  if(m.rendezvous)return{pos:m.rendezvous,heading:0,speedKnots:0,name:'Rendezvous Point',entity:null};
+  if(m.zone)return{pos:m.zone,heading:m.layHeading||0,speedKnots:0,name:'Minefield Box',entity:null};
+  if(m.center)return{pos:m.center,heading:0,speedKnots:0,name:'Reconnaissance Area',entity:null};
+  return null;
+}
+
+function _missionPacingBuildSummary(m){
+  const p=m.pacing||{};
+  const sec=p.stageSeconds||{};
+  const totalAct=Math.round(((p.activeSeconds||0)/60)*10)/10;
+  const targetMin=Number(p.targetMinutes)||30;
+  return{
+    version:2,
+    totalActiveMinutes:totalAct,
+    targetMinutes:targetMin,
+    advisoriesDispatched:Number(p.advisoriesDispatched)||0,
+    stages:{
+      transitMinutes:Math.round(((sec.TRANSIT||0)/60)*10)/10,
+      contactMinutes:Math.round(((sec.CONTACT||0)/60)*10)/10,
+      actionMinutes:Math.round(((sec.ACTION||0)/60)*10)/10,
+      withdrawMinutes:Math.round(((sec.WITHDRAW||0)/60)*10)/10,
+      returnMinutes:Math.round(((sec.RETURN||0)/60)*10)/10
+    },
+    pacingPace:totalAct<=(targetMin*1.2)?'ON_SCHEDULE':'EXTENDED'
+  };
+}
+
+function _missionCheckPacingIntelAdvisory(engine,m,p,min,target){
+  if(p.stage!=='TRANSIT'||!target)return;
+  if(!target.speedKnots||target.speedKnots<=0)return;
+
+  const s=engine.state,c=s.campaign,W=s.world;
+  const tracks=W.contactTracks||{};
+  const hasFirmTargetTrack=Object.values(tracks).some(tr=>tr&&tr.confidence>=0.20&&(tr.convoyId==='MAIN'||tr.id===m.targetId));
+  if(hasFirmTargetTrack)return;
+
+  const eligibleFirst=p.advisoriesDispatched===0&&p.activeSeconds>=540;
+  const eligibleSecond=p.advisoriesDispatched===1&&p.activeSeconds>=1020&&(p.activeSeconds-p.lastAdvisoryAtRealSec)>=300;
+  if(!eligibleFirst&&!eligibleSecond)return;
+
+  const sub=s.playerSub;
+  if(!sub?.position)return;
+
+  const trueBrg=bearingBetween(sub.position,target.pos);
+  const trueRng=distNm(sub.position,target.pos);
+  if(trueRng<4.0)return;
+
+  const seed=Number(c.scenarioSeed)||1;
+  const noiseH=_missionHash(seed,`advisory:${p.advisoriesDispatched}:${Math.floor(min)}`);
+  const noiseH2=_missionHash(seed,`advisory2:${p.advisoriesDispatched}`);
+  const brgErr=(noiseH-0.5)*10;
+  const rngErr=(noiseH2-0.5)*3.0;
+  const crsErr=(noiseH-0.5)*14;
+  const spdErr=(noiseH2-0.5)*1.2;
+
+  const estBrg=Math.round(normDeg(trueBrg+brgErr));
+  const estRng=Math.max(3,Math.round(trueRng+rngErr));
+  const estCrs=Math.round(normDeg(target.heading+crsErr));
+  const estSpd=Math.max(4,Math.round((target.speedKnots+spdErr)*2)/2).toFixed(1);
+
+  const campId=String(c.campaignProfileId||'').toLowerCase();
+  let authority='NAVAL INTELLIGENCE';
+  if(campId.includes('pacific')||campId.includes('usn')||campId.includes('solomon'))authority='COMSUBPAC INTEL';
+  else if(campId.includes('atlantic')||campId.includes('km')||campId.includes('uboat'))authority='B.d.U. B-DIENST';
+  else if(campId.includes('rn')||campId.includes('mediterranean')||campId.includes('admiralty'))authority='COMSUB ADMIRALTY';
+  else if(campId.includes('ijn')||campId.includes('kido'))authority='KAIGUN GUNREIBU';
+  else if(campId.includes('rm')||campId.includes('maricosom'))authority='MARICOSOM INTEL';
+  else if(campId.includes('vmf')||campId.includes('baltic')||campId.includes('arctic'))authority='GLAVSHTAB VMF';
+
+  const msg=`${authority} — Enemy shipping estimated ${estRng} nm bearing ${String(estBrg).padStart(3,'0')}°, steering ${String(estCrs).padStart(3,'0')}° at ${estSpd} kn. Plot intercept vector.`;
+
+  const R=W.radio=W.radio||{pending:null,inbox:[],unread:0,nextBroadcast:240,copying:0};
+  const advisoryDatum={
+    bearingDeg:estBrg,
+    rangeNm:estRng,
+    headingDeg:estCrs,
+    speedKnots:Number(estSpd),
+    pos:{
+      xNm:Math.round((sub.position.xNm+Math.sin(degToRad(estBrg))*estRng)*100)/100,
+      yNm:Math.round((sub.position.yNm-Math.cos(degToRad(estBrg))*estRng)*100)/100
+    },
+    uncertaintyNm:3.5,
+    dispatchedAt:s.time.elapsedSeconds||0
+  };
+  W.intelAdvisory=advisoryDatum;
+
+  const radioItem={
+    id:`INTEL-PACING-${p.advisoriesDispatched+1}`,
+    from:authority,
+    subject:'SHIPPING INTERCEPT ADVISORY',
+    text:msg,
+    time:s.time.elapsedSeconds||0,
+    missionCommand:'INTEL_INTERCEPT_ADVISORY',
+    advisory:advisoryDatum
+  };
+  R.inbox=Array.isArray(R.inbox)?R.inbox:[];
+  R.inbox.push(radioItem);
+  R.unread=(R.unread||0)+1;
+
+  engine.ctx.captainLog?.('RADIO_INTELLIGENCE',msg,advisoryDatum,`pacing-advisory:${p.advisoriesDispatched+1}`);
+  engine.notify(msg,'warn','KRITIEK');
+  PresentationBridge.audio(s).event?.('RADIO_INTELLIGENCE');
+
+  p.advisoriesDispatched++;
+  p.lastAdvisoryAtRealSec=p.activeSeconds;
+}
+
 function _missionUpdatePacing(engine,m,dt){
-  const s=engine.state,c=s.campaign,p=m.pacing=m.pacing||{version:1,targetMinutes:30,activeSeconds:0,cues:{}};
-  const scale=Number(s.time.timeScale)||0;if(scale>0&&!s.time.transitUntil)p.activeSeconds+=Math.min(1,dt/Math.max(1,scale));
-  p.stage=_missionPacingStage(c,m);const min=p.activeSeconds/60,cue=(key,text)=>{if(p.cues[key])return;p.cues[key]=true;engine.ctx.captainLog?.('MISSION_PACING',text,{stage:p.stage,activeMinutes:Math.round(min)},`pacing:${key}`);engine.notify(text,'warn', 'NUTTIG');};
+  const s=engine.state,c=s.campaign,p=m.pacing=m.pacing||{version:2,targetMinutes:30,activeSeconds:0,cues:{}};
+  p.version=2;
+  p.targetMinutes=Number(p.targetMinutes)||30;
+  p.stageSeconds=p.stageSeconds||{TRANSIT:0,CONTACT:0,ACTION:0,WITHDRAW:0,RETURN:0};
+  p.advisoriesDispatched=Number(p.advisoriesDispatched)||0;
+  p.lastAdvisoryAtRealSec=Number(p.lastAdvisoryAtRealSec)||0;
+
+  const scale=Number(s.time.timeScale)||0;
+  const realDt=(scale>0&&!s.time.transitUntil)?Math.min(1,dt/Math.max(1,scale)):0;
+  p.activeSeconds+=realDt;
+  p.stage=_missionPacingStage(c,m,s);
+  p.stageSeconds[p.stage]=(p.stageSeconds[p.stage]||0)+realDt;
+  const min=p.activeSeconds/60;
+
+  const target=_missionPrimaryTarget(engine,m);
+  if(target&&s.playerSub?.position){
+    const dist=distNm(s.playerSub.position,target.pos);
+    p.targetDistanceNm=Math.round(dist*10)/10;
+  }
+
+  const cue=(key,text)=>{if(p.cues[key])return;p.cues[key]=true;engine.ctx.captainLog?.('MISSION_PACING',text,{stage:p.stage,activeMinutes:Math.round(min)},`pacing:${key}`);engine.notify(text,'warn','NUTTIG');};
   if(min>=8&&p.stage==='TRANSIT')cue('contact','NAVIGATOR — contact window is slipping. Plot the latest intelligence, choose a water-safe intercept and use TRANSIT for the empty sea miles.');
   if(min>=20&&['TRANSIT','CONTACT'].includes(p.stage))cue('action','CAPTAIN — the tactical window is narrowing. Recheck course, target movement and disengagement water before committing.');
   if(min>=26&&p.stage==='ACTION')cue('withdraw','EXECUTIVE OFFICER — primary action is complete. Break contact and preserve a clear route toward friendly water.');
+
+  _missionCheckPacingIntelAdvisory(engine,m,p,min,target);
 }
 
 /* CONTACT KEEPER v3 carries the Phase-2 loop through the first torpedo attack
@@ -311,8 +469,8 @@ function missionProgressText(state){
       const s=this.state,c=s.campaign,W=s.world;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return null;c.optionalObjectives=Array.isArray(c.optionalObjectives)?c.optionalObjectives:[];W.missionObjects=Array.isArray(W.missionObjects)?W.missionObjects:[];
       const profile=_missionProfile(s);if(!profile)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no mission profile`);
       if(!MISSION_PRIMARY_TYPES.includes(c.missionType)||!profile.definitions?.[c.missionType])c.missionType=profile.defaultMissionType||'CONVOY_INTERDICTION';
-      if(!c.primaryMission){const d=profile.definitions[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true,pacing:{version:1,targetMinutes:30,activeSeconds:0,cues:{}}};}
-      c.primaryMission.pacing=c.primaryMission.pacing||{version:1,targetMinutes:30,activeSeconds:0,cues:{}};
+      if(!c.primaryMission){const d=profile.definitions[c.missionType];c.primaryMission={type:c.missionType,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:s.time.elapsedSeconds||0,legacy:true,pacing:{version:2,stage:'TRANSIT',targetMinutes:30,activeSeconds:0,stageSeconds:{TRANSIT:0,CONTACT:0,ACTION:0,WITHDRAW:0,RETURN:0},advisoriesDispatched:0,lastAdvisoryAtRealSec:0,cues:{}}};}
+      c.primaryMission.pacing=c.primaryMission.pacing||{version:2,stage:'TRANSIT',targetMinutes:30,activeSeconds:0,stageSeconds:{TRANSIT:0,CONTACT:0,ACTION:0,WITHDRAW:0,RETURN:0},advisoriesDispatched:0,lastAdvisoryAtRealSec:0,cues:{}};
       const ids=c.missionType==='CONVOY_INTERDICTION'?['locate','attack','evade','return']:[];if(ids.length&&(c.objectives||[]).every(o=>!o.id))(c.objectives||[]).forEach((o,i)=>o.id=ids[i]||`objective-${i+1}`);
       _missionEnsureContactKeeperV3(s);
       return c.primaryMission;
@@ -331,7 +489,7 @@ function missionProgressText(state){
 
     configureMission(requested='AUTO',options={}){
       const s=this.state,c=s.campaign,W=s.world,type=this.chooseMissionType(requested),d=_missionDefinition(s,type),now=s.time.elapsedSeconds||0;if(!d)throw new Error(`Campaign ${c.campaignProfileId||'UNKNOWN'} has no definition for mission ${type}`);
-      c.missionType=type;c.primaryMission={type,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:now,pacing:{version:1,targetMinutes:Number(options.targetMinutes)||30,activeSeconds:0,cues:{}}};c.optionalObjectives=[];W.missionObjects=[];
+      c.missionType=type;c.primaryMission={type,title:d.title,briefing:d.briefing,reward:d.reward,result:'ACTIVE',startedAt:now,pacing:{version:2,stage:'TRANSIT',targetMinutes:Number(options.targetMinutes)||30,activeSeconds:0,stageSeconds:{TRANSIT:0,CONTACT:0,ACTION:0,WITHDRAW:0,RETURN:0},advisoriesDispatched:0,lastAdvisoryAtRealSec:0,cues:{}}};c.optionalObjectives=[];W.missionObjects=[];
       const m=c.primaryMission,setObjs=rows=>{c.objectives=rows.map(([id,text])=>({id,text,done:false,failed:false}));};
       if(type==='CONVOY_INTERDICTION'){
         setObjs([['locate','Locate enemy convoy'],['attack','Neutralize a meaningful share of enemy shipping'],['evade','Evade escort vessels'],['return','Return to friendly port']]);
@@ -372,7 +530,14 @@ function missionProgressText(state){
 
     _missionStopTransit(reason){this.stopAutomaticTimeCompression?.(reason);},
     _missionFinish(success,reason){
-      const s=this.state,c=s.campaign,m=this.ensureMissionFramework();if(m.result!=='ACTIVE')return false;m.result=success?'SUCCESS':'FAILED';m.completedAt=s.time.elapsedSeconds;m.failReason=success?null:reason;if(success&&!m.rewardCredited){c.score+=(m.reward||0);m.rewardCredited=true;}c.missionStatus='RETURN TO BASE';this.ctx.captainLog?.(success?'MISSION_COMPLETED':'MISSION_FAILED',`${m.title} ${success?'completed':'failed'}${reason?`: ${reason}`:''}.`,{missionType:m.type,reward:success?m.reward:0},`mission-result:${m.type}`);this.notify(`${m.title} — ${success?'PRIMARY OBJECTIVE COMPLETE':'MISSION FAILED'}${success&&m.reward?` · +${m.reward} pts`:''}. Return to base.`,success?'ok':'bad', 'KRITIEK');PresentationBridge.audio(this.state).event?.(success?'PRIMARY_OBJECTIVE_COMPLETE':'MISSION_FAILED');this._missionStopTransit(success?'mission complete':'mission failed');return true;
+      const s=this.state,c=s.campaign,m=this.ensureMissionFramework();if(m.result!=='ACTIVE')return false;m.result=success?'SUCCESS':'FAILED';m.completedAt=s.time.elapsedSeconds;m.failReason=success?null:reason;if(success&&!m.rewardCredited){c.score+=(m.reward||0);m.rewardCredited=true;}c.missionStatus='RETURN TO BASE';
+      m.pacing=m.pacing||{};
+      m.pacing.stage='RETURN';
+      m.pacing.summary=_missionPacingBuildSummary(m);
+      c.pacingSummary=m.pacing.summary;
+      const A=this.ensureAfterActionReport?.();
+      if(A)A.pacingSummary=m.pacing.summary;
+      this.ctx.captainLog?.(success?'MISSION_COMPLETED':'MISSION_FAILED',`${m.title} ${success?'completed':'failed'}${reason?`: ${reason}`:''}.`,{missionType:m.type,reward:success?m.reward:0,pacing:m.pacing.summary},`mission-result:${m.type}`);this.notify(`${m.title} — ${success?'PRIMARY OBJECTIVE COMPLETE':'MISSION FAILED'}${success&&m.reward?` · +${m.reward} pts`:''}. Return to base.`,success?'ok':'bad', 'KRITIEK');PresentationBridge.audio(this.state).event?.(success?'PRIMARY_OBJECTIVE_COMPLETE':'MISSION_FAILED');this._missionStopTransit(success?'mission complete':'mission failed');return true;
     },
 
     _spawnLifeguardSurvivor(m){
@@ -380,7 +545,13 @@ function missionProgressText(state){
     },
 
     updateMissionFramework(dt){
-      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return;const m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;if(!m||m.result!=='ACTIVE'||c.missionStatus!=='PATROL')return;_missionUpdatePacing(this,m,dt);
+      const s=this.state,c=s.campaign;if(c.missionStatus==='TRAINING'||c.missionStatus==='MENU')return;const m=this.ensureMissionFramework(),sub=s.playerSub,W=s.world,now=s.time.elapsedSeconds||0;
+      if(!m)return;
+      if(m.result!=='ACTIVE'||c.missionStatus!=='PATROL'){
+        if(c.missionStatus==='RETURN TO BASE'||m.result!=='ACTIVE')_missionUpdatePacing(this,m,dt);
+        return;
+      }
+      _missionUpdatePacing(this,m,dt);
       const coop=W.cooperativeSubmarines,shadowContent=m.type==='SHADOW_REPORT'?_missionContent(s,'shadowReport'):null,coopCfg=shadowContent?.supportAttack;
       if(coop&&coopCfg&&_missionObj(c,'release')?.done){
         if(!Number.isFinite(coop.eventsResolved))coop.eventsResolved=0;
@@ -483,6 +654,13 @@ function missionProgressText(state){
       }
       if(['SPECIAL_TRANSPORT','RECON_INSERTION','RECON_EXTRACTION','MINELAYING','SHADOW_REPORT','WEATHER_AMBUSH'].includes(m.type))return true;
       return true;
+    },
+    getMissionPacingSummary(){
+      const m=this.state?.campaign?.primaryMission;
+      return m?_missionPacingBuildSummary(m):null;
+    },
+    missionPrimaryTarget(m=null){
+      return _missionPrimaryTarget(this,m||this.state?.campaign?.primaryMission);
     }
   });
 })();

@@ -12,7 +12,7 @@
       "extends": null,
       "file": "js/simulation/physics-navigation.js",
       "line": 1,
-      "end": 900,
+      "end": 920,
       "depth": 0
     },
     {
@@ -125,7 +125,7 @@
       "name": "captureCollisionFrame",
       "kind": "system-path",
       "unresolved": false,
-      "line": 161,
+      "line": 181,
       "offset": 97,
       "object": "this.sys.collision",
       "definedBy": null,
@@ -136,7 +136,7 @@
       "name": "updateBridgeDiveSequence",
       "kind": "optional-direct",
       "unresolved": false,
-      "line": 161,
+      "line": 181,
       "offset": 140,
       "definedBy": null,
       "relation": "unresolved"
@@ -145,12 +145,12 @@
       "name": "updateHeading",
       "kind": "direct",
       "unresolved": false,
-      "line": 161,
+      "line": 181,
       "offset": 176,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 185
+        "line": 205
       },
       "relation": "same"
     },
@@ -158,12 +158,12 @@
       "name": "updateDepth",
       "kind": "direct",
       "unresolved": false,
-      "line": 161,
+      "line": 181,
       "offset": 203,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 194
+        "line": 214
       },
       "relation": "same"
     },
@@ -171,12 +171,12 @@
       "name": "updatePropulsion",
       "kind": "direct",
       "unresolved": false,
-      "line": 161,
+      "line": 181,
       "offset": 228,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 236
+        "line": 256
       },
       "relation": "same"
     },
@@ -184,12 +184,12 @@
       "name": "updatePosition",
       "kind": "direct",
       "unresolved": false,
-      "line": 161,
+      "line": 181,
       "offset": 258,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 282
+        "line": 302
       },
       "relation": "same"
     },
@@ -197,7 +197,7 @@
       "name": "applyTerrainEffects",
       "kind": "direct",
       "unresolved": false,
-      "line": 161,
+      "line": 181,
       "offset": 286,
       "definedBy": null,
       "relation": "unresolved"
@@ -206,7 +206,7 @@
       "name": "updateWeather",
       "kind": "system-path",
       "unresolved": false,
-      "line": 167,
+      "line": 187,
       "offset": 680,
       "object": "this.sys.weather",
       "definedBy": null,
@@ -217,7 +217,7 @@
       "name": "updateTrafficDirector",
       "kind": "optional-direct",
       "unresolved": false,
-      "line": 168,
+      "line": 188,
       "offset": 722,
       "definedBy": {
         "class": "SimEngine",
@@ -230,12 +230,12 @@
       "name": "updateWorld",
       "kind": "direct",
       "unresolved": false,
-      "line": 169,
+      "line": 189,
       "offset": 760,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 357
+        "line": 377
       },
       "relation": "same"
     },
@@ -243,7 +243,7 @@
       "name": "updateVesselCollisions",
       "kind": "system-path",
       "unresolved": false,
-      "line": 169,
+      "line": 189,
       "offset": 782,
       "object": "this.sys.collision",
       "definedBy": null,
@@ -254,12 +254,12 @@
       "name": "updateSigs",
       "kind": "direct",
       "unresolved": false,
-      "line": 169,
+      "line": 189,
       "offset": 829,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 611
+        "line": 631
       },
       "relation": "same"
     },
@@ -267,7 +267,7 @@
       "name": "updateHarbor",
       "kind": "system-path",
       "unresolved": false,
-      "line": 169,
+      "line": 189,
       "offset": 851,
       "object": "this.sys.harbor",
       "definedBy": null,
@@ -278,12 +278,12 @@
       "name": "updateDetection",
       "kind": "direct",
       "unresolved": false,
-      "line": 170,
+      "line": 190,
       "offset": 892,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 409
+        "line": 429
       },
       "relation": "same"
     },
@@ -291,7 +291,7 @@
       "name": "updateSoundRadar",
       "kind": "system-path",
       "unresolved": false,
-      "line": 170,
+      "line": 190,
       "offset": 918,
       "object": "this.sys.soundRadar",
       "definedBy": null,
@@ -302,7 +302,7 @@
       "name": "updateHarborKnowledge",
       "kind": "system-path",
       "unresolved": false,
-      "line": 170,
+      "line": 190,
       "offset": 959,
       "object": "this.sys.harbor",
       "definedBy": null,
@@ -313,12 +313,12 @@
       "name": "updateTdc",
       "kind": "direct",
       "unresolved": false,
-      "line": 170,
+      "line": 190,
       "offset": 1002,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 536
+        "line": 556
       },
       "relation": "same"
     },
@@ -326,7 +326,7 @@
       "name": "updateTorpedoes",
       "kind": "system-path",
       "unresolved": false,
-      "line": 170,
+      "line": 190,
       "offset": 1020,
       "object": "this.sys.torpedoes",
       "definedBy": null,
@@ -337,7 +337,7 @@
       "name": "updateDeckGun",
       "kind": "system-path",
       "unresolved": false,
-      "line": 170,
+      "line": 190,
       "offset": 1060,
       "object": "this.sys.deckGun",
       "definedBy": null,
@@ -348,7 +348,7 @@
       "name": "updateEnemyAI",
       "kind": "system-path",
       "unresolved": false,
-      "line": 171,
+      "line": 191,
       "offset": 1102,
       "object": "this.sys.enemyAI",
       "definedBy": null,
@@ -359,7 +359,7 @@
       "name": "updateAircraft",
       "kind": "system-path",
       "unresolved": false,
-      "line": 171,
+      "line": 191,
       "offset": 1140,
       "object": "this.sys.aircraft",
       "definedBy": null,
@@ -370,7 +370,7 @@
       "name": "updateAAGun",
       "kind": "system-path",
       "unresolved": false,
-      "line": 171,
+      "line": 191,
       "offset": 1179,
       "object": "this.sys.aaGun",
       "definedBy": null,
@@ -381,7 +381,7 @@
       "name": "updateRadio",
       "kind": "system-path",
       "unresolved": false,
-      "line": 171,
+      "line": 191,
       "offset": 1215,
       "object": "this.sys.intel",
       "definedBy": null,
@@ -392,12 +392,12 @@
       "name": "updateMapState",
       "kind": "direct",
       "unresolved": false,
-      "line": 171,
+      "line": 191,
       "offset": 1251,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 626
+        "line": 646
       },
       "relation": "same"
     },
@@ -405,7 +405,7 @@
       "name": "updateBattleAtmosphere",
       "kind": "optional-direct",
       "unresolved": false,
-      "line": 172,
+      "line": 192,
       "offset": 1280,
       "definedBy": {
         "class": "SimEngine",
@@ -418,12 +418,12 @@
       "name": "updateMissionFramework",
       "kind": "optional-direct",
       "unresolved": false,
-      "line": 173,
+      "line": 193,
       "offset": 1319,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/mission-framework.js",
-        "line": 382
+        "line": 547
       },
       "relation": "same"
     },
@@ -431,12 +431,12 @@
       "name": "steerWaypoint",
       "kind": "direct",
       "unresolved": false,
-      "line": 174,
+      "line": 194,
       "offset": 1435,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 865
+        "line": 885
       },
       "relation": "same"
     },
@@ -444,12 +444,12 @@
       "name": "updateDmg",
       "kind": "direct",
       "unresolved": false,
-      "line": 175,
+      "line": 195,
       "offset": 1476,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 667
+        "line": 687
       },
       "relation": "same"
     },
@@ -457,7 +457,7 @@
       "name": "updateDmgCtrl",
       "kind": "system-path",
       "unresolved": false,
-      "line": 175,
+      "line": 195,
       "offset": 1499,
       "object": "this.sys.damage",
       "definedBy": null,
@@ -468,12 +468,12 @@
       "name": "checkMissionObjectives",
       "kind": "direct",
       "unresolved": false,
-      "line": 175,
+      "line": 195,
       "offset": 1537,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 131
+        "line": 151
       },
       "relation": "same"
     },
@@ -481,7 +481,7 @@
       "name": "checkPortArrival",
       "kind": "direct",
       "unresolved": false,
-      "line": 175,
+      "line": 195,
       "offset": 1567,
       "definedBy": null,
       "relation": "unresolved"
@@ -490,12 +490,12 @@
       "name": "updateModeAfter",
       "kind": "direct",
       "unresolved": false,
-      "line": 175,
+      "line": 195,
       "offset": 1593,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 886
+        "line": 906
       },
       "relation": "same"
     },
@@ -503,12 +503,12 @@
       "name": "updateWarnings",
       "kind": "direct",
       "unresolved": false,
-      "line": 176,
+      "line": 196,
       "offset": 1625,
       "definedBy": {
         "class": "SimEngine",
         "file": "js/simulation/physics-navigation.js",
-        "line": 678
+        "line": 698
       },
       "relation": "same"
     },
@@ -516,7 +516,7 @@
       "name": "updateAfterActionRecorder",
       "kind": "optional-direct",
       "unresolved": false,
-      "line": 177,
+      "line": 197,
       "offset": 1655,
       "definedBy": {
         "class": "SimEngine",
@@ -541,7 +541,7 @@
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
       "line": 5,
-      "end": 35,
+      "end": 44,
       "callDetails": [
         {
           "name": "headingOutOfArea",
@@ -552,7 +552,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 60
+            "line": 69
           },
           "relation": "same"
         },
@@ -564,6 +564,19 @@
           "offset": 2062,
           "definedBy": null,
           "relation": "unresolved"
+        },
+        {
+          "name": "missionPrimaryTarget",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 38,
+          "offset": 2305,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 662
+          },
+          "relation": "same"
         }
       ],
       "fieldAccess": [
@@ -581,6 +594,11 @@
           "path": "friendlyPortNav",
           "access": "read",
           "line": 33
+        },
+        {
+          "path": "missionPrimaryTarget",
+          "access": "read",
+          "line": 38
         }
       ]
     },
@@ -588,19 +606,19 @@
       "name": "areaBounds",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 43,
-      "end": 49,
+      "line": 52,
+      "end": 58,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.world",
           "access": "read",
-          "line": 44
+          "line": 53
         },
         {
           "path": "state.world.terrain",
           "access": "read",
-          "line": 46
+          "line": 55
         }
       ]
     },
@@ -608,53 +626,19 @@
       "name": "nearChartEdge",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 51,
-      "end": 55,
-      "callDetails": [
-        {
-          "name": "areaBounds",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 52,
-          "offset": 37,
-          "definedBy": {
-            "class": "SimEngine",
-            "file": "js/simulation/physics-navigation.js",
-            "line": 43
-          },
-          "relation": "same"
-        }
-      ],
-      "fieldAccess": [
-        {
-          "path": "areaBounds",
-          "access": "read",
-          "line": 52
-        },
-        {
-          "path": "state.playerSub.position",
-          "access": "read",
-          "line": 53
-        }
-      ]
-    },
-    {
-      "name": "headingOutOfArea",
-      "class": "SimEngine",
-      "file": "js/simulation/physics-navigation.js",
       "line": 60,
-      "end": 69,
+      "end": 64,
       "callDetails": [
         {
           "name": "areaBounds",
           "kind": "direct",
           "unresolved": false,
           "line": 61,
-          "offset": 34,
+          "offset": 37,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 43
+            "line": 52
           },
           "relation": "same"
         }
@@ -666,9 +650,43 @@
           "line": 61
         },
         {
-          "path": "state.playerSub",
+          "path": "state.playerSub.position",
           "access": "read",
           "line": 62
+        }
+      ]
+    },
+    {
+      "name": "headingOutOfArea",
+      "class": "SimEngine",
+      "file": "js/simulation/physics-navigation.js",
+      "line": 69,
+      "end": 78,
+      "callDetails": [
+        {
+          "name": "areaBounds",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 70,
+          "offset": 34,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/physics-navigation.js",
+            "line": 52
+          },
+          "relation": "same"
+        }
+      ],
+      "fieldAccess": [
+        {
+          "path": "areaBounds",
+          "access": "read",
+          "line": 70
+        },
+        {
+          "path": "state.playerSub",
+          "access": "read",
+          "line": 71
         }
       ]
     },
@@ -676,14 +694,14 @@
       "name": "transitInterrupt",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 71,
-      "end": 122,
+      "line": 80,
+      "end": 142,
       "callDetails": [
         {
           "name": "collisionRiskAhead",
           "kind": "system-path",
           "unresolved": false,
-          "line": 75,
+          "line": 84,
           "offset": 179,
           "object": "this.sys.collision",
           "definedBy": null,
@@ -693,7 +711,7 @@
           "name": "collisionRiskText",
           "kind": "system-path",
           "unresolved": false,
-          "line": 76,
+          "line": 85,
           "offset": 251,
           "object": "this.sys.collision",
           "definedBy": null,
@@ -703,7 +721,7 @@
           "name": "friendlyPortNav",
           "kind": "direct",
           "unresolved": false,
-          "line": 113,
+          "line": 122,
           "offset": 3347,
           "definedBy": null,
           "relation": "unresolved"
@@ -712,12 +730,25 @@
           "name": "headingOutOfArea",
           "kind": "direct",
           "unresolved": false,
-          "line": 118,
+          "line": 127,
           "offset": 3780,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 60
+            "line": 69
+          },
+          "relation": "same"
+        },
+        {
+          "name": "missionPrimaryTarget",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 133,
+          "offset": 4213,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 662
           },
           "relation": "same"
         }
@@ -726,27 +757,32 @@
         {
           "path": "state",
           "access": "read",
-          "line": 72
+          "line": 81
         },
         {
           "path": "sys.collision.collisionRiskAhead",
           "access": "read",
-          "line": 75
+          "line": 84
         },
         {
           "path": "sys.collision.collisionRiskText",
           "access": "read",
-          "line": 76
+          "line": 85
         },
         {
           "path": "friendlyPortNav",
           "access": "read",
-          "line": 113
+          "line": 122
         },
         {
           "path": "headingOutOfArea",
           "access": "read",
-          "line": 118
+          "line": 127
+        },
+        {
+          "path": "missionPrimaryTarget",
+          "access": "read",
+          "line": 133
         }
       ]
     },
@@ -754,14 +790,14 @@
       "name": "shake",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 124,
-      "end": 127,
+      "line": 144,
+      "end": 147,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.world",
           "access": "read",
-          "line": 125
+          "line": 145
         }
       ]
     },
@@ -769,19 +805,19 @@
       "name": "checkMissionObjectives",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 131,
-      "end": 155,
+      "line": 151,
+      "end": 175,
       "callDetails": [
         {
           "name": "checkPrimaryMission",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 135,
+          "line": 155,
           "offset": 309,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 449
+            "line": 620
           },
           "relation": "same"
         },
@@ -789,7 +825,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 142,
+          "line": 162,
           "offset": 774,
           "object": "this.ctx",
           "definedBy": null,
@@ -799,7 +835,7 @@
           "name": "friendlyPortNav",
           "kind": "direct",
           "unresolved": false,
-          "line": 150,
+          "line": 170,
           "offset": 1283,
           "definedBy": null,
           "relation": "unresolved"
@@ -808,7 +844,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 151,
+          "line": 171,
           "offset": 1313,
           "definedBy": null,
           "relation": "unresolved"
@@ -818,52 +854,52 @@
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 132
+          "line": 152
         },
         {
           "path": "checkPrimaryMission",
           "access": "read",
-          "line": 135
+          "line": 155
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 136
+          "line": 156
         },
         {
           "path": "state.world.contacts.filter",
           "access": "read",
-          "line": 138
+          "line": 158
         },
         {
           "path": "state.world.contactTracks",
           "access": "read",
-          "line": 139
+          "line": 159
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 142
+          "line": 162
         },
         {
           "path": "state.weapons.hits.some",
           "access": "read",
-          "line": 144
+          "line": 164
         },
         {
           "path": "state.world.contacts.filter",
           "access": "read",
-          "line": 147
+          "line": 167
         },
         {
           "path": "friendlyPortNav",
           "access": "read",
-          "line": 150
+          "line": 170
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 151
+          "line": 171
         }
       ]
     },
@@ -871,14 +907,14 @@
       "name": "updateSub",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 158,
-      "end": 183,
+      "line": 178,
+      "end": 203,
       "callDetails": [
         {
           "name": "captureCollisionFrame",
           "kind": "system-path",
           "unresolved": false,
-          "line": 161,
+          "line": 181,
           "offset": 97,
           "object": "this.sys.collision",
           "definedBy": null,
@@ -888,7 +924,7 @@
           "name": "updateBridgeDiveSequence",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 161,
+          "line": 181,
           "offset": 140,
           "definedBy": null,
           "relation": "unresolved"
@@ -897,12 +933,12 @@
           "name": "updateHeading",
           "kind": "direct",
           "unresolved": false,
-          "line": 161,
+          "line": 181,
           "offset": 176,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 185
+            "line": 205
           },
           "relation": "same"
         },
@@ -910,12 +946,12 @@
           "name": "updateDepth",
           "kind": "direct",
           "unresolved": false,
-          "line": 161,
+          "line": 181,
           "offset": 203,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 194
+            "line": 214
           },
           "relation": "same"
         },
@@ -923,12 +959,12 @@
           "name": "updatePropulsion",
           "kind": "direct",
           "unresolved": false,
-          "line": 161,
+          "line": 181,
           "offset": 228,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 236
+            "line": 256
           },
           "relation": "same"
         },
@@ -936,12 +972,12 @@
           "name": "updatePosition",
           "kind": "direct",
           "unresolved": false,
-          "line": 161,
+          "line": 181,
           "offset": 258,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 282
+            "line": 302
           },
           "relation": "same"
         },
@@ -949,7 +985,7 @@
           "name": "applyTerrainEffects",
           "kind": "direct",
           "unresolved": false,
-          "line": 161,
+          "line": 181,
           "offset": 286,
           "definedBy": null,
           "relation": "unresolved"
@@ -958,7 +994,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 167,
+          "line": 187,
           "offset": 680,
           "object": "this.sys.weather",
           "definedBy": null,
@@ -968,7 +1004,7 @@
           "name": "updateTrafficDirector",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 168,
+          "line": 188,
           "offset": 722,
           "definedBy": {
             "class": "SimEngine",
@@ -981,12 +1017,12 @@
           "name": "updateWorld",
           "kind": "direct",
           "unresolved": false,
-          "line": 169,
+          "line": 189,
           "offset": 760,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 357
+            "line": 377
           },
           "relation": "same"
         },
@@ -994,7 +1030,7 @@
           "name": "updateVesselCollisions",
           "kind": "system-path",
           "unresolved": false,
-          "line": 169,
+          "line": 189,
           "offset": 782,
           "object": "this.sys.collision",
           "definedBy": null,
@@ -1004,12 +1040,12 @@
           "name": "updateSigs",
           "kind": "direct",
           "unresolved": false,
-          "line": 169,
+          "line": 189,
           "offset": 829,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 611
+            "line": 631
           },
           "relation": "same"
         },
@@ -1017,7 +1053,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 169,
+          "line": 189,
           "offset": 851,
           "object": "this.sys.harbor",
           "definedBy": null,
@@ -1027,12 +1063,12 @@
           "name": "updateDetection",
           "kind": "direct",
           "unresolved": false,
-          "line": 170,
+          "line": 190,
           "offset": 892,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 409
+            "line": 429
           },
           "relation": "same"
         },
@@ -1040,7 +1076,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 170,
+          "line": 190,
           "offset": 918,
           "object": "this.sys.soundRadar",
           "definedBy": null,
@@ -1050,7 +1086,7 @@
           "name": "updateHarborKnowledge",
           "kind": "system-path",
           "unresolved": false,
-          "line": 170,
+          "line": 190,
           "offset": 959,
           "object": "this.sys.harbor",
           "definedBy": null,
@@ -1060,12 +1096,12 @@
           "name": "updateTdc",
           "kind": "direct",
           "unresolved": false,
-          "line": 170,
+          "line": 190,
           "offset": 1002,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 536
+            "line": 556
           },
           "relation": "same"
         },
@@ -1073,7 +1109,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 170,
+          "line": 190,
           "offset": 1020,
           "object": "this.sys.torpedoes",
           "definedBy": null,
@@ -1083,7 +1119,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 170,
+          "line": 190,
           "offset": 1060,
           "object": "this.sys.deckGun",
           "definedBy": null,
@@ -1093,7 +1129,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 171,
+          "line": 191,
           "offset": 1102,
           "object": "this.sys.enemyAI",
           "definedBy": null,
@@ -1103,7 +1139,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 171,
+          "line": 191,
           "offset": 1140,
           "object": "this.sys.aircraft",
           "definedBy": null,
@@ -1113,7 +1149,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 171,
+          "line": 191,
           "offset": 1179,
           "object": "this.sys.aaGun",
           "definedBy": null,
@@ -1123,7 +1159,7 @@
           "name": "update",
           "kind": "system-path",
           "unresolved": false,
-          "line": 171,
+          "line": 191,
           "offset": 1215,
           "object": "this.sys.intel",
           "definedBy": null,
@@ -1133,12 +1169,12 @@
           "name": "updateMapState",
           "kind": "direct",
           "unresolved": false,
-          "line": 171,
+          "line": 191,
           "offset": 1251,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 626
+            "line": 646
           },
           "relation": "same"
         },
@@ -1146,7 +1182,7 @@
           "name": "updateBattleAtmosphere",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 172,
+          "line": 192,
           "offset": 1280,
           "definedBy": {
             "class": "SimEngine",
@@ -1159,12 +1195,12 @@
           "name": "updateMissionFramework",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 173,
+          "line": 193,
           "offset": 1319,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 382
+            "line": 547
           },
           "relation": "same"
         },
@@ -1172,12 +1208,12 @@
           "name": "steerWaypoint",
           "kind": "direct",
           "unresolved": false,
-          "line": 174,
+          "line": 194,
           "offset": 1435,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 865
+            "line": 885
           },
           "relation": "same"
         },
@@ -1185,12 +1221,12 @@
           "name": "updateDmg",
           "kind": "direct",
           "unresolved": false,
-          "line": 175,
+          "line": 195,
           "offset": 1476,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 667
+            "line": 687
           },
           "relation": "same"
         },
@@ -1198,7 +1234,7 @@
           "name": "updateDmgCtrl",
           "kind": "system-path",
           "unresolved": false,
-          "line": 175,
+          "line": 195,
           "offset": 1499,
           "object": "this.sys.damage",
           "definedBy": null,
@@ -1208,12 +1244,12 @@
           "name": "checkMissionObjectives",
           "kind": "direct",
           "unresolved": false,
-          "line": 175,
+          "line": 195,
           "offset": 1537,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 131
+            "line": 151
           },
           "relation": "same"
         },
@@ -1221,7 +1257,7 @@
           "name": "checkPortArrival",
           "kind": "direct",
           "unresolved": false,
-          "line": 175,
+          "line": 195,
           "offset": 1567,
           "definedBy": null,
           "relation": "unresolved"
@@ -1230,12 +1266,12 @@
           "name": "updateModeAfter",
           "kind": "direct",
           "unresolved": false,
-          "line": 175,
+          "line": 195,
           "offset": 1593,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 886
+            "line": 906
           },
           "relation": "same"
         },
@@ -1243,12 +1279,12 @@
           "name": "updateWarnings",
           "kind": "direct",
           "unresolved": false,
-          "line": 176,
+          "line": 196,
           "offset": 1625,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 678
+            "line": 698
           },
           "relation": "same"
         },
@@ -1256,7 +1292,7 @@
           "name": "updateAfterActionRecorder",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 177,
+          "line": 197,
           "offset": 1655,
           "definedBy": {
             "class": "SimEngine",
@@ -1270,237 +1306,237 @@
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 159
+          "line": 179
         },
         {
           "path": "sys.collision.captureCollisionFrame",
           "access": "read",
-          "line": 161
+          "line": 181
         },
         {
           "path": "updateBridgeDiveSequence",
           "access": "read",
-          "line": 161
+          "line": 181
         },
         {
           "path": "updateHeading",
           "access": "read",
-          "line": 161
+          "line": 181
         },
         {
           "path": "updateDepth",
           "access": "read",
-          "line": 161
+          "line": 181
         },
         {
           "path": "updatePropulsion",
           "access": "read",
-          "line": 161
+          "line": 181
         },
         {
           "path": "updatePosition",
           "access": "read",
-          "line": 161
+          "line": 181
         },
         {
           "path": "applyTerrainEffects",
           "access": "read",
-          "line": 161
+          "line": 181
         },
         {
           "path": "sys.weather.update",
           "access": "read",
-          "line": 167
+          "line": 187
         },
         {
           "path": "ctx",
           "access": "read",
-          "line": 167
+          "line": 187
         },
         {
           "path": "updateTrafficDirector",
           "access": "read",
-          "line": 168
+          "line": 188
         },
         {
           "path": "updateWorld",
           "access": "read",
-          "line": 169
+          "line": 189
         },
         {
           "path": "sys.collision.updateVesselCollisions",
           "access": "read",
-          "line": 169
+          "line": 189
         },
         {
           "path": "updateSigs",
           "access": "read",
-          "line": 169
+          "line": 189
         },
         {
           "path": "sys.harbor.update",
           "access": "read",
-          "line": 169
+          "line": 189
         },
         {
           "path": "ctx",
           "access": "read",
-          "line": 169
+          "line": 189
         },
         {
           "path": "updateDetection",
           "access": "read",
-          "line": 170
+          "line": 190
         },
         {
           "path": "sys.soundRadar.update",
           "access": "read",
-          "line": 170
+          "line": 190
         },
         {
           "path": "ctx",
           "access": "read",
-          "line": 170
+          "line": 190
         },
         {
           "path": "sys.harbor.updateHarborKnowledge",
           "access": "read",
-          "line": 170
+          "line": 190
         },
         {
           "path": "updateTdc",
           "access": "read",
-          "line": 170
+          "line": 190
         },
         {
           "path": "sys.torpedoes.update",
           "access": "read",
-          "line": 170
+          "line": 190
         },
         {
           "path": "sys.deckGun.update",
           "access": "read",
-          "line": 170
+          "line": 190
         },
         {
           "path": "sys.enemyAI.update",
           "access": "read",
-          "line": 171
+          "line": 191
         },
         {
           "path": "ctx",
           "access": "read",
-          "line": 171
+          "line": 191
         },
         {
           "path": "sys.aircraft.update",
           "access": "read",
-          "line": 171
+          "line": 191
         },
         {
           "path": "sys.aaGun.update",
           "access": "read",
-          "line": 171
+          "line": 191
         },
         {
           "path": "sys.intel.update",
           "access": "read",
-          "line": 171
+          "line": 191
         },
         {
           "path": "updateMapState",
           "access": "read",
-          "line": 171
+          "line": 191
         },
         {
           "path": "updateBattleAtmosphere",
           "access": "read",
-          "line": 172
+          "line": 192
         },
         {
           "path": "updateMissionFramework",
           "access": "read",
-          "line": 173
+          "line": 193
         },
         {
           "path": "state.map.autoFollowPlot",
           "access": "read",
-          "line": 174
+          "line": 194
         },
         {
           "path": "state.map.plottedCourse.length",
           "access": "read",
-          "line": 174
+          "line": 194
         },
         {
           "path": "steerWaypoint",
           "access": "read",
-          "line": 174
+          "line": 194
         },
         {
           "path": "updateDmg",
           "access": "read",
-          "line": 175
+          "line": 195
         },
         {
           "path": "sys.damage.updateDmgCtrl",
           "access": "read",
-          "line": 175
+          "line": 195
         },
         {
           "path": "checkMissionObjectives",
           "access": "read",
-          "line": 175
+          "line": 195
         },
         {
           "path": "checkPortArrival",
           "access": "read",
-          "line": 175
+          "line": 195
         },
         {
           "path": "updateModeAfter",
           "access": "read",
-          "line": 175
+          "line": 195
         },
         {
           "path": "updateWarnings",
           "access": "read",
-          "line": 176
+          "line": 196
         },
         {
           "path": "updateAfterActionRecorder",
           "access": "read",
-          "line": 177
+          "line": 197
         },
         {
           "path": "state.tactical.activeStation",
           "access": "write",
-          "line": 178
+          "line": 198
         },
         {
           "path": "state",
           "access": "read",
-          "line": 178
+          "line": 198
         },
         {
           "path": "state.tactical.activeStation",
           "access": "write",
-          "line": 179
+          "line": 199
         },
         {
           "path": "state.tactical.bridgeBinoculars",
           "access": "write",
-          "line": 179
+          "line": 199
         },
         {
           "path": "state.world.shakeMag",
           "access": "write",
-          "line": 182
+          "line": 202
         },
         {
           "path": "state.world.shakeMag",
           "access": "read",
-          "line": 182
+          "line": 202
         }
       ]
     },
@@ -1508,8 +1544,8 @@
       "name": "updateHeading",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 185,
-      "end": 192,
+      "line": 205,
+      "end": 212,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -1517,14 +1553,14 @@
       "name": "updateDepth",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 194,
-      "end": 234,
+      "line": 214,
+      "end": 254,
       "callDetails": [
         {
           "name": "setDepthAndClearance",
           "kind": "direct",
           "unresolved": false,
-          "line": 212,
+          "line": 232,
           "offset": 1430,
           "definedBy": null,
           "relation": "unresolved"
@@ -1533,12 +1569,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 224,
+          "line": 244,
           "offset": 2157,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -1546,12 +1582,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 228,
+          "line": 248,
           "offset": 2501,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         }
@@ -1560,27 +1596,27 @@
         {
           "path": "state",
           "access": "read",
-          "line": 204
+          "line": 224
         },
         {
           "path": "setDepthAndClearance",
           "access": "read",
-          "line": 212
+          "line": 232
         },
         {
           "path": "state.runtime.playerSub",
           "access": "read",
-          "line": 221
+          "line": 241
         },
         {
           "path": "log",
           "access": "read",
-          "line": 224
+          "line": 244
         },
         {
           "path": "log",
           "access": "read",
-          "line": 228
+          "line": 248
         }
       ]
     },
@@ -1588,19 +1624,19 @@
       "name": "updatePropulsion",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 236,
-      "end": 280,
+      "line": 256,
+      "end": 300,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 246,
+          "line": 266,
           "offset": 600,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -1608,12 +1644,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 247,
+          "line": 267,
           "offset": 782,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         }
@@ -1622,12 +1658,12 @@
         {
           "path": "log",
           "access": "read",
-          "line": 246
+          "line": 266
         },
         {
           "path": "log",
           "access": "read",
-          "line": 247
+          "line": 267
         }
       ]
     },
@@ -1635,8 +1671,8 @@
       "name": "updatePosition",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 282,
-      "end": 286,
+      "line": 302,
+      "end": 306,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -1644,8 +1680,8 @@
       "name": "steerShip",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 290,
-      "end": 313,
+      "line": 310,
+      "end": 333,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -1653,14 +1689,14 @@
       "name": "updateConvoyNavigation",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 315,
-      "end": 355,
+      "line": 335,
+      "end": 375,
       "callDetails": [
         {
           "name": "resolveWaterRoute",
           "kind": "direct",
           "unresolved": false,
-          "line": 318,
+          "line": 338,
           "offset": 127,
           "definedBy": null,
           "relation": "unresolved"
@@ -1670,22 +1706,22 @@
         {
           "path": "state.world",
           "access": "read",
-          "line": 316
+          "line": 336
         },
         {
           "path": "resolveWaterRoute",
           "access": "read",
-          "line": 318
+          "line": 338
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 350
+          "line": 370
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 351
+          "line": 371
         }
       ]
     },
@@ -1693,19 +1729,19 @@
       "name": "updateWorld",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 357,
-      "end": 397,
+      "line": 377,
+      "end": 417,
       "callDetails": [
         {
           "name": "updateConvoyNavigation",
           "kind": "direct",
           "unresolved": false,
-          "line": 359,
+          "line": 379,
           "offset": 73,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 315
+            "line": 335
           },
           "relation": "same"
         },
@@ -1713,7 +1749,7 @@
           "name": "surfaceAvoidance",
           "kind": "system-path",
           "unresolved": false,
-          "line": 360,
+          "line": 380,
           "offset": 108,
           "object": "this.sys.collision",
           "definedBy": null,
@@ -1723,12 +1759,12 @@
           "name": "steerShip",
           "kind": "direct",
           "unresolved": false,
-          "line": 378,
+          "line": 398,
           "offset": 955,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 290
+            "line": 310
           },
           "relation": "same"
         },
@@ -1736,7 +1772,7 @@
           "name": "checkTerrainCollision",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 386,
+          "line": 406,
           "offset": 1494,
           "definedBy": null,
           "relation": "unresolved"
@@ -1745,7 +1781,7 @@
           "name": "checkTerrainCollision",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 388,
+          "line": 408,
           "offset": 1663,
           "definedBy": null,
           "relation": "unresolved"
@@ -1754,7 +1790,7 @@
           "name": "resolveWaterRoute",
           "kind": "direct",
           "unresolved": false,
-          "line": 391,
+          "line": 411,
           "offset": 1911,
           "definedBy": null,
           "relation": "unresolved"
@@ -1763,12 +1799,12 @@
           "name": "keepInArea",
           "kind": "direct",
           "unresolved": false,
-          "line": 394,
+          "line": 414,
           "offset": 2131,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 401
+            "line": 421
           },
           "relation": "same"
         }
@@ -1777,62 +1813,62 @@
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 358
+          "line": 378
         },
         {
           "path": "updateConvoyNavigation",
           "access": "read",
-          "line": 359
+          "line": 379
         },
         {
           "path": "sys.collision.surfaceAvoidance",
           "access": "read",
-          "line": 360
+          "line": 380
         },
         {
           "path": "state.world.contacts",
           "access": "read",
-          "line": 361
+          "line": 381
         },
         {
           "path": "steerShip",
           "access": "read",
-          "line": 378
+          "line": 398
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 386
+          "line": 406
         },
         {
           "path": "checkTerrainCollision",
           "access": "read",
-          "line": 388
+          "line": 408
         },
         {
           "path": "state.world.convoyRoutes",
           "access": "read",
-          "line": 391
+          "line": 411
         },
         {
           "path": "resolveWaterRoute",
           "access": "read",
-          "line": 391
+          "line": 411
         },
         {
           "path": "state.world.convoyLeg",
           "access": "read",
-          "line": 392
+          "line": 412
         },
         {
           "path": "keepInArea",
           "access": "read",
-          "line": 394
+          "line": 414
         },
         {
           "path": "state.tactical.activeStation",
           "access": "write",
-          "line": 395
+          "line": 415
         }
       ]
     },
@@ -1840,19 +1876,19 @@
       "name": "keepInArea",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 401,
-      "end": 407,
+      "line": 421,
+      "end": 427,
       "callDetails": [
         {
           "name": "areaBounds",
           "kind": "direct",
           "unresolved": false,
-          "line": 402,
+          "line": 422,
           "offset": 29,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 43
+            "line": 52
           },
           "relation": "same"
         }
@@ -1861,7 +1897,7 @@
         {
           "path": "areaBounds",
           "access": "read",
-          "line": 402
+          "line": 422
         }
       ]
     },
@@ -1869,19 +1905,19 @@
       "name": "updateDetection",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 409,
-      "end": 534,
+      "line": 429,
+      "end": 554,
       "callDetails": [
         {
           "name": "calcVis",
           "kind": "direct",
           "unresolved": false,
-          "line": 427,
+          "line": 447,
           "offset": 864,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 592
+            "line": 612
           },
           "relation": "same"
         },
@@ -1889,12 +1925,12 @@
           "name": "calcAco",
           "kind": "direct",
           "unresolved": false,
-          "line": 427,
+          "line": 447,
           "offset": 903,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 603
+            "line": 623
           },
           "relation": "same"
         }
@@ -1903,57 +1939,57 @@
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 410
+          "line": 430
         },
         {
           "path": "state.world",
           "access": "read",
-          "line": 410
+          "line": 430
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 411
+          "line": 431
         },
         {
           "path": "calcVis",
           "access": "read",
-          "line": 427
+          "line": 447
         },
         {
           "path": "calcAco",
           "access": "read",
-          "line": 427
+          "line": 447
         },
         {
           "path": "state.tactical",
           "access": "read",
-          "line": 432
+          "line": 452
         },
         {
           "path": "state",
           "access": "read",
-          "line": 437
+          "line": 457
         },
         {
           "path": "state",
           "access": "read",
-          "line": 438
+          "line": 458
         },
         {
           "path": "state",
           "access": "read",
-          "line": 444
+          "line": 464
         },
         {
           "path": "state.world.harbor",
           "access": "read",
-          "line": 492
+          "line": 512
         },
         {
           "path": "state",
           "access": "read",
-          "line": 507
+          "line": 527
         }
       ]
     },
@@ -1961,69 +1997,69 @@
       "name": "updateTdc",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 536,
-      "end": 590,
+      "line": 556,
+      "end": 610,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.tdc",
           "access": "read",
-          "line": 537
+          "line": 557
         },
         {
           "path": "state.runtime.tdc._lastSolvedTargetId",
           "access": "write",
-          "line": 538
+          "line": 558
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 539
+          "line": 559
         },
         {
           "path": "state.time.timeScale",
           "access": "read",
-          "line": 539
+          "line": 559
         },
         {
           "path": "state.runtime.tdc._lastSolvedTargetId",
           "access": "write",
-          "line": 545
+          "line": 565
         },
         {
           "path": "state.runtime.tdc._lastSolveAt",
           "access": "read",
-          "line": 545
+          "line": 565
         },
         {
           "path": "state.world.contactTracks",
           "access": "read",
-          "line": 546
+          "line": 566
         },
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 549
+          "line": 569
         },
         {
           "path": "state",
           "access": "read",
-          "line": 549
+          "line": 569
         },
         {
           "path": "state",
           "access": "read",
-          "line": 561
+          "line": 581
         },
         {
           "path": "state.runtime.tdc._lastSolveAt",
           "access": "write",
-          "line": 589
+          "line": 609
         },
         {
           "path": "state.runtime.tdc._lastSolvedTargetId",
           "access": "write",
-          "line": 589
+          "line": 609
         }
       ]
     },
@@ -2031,14 +2067,14 @@
       "name": "calcVis",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 592,
-      "end": 601,
+      "line": 612,
+      "end": 621,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 595
+          "line": 615
         }
       ]
     },
@@ -2046,14 +2082,14 @@
       "name": "calcAco",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 603,
-      "end": 609,
+      "line": 623,
+      "end": 629,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 606
+          "line": 626
         }
       ]
     },
@@ -2061,14 +2097,14 @@
       "name": "updateSigs",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 611,
-      "end": 624,
+      "line": 631,
+      "end": 644,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 613
+          "line": 633
         }
       ]
     },
@@ -2076,19 +2112,19 @@
       "name": "updateMapState",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 626,
-      "end": 665,
+      "line": 646,
+      "end": 685,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 663,
+          "line": 683,
           "offset": 2596,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2096,7 +2132,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 663,
+          "line": 683,
           "offset": 2627,
           "definedBy": null,
           "relation": "unresolved"
@@ -2106,57 +2142,57 @@
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 627
+          "line": 647
         },
         {
           "path": "state.map",
           "access": "read",
-          "line": 627
+          "line": 647
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 627
+          "line": 647
         },
         {
           "path": "state.world.environment",
           "access": "read",
-          "line": 647
+          "line": 667
         },
         {
           "path": "state.tactical.activeStation",
           "access": "write",
-          "line": 647
+          "line": 667
         },
         {
           "path": "state.tactical.periscopeZoom",
           "access": "write",
-          "line": 650
+          "line": 670
         },
         {
           "path": "state.tactical.periscopeBearing",
           "access": "read",
-          "line": 651
+          "line": 671
         },
         {
           "path": "state",
           "access": "read",
-          "line": 655
+          "line": 675
         },
         {
           "path": "log",
           "access": "read",
-          "line": 663
+          "line": 683
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 663
+          "line": 683
         },
         {
           "path": "state",
           "access": "read",
-          "line": 663
+          "line": 683
         }
       ]
     },
@@ -2164,19 +2200,19 @@
       "name": "updateDmg",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 667,
-      "end": 676,
+      "line": 687,
+      "end": 696,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 673,
+          "line": 693,
           "offset": 301,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         }
@@ -2185,12 +2221,12 @@
         {
           "path": "state.campaign.missionStatus",
           "access": "write",
-          "line": 672
+          "line": 692
         },
         {
           "path": "log",
           "access": "read",
-          "line": 673
+          "line": 693
         }
       ]
     },
@@ -2198,14 +2234,14 @@
       "name": "updateWarnings",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 678,
-      "end": 744,
+      "line": 698,
+      "end": 764,
       "callDetails": [
         {
           "name": "friendlyPortNav",
           "kind": "direct",
           "unresolved": false,
-          "line": 708,
+          "line": 728,
           "offset": 2389,
           "definedBy": null,
           "relation": "unresolved"
@@ -2215,47 +2251,47 @@
         {
           "path": "state.world.enemy",
           "access": "read",
-          "line": 679
+          "line": 699
         },
         {
           "path": "state.world.harbor",
           "access": "read",
-          "line": 690
+          "line": 710
         },
         {
           "path": "state.world.depthCharges.some",
           "access": "read",
-          "line": 693
+          "line": 713
         },
         {
           "path": "state.world.aaManned",
           "access": "read",
-          "line": 705
+          "line": 725
         },
         {
           "path": "state.weapons.deckGun",
           "access": "read",
-          "line": 706
+          "line": 726
         },
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 707
+          "line": 727
         },
         {
           "path": "friendlyPortNav",
           "access": "read",
-          "line": 708
+          "line": 728
         },
         {
           "path": "state.runtime.campaign._portServiceLock",
           "access": "read",
-          "line": 710
+          "line": 730
         },
         {
           "path": "state.time",
           "access": "read",
-          "line": 725
+          "line": 745
         }
       ]
     },
@@ -2263,14 +2299,14 @@
       "name": "confirmScopeVisualContact",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 746,
-      "end": 766,
+      "line": 766,
+      "end": 786,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 747
+          "line": 767
         }
       ]
     },
@@ -2278,19 +2314,19 @@
       "name": "selectScopeContact",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 768,
-      "end": 774,
+      "line": 788,
+      "end": 794,
       "callDetails": [
         {
           "name": "nearestScopeTrack",
           "kind": "direct",
           "unresolved": false,
-          "line": 769,
+          "line": 789,
           "offset": 36,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 852
+            "line": 872
           },
           "relation": "same"
         },
@@ -2298,12 +2334,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 770,
+          "line": 790,
           "offset": 73,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2311,12 +2347,12 @@
           "name": "confirmScopeVisualContact",
           "kind": "direct",
           "unresolved": false,
-          "line": 771,
+          "line": 791,
           "offset": 143,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 746
+            "line": 766
           },
           "relation": "same"
         },
@@ -2324,12 +2360,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 773,
+          "line": 793,
           "offset": 261,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2337,12 +2373,12 @@
           "name": "updateTdc",
           "kind": "direct",
           "unresolved": false,
-          "line": 773,
+          "line": 793,
           "offset": 309,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 536
+            "line": 556
           },
           "relation": "same"
         }
@@ -2351,37 +2387,37 @@
         {
           "path": "nearestScopeTrack",
           "access": "read",
-          "line": 769
+          "line": 789
         },
         {
           "path": "log",
           "access": "read",
-          "line": 770
+          "line": 790
         },
         {
           "path": "confirmScopeVisualContact",
           "access": "read",
-          "line": 771
+          "line": 791
         },
         {
           "path": "state.tactical.selectedTrackId",
           "access": "write",
-          "line": 772
+          "line": 792
         },
         {
           "path": "state.tdc.targetId",
           "access": "write",
-          "line": 772
+          "line": 792
         },
         {
           "path": "log",
           "access": "read",
-          "line": 773
+          "line": 793
         },
         {
           "path": "updateTdc",
           "access": "read",
-          "line": 773
+          "line": 793
         }
       ]
     },
@@ -2389,19 +2425,19 @@
       "name": "sendScopeToTdc",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 776,
-      "end": 801,
+      "line": 796,
+      "end": 821,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 778,
+          "line": 798,
           "offset": 109,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2409,12 +2445,12 @@
           "name": "confirmScopeVisualContact",
           "kind": "direct",
           "unresolved": false,
-          "line": 779,
+          "line": 799,
           "offset": 162,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 746
+            "line": 766
           },
           "relation": "same"
         },
@@ -2422,12 +2458,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 781,
+          "line": 801,
           "offset": 261,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2435,12 +2471,12 @@
           "name": "updateTdc",
           "kind": "direct",
           "unresolved": false,
-          "line": 798,
+          "line": 818,
           "offset": 1320,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 536
+            "line": 556
           },
           "relation": "same"
         },
@@ -2448,12 +2484,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 800,
+          "line": 820,
           "offset": 1481,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         }
@@ -2462,82 +2498,82 @@
         {
           "path": "state.tactical.selectedTrackId",
           "access": "read",
-          "line": 777
+          "line": 797
         },
         {
           "path": "state.tdc.targetId",
           "access": "read",
-          "line": 777
+          "line": 797
         },
         {
           "path": "log",
           "access": "read",
-          "line": 778
+          "line": 798
         },
         {
           "path": "confirmScopeVisualContact",
           "access": "read",
-          "line": 779
+          "line": 799
         },
         {
           "path": "state.world.contactTracks",
           "access": "read",
-          "line": 780
+          "line": 800
         },
         {
           "path": "log",
           "access": "read",
-          "line": 781
+          "line": 801
         },
         {
           "path": "state.tdc",
           "access": "read",
-          "line": 782
+          "line": 802
         },
         {
           "path": "state",
           "access": "read",
-          "line": 783
+          "line": 803
         },
         {
           "path": "state.world.contacts",
           "access": "read",
-          "line": 785
+          "line": 805
         },
         {
           "path": "state.playerSub.position",
           "access": "read",
-          "line": 791
+          "line": 811
         },
         {
           "path": "state",
           "access": "read",
-          "line": 792
+          "line": 812
         },
         {
           "path": "state",
           "access": "read",
-          "line": 795
+          "line": 815
         },
         {
           "path": "updateTdc",
           "access": "read",
-          "line": 798
+          "line": 818
         },
         {
           "path": "state",
           "access": "read",
-          "line": 798
+          "line": 818
         },
         {
           "path": "log",
           "access": "read",
-          "line": 800
+          "line": 820
         },
         {
           "path": "state.playerSub.damage.periscopeDamage",
           "access": "read",
-          "line": 800
+          "line": 820
         }
       ]
     },
@@ -2545,19 +2581,19 @@
       "name": "identifyContactClass",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 803,
-      "end": 850,
+      "line": 823,
+      "end": 870,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 806,
+          "line": 826,
           "offset": 171,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2565,12 +2601,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 809,
+          "line": 829,
           "offset": 368,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2578,12 +2614,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 811,
+          "line": 831,
           "offset": 558,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2591,12 +2627,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 835,
+          "line": 855,
           "offset": 2102,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2604,12 +2640,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 838,
+          "line": 858,
           "offset": 2406,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2617,12 +2653,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 841,
+          "line": 861,
           "offset": 2595,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2630,12 +2666,12 @@
           "name": "sendScopeToTdc",
           "kind": "direct",
           "unresolved": false,
-          "line": 845,
+          "line": 865,
           "offset": 2773,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 776
+            "line": 796
           },
           "relation": "same"
         },
@@ -2643,12 +2679,12 @@
           "name": "updateTdc",
           "kind": "direct",
           "unresolved": false,
-          "line": 847,
+          "line": 867,
           "offset": 2813,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 536
+            "line": 556
           },
           "relation": "same"
         }
@@ -2657,52 +2693,52 @@
         {
           "path": "state",
           "access": "read",
-          "line": 804
+          "line": 824
         },
         {
           "path": "log",
           "access": "read",
-          "line": 806
+          "line": 826
         },
         {
           "path": "log",
           "access": "read",
-          "line": 809
+          "line": 829
         },
         {
           "path": "log",
           "access": "read",
-          "line": 811
+          "line": 831
         },
         {
           "path": "log",
           "access": "read",
-          "line": 835
+          "line": 855
         },
         {
           "path": "state",
           "access": "read",
-          "line": 836
+          "line": 856
         },
         {
           "path": "log",
           "access": "read",
-          "line": 838
+          "line": 858
         },
         {
           "path": "log",
           "access": "read",
-          "line": 841
+          "line": 861
         },
         {
           "path": "sendScopeToTdc",
           "access": "read",
-          "line": 845
+          "line": 865
         },
         {
           "path": "updateTdc",
           "access": "read",
-          "line": 847
+          "line": 867
         }
       ]
     },
@@ -2710,19 +2746,19 @@
       "name": "nearestScopeTrack",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 852,
-      "end": 863,
+      "line": 872,
+      "end": 883,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.tactical",
           "access": "read",
-          "line": 853
+          "line": 873
         },
         {
           "path": "state.world.contactTracks",
           "access": "read",
-          "line": 855
+          "line": 875
         }
       ]
     },
@@ -2730,19 +2766,19 @@
       "name": "steerWaypoint",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 865,
-      "end": 876,
+      "line": 885,
+      "end": 896,
       "callDetails": [
         {
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 869,
+          "line": 889,
           "offset": 174,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2750,12 +2786,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 873,
+          "line": 893,
           "offset": 407,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         },
@@ -2763,12 +2799,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 875,
+          "line": 895,
           "offset": 563,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         }
@@ -2777,27 +2813,27 @@
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 866
+          "line": 886
         },
         {
           "path": "state.map",
           "access": "read",
-          "line": 866
+          "line": 886
         },
         {
           "path": "log",
           "access": "read",
-          "line": 869
+          "line": 889
         },
         {
           "path": "log",
           "access": "read",
-          "line": 873
+          "line": 893
         },
         {
           "path": "log",
           "access": "read",
-          "line": 875
+          "line": 895
         }
       ]
     },
@@ -2805,14 +2841,14 @@
       "name": "derivMode",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 878,
-      "end": 884,
+      "line": 898,
+      "end": 904,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.playerSub",
           "access": "read",
-          "line": 879
+          "line": 899
         }
       ]
     },
@@ -2820,8 +2856,8 @@
       "name": "updateModeAfter",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 886,
-      "end": 894,
+      "line": 906,
+      "end": 914,
       "callDetails": [],
       "fieldAccess": []
     },
@@ -2829,29 +2865,29 @@
       "name": "log",
       "class": "SimEngine",
       "file": "js/simulation/physics-navigation.js",
-      "line": 896,
-      "end": 899,
+      "line": 916,
+      "end": 919,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.log.unshift",
           "access": "read",
-          "line": 897
+          "line": 917
         },
         {
           "path": "state.time.elapsedSeconds",
           "access": "read",
-          "line": 897
+          "line": 917
         },
         {
           "path": "state.log",
           "access": "write",
-          "line": 898
+          "line": 918
         },
         {
           "path": "state.log.slice",
           "access": "read",
-          "line": 898
+          "line": 918
         }
       ]
     },
@@ -3260,7 +3296,7 @@
       "class": "SimEngine",
       "file": "js/simulation/after-action-report.js",
       "line": 123,
-      "end": 126,
+      "end": 127,
       "callDetails": [
         {
           "name": "ensureAfterActionReport",
@@ -3281,6 +3317,11 @@
           "path": "ensureAfterActionReport",
           "access": "read",
           "line": 124
+        },
+        {
+          "path": "state.campaign",
+          "access": "read",
+          "line": 126
         }
       ]
     },
@@ -3478,7 +3519,7 @@
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 124
+            "line": 144
           },
           "relation": "same"
         }
@@ -3706,14 +3747,14 @@
       "name": "ensureMissionFramework",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 310,
-      "end": 319,
+      "line": 468,
+      "end": 477,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state",
           "access": "read",
-          "line": 311
+          "line": 469
         }
       ]
     },
@@ -3721,19 +3762,19 @@
       "name": "chooseMissionType",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 321,
-      "end": 330,
+      "line": 479,
+      "end": 488,
       "callDetails": [],
       "fieldAccess": [
         {
           "path": "state.campaign",
           "access": "read",
-          "line": 322
+          "line": 480
         },
         {
           "path": "state",
           "access": "read",
-          "line": 322
+          "line": 480
         }
       ]
     },
@@ -3741,19 +3782,19 @@
       "name": "configureMission",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 332,
-      "end": 371,
+      "line": 490,
+      "end": 529,
       "callDetails": [
         {
           "name": "chooseMissionType",
           "kind": "direct",
           "unresolved": false,
-          "line": 333,
+          "line": 491,
           "offset": 104,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 321
+            "line": 479
           },
           "relation": "same"
         },
@@ -3761,8 +3802,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 370,
-          "offset": 10859,
+          "line": 528,
+          "offset": 10986,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -3771,12 +3812,12 @@
           "name": "log",
           "kind": "direct",
           "unresolved": false,
-          "line": 370,
-          "offset": 10969,
+          "line": 528,
+          "offset": 11096,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/physics-navigation.js",
-            "line": 896
+            "line": 916
           },
           "relation": "same"
         }
@@ -3785,22 +3826,22 @@
         {
           "path": "state",
           "access": "read",
-          "line": 333
+          "line": 491
         },
         {
           "path": "chooseMissionType",
           "access": "read",
-          "line": 333
+          "line": 491
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 370
+          "line": 528
         },
         {
           "path": "log",
           "access": "read",
-          "line": 370
+          "line": 528
         }
       ]
     },
@@ -3808,14 +3849,14 @@
       "name": "_missionStopTransit",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 373,
-      "end": 373,
+      "line": 531,
+      "end": 531,
       "callDetails": [
         {
           "name": "stopAutomaticTimeCompression",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 373,
+          "line": 531,
           "offset": 32,
           "definedBy": null,
           "relation": "unresolved"
@@ -3825,7 +3866,7 @@
         {
           "path": "stopAutomaticTimeCompression",
           "access": "read",
-          "line": 373
+          "line": 531
         }
       ]
     },
@@ -3833,19 +3874,32 @@
       "name": "_missionFinish",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 374,
-      "end": 376,
+      "line": 532,
+      "end": 541,
       "callDetails": [
         {
           "name": "ensureMissionFramework",
           "kind": "direct",
           "unresolved": false,
-          "line": 375,
+          "line": 533,
           "offset": 76,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 310
+            "line": 468
+          },
+          "relation": "same"
+        },
+        {
+          "name": "ensureAfterActionReport",
+          "kind": "optional-direct",
+          "unresolved": false,
+          "line": 538,
+          "offset": 526,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/after-action-report.js",
+            "line": 20
           },
           "relation": "same"
         },
@@ -3853,8 +3907,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 375,
-          "offset": 357,
+          "line": 540,
+          "offset": 611,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -3863,8 +3917,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 375,
-          "offset": 571,
+          "line": 540,
+          "offset": 849,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -3872,12 +3926,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 375,
-          "offset": 848,
+          "line": 540,
+          "offset": 1126,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         }
@@ -3886,27 +3940,37 @@
         {
           "path": "state",
           "access": "read",
-          "line": 375
+          "line": 533
         },
         {
           "path": "ensureMissionFramework",
           "access": "read",
-          "line": 375
+          "line": 533
+        },
+        {
+          "path": "ensureAfterActionReport",
+          "access": "read",
+          "line": 538
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 375
+          "line": 540
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 375
+          "line": 540
+        },
+        {
+          "path": "state",
+          "access": "read",
+          "line": 540
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 375
+          "line": 540
         }
       ]
     },
@@ -3914,14 +3978,14 @@
       "name": "_spawnLifeguardSurvivor",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 378,
-      "end": 380,
+      "line": 543,
+      "end": 545,
       "callDetails": [
         {
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 379,
+          "line": 544,
           "offset": 785,
           "object": "this.ctx",
           "definedBy": null,
@@ -3931,7 +3995,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 379,
+          "line": 544,
           "offset": 861,
           "definedBy": null,
           "relation": "unresolved"
@@ -3940,12 +4004,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 379,
+          "line": 544,
           "offset": 917,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         }
@@ -3954,22 +4018,22 @@
         {
           "path": "state",
           "access": "read",
-          "line": 379
+          "line": 544
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 379
+          "line": 544
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 379
+          "line": 544
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 379
+          "line": 544
         }
       ]
     },
@@ -3977,19 +4041,19 @@
       "name": "updateMissionFramework",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 382,
-      "end": 447,
+      "line": 547,
+      "end": 618,
       "callDetails": [
         {
           "name": "ensureMissionFramework",
           "kind": "direct",
           "unresolved": false,
-          "line": 383,
+          "line": 548,
           "offset": 143,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 310
+            "line": 468
           },
           "relation": "same"
         },
@@ -3997,12 +4061,12 @@
           "name": "_spawnLifeguardSurvivor",
           "kind": "direct",
           "unresolved": false,
-          "line": 395,
-          "offset": 1359,
+          "line": 566,
+          "offset": 1507,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 378
+            "line": 543
           },
           "relation": "same"
         },
@@ -4010,8 +4074,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 395,
-          "offset": 1776,
+          "line": 566,
+          "offset": 1924,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4019,8 +4083,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 395,
-          "offset": 2275,
+          "line": 566,
+          "offset": 2423,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4029,12 +4093,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 395,
-          "offset": 2366,
+          "line": 566,
+          "offset": 2514,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         },
@@ -4042,8 +4106,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 397,
-          "offset": 3023,
+          "line": 568,
+          "offset": 3171,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4052,8 +4116,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 397,
-          "offset": 3148,
+          "line": 568,
+          "offset": 3296,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4061,8 +4125,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 397,
-          "offset": 3447,
+          "line": 568,
+          "offset": 3595,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4070,12 +4134,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 397,
-          "offset": 3549,
+          "line": 568,
+          "offset": 3697,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         },
@@ -4083,12 +4147,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 397,
-          "offset": 3703,
+          "line": 568,
+          "offset": 3851,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         },
@@ -4096,8 +4160,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 399,
-          "offset": 4396,
+          "line": 570,
+          "offset": 4544,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4105,8 +4169,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 399,
-          "offset": 4610,
+          "line": 570,
+          "offset": 4758,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4115,12 +4179,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 399,
-          "offset": 4731,
+          "line": 570,
+          "offset": 4879,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         },
@@ -4128,8 +4192,8 @@
           "name": "alertEscorts",
           "kind": "system-path",
           "unresolved": false,
-          "line": 401,
-          "offset": 5156,
+          "line": 572,
+          "offset": 5304,
           "object": "this.sys.enemyAI",
           "definedBy": null,
           "relation": "unresolved"
@@ -4138,8 +4202,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 401,
-          "offset": 5220,
+          "line": 572,
+          "offset": 5368,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4147,8 +4211,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 411,
-          "offset": 6536,
+          "line": 582,
+          "offset": 6684,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4157,8 +4221,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 411,
-          "offset": 6679,
+          "line": 582,
+          "offset": 6827,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4166,8 +4230,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 412,
-          "offset": 7033,
+          "line": 583,
+          "offset": 7181,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4175,12 +4239,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 412,
-          "offset": 7090,
+          "line": 583,
+          "offset": 7238,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         },
@@ -4188,8 +4252,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 413,
-          "offset": 8353,
+          "line": 584,
+          "offset": 8501,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4197,8 +4261,8 @@
           "name": "alertEscorts",
           "kind": "system-path",
           "unresolved": false,
-          "line": 413,
-          "offset": 8448,
+          "line": 584,
+          "offset": 8596,
           "object": "this.sys.enemyAI",
           "definedBy": null,
           "relation": "unresolved"
@@ -4207,8 +4271,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 413,
-          "offset": 8564,
+          "line": 584,
+          "offset": 8712,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4217,8 +4281,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 413,
-          "offset": 8747,
+          "line": 584,
+          "offset": 8895,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4226,12 +4290,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 413,
-          "offset": 8800,
+          "line": 584,
+          "offset": 8948,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         },
@@ -4239,8 +4303,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 415,
-          "offset": 9333,
+          "line": 586,
+          "offset": 9481,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4249,8 +4313,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 415,
-          "offset": 9490,
+          "line": 586,
+          "offset": 9638,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4258,12 +4322,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 415,
-          "offset": 9574,
+          "line": 586,
+          "offset": 9722,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         },
@@ -4271,8 +4335,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 416,
-          "offset": 10462,
+          "line": 587,
+          "offset": 10610,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4281,8 +4345,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 416,
-          "offset": 10666,
+          "line": 587,
+          "offset": 10814,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4290,12 +4354,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 416,
-          "offset": 10772,
+          "line": 587,
+          "offset": 10920,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         },
@@ -4303,8 +4367,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 417,
-          "offset": 11141,
+          "line": 588,
+          "offset": 11289,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4313,8 +4377,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 417,
-          "offset": 11317,
+          "line": 588,
+          "offset": 11465,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4322,12 +4386,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 417,
-          "offset": 11423,
+          "line": 588,
+          "offset": 11571,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         },
@@ -4335,8 +4399,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 419,
-          "offset": 11701,
+          "line": 590,
+          "offset": 11849,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4345,8 +4409,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 419,
-          "offset": 11835,
+          "line": 590,
+          "offset": 11983,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4354,12 +4418,12 @@
           "name": "_missionStopTransit",
           "kind": "direct",
           "unresolved": false,
-          "line": 419,
-          "offset": 11932,
+          "line": 590,
+          "offset": 12080,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 373
+            "line": 531
           },
           "relation": "same"
         },
@@ -4367,8 +4431,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 426,
-          "offset": 12727,
+          "line": 597,
+          "offset": 12875,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4377,8 +4441,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 426,
-          "offset": 12901,
+          "line": 597,
+          "offset": 13049,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4386,8 +4450,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 428,
-          "offset": 13509,
+          "line": 599,
+          "offset": 13657,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4396,8 +4460,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 428,
-          "offset": 13726,
+          "line": 599,
+          "offset": 13874,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4405,12 +4469,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 428,
-          "offset": 13845,
+          "line": 599,
+          "offset": 13993,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         },
@@ -4418,31 +4482,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 429,
-          "offset": 14467,
-          "object": "this.ctx",
-          "definedBy": null,
-          "relation": "unresolved"
-        },
-        {
-          "name": "_missionFinish",
-          "kind": "direct",
-          "unresolved": false,
-          "line": 429,
-          "offset": 14636,
-          "definedBy": {
-            "class": "SimEngine",
-            "file": "js/simulation/mission-framework.js",
-            "line": 374
-          },
-          "relation": "same"
-        },
-        {
-          "name": "captainLog",
-          "kind": "context-path",
-          "unresolved": false,
-          "line": 431,
-          "offset": 15530,
+          "line": 600,
+          "offset": 14615,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4451,12 +4492,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 431,
-          "offset": 15667,
+          "line": 600,
+          "offset": 14784,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         },
@@ -4464,8 +4505,31 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 436,
-          "offset": 16004,
+          "line": 602,
+          "offset": 15678,
+          "object": "this.ctx",
+          "definedBy": null,
+          "relation": "unresolved"
+        },
+        {
+          "name": "_missionFinish",
+          "kind": "direct",
+          "unresolved": false,
+          "line": 602,
+          "offset": 15815,
+          "definedBy": {
+            "class": "SimEngine",
+            "file": "js/simulation/mission-framework.js",
+            "line": 532
+          },
+          "relation": "same"
+        },
+        {
+          "name": "captainLog",
+          "kind": "context-path",
+          "unresolved": false,
+          "line": 607,
+          "offset": 16152,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4474,8 +4538,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 437,
-          "offset": 16161,
+          "line": 608,
+          "offset": 16309,
           "definedBy": null,
           "relation": "unresolved"
         },
@@ -4483,8 +4547,8 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 443,
-          "offset": 16617,
+          "line": 614,
+          "offset": 16765,
           "object": "this.ctx",
           "definedBy": null,
           "relation": "unresolved"
@@ -4493,8 +4557,8 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 444,
-          "offset": 16784,
+          "line": 615,
+          "offset": 16932,
           "definedBy": null,
           "relation": "unresolved"
         }
@@ -4503,242 +4567,242 @@
         {
           "path": "state",
           "access": "read",
-          "line": 383
+          "line": 548
         },
         {
           "path": "ensureMissionFramework",
           "access": "read",
-          "line": 383
+          "line": 548
         },
         {
           "path": "_spawnLifeguardSurvivor",
           "access": "read",
-          "line": 395
+          "line": 566
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 395
+          "line": 566
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 395
+          "line": 566
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 395
+          "line": 566
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 397
+          "line": 568
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 397
+          "line": 568
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 397
+          "line": 568
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 397
+          "line": 568
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 399
+          "line": 570
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 399
+          "line": 570
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 399
+          "line": 570
         },
         {
           "path": "sys.enemyAI.alertEscorts",
           "access": "read",
-          "line": 401
+          "line": 572
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 401
+          "line": 572
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 411
+          "line": 582
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 411
+          "line": 582
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 412
+          "line": 583
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 412
+          "line": 583
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 413
+          "line": 584
         },
         {
           "path": "sys.enemyAI.alertEscorts",
           "access": "read",
-          "line": 413
+          "line": 584
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 413
+          "line": 584
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 413
+          "line": 584
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 415
+          "line": 586
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 415
+          "line": 586
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 415
+          "line": 586
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 416
+          "line": 587
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 416
+          "line": 587
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 416
+          "line": 587
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 417
+          "line": 588
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 417
+          "line": 588
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 417
+          "line": 588
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 419
+          "line": 590
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 419
+          "line": 590
         },
         {
           "path": "_missionStopTransit",
           "access": "read",
-          "line": 419
+          "line": 590
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 426
+          "line": 597
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 426
+          "line": 597
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 428
+          "line": 599
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 428
+          "line": 599
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 428
+          "line": 599
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 429
+          "line": 600
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 429
+          "line": 600
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 431
+          "line": 602
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 431
+          "line": 602
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 436
+          "line": 607
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 437
+          "line": 608
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 443
+          "line": 614
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 444
+          "line": 615
         }
       ]
     },
@@ -4746,19 +4810,19 @@
       "name": "checkPrimaryMission",
       "class": "SimEngine",
       "file": "js/simulation/mission-framework.js",
-      "line": 449,
-      "end": 486,
+      "line": 620,
+      "end": 657,
       "callDetails": [
         {
           "name": "ensureMissionFramework",
           "kind": "direct",
           "unresolved": false,
-          "line": 450,
+          "line": 621,
           "offset": 144,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 310
+            "line": 468
           },
           "relation": "same"
         },
@@ -4766,7 +4830,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 452,
+          "line": 623,
           "offset": 648,
           "object": "this.ctx",
           "definedBy": null,
@@ -4776,7 +4840,7 @@
           "name": "primaryConvoyExists",
           "kind": "optional-direct",
           "unresolved": false,
-          "line": 452,
+          "line": 623,
           "offset": 1271,
           "definedBy": {
             "class": "SimEngine",
@@ -4789,12 +4853,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 452,
+          "line": 623,
           "offset": 1443,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         },
@@ -4802,12 +4866,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 455,
+          "line": 626,
           "offset": 1914,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         },
@@ -4815,7 +4879,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 458,
+          "line": 629,
           "offset": 2239,
           "object": "this.ctx",
           "definedBy": null,
@@ -4825,12 +4889,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 458,
+          "line": 629,
           "offset": 2572,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         },
@@ -4838,7 +4902,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 461,
+          "line": 632,
           "offset": 2986,
           "definedBy": null,
           "relation": "unresolved"
@@ -4847,7 +4911,7 @@
           "name": "captainLog",
           "kind": "context-path",
           "unresolved": false,
-          "line": 475,
+          "line": 646,
           "offset": 3954,
           "object": "this.ctx",
           "definedBy": null,
@@ -4857,7 +4921,7 @@
           "name": "notify",
           "kind": "direct",
           "unresolved": false,
-          "line": 476,
+          "line": 647,
           "offset": 4124,
           "definedBy": null,
           "relation": "unresolved"
@@ -4866,12 +4930,12 @@
           "name": "_missionFinish",
           "kind": "direct",
           "unresolved": false,
-          "line": 480,
+          "line": 651,
           "offset": 4367,
           "definedBy": {
             "class": "SimEngine",
             "file": "js/simulation/mission-framework.js",
-            "line": 374
+            "line": 532
           },
           "relation": "same"
         }
@@ -4880,62 +4944,92 @@
         {
           "path": "state",
           "access": "read",
-          "line": 450
+          "line": 621
         },
         {
           "path": "ensureMissionFramework",
           "access": "read",
-          "line": 450
+          "line": 621
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 452
+          "line": 623
         },
         {
           "path": "primaryConvoyExists",
           "access": "read",
-          "line": 452
+          "line": 623
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 452
+          "line": 623
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 455
+          "line": 626
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 458
+          "line": 629
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 458
+          "line": 629
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 461
+          "line": 632
         },
         {
           "path": "ctx.captainLog",
           "access": "read",
-          "line": 475
+          "line": 646
         },
         {
           "path": "notify",
           "access": "read",
-          "line": 476
+          "line": 647
         },
         {
           "path": "_missionFinish",
           "access": "read",
-          "line": 480
+          "line": 651
+        }
+      ]
+    },
+    {
+      "name": "getMissionPacingSummary",
+      "class": "SimEngine",
+      "file": "js/simulation/mission-framework.js",
+      "line": 658,
+      "end": 661,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state",
+          "access": "read",
+          "line": 659
+        }
+      ]
+    },
+    {
+      "name": "missionPrimaryTarget",
+      "class": "SimEngine",
+      "file": "js/simulation/mission-framework.js",
+      "line": 662,
+      "end": 664,
+      "callDetails": [],
+      "fieldAccess": [
+        {
+          "path": "state",
+          "access": "read",
+          "line": 663
         }
       ]
     },

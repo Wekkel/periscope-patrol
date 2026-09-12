@@ -30,7 +30,16 @@ class SimEngine {
       fuelLow:s.playerSub.propulsion.fuel<20,
       atEdge:this.headingOutOfArea(),
       harborAlert:(s.world.harbor&&s.world.harbor.alert)||0,
-      portApproachNear:(()=>{const r=this.friendlyPortNav();return !!(r&&r.rngNm<=1.5);})()
+      portApproachNear:(()=>{const r=this.friendlyPortNav();return !!(r&&r.rngNm<=1.5);})(),
+      contactZoneNear:(()=>{
+        const m=s.campaign?.primaryMission;
+        const stage=m?.pacing?.stage||'TRANSIT';
+        if(!m||stage!=='TRANSIT')return false;
+        const tgt=this.missionPrimaryTarget?.(m);
+        let d=tgt?distNm(s.playerSub.position,tgt.pos):m.pacing?.targetDistanceNm;
+        if(d==null&&s.world?.intelAdvisory?.pos)d=distNm(s.playerSub.position,s.world.intelAdvisory.pos);
+        return d!=null&&d<=8.5;
+      })()
     };
   }
 
@@ -118,6 +127,17 @@ class SimEngine {
     if(this.headingOutOfArea()&&!w.atEdge) return 'she is standing out of the patrol area';
     if(s.playerSub.propulsion.fuel<20&&!w.fuelLow) return 'the fuel is running low';
     if(((s.world.harbor&&s.world.harbor.alert)||0)>w.harborAlert) return 'enemy harbour defenses are stirring';
+    const m=s.campaign?.primaryMission;
+    const stage=m?.pacing?.stage||'TRANSIT';
+    if(m&&stage==='TRANSIT'&&!w.contactZoneNear){
+      const tgt=this.missionPrimaryTarget?.(m);
+      let targetDist=tgt?distNm(s.playerSub.position,tgt.pos):m.pacing?.targetDistanceNm;
+      if(targetDist==null&&s.world?.intelAdvisory?.pos)targetDist=distNm(s.playerSub.position,s.world.intelAdvisory.pos);
+      if(targetDist!=null&&targetDist<=8.5){
+        w.contactZoneNear=true;
+        return 'target contact area reached — 8.5 nm';
+      }
+    }
     return null;
   }
 

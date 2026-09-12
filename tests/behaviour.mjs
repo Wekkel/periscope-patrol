@@ -1776,18 +1776,32 @@ const terrainCode = await readFile(path.join(root, 'js/data/pacific-terrain-data
 const geomCode = await readFile(path.join(root, 'js/rendering/world-geometry.js'), 'utf8');
 const coreCode = await readFile(path.join(root, 'js/simulation/engine-core.js'), 'utf8');
 const physCode = await readFile(path.join(root, 'js/simulation/physics-navigation.js'), 'utf8');
+const missionCode = await readFile(path.join(root, 'js/simulation/mission-framework.js'), 'utf8');
+const aarCode = await readFile(path.join(root, 'js/simulation/after-action-report.js'), 'utf8');
 const fmtDeg = d => `${Math.round(d)}°`;
 
 const navCtx = {
   console, Math, Float32Array, Float64Array, Int32Array, Uint8Array, Set, Map, Array, Object,
   degToRad, radToDeg, normDeg, shortDelta, knotsNmSec, clamp, distNm, lerp, bearingBetween, fmtDeg,
-  PresentationBridge: { audio: () => ({ playHelmOrder() {} }), delayedAudio: () => {}, toast: () => ({ ok() {}, warn() {} }) }
+  DEFAULT_GAME_IDENTITY: { campaignProfileId: 'us-pacific' },
+  getCampaignMissionProfile: () => ({
+    defaultMissionType: 'CONVOY_INTERDICTION',
+    definitions: {
+      CONVOY_INTERDICTION: { title: 'Convoy Interdiction', briefing: 'Neutralize enemy shipping in the Solomon Sea.', reward: 1200 }
+    }
+  }),
+  vesselGameplayType: (c) => c?.type || 'MERCHANT',
+  materializeVesselIdentity: (v) => v,
+  isASWCombatant: (c) => c?.type === 'DESTROYER' || c?.asw === true,
+  PresentationBridge: { audio: () => ({ playHelmOrder() {}, event() {} }), delayedAudio: () => {}, toast: () => ({ ok() {}, warn() {} }) }
 };
 vm.createContext(navCtx);
 vm.runInContext(terrainCode, navCtx);
 vm.runInContext(`${geomCode}\n;globalThis.Bathy = Bathy;`, navCtx);
 vm.runInContext(`${coreCode}\n;globalThis.CoreSystem = CoreSystem;`, navCtx);
 vm.runInContext(`${physCode}\n;globalThis.SimEngine = SimEngine;`, navCtx);
+vm.runInContext(missionCode, navCtx);
+vm.runInContext(aarCode, navCtx);
 
 const solomonTerrain = navCtx.getPatrolTerrain('Solomon Sea');
 navCtx.Bathy.ensure(solomonTerrain);
@@ -1887,6 +1901,169 @@ assert.equal(testEngine.state.runtime.time.watch.wp, 1, 'Watch waypoint counter 
 testEngine.state.map.plottedCourse.shift();
 assert.equal(testEngine.transitInterrupt(), 'a waypoint reached', 'Completing final approach waypoint must stop transit cleanly');
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5');
+// 24. Dynamische Bewaking van Missiepacing & Intercept Inlichtingen (5 tests)
+const pCaptainLogs = [];
+const pNotifications = [];
+const pacingEngine = new navCtx.SimEngine({
+  world: {
+    terrain: solomonTerrain,
+    contacts: [
+      { id: 'C-01', convoyId: 'MAIN', position: { xNm: 150, yNm: 85 }, speedKnots: 8, heading: 270, tonsFactor: 5400, sunk: false },
+      { id: 'C-02', convoyId: 'MAIN', position: { xNm: 152, yNm: 85 }, speedKnots: 8, heading: 270, tonsFactor: 6200, sunk: false },
+      { id: 'E-01', convoyId: 'MAIN', type: 'DESTROYER', asw: true, position: { xNm: 148, yNm: 84 }, speedKnots: 12, heading: 270, sunk: false }
+    ],
+    contactTracks: {},
+    traffic: { primaryGroup: { position: { xNm: 151, yNm: 85 }, heading: 270, speedKnots: 8 } },
+    radio: { inbox: [], unread: 0 },
+    enemy: { alertState: 'UNAWARE' }
+  },
+  campaign: {
+    patrolArea: 'solomons',
+    campaignProfileId: 'us-pacific',
+    scenarioSeed: 42,
+    missionType: 'CONVOY_INTERDICTION',
+    missionStatus: 'PATROL',
+    score: 0,
+    friendlyPort: { name: 'Tulagi', pos: { xNm: 155, yNm: 60 } }
+  },
+  playerSub: {
+    position: { xNm: 140, yNm: 105 },
+    depthFeet: 0,
+    heading: 45,
+    orderedHeading: 45,
+    damage: { hullIntegrity: 100, oxygen: 100 },
+    propulsion: { battery: 100, fuel: 100, speedKnots: 10, orderedRpm: 320 },
+    keelClearanceFeet: 200
+  },
+  weapons: { torpedoes: [], hits: [] },
+  map: { plottedCourse: [], autoFollowPlot: false },
+  time: { elapsedSeconds: 0, timeScale: 1 },
+  runtime: { campaign: {}, time: {} },
+  log: []
+}, { dispatch() {} });
+pacingEngine.ctx = {
+  captainLog: (type, text, data, key) => pCaptainLogs.push({ type, text, data, key })
+};
+pacingEngine.notify = (msg, tone, pri) => pNotifications.push({ msg, tone, pri });
+pacingEngine.sys = { collision: { collisionRiskAhead: () => null } };
+
+// Test 1: Pacing State Machine initialisatie en fasentransities (TRANSIT -> CONTACT -> ACTION -> WITHDRAW -> RETURN)
+const pm = pacingEngine.ensureMissionFramework();
+assert.ok(pm, 'Mission framework must be initialized');
+assert.equal(pm.pacing.version, 2, 'Pacing version must be 2');
+assert.equal(pm.pacing.targetMinutes, 30, 'Target minutes must be 30');
+
+// Initial step in TRANSIT
+for (let i = 0; i < 60; i++) pacingEngine.updateMissionFramework(1);
+assert.equal(pm.pacing.stage, 'TRANSIT', 'Initial pacing stage must be TRANSIT');
+assert.equal(pm.pacing.stageSeconds.TRANSIT, 60, 'TRANSIT stage seconds must accrue');
+assert.ok(pm.pacing.targetDistanceNm > 15, 'Target distance must be calculated from convoy position');
+
+// Holding contact track transitions to CONTACT
+pacingEngine.state.world.contactTracks['C-01'] = { id: 'C-01', confidence: 0.6, convoyId: 'MAIN' };
+pacingEngine.updateMissionFramework(10);
+assert.equal(pm.pacing.stage, 'CONTACT', 'Holding track must transition stage to CONTACT');
+
+// Torpedo in flight transitions to ACTION
+pacingEngine.state.weapons.torpedoes.push({ id: 1, finished: false });
+pacingEngine.updateMissionFramework(10);
+assert.equal(pm.pacing.stage, 'ACTION', 'Torpedo in flight must transition stage to ACTION');
+
+// Escort counterattack transitions to WITHDRAW
+pacingEngine.state.weapons.torpedoes[0].finished = true;
+pm.escortReactionSeen = true;
+pacingEngine.updateMissionFramework(10);
+assert.equal(pm.pacing.stage, 'WITHDRAW', 'Escort reaction must transition stage to WITHDRAW');
+
+// Mission finish transitions to RETURN
+pacingEngine._missionFinish(true, 'Convoy dispersed');
+assert.equal(pacingEngine.state.campaign.missionStatus, 'RETURN TO BASE');
+pacingEngine.updateMissionFramework(10);
+assert.equal(pm.pacing.stage, 'RETURN', 'Mission finish must transition stage to RETURN');
+
+// Test 2: HQ Radio Intel Advisory bij langdurige transit zonder contact
+const intelTestEngine = new navCtx.SimEngine({
+  world: {
+    terrain: solomonTerrain,
+    contacts: [
+      { id: 'C-10', convoyId: 'MAIN', position: { xNm: 155, yNm: 80 }, speedKnots: 8.5, heading: 280, sunk: false }
+    ],
+    contactTracks: {},
+    radio: { inbox: [], unread: 0 },
+    enemy: { alertState: 'UNAWARE' }
+  },
+  campaign: {
+    patrolArea: 'solomons',
+    campaignProfileId: 'us-pacific',
+    scenarioSeed: 88,
+    missionType: 'CONVOY_INTERDICTION',
+    missionStatus: 'PATROL',
+    friendlyPort: { name: 'Tulagi', pos: { xNm: 155, yNm: 60 } }
+  },
+  playerSub: { position: { xNm: 135, yNm: 100 }, depthFeet: 0, heading: 0, propulsion: { speedKnots: 10 } },
+  weapons: { torpedoes: [], hits: [] },
+  map: { plottedCourse: [] },
+  time: { elapsedSeconds: 600, timeScale: 1 },
+  runtime: { campaign: {}, time: {} }
+}, { dispatch() {} });
+intelTestEngine.ctx = { captainLog() {} };
+intelTestEngine.notify = () => {};
+const intelM = intelTestEngine.ensureMissionFramework();
+intelM.pacing.activeSeconds = 550; // 9+ real minutes in TRANSIT
+intelTestEngine.updateMissionFramework(5);
+assert.equal(intelM.pacing.advisoriesDispatched, 1, 'HQ Radio Intel Advisory must dispatch after 9 minutes in TRANSIT without contact');
+assert.equal(intelTestEngine.state.world.radio.inbox.length, 1, 'Advisory must be queued in radio inbox');
+const radioAdvisory = intelTestEngine.state.world.radio.inbox[0];
+assert.equal(radioAdvisory.from, 'COMSUBPAC INTEL', 'US Pacific theater authority must be COMSUBPAC INTEL');
+assert.ok(radioAdvisory.text.includes('Enemy shipping estimated'), 'Advisory text must include shipping estimate');
+assert.ok(radioAdvisory.advisory.bearingDeg >= 0 && radioAdvisory.advisory.bearingDeg <= 360, 'Advisory bearing must be valid');
+assert.ok(radioAdvisory.advisory.rangeNm > 15 && radioAdvisory.advisory.rangeNm < 35, 'Advisory range must match convoy geometry');
+assert.equal(intelTestEngine.state.world.contacts.length, 1, 'Genuine simulation contacts must remain unaltered (zero duplicate spawns)');
+
+// Test 3: Doelwit Interceptie-Drempel & Tijdcompressie Interruptie (8.5 NM)
+const transitPacingEngine = new navCtx.SimEngine({
+  world: {
+    contacts: [{ id: 'C-20', convoyId: 'MAIN', position: { xNm: 150, yNm: 85 }, speedKnots: 8, heading: 270, sunk: false }],
+    contactTracks: {},
+    enemy: { alertState: 'UNAWARE' }
+  },
+  campaign: { missionType: 'CONVOY_INTERDICTION', missionStatus: 'PATROL' },
+  playerSub: { position: { xNm: 135, yNm: 105 }, depthFeet: 0, damage: { hullIntegrity: 100, oxygen: 100 }, propulsion: { battery: 100, fuel: 100 } },
+  map: { plottedCourse: [] },
+  time: { elapsedSeconds: 100, timeScale: 1, transitUntil: 5000 },
+  runtime: { campaign: {}, time: {} }
+}, { dispatch() {} });
+transitPacingEngine.sys = { collision: { collisionRiskAhead: () => null } };
+transitPacingEngine.ensureMissionFramework();
+transitPacingEngine.snapshotWatch();
+assert.equal(transitPacingEngine.state.runtime.time.watch.contactZoneNear, false, 'contactZoneNear must be false when outside 8.5 nm');
+assert.equal(transitPacingEngine.transitInterrupt(), null, 'transitInterrupt must return null while outside 8.5 nm');
+
+// Sub closes within 8.5 nm of convoy
+transitPacingEngine.state.playerSub.position = { xNm: 147, yNm: 92.0 }; // ~7.6 nm
+assert.equal(transitPacingEngine.transitInterrupt(), 'target contact area reached — 8.5 nm', 'transitInterrupt must drop time compression at 8.5 nm');
+assert.equal(transitPacingEngine.state.runtime.time.watch.contactZoneNear, true, 'contactZoneNear must flip to true');
+
+// Test 4: Gestroomlijnde Terugtocht na Voltooid Hoofddoel
+pacingEngine.state.playerSub.position = { xNm: 140, yNm: 105 };
+pacingEngine.headToPort();
+assert.ok(pacingEngine.state.map.plottedCourse.length >= 2, 'headToPort must plot multi-leg course');
+assert.equal(pacingEngine.state.map.autoFollowPlot, true, 'Autopilot must engage for return leg');
+assert.equal(pacingEngine.state.campaign.missionStatus, 'RETURN TO BASE', 'Mission status must remain RETURN TO BASE');
+
+// Test 5: Pacing Telemetrie Export naar Campagnestatus en AAR Debriefing
+const pacingSummary = pacingEngine.getMissionPacingSummary();
+assert.ok(pacingSummary, 'getMissionPacingSummary() must return valid summary');
+assert.equal(pacingSummary.version, 2, 'Summary version must be 2');
+assert.equal(pacingSummary.targetMinutes, 30, 'Target minutes must be 30');
+assert.ok(pacingSummary.stages.transitMinutes > 0, 'Transit minutes must be recorded');
+assert.equal(pacingSummary.pacingPace, 'ON_SCHEDULE', 'Pacing pace must be ON_SCHEDULE');
+
+const aarReplay = pacingEngine.buildAfterActionReplay();
+assert.ok(aarReplay.pacingSummary, 'AAR replay must include pacingSummary');
+assert.equal(aarReplay.pacingSummary.version, 2);
+assert.equal(aarReplay.pacingSummary.targetMinutes, 30);
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5');
 
 

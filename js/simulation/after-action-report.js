@@ -20,7 +20,7 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
     ensureAfterActionReport(reset=false){
       const c=this.state.campaign;
       if(reset||!c.afterAction){
-        c.afterAction={version:AAR_VERSION,route:[],observedById:{},truthById:{},events:[],torpedoes:[],gunRounds:[],enemyResponses:[],aircraftEvaded:0,
+        c.afterAction={version:AAR_VERSION,route:[],observedById:{},truthById:{},events:[],torpedoes:[],gunRounds:[],enemyResponses:[],aircraftEvaded:0,pacingSummary:null,
           };
       }
       const A=c.afterAction,R=this.state.runtime.aar||(this.state.runtime.aar={routeClock:999,trackClock:999,airStates:{},seenTrackIds:{},harborPenetrationLogged:false});
@@ -122,7 +122,8 @@ function _aarCombatant(c){return !!c&&!c.sunk&&(!c.side||c.side==='ENEMY')&&['ES
 
     buildAfterActionReplay(){
       const A=this.ensureAfterActionReport();return{version:AAR_VERSION,route:_aarClone(A.route),observedTracks:_aarClone(Object.values(A.observedById||{})),truthTracks:_aarClone(Object.values(A.truthById||{})),
-        events:_aarClone(A.events),torpedoes:_aarClone(A.torpedoes),gunRounds:_aarClone(A.gunRounds),enemyResponses:_aarClone(A.enemyResponses),aircraftEvaded:Number(A.aircraftEvaded)||0};
+        events:_aarClone(A.events),torpedoes:_aarClone(A.torpedoes),gunRounds:_aarClone(A.gunRounds),enemyResponses:_aarClone(A.enemyResponses),aircraftEvaded:Number(A.aircraftEvaded)||0,
+        pacingSummary:_aarClone(A.pacingSummary||this.state.campaign?.pacingSummary||null)};
     }
   });
 })();
