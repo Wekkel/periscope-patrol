@@ -107,6 +107,92 @@ function _careerLessons(state,engagements){
   return out.slice(0,3);
 }
 
+function _careerTruthComparison(state){
+  const contacts=state.world?.contacts||[],tracks=state.world?.contactTracks||{},A=state.campaign?.afterAction||{};
+  const obsTracks=A.observedById||{},truthTracks=A.truthById||{},hits=(A.events||[]).filter(e=>['TORPEDO_HIT','DECK_GUN_HIT'].includes(e?.type)&&e?.data?.contactId);
+  const allIds=new Set([...contacts.map(c=>c?.id),...Object.keys(tracks),...Object.keys(obsTracks),...Object.keys(truthTracks)].filter(Boolean));
+  const rows=[];
+  for(const id of allIds){
+    const c=contacts.find(x=>x?.id===id),tr=tracks[id],obs=obsTracks[id],truth=truthTracks[id];
+    if(!c&&!truth)continue;
+    const trueType=c?.displayType||c?.type||truth?.type||'SHIP',trueSide=c?.side||truth?.side||'ENEMY';
+    if(trueSide!=='ENEMY')continue;
+    const trueName=c?.name||(c?`Enemy ${trueType}`:id),trueTons=Number(c?.tonsFactor)||0;
+    const isSunk=!!(c?.sunk||(truth?.points&&truth.points.some(p=>p[5]===1))),hitCount=hits.filter(e=>e.data?.contactId===id).length;
+    const held=!!tr||!!obs,estType=tr?.typeEstimate||obs?.type||(held?'UNIDENTIFIED':'UNOBSERVED');
+    const visualHull=!!(tr?.visualHullConfirmed||(obs?.points&&obs.points.some(p=>p[8]===1))),sensorSource=tr?.source||tr?.lastSensorSource||(obs?.points?.length?'SENSOR':'NONE');
+    let estTons=0,normEst=String(estType).toUpperCase();
+    if(/CARRIER/.test(normEst))estTons=22000;
+    else if(/BATTLESHIP/.test(normEst))estTons=35000;
+    else if(/CRUISER/.test(normEst))estTons=10000;
+    else if(/TANKER|OILER/.test(normEst))estTons=9000;
+    else if(/FREIGHTER|CARGO|TRANSPORT/.test(normEst))estTons=5000;
+    else if(/DESTROYER/.test(normEst))estTons=1800;
+    else if(/CORVETTE|SLOOP|FRIGATE|ESCORT/.test(normEst))estTons=1100;
+    else if(/PATROL|TRAWLER|CHASER/.test(normEst))estTons=500;
+    else if(/SAMPAN|JUNK/.test(normEst))estTons=100;
+    else estTons=held?4000:0;
+    let accuracy='ACCURATE',assessmentNote='';
+    if(!held){
+      accuracy='UNOBSERVED';
+      assessmentNote=`Vessel operated in area unspotted by ownship sensors.`;
+    }else if(!visualHull){
+      accuracy='ACOUSTIC_ONLY';
+      assessmentNote=`Hydrophone/radar track only; classified as ${estType}, never sighted visually.`;
+    }else{
+      const normTrue=String(trueType).toUpperCase();
+      const isCruiser=normTrue.includes('CRUISER'),isCarrier=normTrue.includes('CARRIER'),isEscort=/DESTROYER|ESCORT|WARSHIP|SLOOP|FRIGATE|CORVETTE/.test(normTrue),isTanker=/TANKER|OILER/.test(normTrue);
+      const isMerchant=!isCruiser&&!isCarrier&&!isEscort&&!isTanker&&/FREIGHTER|CARGO|MERCHANT|TRANSPORT|TRAMP|LINER|COASTER/.test(normTrue);
+      const estCruiser=normEst.includes('CRUISER'),estCarrier=normEst.includes('CARRIER'),estEscort=/DESTROYER|ESCORT|WARSHIP|SLOOP|FRIGATE|CORVETTE/.test(normEst),estTanker=/TANKER|OILER/.test(normEst);
+      const estMerchant=/FREIGHTER|CARGO|MERCHANT|TRANSPORT|TRAMP|LINER|COASTER/.test(normEst);
+      const matchType=(normEst===normTrue)||(isCruiser&&estCruiser)||(isCarrier&&estCarrier)||(isEscort&&estEscort)||(isTanker&&estTanker)||(isMerchant&&estMerchant);
+      if(!matchType){
+        accuracy='MISIDENTIFIED';
+        assessmentNote=`Skipper logged as ${estType}; wartime archives confirm ${trueName} (${trueType}, ${trueTons.toLocaleString()} t).`;
+      }else if(trueTons>0&&Math.abs(estTons-trueTons)/trueTons>.40){
+        accuracy=estTons>trueTons?'OVERESTIMATED':'UNDERESTIMATED';
+        assessmentNote=`Correct type (${trueType}), but tonnage ${accuracy.toLowerCase()} by ${Math.round(Math.abs(estTons-trueTons)/trueTons*100)}%.`;
+      }else{
+        accuracy='ACCURATE';
+        assessmentNote=`Confirmed visual identification: ${trueName} (${trueType}, ${trueTons.toLocaleString()} t).`;
+      }
+    }
+    const outcome=isSunk?'SUNK':(hitCount>0?'DAMAGED':'SURVIVED');
+    rows.push({id,observed:{held,typeEstimate:estType,estimatedTons:estTons,visualHullConfirmed:visualHull,sensorSource},truth:{name:trueName,type:trueType,tons:trueTons,side:trueSide,convoyId:c?.convoyId||truth?.convoyId||null,vesselProfileId:c?.vesselProfileId||truth?.vesselProfileId||null,outcome},evaluation:{accuracy,assessmentNote,hitsInflicted:hitCount}});
+  }
+  return rows.sort((a,b)=>(b.truth.outcome==='SUNK')-(a.truth.outcome==='SUNK')||b.evaluation.hitsInflicted-a.evaluation.hitsInflicted||b.truth.tons-a.truth.tons);
+}
+
+function _careerDeclassifiedIntel(state,engagements,truthComparison){
+  const c=state.campaign||{},out=[],sunkShips=truthComparison.filter(r=>r.truth.outcome==='SUNK'),damagedShips=truthComparison.filter(r=>r.truth.outcome==='DAMAGED'),unobservedWarships=truthComparison.filter(r=>r.evaluation.accuracy==='UNOBSERVED'&&['DESTROYER','ESCORT','WARSHIP'].includes(r.truth.type));
+  const theater=String(c.campaignProfileId||c.warPartyId||'').toUpperCase();
+  const isPacific=/PACIFIC|US|IJN/.test(theater),isGerman=/ATLANTIC|BDU|UBOOT|GERMAN/.test(theater);
+  if(sunkShips.length>0){
+    const list=sunkShips.map(s=>`${s.truth.name} (${s.truth.type}, ${s.truth.tons.toLocaleString()} GRT)`).join(', ');
+    const txt=isPacific?`CINCPAC INTEL DECRYPT: Radio intercepts confirm loss of ${list}. Enemy naval staff reports no salvage possible.`:isGerman?`B-DIENST INTERCEPT: Admiralty casualty broadcast confirms loss of ${list}. Lloyds casualty register amended.`:`POST-PATROL ADMIRALTY DAMAGE ASSESSMENT: Decrypted enemy dispatches verify sinking of ${list}.`;
+    out.push({classification:'ULTRA DECRYPT',authority:isPacific?'CINCPAC CINCPOA HQ':isGerman?'B.d.U. ABTEILUNG 1 SKL':'ADMIRALTY 8S SECTION',headline:`${sunkShips.length} ENEMY VESSEL(S) CONFIRMED LOST`,text:txt,tonnageConfirmed:sunkShips.reduce((sum,s)=>sum+s.truth.tons,0)});
+  }
+  if(damagedShips.length>0){
+    const list=damagedShips.map(s=>`${s.truth.name} (${s.truth.type})`).join(', ');
+    const txt=isPacific?`IMPERIAL DOCKYARDS INTERCEPT: Repairs ordered for ${list} following underwater hull penetration. Drydock estimate: 6 months.`:isGerman?`B-DIENST TELEGRAM: Convoy escort commander reports ${list} heavily damaged, taken under tow by tugs.`:`INTELLIGENCE INTERCEPT: Enemy merchant vessel(s) ${list} towed into port with flooded compartments.`;
+    out.push({classification:'TACTICAL DECRYPT',authority:isPacific?'COMSUBPAC GUAM':isGerman?'B-DIENST SONDERREFERAT':'OP-20-G RADIO INTELLIGENCE',headline:`${damagedShips.length} VESSEL(S) UNDERGOING EMERGENCY REPAIRS`,text:txt,tonnageDamaged:damagedShips.reduce((sum,s)=>sum+s.truth.tons,0)});
+  }
+  const A=state.campaign?.afterAction||{},dcAttacks=(A.events||[]).filter(e=>e?.type==='DEPTH_CHARGE_ATTACK'),enemyResp=A.enemyResponses||[];
+  if(dcAttacks.length>0||enemyResp.length>0){
+    const totalDc=dcAttacks.reduce((sum,e)=>sum+(Number(e.data?.count)||10),0);
+    const txt=isPacific?`POST-ACTION ENEMY ASW REPORT: Escort screen logged ${dcAttacks.length} depth charge attack runs (${totalDc} pattern charges). Assessment concluded submarine lost or driven below deep layer.`:isGerman?`ALLIED ASW SUMMARY: British 2nd Escort Group expended ${totalDc} depth charges and Asdic barrages. Own boat effectively broke contact using bathythermal gradient.`:`NAVAL STAFF DEBRIEF: ${totalDc} enemy depth charges detonated in vicinity. Thermal layer evasion verified effective by post-war records.`;
+    out.push({classification:'ASW DOSSIER',authority:isPacific?'FLEET SONAR ANALYSIS UNIT':isGerman?'U-BOOTWAFFE ERPROBUNGSSTELLE':'ASW INTELLIGENCE BRANCH',headline:`ENEMY ASW COUNTERMEASURE EXPENDITURE: ${totalDc} DEPTH CHARGES`,text:txt,dcExpended:totalDc});
+  }
+  if(unobservedWarships.length>0){
+    const list=unobservedWarships.map(s=>`${s.truth.name} (${s.truth.type})`).join(', ');
+    out.push({classification:'WAR DIARY LOG',authority:'POSTWAR ADMIRALTY HISTORICAL SECTION',headline:`CONCEALED ENEMY PATROLS IN THEATER`,text:`Captured war diaries reveal enemy escort(s) ${list} were active along the convoy perimeter but never gained contact with ownship.`,vessels:unobservedWarships.map(s=>s.truth.name)});
+  }
+  if(!out.length){
+    out.push({classification:'PATROL ARCHIVE',authority:isPacific?'COMSUBPAC INTELLIGENCE':'NAVAL STAFF ARCHIVE',headline:'ROUTINE CONVOY TRANSIT VERIFIED',text:'Post-patrol decryption logs confirm enemy convoys rerouted 60 nm south of ownship patrol box upon detection of submarine activity in adjacent sectors.'});
+  }
+  return out;
+}
+
 const CareerSystem={
   ensureCareerPatrolState(){
     const c=this.state.campaign,R=this.state.runtime.campaign;
@@ -170,6 +256,10 @@ const CareerSystem={
       };
     }
     const opts=(c.optionalObjectives||[]).map(o=>({text:o.text,done:!!o.done,failed:!!o.failed,result:o.result||null}));
+    const truthComparison=_careerTruthComparison(s);
+    const declassifiedIntel=_careerDeclassifiedIntel(s,engagements,truthComparison);
+    const pacingSummary=_careerClone(s.campaign?.pacingSummary||c.afterAction?.pacingSummary||null);
+    const decisions=_careerClone(c.afterAction?.decisions||[]);
     return Object.freeze({
       version:CAREER_RECORD_VERSION,id:c.historyId,
       patrolNumber:c.patrolNumber||1,area:c.patrolArea||'UNKNOWN',missionName:c.missionName||c.primaryMission?.title||null,
@@ -194,6 +284,10 @@ const CareerSystem={
       aircraftEvaded:Number(c.afterAction?.aircraftEvaded)||0,
       importantEvents:_careerClone(c.importantEvents),
       engagements:_careerClone(engagements),
+      truthComparison:_careerClone(truthComparison),
+      declassifiedIntel:_careerClone(declassifiedIntel),
+      decisions,
+      pacingSummary,
       aircraftEncounters:_careerClone(aircraftEncounters),
       ownBoat:_careerClone(ownBoat),lessons:_careerClone(lessons),historicalContext:{era:hp.era||null,date:hp.date||c.startDate||null,area:c.patrolArea||null,equipment:_careerClone(hp.equipment||c.equipment||[])},
       // Keep the compact recorder payload for save compatibility and for the
@@ -202,6 +296,9 @@ const CareerSystem={
       returnPort:meta.portName||null
     });
   },
+
+  buildTruthComparison(state){return _careerTruthComparison(state||this.state);},
+  buildDeclassifiedIntel(state,engagements,truthComparison){return _careerDeclassifiedIntel(state||this.state,engagements||_careerEngagements(state||this.state),truthComparison||_careerTruthComparison(state||this.state));},
 
   finalizePatrol(outcome,meta={}){
     const c=this.state.campaign,R=this.state.runtime.campaign;this.ensureCareerPatrolState();

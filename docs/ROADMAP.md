@@ -95,6 +95,10 @@ Elk punt uit deze roadmap wordt **stuk voor stuk** opgepakt via de vaste cyclus:
   * Gelanceerde salvo's en treffers
   * Vijandelijke reacties en tegenaanvallen
   * Pas *achteraf* vrijgegeven inlichtingen (zonder voorkennis tijdens de missie)
+* **Fases**:
+  * [x] **Fase 8.1: Cruciale Beslismomenten & Vijandelijke Tegenmaatregelen Registratie** (Chronologische bevelsregistratie via `aarRecordDecision` voor duikorders, noodduik `CRASH_DIVE`, periscoopdiepte, stille vaart en gevechtsontwijkingskoersen met diepte, vaart en positie; verrijkte dieptebom-tegenmaatregelen in `aarEnemyResponse` met patroonafmeting, detonatiediepte, onderzeebootdiepte en spronglaag-afscherming `layerProtected`) — **GOEDGEKEURD (Harry: 9.80/10, Henry: 9.72/10)**
+  * [x] **Fase 8.2: Waargenomen vs Werkelijke Waarheid & Gedeclassificeerde Inlichtingen** (Zij-aan-zij `_careerTruthComparison` tussen waargenomen contactschatting en werkelijke scheepsidentiteit met historische evaluaties `ACCURATE`, `MISIDENTIFIED`, `OVERESTIMATED`, `UNDERESTIMATED`, `ACOUSTIC_ONLY`, `UNOBSERVED`; post-patrol gedecripteerd inlichtingendossier `_careerDeclassifiedIntel` met ULTRA decrypts, B-Dienst telexen, zinkingsbevestigingen, werf-reparatieberichten en verborgen vijandelijke patrouilles) — **GOEDGEKEURD (Harry: 9.85/10, Henry: 9.75/10)**
+  * [x] **Fase 8.3: UI Debriefing Reconstructie, Teststraat Integratie & Evaluatie** (Reconstructie-weergave in `#aarOverlay` met `renderPacing`, `renderDecisions`, `renderTruthComparison` en `renderDeclassifiedIntel`; 5 unit tests in Sectie 25 van `tests/behaviour.mjs`; 100% groen over alle 16 kwaliteitskwalificaties in `tests/run-all.mjs`, SLA PASS) — **GOEDGEKEURD (Harry: 9.82/10, Henry: 9.72/10)**
 
 ### 9. Verdieping van campagnegevolgen
 * **Doel**: Rompschade, torpedovoorraad, bemanningsvermoeidheid, opgedane inlichtingen, havenbeschikbaarheid en eerdere successen beïnvloeden de volgende patrouille merkbaar.

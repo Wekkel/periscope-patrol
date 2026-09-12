@@ -25,6 +25,7 @@ function createLeafSystemContext(engine){
     gunRound:(...args)=>engine.aarGunRound?.(...args),
     gunFinish:(...args)=>engine.aarGunFinish?.(...args),
     recordEvent:(...args)=>engine.aarRecordEvent?.(...args),
+    recordDecision:(...args)=>engine.aarRecordDecision?.(...args),
     enemyResponse:(...args)=>engine.aarEnemyResponse?.(...args),
     buildReplay:(...args)=>engine.buildAfterActionReplay?.(...args)
   };

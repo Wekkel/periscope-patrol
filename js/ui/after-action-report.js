@@ -22,7 +22,7 @@ class AfterActionReport{
   open(record,opts={}){
     if(!record)return;this.record=JSON.parse(JSON.stringify(record));this.completedOpen=!!opts.completed;this.engagementIndex=0;this.showTruth=false;
     this.game?.dispatch?.({type:'PAUSE_FOR_MODAL'});
-    this.renderHeader();this.renderStats();this.renderMission();this.renderRouteMap();this.renderEngagement();this.renderHonors();this.renderDetails();this.renderLog();
+    this.renderHeader();this.renderStats();this.renderMission();this.renderRouteMap();this.renderEngagement();this.renderHonors();this.renderDetails();this.renderPacing();this.renderDecisions();this.renderTruthComparison();this.renderDeclassifiedIntel();this.renderLog();
     const cont=document.getElementById('aarContinue');if(cont)cont.textContent=this.completedOpen?'CONTINUE TO WAR RECORD':'CLOSE REPORT';
     this.overlay?.classList.add('open');
   }
@@ -174,6 +174,61 @@ class AfterActionReport{
     const el=document.getElementById('aarPatrolHonors');if(!el)return;const a=this.engagements();if(!a.length){el.innerHTML='';return;}
     const hardest=[...a].sort((x,y)=>(y.difficultyScore||0)-(x.difficultyScore||0))[0],rarest=[...a].sort((x,y)=>(y.rarityScore||0)-(x.rarityScore||0))[0],heavy=[...a].sort((x,y)=>(y.tons||0)-(x.tons||0))[0];
     el.innerHTML=`<div class="aar-honor"><small>HARDEST ATTACK</small><b>${this.esc(hardest?.name||'—')}</b><span>${Math.round(hardest?.difficultyScore||0)}/100</span></div><div class="aar-honor"><small>RAREST CONTACT</small><b>${this.esc(rarest?.name||'—')}</b><span>${this.esc(rarest?.rarityLabel||'—')}</span></div><div class="aar-honor"><small>HEAVIEST ENGAGED</small><b>${this.esc(heavy?.name||'—')}</b><span>${Number(heavy?.tons||0).toLocaleString()} t</span></div>`;
+  }
+
+  renderPacing(){
+    const host=document.getElementById('aarPacing');if(!host)return;
+    const r=this.record||{},p=r.pacingSummary||r.replay?.pacingSummary||null;
+    if(!p){host.innerHTML='';return;}
+    const st=p.stages||{},pace=String(p.pacingPace||'ON_SCHEDULE').replace(/_/g,' ');
+    const cells=[['TRANSIT',`${st.transitMinutes||0}m`],['CONTACT',`${st.contactMinutes||0}m`],['ACTION',`${st.actionMinutes||0}m`],['WITHDRAW',`${st.withdrawMinutes||0}m`],['RETURN',`${st.returnMinutes||0}m`]];
+    host.innerHTML=`<h4><span>MISSION PACING · 5-STAGE RECONSTRUCTION</span><small style="color:var(--ok);font-size:7px">${this.esc(pace)} · ${p.elapsedMinutes||0}/${p.targetMinutes||30} min</small></h4><div class="aar-pacing-grid">${cells.map(([lbl,val])=>`<div class="aar-pacing-cell ${val!=='0m'?'active':''}"><small>${lbl}</small><b>${val}</b></div>`).join('')}</div>`;
+  }
+
+  renderDecisions(){
+    const host=document.getElementById('aarDecisions');if(!host)return;
+    const r=this.record||{},dec=(r.decisions&&r.decisions.length)?r.decisions:(r.replay?.decisions||[]);
+    if(!dec.length){host.innerHTML='<h4>COMMAND DECISION TIMELINE</h4><div class="aar-decision-row"><span style="grid-column:1/-1;color:var(--dim)">No tactical command decisions recorded.</span></div>';return;}
+    const rows=dec.slice(-12).map(d=>{
+      const t=this.fmtT(d.t||0),type=String(d.type||'ORDER').replace(/_/g,' ');
+      const depth=Number.isFinite(d.depthFeet)?`${Math.round(d.depthFeet)} ft`:'';
+      const spd=Number.isFinite(d.speedKnots)?`${Number(d.speedKnots).toFixed(1)} kn`:'';
+      const telemetry=[depth,spd].filter(Boolean).join(' · ');
+      return `<div class="aar-decision-row"><span>${t}</span><div><b>${this.esc(d.text||type)}</b>${telemetry?`<small>(${this.esc(telemetry)})</small>`:''}</div></div>`;
+    }).join('');
+    host.innerHTML=`<h4><span>COMMAND DECISION TIMELINE</span><small style="color:var(--dim);font-size:7px">${dec.length} recorded orders</small></h4>${rows}`;
+  }
+
+  renderTruthComparison(){
+    const host=document.getElementById('aarTruthComparison');if(!host)return;
+    const r=this.record||{},tc=r.truthComparison||[];
+    if(!tc.length){host.innerHTML='';return;}
+    const rows=tc.slice(0,8).map(row=>{
+      const obs=row.observed||{},truth=row.truth||{},ev=row.evaluation||{};
+      const badgeCls=ev.accuracy==='ACCURATE'?'accurate':ev.accuracy==='MISIDENTIFIED'?'misidentified':ev.accuracy==='ACOUSTIC_ONLY'?'acoustic':'unobserved';
+      const badgeText=String(ev.accuracy||'OBSERVED').replace(/_/g,' ');
+      const obsText=obs.held?`${this.esc(obs.typeEstimate||'SHIP')} (~${(obs.estimatedTons||0).toLocaleString()} t)`:'<em style="color:var(--dim)">Unspotted</em>';
+      const truthText=`<b>${this.esc(truth.name)}</b><br><small style="color:var(--dim)">${this.esc(truth.type)} · ${(truth.tons||0).toLocaleString()} t · ${this.esc(truth.outcome)}</small>`;
+      return `<tr><td>${truthText}</td><td>${obsText}</td><td><span class="aar-truth-badge ${badgeCls}">${this.esc(badgeText)}</span></td></tr>`;
+    }).join('');
+    host.innerHTML=`<h4><span>FOG-OF-WAR VS GROUND TRUTH</span><small style="color:var(--dim);font-size:7px">Observed vs Actual Shipping</small></h4><table class="aar-truth-table"><thead><tr><th>DEEP TRUTH</th><th>OBSERVED</th><th>EVALUATION</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
+  renderDeclassifiedIntel(){
+    const host=document.getElementById('aarDeclassifiedIntel');if(!host)return;
+    const r=this.record||{},intel=r.declassifiedIntel||[];
+    if(!intel.length){host.innerHTML='';return;}
+    const items=intel.map(item=>`
+      <div class="aar-intel-item">
+        <div class="aar-intel-top">
+          <span class="aar-intel-class">${this.esc(item.classification||'DECLASSIFIED')}</span>
+          <span class="aar-intel-auth">${this.esc(item.authority||'HQ INTEL')}</span>
+        </div>
+        <div class="aar-intel-headline">${this.esc(item.headline||'PATROL DOSSIER')}</div>
+        <div class="aar-intel-copy">${this.esc(item.text||'')}</div>
+      </div>
+    `).join('');
+    host.innerHTML=`<h4><span>DECLASSIFIED INTELLIGENCE DOSSIER</span><small style="color:#ff967f;font-size:7px">WARTIME DECRYPTS</small></h4>${items}`;
   }
 
   renderLog(){

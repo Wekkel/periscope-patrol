@@ -167,7 +167,8 @@ const ASWSystem={
     // setting internal; SOUND can infer only broad shallow/deep intent from the
     // later splash-to-burst interval.
     this.log(speculative?`DEPTH CHARGES — ${esc.name} is trying the last datum with a ${SONAR.patternSize}-charge pattern.`:`DEPTH CHARGES — ${esc.name} is beginning a ${SONAR.patternSize}-charge attack run.`,'bad');
-    this.aar.recordEvent('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,count:SONAR.patternSize,depthFt:guess},esc.position,aim||sub.position);
+    this.aar.recordEvent('DEPTH_CHARGE_ATTACK',`${esc.name} depth-charge attack.`,{escortId:esc.id,escortName:esc.name,count:SONAR.patternSize,depthFt:Math.round(guess),subDepthFeet:Math.round(sub.depthFeet),layerDepthFt:Math.round(layer),layerProtected:trueBelowLayer,speculative},esc.position,aim||sub.position);
+    this.aar.enemyResponse?.(speculative?'SPECULATIVE_DEPTH_CHARGE':'ASW_ATTACK_RUN',{source:esc.name,confidence:speculative?.35:.85,errNm:distNm(esc.position,sub.position),xNm:esc.position.xNm,yNm:esc.position.yNm},[esc.id],speculative?'last datum search':'active asdic track',{escortName:esc.name,dcCount:SONAR.patternSize,depthFt:Math.round(guess),subDepthFeet:Math.round(sub.depthFeet),layerProtected:trueBelowLayer});
     this.sys.aswBrain.ensureASWState().searchStartedAt=this.state.time.elapsedSeconds;
     if(esc.dcRemaining<SONAR.patternSize){esc.aswExpended=true;if(!esc.dcExhaustedNoted){esc.dcExhaustedNoted=true;this.log(`${esc.name} has expended her usable depth-charge patterns and is returning to the convoy screen.`);}this.sys.aswBrain.assignASWRoles(null,true);}
   },

@@ -1778,6 +1778,7 @@ const coreCode = await readFile(path.join(root, 'js/simulation/engine-core.js'),
 const physCode = await readFile(path.join(root, 'js/simulation/physics-navigation.js'), 'utf8');
 const missionCode = await readFile(path.join(root, 'js/simulation/mission-framework.js'), 'utf8');
 const aarCode = await readFile(path.join(root, 'js/simulation/after-action-report.js'), 'utf8');
+const careerCode = await readFile(path.join(root, 'js/simulation/career-history.js'), 'utf8');
 const fmtDeg = d => `${Math.round(d)}°`;
 
 const navCtx = {
@@ -1793,7 +1794,16 @@ const navCtx = {
   vesselGameplayType: (c) => c?.type || 'MERCHANT',
   materializeVesselIdentity: (v) => v,
   isASWCombatant: (c) => c?.type === 'DESTROYER' || c?.asw === true,
-  PresentationBridge: { audio: () => ({ playHelmOrder() {}, event() {} }), delayedAudio: () => {}, toast: () => ({ ok() {}, warn() {} }) }
+  ensureShipDamage: c => c?.shipDamage || { flotation: 1, propulsion: 1, steering: 1, fire: 0, killPoints: 100 },
+  shipDamageSeverity: c => c?.damageSeverity || (c?.sunk ? 1 : 0),
+  shipDamageCondition: c => c?.sunk ? 'SUNK' : 'LIGHT DAMAGE',
+  getVesselProfile: () => null,
+  getAircraftProfile: () => null,
+  getCampaignHarborOperationProfile: () => null,
+  getWarPartyProfile: () => null,
+  getDisposition: () => 'ENEMY',
+  repairPriorityLabel: p => p || 'DEFAULT',
+  PresentationBridge: { audio: () => ({ playHelmOrder() {}, playDive() {}, playSurface() {}, playCrashDive() {}, event() {} }), delayedAudio: () => {}, toast: () => ({ ok() {}, warn() {} }), emit: () => {} }
 };
 vm.createContext(navCtx);
 vm.runInContext(terrainCode, navCtx);
@@ -1802,6 +1812,7 @@ vm.runInContext(`${coreCode}\n;globalThis.CoreSystem = CoreSystem;`, navCtx);
 vm.runInContext(`${physCode}\n;globalThis.SimEngine = SimEngine;`, navCtx);
 vm.runInContext(missionCode, navCtx);
 vm.runInContext(aarCode, navCtx);
+vm.runInContext(`${careerCode}\n;globalThis.CareerSystem = CareerSystem;`, navCtx);
 
 const solomonTerrain = navCtx.getPatrolTerrain('Solomon Sea');
 navCtx.Bathy.ensure(solomonTerrain);
@@ -2064,6 +2075,196 @@ assert.ok(aarReplay.pacingSummary, 'AAR replay must include pacingSummary');
 assert.equal(aarReplay.pacingSummary.version, 2);
 assert.equal(aarReplay.pacingSummary.targetMinutes, 30);
 
-console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5');
+// 25. AAR als Tactische Reconstructie & Declassified Truth (5 tests)
+// Test 1: Cruciale Beslismomenten Registratie (Command Decisions Timeline)
+const decEngine = new navCtx.SimEngine({
+  world: { terrain: solomonTerrain, contacts: [], contactTracks: {}, enemy: { alertState: 'UNAWARE' }, environment: { layerDepthFt: 180 } },
+  campaign: { patrolArea: 'solomons', missionStatus: 'PATROL' },
+  playerSub: {
+    position: { xNm: 140, yNm: 105 },
+    depthFeet: 0,
+    heading: 90,
+    orderedHeading: 90,
+    orderedDepthFeet: 0,
+    mode: 'SURFACED',
+    damage: { hullIntegrity: 100 },
+    propulsion: { speedKnots: 10, orderedRpm: 320 },
+    stealth: { silentRunning: false }
+  },
+  map: { plottedCourse: [], autoFollowPlot: false },
+  time: { elapsedSeconds: 420 },
+  runtime: { campaign: {}, time: {} }
+}, { dispatch() {} });
+decEngine.clearDeckForDive = () => {};
+decEngine.derivMode = () => {};
+decEngine.log = () => {};
+
+// 1.1 Crash Dive
+decEngine.applyCmd({ type: 'CRASH_DIVE' });
+let aar = decEngine.ensureAfterActionReport();
+assert.equal(aar.decisions.length, 1, 'aar.decisions must record crash dive');
+assert.equal(aar.decisions[0].type, 'CRASH_DIVE');
+assert.equal(aar.decisions[0].depthFeet, 0);
+assert.equal(aar.decisions[0].position.xNm, 140);
+assert.ok(aar.decisions[0].text.includes('CRASH DIVE'), 'Decision text must include CRASH DIVE');
+assert.ok(aar.events.some(e => e.type === 'COMMAND_DECISION' && e.data.decisionType === 'CRASH_DIVE'), 'Decision must mirror to events timeline');
+
+// 1.2 Silent Running
+decEngine.applyCmd({ type: 'TOGGLE_SILENT_RUNNING' });
+assert.equal(aar.decisions.length, 2, 'aar.decisions must record silent running toggle');
+assert.equal(aar.decisions[1].type, 'SILENT_RUNNING_ENGAGED');
+assert.equal(aar.decisions[1].data.silentRunning, true);
+
+// 1.3 Periscope Depth
+decEngine.applyCmd({ type: 'PERISCOPE_DEPTH' });
+assert.equal(aar.decisions.length, 3);
+assert.equal(aar.decisions[2].type, 'PERISCOPE_DEPTH');
+
+// 1.4 Evasive Turn in Combat
+decEngine.state.world.enemy.alertState = 'ATTACKING';
+decEngine.applyCmd({ type: 'SET_ORDERED_HEADING', heading: 180 });
+assert.equal(aar.decisions.length, 4);
+assert.equal(aar.decisions[3].type, 'EVASIVE_TURN');
+assert.equal(aar.decisions[3].data.orderedHeading, 180);
+assert.equal(aar.decisions[3].data.turnDeltaDeg, 90);
+
+// Test 2: Vijandelijke ASW Tegenmaatregelen & Dieptebom Telemetrie
+decEngine.state.playerSub.depthFeet = 210; // Below 180 ft layer
+const mockEscort = { id: 'ESC-01', name: 'HMS Starling', position: { xNm: 140.2, yNm: 105.1 } };
+decEngine.aarRecordEvent('DEPTH_CHARGE_ATTACK', 'HMS Starling depth-charge attack.', {
+  escortId: mockEscort.id,
+  escortName: mockEscort.name,
+  count: 10,
+  depthFt: 140,
+  subDepthFeet: 210,
+  layerDepthFt: 180,
+  layerProtected: true,
+  speculative: false
+}, mockEscort.position, decEngine.state.playerSub.position);
+decEngine.aarEnemyResponse('ASW_ATTACK_RUN', { source: mockEscort.name, confidence: 0.85, errNm: 0.22, xNm: 140.2, yNm: 105.1 }, [mockEscort.id], 'active asdic track', {
+  escortName: mockEscort.name,
+  dcCount: 10,
+  depthFt: 140,
+  subDepthFeet: 210,
+  layerProtected: true
+});
+
+const dcEvent = aar.events.find(e => e.type === 'DEPTH_CHARGE_ATTACK');
+assert.ok(dcEvent, 'AAR events must contain DEPTH_CHARGE_ATTACK');
+assert.equal(dcEvent.data.count, 10, 'Pattern count must be 10');
+assert.equal(dcEvent.data.layerProtected, true, 'Submarine below layer must be marked layerProtected');
+assert.equal(aar.enemyResponses.length, 1, 'AAR enemyResponses must be recorded');
+assert.equal(aar.enemyResponses[0].dcCount, 10);
+assert.equal(aar.enemyResponses[0].layerProtected, true);
+assert.equal(aar.enemyResponses[0].via, 'active asdic track');
+
+// Test 3: Waargenomen vs Werkelijke Waarheid (Observed vs Ground Truth)
+const truthState = {
+  world: {
+    contacts: [
+      { id: 'T-01', name: 'Empire Heritage', displayType: 'TANKER', tonsFactor: 9200, side: 'ENEMY', sunk: true },
+      { id: 'T-02', name: 'HMS Starling', displayType: 'BLACK_SWAN_SLOOP', tonsFactor: 1350, side: 'ENEMY', sunk: false },
+      { id: 'T-03', name: 'SS Benlawers', displayType: 'ARMED_MERCHANT_CRUISER', tonsFactor: 8500, side: 'ENEMY', sunk: false, shipDamage: { flotation: 0.7 } },
+      { id: 'T-04', name: 'HMS Stork', displayType: 'DESTROYER', tonsFactor: 1900, side: 'ENEMY', sunk: false }
+    ],
+    contactTracks: {
+      'T-01': { id: 'T-01', typeEstimate: 'TANKER', visualHullConfirmed: true, confidence: 0.95, source: 'PERISCOPE' },
+      'T-02': { id: 'T-02', typeEstimate: 'MERCHANT', visualHullConfirmed: false, confidence: 0.50, source: 'HYDROPHONE' },
+      'T-03': { id: 'T-03', typeEstimate: 'FREIGHTER', visualHullConfirmed: true, confidence: 0.80, source: 'PERISCOPE' }
+      // T-04 is unobserved
+    }
+  },
+  campaign: {
+    afterAction: {
+      observedById: {},
+      truthById: {},
+      events: [
+        { type: 'TORPEDO_HIT', data: { contactId: 'T-01' } },
+        { type: 'TORPEDO_HIT', data: { contactId: 'T-03' } },
+        dcEvent
+      ],
+      enemyResponses: aar.enemyResponses
+    }
+  }
+};
+
+const truthComp = navCtx.CareerSystem.buildTruthComparison(truthState);
+assert.equal(truthComp.length, 4, 'All 4 enemy vessels must be compared');
+const t01 = truthComp.find(r => r.id === 'T-01');
+assert.equal(t01.evaluation.accuracy, 'ACCURATE', 'T-01 correctly identified as Tanker');
+assert.equal(t01.truth.outcome, 'SUNK', 'T-01 must be marked SUNK');
+assert.equal(t01.truth.tons, 9200);
+
+const t02 = truthComp.find(r => r.id === 'T-02');
+assert.equal(t02.evaluation.accuracy, 'ACOUSTIC_ONLY', 'T-02 tracked only on hydrophone without visual hull confirmation');
+assert.equal(t02.truth.outcome, 'SURVIVED');
+
+const t03 = truthComp.find(r => r.id === 'T-03');
+assert.equal(t03.evaluation.accuracy, 'MISIDENTIFIED', 'T-03 misidentified: reported as FREIGHTER, actual ARMED_MERCHANT_CRUISER');
+assert.equal(t03.truth.outcome, 'DAMAGED');
+
+const t04 = truthComp.find(r => r.id === 'T-04');
+assert.equal(t04.evaluation.accuracy, 'UNOBSERVED', 'T-04 operating in convoy perimeter was unspotted');
+
+// Test 4: Post-Mission Gedeclassificeerde Inlichtingen (ULTRA / B-Dienst Decrypts)
+const declassIntel = navCtx.CareerSystem.buildDeclassifiedIntel(truthState, [], truthComp);
+assert.ok(declassIntel.length >= 3, 'Must produce at least 3 intelligence annex items');
+const ultraDecrypt = declassIntel.find(i => i.classification === 'ULTRA DECRYPT');
+assert.ok(ultraDecrypt, 'Must contain ULTRA DECRYPT confirmation of lost tonnage');
+assert.ok(ultraDecrypt.text.includes('Empire Heritage'), 'ULTRA decrypt must cite sunk vessel name');
+assert.equal(ultraDecrypt.tonnageConfirmed, 9200, 'Must confirm exactly 9,200 GRT lost');
+
+const aswDossier = declassIntel.find(i => i.classification === 'ASW DOSSIER');
+assert.ok(aswDossier, 'Must contain ASW DOSSIER of enemy depth-charge barrages');
+assert.equal(aswDossier.dcExpended, 10, 'Must record 10 depth charges dropped');
+
+const concealedWarship = declassIntel.find(i => i.classification === 'WAR DIARY LOG');
+assert.ok(concealedWarship, 'Must contain WAR DIARY LOG revealing unobserved escorts');
+assert.ok(concealedWarship.vessels.includes('HMS Stork'), 'Must list unspotted escort HMS Stork');
+
+// Test 5: Volledige AAR Replay & Career Record Integratie
+const replayPayload = decEngine.buildAfterActionReplay();
+assert.ok(Array.isArray(replayPayload.decisions), 'AAR replay must include decisions array');
+assert.equal(replayPayload.decisions.length, 4, 'Replay must preserve all 4 command decisions');
+
+const fullPatrolContext = {
+  state: {
+    ...truthState,
+    campaign: {
+      ...truthState.campaign,
+      historyId: 'patrol-test-8',
+      patrolNumber: 4,
+      patrolArea: 'Solomon Sea',
+      startDate: '1943-08-17',
+      score: 2500,
+      totalScore: 5000,
+      patrolDuration: 1800,
+      tonnageSunk: 9200,
+      importantEvents: [],
+      pacingSummary: { version: 2, targetMinutes: 30, pacingPace: 'ON_SCHEDULE' },
+      afterAction: {
+        ...truthState.campaign.afterAction,
+        decisions: aar.decisions,
+        aircraftEvaded: 1
+      }
+    },
+    runtime: {
+      campaign: { _careerStartDate: '1943-08-17 06:00' },
+      aar: { airStates: {} }
+    },
+    weapons: { nextTorpedoId: 5, hits: [{ contactId: 'T-01' }], duds: [] },
+    playerSub: { damage: { hullIntegrity: 92 }, propulsion: { fuel: 75, battery: 80 } }
+  },
+  aar: { buildReplay: () => replayPayload },
+  ensureCareerPatrolState: navCtx.CareerSystem.ensureCareerPatrolState
+};
+const fullRecord = navCtx.CareerSystem.buildPatrolRecord.call(fullPatrolContext, 'COMPLETED');
+assert.equal(fullRecord.truthComparison.length, 4, 'Patrol record must contain complete truthComparison');
+assert.ok(fullRecord.declassifiedIntel.length >= 3, 'Patrol record must contain declassifiedIntel dossier');
+assert.equal(fullRecord.decisions.length, 4, 'Patrol record must contain tactical decisions timeline');
+assert.ok(fullRecord.pacingSummary, 'Patrol record must contain pacingSummary');
+assert.equal(fullRecord.replay.decisions.length, 4, 'Replay payload inside record must retain decisions');
+
+console.log('behaviour tests passed: TDC 6, routes 4, optics 5, HUD viewmodel 3, hull SAT 5, render recovery 1, national palettes 6, harbor 4, 2.5D port 2, nets/starshells 6, special ops & AAR 3, ship recognition & stadimeter 4, compartmental damage & trim 4, damage visuals & sinking trajectories 4, grognard identification & cross-system 5, topography & island coastlines 4, enemy doctrines & sensor physics 5, map legend & primary target marking 5, kielmarge & steerageway 5, audio polyphony & creak limiting 3, cinematics duration & salvo pacing 3, internal benchmark & telemetry 4, automatische veilige routeplanning & landmassa navigatie 5, dynamische bewaking van missiepacing & intercept inlichtingen 5, aar als tactische reconstructie & declassified truth 5');
 
 

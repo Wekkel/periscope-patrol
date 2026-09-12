@@ -303,11 +303,16 @@ const CoreSystem={
       case'APPEND_LOG': this.log(cmd.message,cmd.level||'info'); break;
       case'SET_ORDERED_HEADING':{
         const prevHdg=sub.orderedHeading,newHdg=normDeg(cmd.heading);
-        if(Math.abs(shortDelta(prevHdg,newHdg))>=1&&cmd.auto!==true){
+        const dHdg=Math.abs(shortDelta(prevHdg,newHdg));
+        if(dHdg>=1&&cmd.auto!==true){
           PresentationBridge.audio(this.state).playHelmOrder(newHdg);
+          const inCombat=this.state.world?.enemy?.alertState==='ATTACKING'||this.state.world?.enemy?.alertState==='SEARCHING';
+          if(dHdg>=40&&inCombat){
+            this.aarRecordDecision?.('EVASIVE_TURN',`Evasive helm order: steer course ${Math.round(newHdg)}° (turn ${Math.round(dHdg)}°).`,{orderedHeading:newHdg,turnDeltaDeg:dHdg});
+          }
         }
         sub.orderedHeading=newHdg;
-        if(cmd.auto!==true&&this.state.map.autoFollowPlot&&this.state.map.plottedCourse.length){
+        if(cmd.auto!==true&&this.state.map?.autoFollowPlot&&this.state.map?.plottedCourse?.length){
           this.state.map.autoFollowPlot=false;
           this.log('Helm taken manually — autopilot disengaged.','warn');
         }
@@ -325,22 +330,29 @@ const CoreSystem={
            state internally consistent without moving the boat or advancing time. */
         if(rpm===0&&this.state.time.timeScale===0){sub.propulsion.actualRpm=0;sub.propulsion.speedKnots=0;sub.maneuveringThrust=0;}
         break;}
-      case'SET_ORDERED_DEPTH':
+      case'SET_ORDERED_DEPTH':{
         if(+cmd.depthFeet>10) this.clearDeckForDive('Dive order');
-        sub.orderedDepthFeet=clamp(cmd.depthFeet,0,300); this.derivMode(); break;
-      case'SURFACE':{const q=this.state.tactical.bridgeDiveSequence;if(q?.active){q.active=false;q.cancelled=true;sub.diveDelay=0;this.log('Dive cancelled — bridge watch remains topside.','warn');}sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); PresentationBridge.audio(this.state).playSurface(); break;}
+        const oldD=sub.orderedDepthFeet??sub.depthFeet??0,newD=clamp(cmd.depthFeet,0,300);
+        sub.orderedDepthFeet=newD; this.derivMode();
+        if(Math.abs(newD-oldD)>=45){
+          const layer=this.state.world?.environment?.layerDepthFt||200;
+          const underLayer=newD>layer&&oldD<=layer;
+          this.aarRecordDecision?.(underLayer?'DEEP_EVASION_LAYER':'ORDER_DEPTH',underLayer?`Deep evasion ordered to ${Math.round(newD)} ft (penetrating thermocline at ${Math.round(layer)} ft).`:`Ordered depth changed to ${Math.round(newD)} ft.`,{depthFeet:newD,layerDepthFt:layer});
+        }
+        break;}
+      case'SURFACE':{const q=this.state.tactical.bridgeDiveSequence;if(q?.active){q.active=false;q.cancelled=true;sub.diveDelay=0;this.log('Dive cancelled — bridge watch remains topside.','warn');}sub.orderedDepthFeet=0; sub.mode=sub.depthFeet>5?'SURFACING':'SURFACED'; this.log('Surface order received.'); PresentationBridge.audio(this.state).playSurface(); this.aarRecordDecision?.('SURFACE','Surface ordered.',{orderedDepthFeet:0}); break;}
       case'DIVE':
         this.clearDeckForDive('Dive order');
-        sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); PresentationBridge.audio(this.state).playDive(); break;
+        sub.orderedDepthFeet=Math.max(sub.orderedDepthFeet,100); sub.mode=sub.depthFeet<10?'DIVING':'SUBMERGED'; this.log('Dive ordered. 100 ft.'); PresentationBridge.audio(this.state).playDive(); this.aarRecordDecision?.('DIVE','Dive ordered to 100 ft.',{orderedDepthFeet:100}); break;
       case'PERISCOPE_DEPTH':
         this.clearDeckForDive('Periscope-depth order');
-        sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); PresentationBridge.audio(this.state).playDive(); break;
+        sub.orderedDepthFeet=55; sub.mode='PERISCOPE_DEPTH'; this.log('Periscope depth ordered.'); PresentationBridge.audio(this.state).playDive(); this.aarRecordDecision?.('PERISCOPE_DEPTH','Periscope depth ordered (55 ft).',{orderedDepthFeet:55}); break;
       case'CRASH_DIVE':
         this.clearDeckForDive('Crash dive');
         sub.orderedDepthFeet=150; sub.mode='CRASH_DIVING'; sub.ballastState='FLOODING';
         // Fix H: auto-set RPM for faster dive if nearly stopped
         if(sub.propulsion.speedKnots<5) sub.propulsion.orderedRpm=350;
-        this.log('CRASH DIVE! Flooding ballast tanks.','warn'); PresentationBridge.audio(this.state).playCrashDive(); break;
+        this.log('CRASH DIVE! Flooding ballast tanks.','warn'); PresentationBridge.audio(this.state).playCrashDive(); this.aarRecordDecision?.('CRASH_DIVE','CRASH DIVE ordered to 150 ft!',{orderedDepthFeet:150}); break;
       case'TOGGLE_AIR_WARNING_RADAR':
       case'TOGGLE_SD_RADAR':{ // legacy command ID retained for old UI/save integrations
         this.sys.soundRadar.ensureSoundRadarState();const a=this.state.world.airThreat,R=this.state.world.radar,sensorUi=getPlayerSensorPresentation(this.state),airUi=sensorUi.airWarningRadar||{};
@@ -356,6 +368,7 @@ const CoreSystem={
         if(sub.propulsion.speedKnots>1.5){this.notify('Take the way off her first — you do not put a boat on the bottom at speed.','warn', 'NUTTIG');break;}
         this.clearDeckForDive('Bottoming order');sub.bottomingOrdered=true;sub.bottomingSeaFt=sea;sub.propulsion.orderedRpm=0;sub.orderedDepthFeet=Math.round(sea-2);this.derivMode?.();
         this.notify(`BOTTOMING ORDERED — ${sea.toFixed(0)} ft, ${kind.toLowerCase()}. All stop; easing her down to settle.`,'ok', 'NUTTIG');
+        this.aarRecordDecision?.('BOTTOM_OUT',`Bottoming ordered at ${sea.toFixed(0)} ft (${kind.toLowerCase()}).`,{seaDepthFeet:sea,bottomType:kind});
         break;}
       case'TOGGLE_AA_GUN':
         this.notify('AA is automatic now — the 20 mm crew man the gun only when an air attack gets close, and clear the deck automatically for any dive order.','ok', 'NUTTIG');
@@ -376,7 +389,7 @@ const CoreSystem={
         break;}
       case'LAY_DECK_GUN': this.sys.deckGun.layDeckGun(); break;
       case'FIRE_DECK_GUN': this.sys.deckGun.fireDeckGun(); break;
-      case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); break;
+      case'TOGGLE_SILENT_RUNNING': sub.stealth.silentRunning=!sub.stealth.silentRunning; this.log(sub.stealth.silentRunning?'Silent running ENABLED.':'Silent running disabled.'); this.aarRecordDecision?.(sub.stealth.silentRunning?'SILENT_RUNNING_ENGAGED':'SILENT_RUNNING_DISENGAGED',sub.stealth.silentRunning?'Rigged for silent running (motors throttled, pumps secured).':'Secured from silent running.',{silentRunning:sub.stealth.silentRunning}); break;
       case'RADIO_TOGGLE_SILENCE':{
         const R=this.sys.intel.ensureRadioOperations()||(this.state.world.radio=this.state.world.radio||{});R.txSilence=!R.txSilence;
         this.log(R.txSilence?'Radio transmission silence ordered. Incoming traffic may still be copied.':'Radio transmission silence lifted.','warn');PresentationBridge.audio(this.state).playUiConfirm?.(.2);break;}
@@ -387,7 +400,7 @@ const CoreSystem={
       case'RADIO_ACCEPT_PARTIAL': this.sys.intel.acceptPartialRadio(); break;
       case'EMERGENCY_BLOW': sub.orderedDepthFeet=0; sub.mode='EMERGENCY_SURFACING'; sub.ballastState='EMERGENCY_BLOW';
         sub.stealth.acousticSignature=clamp(sub.stealth.acousticSignature+0.55,0,1.5);
-        this.sys.enemyAI.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); break;
+        this.sys.enemyAI.alertEscorts('EMERGENCY_BLOW',{...sub.position},0.72); this.log('Emergency blow! High noise signature.','bad'); PresentationBridge.audio(this.state).playSurface(); this.aarRecordDecision?.('EMERGENCY_BLOW','Emergency ballast blow ordered!',{orderedDepthFeet:0}); break;
       case'TOGGLE_DAMAGE_CONTROL':
         this.notify(`Damage control parties are automatic. Choose one repair priority instead — currently ${repairPriorityLabel(sub.damage.repairPriority)}.`,'ok', 'NUTTIG'); break;
       case'SET_REPAIR_PRIORITY': this.sys.damage.setRepairPriority(cmd.priority); break;
