@@ -454,12 +454,12 @@ assert.ok(calcDuckFactor(72) > 0.60 && calcDuckFactor(72) < 0.65, 'Launch duck f
 
 function calcPan(ownHeading, bearingDeg) {
   const delta = shortDelta(ownHeading || 0, bearingDeg);
-  return clamp(Math.sin(degToRad(delta)), -1, 1);
+  return clamp(Math.sin(degToRad(delta)) * 0.65, -0.65, 0.65);
 }
 
 assert.ok(Math.abs(calcPan(0, 0)) < 1e-6, 'Ahead (0°) pan must be dead center (0.0)');
-assert.ok(Math.abs(calcPan(0, 90) - 1.0) < 1e-6, 'Starboard beam (90°) pan must be hard right (+1.0)');
-assert.ok(Math.abs(calcPan(0, 270) - (-1.0)) < 1e-6, 'Port beam (270°) pan must be hard left (-1.0)');
+assert.ok(Math.abs(calcPan(0, 90) - 0.65) < 1e-6, 'Starboard beam (90°) pan must be clamped with acoustic crossfeed (+0.65)');
+assert.ok(Math.abs(calcPan(0, 270) - (-0.65)) < 1e-6, 'Port beam (270°) pan must be clamped with acoustic crossfeed (-0.65)');
 
 console.log('[AUDIO TEST] Combat acoustics, ducking, and panning passed.');
 
